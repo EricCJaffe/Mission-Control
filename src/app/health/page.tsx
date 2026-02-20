@@ -10,22 +10,26 @@ export default async function HealthPage() {
   const ms = Date.now() - start
 
   return (
-    <main style={{ padding: 24, fontFamily: 'ui-sans-serif, system-ui' }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700 }}>Mission Control — Health</h1>
+    <main className="pt-8">
+      <h1 className="text-3xl font-semibold">Health</h1>
+      <p className="mt-2 text-sm text-slate-500">Connectivity check for Supabase auth.</p>
 
-      <div style={{ marginTop: 16, padding: 16, border: '1px solid #ddd', borderRadius: 12 }}>
-        <div><b>Supabase URL:</b> {process.env.NEXT_PUBLIC_SUPABASE_URL}</div>
-        <div><b>Latency:</b> {ms} ms</div>
-        <div style={{ marginTop: 12 }}>
-          <b>Status:</b>{' '}
+      <div className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+        <div className="text-sm">
+          <div><span className="font-semibold">Supabase URL:</span> {process.env.NEXT_PUBLIC_SUPABASE_URL}</div>
+          <div className="mt-1"><span className="font-semibold">Latency:</span> {ms} ms</div>
+        </div>
+
+        <div className="mt-4 text-sm">
+          <span className="font-semibold">Status:</span>{' '}
           {error ? (
-            <span style={{ color: 'crimson' }}>ERROR — {error.message}</span>
+            <span className="text-red-600">ERROR — {error.message}</span>
           ) : (
-            <span style={{ color: 'green' }}>OK</span>
+            <span className="text-blue-700">OK</span>
           )}
         </div>
 
-        <pre style={{ marginTop: 12, background: '#f7f7f7', padding: 12, borderRadius: 12, overflowX: 'auto' }}>
+        <pre className="mt-4 overflow-x-auto rounded-xl bg-slate-100 p-4 text-xs">
 {JSON.stringify({ session: data?.session ? 'present' : 'none' }, null, 2)}
         </pre>
       </div>

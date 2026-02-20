@@ -31,7 +31,12 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/projects') ||
     pathname.startsWith('/tasks') ||
-    pathname.startsWith('/notes')
+    pathname.startsWith('/notes') ||
+    pathname.startsWith('/knowledge') ||
+    pathname.startsWith('/calendar') ||
+    pathname.startsWith('/goals') ||
+    pathname.startsWith('/sops') ||
+    pathname.startsWith('/reviews')
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone()
@@ -50,5 +55,16 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/projects/:path*', '/tasks/:path*', '/notes/:path*', '/login'],
+  matcher: [
+    '/dashboard/:path*',
+    '/projects/:path*',
+    '/tasks/:path*',
+    '/calendar/:path*',
+    '/goals/:path*',
+    '/sops/:path*',
+    '/reviews/:path*',
+    '/notes/:path*',
+    '/knowledge/:path*',
+    '/login',
+  ],
 }

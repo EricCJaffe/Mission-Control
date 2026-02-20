@@ -18,11 +18,13 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [status, setStatus] = useState<'idle' | 'working' | 'done' | 'error'>('idle')
   const [error, setError] = useState<string>('')
+  const [resetSent, setResetSent] = useState(false)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setStatus('working')
     setError('')
+    setResetSent(false)
 
     const supabase = supabaseBrowser()
 
@@ -56,7 +58,7 @@ export default function LoginPage() {
     <main className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-2xl border p-6 shadow-sm bg-white/60 backdrop-blur">
         <h1 className="text-2xl font-semibold">TacPastor’s Mission Control</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-slate-500">
           {mode === 'signin' ? 'Sign in with email + password.' : 'Create your account (email confirm).'}
         </p>
 
@@ -98,6 +100,32 @@ export default function LoginPage() {
             Switch to {mode === 'signin' ? 'Sign up' : 'Sign in'}
           </button>
 
+          <button
+            type="button"
+            className="w-full rounded-xl border py-2 text-sm"
+            onClick={async () => {
+              if (!email) {
+                setStatus('error')
+                setError('Enter your email first.')
+                return
+              }
+              setStatus('working')
+              setError('')
+              const supabase = supabaseBrowser()
+              const redirectTo = `${window.location.origin}/reset-password`
+              const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+              if (error) {
+                setStatus('error')
+                setError(error.message)
+                return
+              }
+              setStatus('done')
+              setResetSent(true)
+            }}
+          >
+            Send password reset link
+          </button>
+
           {status === 'done' && mode === 'signup' && (
             <div className="text-sm rounded-xl border p-3">
               Account created. Check your email to confirm, then come back and Sign in.
@@ -106,6 +134,12 @@ export default function LoginPage() {
 
           {status === 'done' && mode === 'signin' && (
             <div className="text-sm rounded-xl border p-3">Success. Redirecting…</div>
+          )}
+
+          {resetSent && (
+            <div className="text-sm rounded-xl border p-3">
+              Password reset link sent. Check your email and follow the link.
+            </div>
           )}
 
           {status === 'error' && (

@@ -34,3 +34,12 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Schema Notes
+
+- Added migration `supabase/migrations/20260220183000_dashboard_alignment.sql` to support dashboard alignment and quick action fields on `dashboard_scores`.
+- Added migration `supabase/migrations/20260220191500_dashboard_today_tables.sql` to support daily priorities, anchors, calendar events, and monthly reviews.
+
+## TODO
+
+- If you want a custom Soul narrative (beyond the default scaffold), provide the text and we will update the `soul` note.
