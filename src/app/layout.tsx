@@ -31,7 +31,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-stone-50 via-slate-50 to-blue-50 text-slate-900`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-slate-900`}
       >
         <div className="min-h-screen md:flex">
           <Sidebar userEmail={user?.email ?? null} />
