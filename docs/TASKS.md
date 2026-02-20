@@ -27,3 +27,10 @@
 - Add SOP due dates or schedules for "behind" detection (currently done/not done).
 - Add proactive alerts on login (email/push optional).
 - Add AI helpers (monthly review summarizer, automation architect, sermon outline helper).
+
+## Book Writer (Remaining)
+- Implement real AI integration in /api/ai/* with OPENAI_API_KEY (server-only).
+- Add diff/patch preview UI before apply (currently uses proposal block).
+- Add chapter section-level patching via AI (scaffolded).
+- Implement embeddings generation and similarity retrieval (pgvector).
+- Add chat thread selector and thread history UI.
