@@ -14,7 +14,12 @@ export const supabaseServer = async () => {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options)
+            try {
+              cookieStore.set(name, value, options)
+            } catch {
+              // In server components, setting cookies is not allowed.
+              // Route handlers will still succeed; server components will ignore.
+            }
           })
         },
       },
