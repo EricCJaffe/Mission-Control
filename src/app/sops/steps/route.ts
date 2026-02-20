@@ -10,6 +10,7 @@ export async function POST(req: Request) {
   const form = await req.formData();
   const sopId = String(form.get("sop_id") || "").trim();
   const step = String(form.get("step") || "").trim();
+  const dueDate = String(form.get("due_date") || "").trim();
 
   if (!sopId || !step) return NextResponse.redirect(new URL("/sops", req.url));
 
@@ -17,6 +18,7 @@ export async function POST(req: Request) {
     user_id: user.id,
     sop_id: sopId,
     step,
+    due_date: dueDate || null,
   });
 
   return NextResponse.redirect(new URL(`/sops/${sopId}`, req.url));

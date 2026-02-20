@@ -44,55 +44,63 @@ export default async function DashboardHome() {
   const start = startOfDay(today).toISOString();
   const end = endOfDay(today).toISOString();
 
-  const [scoresResult, alignmentResult, prioritiesResult, anchorsResult, eventsResult, tasksResult, personaResult, sopChecksResult] =
-    await Promise.all([
-      supabase
-        .from("dashboard_scores")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("monthly_reviews")
-        .select("id,alignment_score,alignment_status,drift_flags,period_start")
-        .order("period_start", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("daily_priorities")
-        .select("id,rank,domain,title,task_id")
-        .eq("date", todayIso)
-        .order("rank", { ascending: true }),
-      supabase
-        .from("daily_anchors")
-        .select("id,prayer,training,family_touchpoint")
-        .eq("date", todayIso)
-        .maybeSingle(),
-      supabase
-        .from("calendar_events")
-        .select("id,title,start_at,end_at,event_type,domain")
-        .gte("start_at", start)
-        .lte("start_at", end)
-        .order("start_at", { ascending: true }),
-      supabase
-        .from("tasks")
-        .select("id,title,status,due_date,priority")
-        .order("created_at", { ascending: false })
-        .limit(20),
-      supabase
-        .from("notes")
-        .select("content_md")
-        .eq("title", "persona")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("sop_checks")
-        .select("id,step,is_done")
-        .eq("is_done", false)
-        .order("created_at", { ascending: true })
-        .limit(10),
-    ]);
+  const [
+    scoresResult,
+    alignmentResult,
+    prioritiesResult,
+    anchorsResult,
+    eventsResult,
+    tasksResult,
+    personaResult,
+    sopChecksResult,
+  ] = await Promise.all([
+    supabase
+      .from("dashboard_scores")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("monthly_reviews")
+      .select("id,alignment_score,alignment_status,drift_flags,period_start")
+      .order("period_start", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("daily_priorities")
+      .select("id,rank,domain,title,task_id")
+      .eq("date", todayIso)
+      .order("rank", { ascending: true }),
+    supabase
+      .from("daily_anchors")
+      .select("id,prayer,training,family_touchpoint")
+      .eq("date", todayIso)
+      .maybeSingle(),
+    supabase
+      .from("calendar_events")
+      .select("id,title,start_at,end_at,event_type,domain")
+      .gte("start_at", start)
+      .lte("start_at", end)
+      .order("start_at", { ascending: true }),
+    supabase
+      .from("tasks")
+      .select("id,title,status,due_date,priority")
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("notes")
+      .select("content_md")
+      .eq("title", "persona")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("sop_checks")
+      .select("id,step,is_done,due_date")
+      .eq("is_done", false)
+      .order("created_at", { ascending: true })
+      .limit(10),
+  ]);
 
   const scoreRow = scoresResult.data;
   const spiritScore = scoreRow?.spirit ?? "";
@@ -116,6 +124,7 @@ export default async function DashboardHome() {
   const overdue = tasks.filter((t) => t.due_date && t.due_date < todayIso);
 
   const pendingSops = sopChecksResult.data || [];
+  const sopOverdue = pendingSops.filter((sop) => sop.due_date && sop.due_date < todayIso);
 
   const personaContent = personaResult.data?.content_md || "";
   const personaExcerpt = personaContent.split("\n").slice(0, 12).join("\n").trim();
@@ -218,7 +227,10 @@ export default async function DashboardHome() {
             <div className="text-xs text-slate-500">
               SOP steps pending: {pendingSops.length}
             </div>
-            {(overdue.length > 0 || pendingSops.length > 0) ? (
+            <div className="text-xs text-slate-500">
+              SOP steps overdue: {sopOverdue.length}
+            </div>
+            {(overdue.length > 0 || sopOverdue.length > 0) ? (
               <div className="mt-2 text-xs text-slate-600">
                 Clear one overdue task and one SOP step today.
               </div>

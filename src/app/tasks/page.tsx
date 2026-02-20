@@ -16,6 +16,15 @@ function toDateInput(value: string | null) {
   return date.toISOString().slice(0, 10);
 }
 
+const CATEGORIES = [
+  "God First",
+  "Health",
+  "Family",
+  "Impact / Clients",
+  "Admin",
+  "Writing / Content",
+];
+
 export default async function TasksPage() {
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
@@ -24,7 +33,7 @@ export default async function TasksPage() {
 
   const { data: tasks, error } = await supabase
     .from("tasks")
-    .select("id,title,status,priority,due_date,created_at")
+    .select("id,title,status,priority,due_date,created_at,category,why,recurrence_rule,recurrence_anchor")
     .order("created_at", { ascending: false });
 
   return (
@@ -43,6 +52,12 @@ export default async function TasksPage() {
           placeholder="New task title…"
           required
         />
+        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="category" defaultValue="">
+          <option value="">Category</option>
+          {CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
         <input
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
           name="priority"
@@ -54,6 +69,21 @@ export default async function TasksPage() {
         <input
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
           name="due_date"
+          type="date"
+        />
+        <input
+          className="sm:col-span-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          name="why"
+          placeholder="Why this matters (alignment)"
+        />
+        <input
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          name="recurrence_rule"
+          placeholder="Recurrence (e.g., weekly)"
+        />
+        <input
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          name="recurrence_anchor"
           type="date"
         />
         <button
@@ -79,18 +109,29 @@ export default async function TasksPage() {
                 <div className="mt-1 text-xs text-slate-500">
                   Status: {task.status || "unspecified"} · Priority: {task.priority || "unspecified"} · {formatDueDate(task.due_date)}
                 </div>
+                {task.category && (
+                  <div className="mt-1 text-xs text-slate-500">Category: {task.category}</div>
+                )}
+                {task.why && (
+                  <div className="mt-1 text-xs text-slate-500">Why: {task.why}</div>
+                )}
+                {task.recurrence_rule && (
+                  <div className="mt-1 text-xs text-slate-500">
+                    Recurrence: {task.recurrence_rule} (anchor {task.recurrence_anchor || "n/a"})
+                  </div>
+                )}
               </div>
 
               <form action="/tasks/update" method="post" className="flex flex-wrap items-center gap-2">
                 <input type="hidden" name="id" value={task.id} />
                 <input
-                  className="w-28 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
+                  className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
                   name="status"
                   defaultValue={task.status || ""}
                   placeholder="Status"
                 />
                 <input
-                  className="w-28 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
+                  className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
                   name="priority"
                   type="number"
                   min="1"
@@ -103,6 +144,30 @@ export default async function TasksPage() {
                   name="due_date"
                   type="date"
                   defaultValue={toDateInput(task.due_date)}
+                />
+                <input
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
+                  name="category"
+                  defaultValue={task.category || ""}
+                  placeholder="Category"
+                />
+                <input
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
+                  name="why"
+                  defaultValue={task.why || ""}
+                  placeholder="Why"
+                />
+                <input
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
+                  name="recurrence_rule"
+                  defaultValue={task.recurrence_rule || ""}
+                  placeholder="Recurrence"
+                />
+                <input
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
+                  name="recurrence_anchor"
+                  type="date"
+                  defaultValue={task.recurrence_anchor || ""}
                 />
                 <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm" type="submit">
                   Update

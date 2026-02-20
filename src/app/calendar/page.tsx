@@ -16,9 +16,14 @@ export default async function CalendarPage() {
 
   const { data: events, error } = await supabase
     .from("calendar_events")
-    .select("id,title,start_at,end_at,event_type,domain,notes")
+    .select("id,title,start_at,end_at,event_type,domain,notes,recurrence_rule,recurrence_until,alignment_tag")
     .order("start_at", { ascending: true })
-    .limit(100);
+    .limit(200);
+
+  const { data: goals } = await supabase.from("goals").select("id,title").order("created_at", { ascending: false }).limit(50);
+  const { data: tasks } = await supabase.from("tasks").select("id,title").order("created_at", { ascending: false }).limit(50);
+  const { data: notes } = await supabase.from("notes").select("id,title").order("created_at", { ascending: false }).limit(50);
+  const { data: reviews } = await supabase.from("monthly_reviews").select("id,period_start").order("period_start", { ascending: false }).limit(12);
 
   return (
     <main className="pt-8">
@@ -29,6 +34,7 @@ export default async function CalendarPage() {
 
       <form className="mt-6 grid gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm md:grid-cols-2" action="/dashboard/events" method="post">
         <input type="hidden" name="date" value={new Date().toISOString().slice(0, 10)} />
+        <input type="hidden" name="redirect" value="calendar" />
         <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Event title" required />
         <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="event_type" defaultValue="Daily Anchor">
           <option>Monthly Review</option>
@@ -41,6 +47,39 @@ export default async function CalendarPage() {
         </select>
         <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="start_at" type="time" required />
         <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="end_at" type="time" required />
+        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="recurrence_rule" placeholder="Recurrence (e.g., weekly)" />
+        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="recurrence_until" type="date" />
+        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="alignment_tag" defaultValue="">
+          <option value="">Alignment tag</option>
+          <option>God First</option>
+          <option>Health</option>
+          <option>Family</option>
+          <option>Impact</option>
+        </select>
+        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="goal_id" defaultValue="">
+          <option value="">Link goal</option>
+          {(goals || []).map((goal) => (
+            <option key={goal.id} value={goal.id}>{goal.title}</option>
+          ))}
+        </select>
+        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="task_id" defaultValue="">
+          <option value="">Link task</option>
+          {(tasks || []).map((task) => (
+            <option key={task.id} value={task.id}>{task.title}</option>
+          ))}
+        </select>
+        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="note_id" defaultValue="">
+          <option value="">Link note</option>
+          {(notes || []).map((note) => (
+            <option key={note.id} value={note.id}>{note.title}</option>
+          ))}
+        </select>
+        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="review_id" defaultValue="">
+          <option value="">Link review</option>
+          {(reviews || []).map((review) => (
+            <option key={review.id} value={review.id}>{review.period_start}</option>
+          ))}
+        </select>
         <button className="md:col-span-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
           Add Event
         </button>
@@ -59,8 +98,11 @@ export default async function CalendarPage() {
             <div className="mt-1 text-xs text-slate-500">
               {formatTime(event.start_at)} → {formatTime(event.end_at)} · {event.event_type}
             </div>
-            {event.domain && (
-              <div className="mt-1 text-xs text-slate-500">Domain: {event.domain}</div>
+            {event.alignment_tag && (
+              <div className="mt-1 text-xs text-slate-500">Alignment: {event.alignment_tag}</div>
+            )}
+            {event.recurrence_rule && (
+              <div className="mt-1 text-xs text-slate-500">Recurs: {event.recurrence_rule} until {event.recurrence_until || "n/a"}</div>
             )}
           </div>
         ))}

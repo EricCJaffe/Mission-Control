@@ -2,6 +2,13 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+function toDateInput(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
 export default async function SopDetailPage({ params }: { params: { id: string } }) {
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
@@ -25,7 +32,7 @@ export default async function SopDetailPage({ params }: { params: { id: string }
 
   const { data: checks } = await supabase
     .from("sop_checks")
-    .select("id,step,is_done")
+    .select("id,step,is_done,due_date")
     .eq("sop_id", params.id)
     .order("created_at", { ascending: true });
 
@@ -53,19 +60,21 @@ export default async function SopDetailPage({ params }: { params: { id: string }
 
       <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
         <h2 className="text-base font-semibold">Checklist</h2>
-        <form className="mt-3 grid gap-3" action="/sops/steps" method="post">
+        <form className="mt-3 grid gap-3 md:grid-cols-3" action="/sops/steps" method="post">
           <input type="hidden" name="sop_id" value={sop.id} />
-          <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="step" placeholder="Checklist step" required />
-          <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+          <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 md:col-span-2" name="step" placeholder="Checklist step" required />
+          <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="due_date" type="date" />
+          <button className="md:col-span-3 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
             Add Step
           </button>
         </form>
 
         <div className="mt-4 grid gap-2">
           {(checks || []).map((check) => (
-            <form key={check.id} action="/sops/steps/toggle" method="post" className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <form key={check.id} action="/sops/steps/toggle" method="post" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
               <input type="hidden" name="id" value={check.id} />
               <div className="text-sm">{check.step}</div>
+              <div className="text-xs text-slate-500">Due: {check.due_date || "n/a"}</div>
               <button className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs" type="submit">
                 {check.is_done ? "Done" : "Mark done"}
               </button>
