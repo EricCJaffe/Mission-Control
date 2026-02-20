@@ -29,9 +29,10 @@ export default async function GoalsPage() {
     .select("goal_id,task_id,task:tasks(id,title)");
 
   const linkedTasks = (goalId: string) =>
-    (goalTasks || [])
+    ((goalTasks as Array<{ goal_id: string; task?: { title?: string } }> | null) || [])
       .filter((link) => link.goal_id === goalId)
-      .map((link) => link.task);
+      .map((link) => link.task)
+      .filter(Boolean);
 
   return (
     <main className="pt-8">
@@ -99,7 +100,7 @@ export default async function GoalsPage() {
                     <div className="mt-2 text-xs whitespace-pre-line text-slate-600">{goal.description_md}</div>
                   )}
                   <div className="mt-2 text-xs text-slate-500">
-                    Linked tasks: {(linkedTasks(goal.id) || []).map((task) => task.title).join(", ") || "None"}
+                    Linked tasks: {(linkedTasks(goal.id) || []).map((task) => task?.title).filter(Boolean).join(", ") || "None"}
                   </div>
                   <form className="mt-2 flex gap-2" action="/goals/link" method="post">
                     <input type="hidden" name="goal_id" value={goal.id} />
@@ -133,7 +134,7 @@ export default async function GoalsPage() {
                   <div className="mt-2 text-xs whitespace-pre-line text-slate-600">{goal.description_md}</div>
                 )}
                 <div className="mt-2 text-xs text-slate-500">
-                  Linked tasks: {(linkedTasks(goal.id) || []).map((task) => task.title).join(", ") || "None"}
+                  Linked tasks: {(linkedTasks(goal.id) || []).map((task) => task?.title).filter(Boolean).join(", ") || "None"}
                 </div>
                 <form className="mt-2 flex gap-2" action="/goals/link" method="post">
                   <input type="hidden" name="goal_id" value={goal.id} />
