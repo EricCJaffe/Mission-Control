@@ -36,7 +36,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/calendar') ||
     pathname.startsWith('/goals') ||
     pathname.startsWith('/sops') ||
-    pathname.startsWith('/reviews')
+    pathname.startsWith('/reviews') ||
+    pathname.startsWith('/books')
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone()
@@ -63,6 +64,7 @@ export const config = {
     '/goals/:path*',
     '/sops/:path*',
     '/reviews/:path*',
+    '/books/:path*',
     '/notes/:path*',
     '/knowledge/:path*',
     '/login',

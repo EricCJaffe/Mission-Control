@@ -49,6 +49,7 @@ export default function Sidebar({ userEmail }: SidebarProps) {
               <NavLink href="/projects" label="Projects" />
               <NavLink href="/tasks" label="Tasks" />
               <NavLink href="/calendar" label="Calendar" />
+              <NavLink href="/books" label="Books" />
             </div>
           </div>
 
