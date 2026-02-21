@@ -9,6 +9,8 @@ function slugify(value: string) {
     .slice(0, 80);
 }
 
+export const runtime = "nodejs";
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string; chapterId: string }> }

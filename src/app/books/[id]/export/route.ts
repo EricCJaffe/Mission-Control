@@ -10,6 +10,8 @@ function slugify(value: string) {
     .slice(0, 80);
 }
 
+export const runtime = "nodejs";
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -58,9 +60,9 @@ export async function GET(
     zip.file(name, `# ${ch.title}\n\n${ch.markdown_current || ""}`);
   });
 
-  const blob = await zip.generateAsync({ type: "uint8array" });
+  const zipBlob = await zip.generateAsync({ type: "blob" });
 
-  return new Response(blob, {
+  return new Response(zipBlob, {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename=\"${safeTitle}.zip\"`,
