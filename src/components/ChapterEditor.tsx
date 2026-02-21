@@ -66,6 +66,13 @@ type Attachment = {
   mime_type: string | null;
 };
 
+type Todo = {
+  id: string;
+  title: string;
+  status: string | null;
+  due_date: string | null;
+};
+
 type Section = {
   heading: string;
   start: number;
@@ -109,6 +116,7 @@ export default function ChapterEditor({
   chatMessages,
   comments,
   attachments,
+  todos,
 }: {
   chapter: Chapter;
   bookChapters: BookChapter[];
@@ -117,6 +125,7 @@ export default function ChapterEditor({
   chatMessages: ChatMessage[];
   comments: Comment[];
   attachments: Attachment[];
+  todos: Todo[];
 }) {
   const [markdown, setMarkdown] = useState(chapter.markdown_current || "");
   const [title, setTitle] = useState(chapter.title || "");
@@ -516,6 +525,92 @@ export default function ChapterEditor({
             </details>
           </div>
 
+        </div>
+
+        <aside className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <section className="rounded-xl border border-slate-200 bg-white p-4">
+            <h3 className="text-sm font-semibold">Todos (Chapter)</h3>
+            <form className="mt-3 grid gap-2" action="/tasks/new" method="post">
+              <input type="hidden" name="chapter_id" value={chapter.id} />
+              <input type="hidden" name="redirect" value={`/books/${chapter.book_id}/chapters/${chapter.id}`} />
+              <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="title" placeholder="New todo" required />
+              <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
+                Add Todo
+              </button>
+            </form>
+            <div className="mt-3 grid gap-2 text-xs">
+              {todos.map((todo) => (
+                <form key={todo.id} action="/tasks/update" method="post" className="rounded-lg border border-slate-200 bg-white px-2 py-2">
+                  <input type="hidden" name="id" value={todo.id} />
+                  <input type="hidden" name="redirect" value={`/books/${chapter.book_id}/chapters/${chapter.id}`} />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-medium">{todo.title}</div>
+                    <select className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]" name="status" defaultValue={todo.status || "open"}>
+                      <option value="open">open</option>
+                      <option value="in_progress">in progress</option>
+                      <option value="done">done</option>
+                      <option value="blocked">blocked</option>
+                    </select>
+                  </div>
+                  <div className="mt-1 text-[10px] text-slate-500">Due: {todo.due_date || "n/a"}</div>
+                  <button className="mt-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px]" type="submit">
+                    Update
+                  </button>
+                </form>
+              ))}
+              {todos.length === 0 && <div className="text-xs text-slate-500">No todos yet.</div>}
+            </div>
+          </section>
+
+          <div className="text-sm font-semibold mt-6">AI Writing Assistant (Scaffold)</div>
+          <div className="mt-2 text-xs text-slate-500">Select a mode and request a draft. Approval required.</div>
+          <select className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" value={chatMode} onChange={(e) => setChatMode(e.target.value)}>
+            <option>Outline</option>
+            <option>Expand</option>
+            <option>Rewrite</option>
+            <option>Tighten</option>
+            <option>Add transitions</option>
+            <option>Tone check</option>
+            <option>Scripture integrity check</option>
+            <option>Editor review</option>
+          </select>
+          <textarea className="mt-3 min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask the assistant..." />
+          <button className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white" type="button" onClick={sendChat}>
+            Generate Proposal
+          </button>
+
+          <div className="mt-4">
+            <div className="text-xs uppercase tracking-widest text-slate-500">Proposal</div>
+            <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-xs whitespace-pre-line">
+              {aiProposal || "No proposal yet."}
+            </div>
+            <button className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs" type="button" onClick={applyPatch}>
+              Apply to Chapter
+            </button>
+          </div>
+
+          <div className="mt-6">
+            <div className="text-xs uppercase tracking-widest text-slate-500">Chat</div>
+            <div className="mt-2 grid gap-2 text-xs">
+              {messages.map((msg) => (
+                <div key={msg.id} className="rounded-lg border border-slate-200 bg-white px-2 py-1">
+                  <div className="font-medium">{msg.role}</div>
+                  <div className="whitespace-pre-line">{msg.content}</div>
+                  {msg.role === "assistant" && (
+                    <button
+                      className="mt-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px]"
+                      type="button"
+                      onClick={() => applyPatchFromMessage(msg.content)}
+                    >
+                      Insert into chapter
+                    </button>
+                  )}
+                </div>
+              ))}
+              {messages.length === 0 && <div className="text-xs text-slate-500">No messages yet.</div>}
+            </div>
+          </div>
+
           <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
             <h3 className="text-sm font-semibold">Research Notes (Chapter)</h3>
             <input
@@ -691,57 +786,6 @@ export default function ChapterEditor({
               {comments.length === 0 && <div className="text-xs text-slate-500">No comments yet.</div>}
             </div>
           </section>
-        </div>
-
-        <aside className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
-          <div className="text-sm font-semibold">AI Writing Assistant (Scaffold)</div>
-          <div className="mt-2 text-xs text-slate-500">Select a mode and request a draft. Approval required.</div>
-          <select className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" value={chatMode} onChange={(e) => setChatMode(e.target.value)}>
-            <option>Outline</option>
-            <option>Expand</option>
-            <option>Rewrite</option>
-            <option>Tighten</option>
-            <option>Add transitions</option>
-            <option>Tone check</option>
-            <option>Scripture integrity check</option>
-            <option>Editor review</option>
-          </select>
-          <textarea className="mt-3 min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask the assistant..." />
-          <button className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white" type="button" onClick={sendChat}>
-            Generate Proposal
-          </button>
-
-          <div className="mt-4">
-            <div className="text-xs uppercase tracking-widest text-slate-500">Proposal</div>
-            <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-xs whitespace-pre-line">
-              {aiProposal || "No proposal yet."}
-            </div>
-            <button className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs" type="button" onClick={applyPatch}>
-              Apply to Chapter
-            </button>
-          </div>
-
-          <div className="mt-6">
-            <div className="text-xs uppercase tracking-widest text-slate-500">Chat</div>
-            <div className="mt-2 grid gap-2 text-xs">
-              {messages.map((msg) => (
-                <div key={msg.id} className="rounded-lg border border-slate-200 bg-white px-2 py-1">
-                  <div className="font-medium">{msg.role}</div>
-                  <div className="whitespace-pre-line">{msg.content}</div>
-                  {msg.role === "assistant" && (
-                    <button
-                      className="mt-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px]"
-                      type="button"
-                      onClick={() => applyPatchFromMessage(msg.content)}
-                    >
-                      Insert into chapter
-                    </button>
-                  )}
-                </div>
-              ))}
-              {messages.length === 0 && <div className="text-xs text-slate-500">No messages yet.</div>}
-            </div>
-          </div>
         </aside>
       </section>
     </main>

@@ -54,6 +54,12 @@ export default async function ChapterEditorPage({
     .eq("chapter_id", chapter.id)
     .order("created_at", { ascending: false });
 
+  const { data: todos } = await supabase
+    .from("tasks")
+    .select("id,title,status,due_date")
+    .eq("chapter_id", chapter.id)
+    .order("created_at", { ascending: false });
+
   const { data: attachments } = await supabase
     .from("attachments")
     .select("id,filename,storage_path,created_at,size_bytes,mime_type")
@@ -87,6 +93,7 @@ export default async function ChapterEditorPage({
       chatMessages={messages || []}
       comments={comments || []}
       attachments={attachments || []}
+      todos={todos || []}
     />
   );
 }
