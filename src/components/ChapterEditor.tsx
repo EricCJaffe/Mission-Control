@@ -139,6 +139,8 @@ export default function ChapterEditor({
   const [messages, setMessages] = useState<ChatMessage[]>(chatMessages);
   const [aiProposal, setAiProposal] = useState("");
   const [aiError, setAiError] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [sectionDraft, setSectionDraft] = useState("");
   const [noteQuery, setNoteQuery] = useState("");
@@ -260,12 +262,22 @@ export default function ChapterEditor({
   }
 
   async function sendChat() {
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || isGenerating) return;
     setAiError("");
+    setIsGenerating(true);
+    const userId = `local-user-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const pendingId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const now = new Date().toISOString();
+    const currentInput = chatInput;
+    setMessages((prev) => [
+      ...prev,
+      { id: userId, role: "user", content: currentInput, created_at: now },
+      { id: pendingId, role: "assistant", content: "Working...", created_at: now },
+    ]);
     const payload = {
       scope_type: "chapter",
       scope_id: chapter.id,
-      message: chatInput,
+      message: currentInput,
       mode: chatMode,
     };
     const res = await fetch("/api/ai/chat", {
@@ -276,36 +288,64 @@ export default function ChapterEditor({
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       setAiError(err?.error || "AI request failed");
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === pendingId ? { ...msg, content: "AI request failed. Try again." } : msg
+        )
+      );
+      setIsGenerating(false);
       return;
     }
     const data = await res.json();
-    if (data?.userMessage && data?.assistantMessage) {
-      setMessages((prev) => [...prev, data.userMessage, data.assistantMessage]);
-      setAiProposal(data.assistantMessage.content || "");
-    }
+    const content = data?.assistantMessage?.content || "(empty)";
+    setMessages((prev) =>
+      prev.map((msg) => (msg.id === pendingId ? { ...msg, content } : msg))
+    );
+    setAiProposal(content);
     setChatInput("");
+    setIsGenerating(false);
   }
 
   async function applyPatch() {
-    if (!aiProposal.trim()) return;
-    const res = await fetch("/api/ai/patch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chapter_id: chapter.id, patch: aiProposal }),
-    });
-    const data = await res.json();
-    if (data?.markdown) setMarkdown(data.markdown);
+    if (!aiProposal.trim() || isApplying) return;
+    setAiError("");
+    setIsApplying(true);
+    try {
+      const res = await fetch("/api/ai/patch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chapter_id: chapter.id, patch: aiProposal }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAiError(data?.error || "AI patch failed");
+        return;
+      }
+      if (data?.markdown) setMarkdown(data.markdown);
+    } finally {
+      setIsApplying(false);
+    }
   }
 
   async function applyPatchFromMessage(content: string) {
-    if (!content.trim()) return;
-    const res = await fetch("/api/ai/patch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chapter_id: chapter.id, patch: content }),
-    });
-    const data = await res.json();
-    if (data?.markdown) setMarkdown(data.markdown);
+    if (!content.trim() || isApplying) return;
+    setAiError("");
+    setIsApplying(true);
+    try {
+      const res = await fetch("/api/ai/patch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chapter_id: chapter.id, patch: content }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAiError(data?.error || "AI patch failed");
+        return;
+      }
+      if (data?.markdown) setMarkdown(data.markdown);
+    } finally {
+      setIsApplying(false);
+    }
   }
 
   function captureSelection() {
@@ -574,6 +614,11 @@ export default function ChapterEditor({
           <div className="text-sm font-semibold mt-6">AI Writing Assistant (Scaffold)</div>
           <div className="mt-2 text-xs text-slate-500">Select a mode and request a draft. Approval required.</div>
           {aiError && <div className="mt-2 text-xs text-red-600">AI error: {aiError}</div>}
+          {(isGenerating || isApplying) && (
+            <div className="mt-2 text-xs text-slate-500">
+              {isGenerating ? "Generating proposal…" : "Applying patch…"}
+            </div>
+          )}
           <select className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" value={chatMode} onChange={(e) => setChatMode(e.target.value)}>
             <option>Outline</option>
             <option>Expand</option>
@@ -584,9 +629,27 @@ export default function ChapterEditor({
             <option>Scripture integrity check</option>
             <option>Editor review</option>
           </select>
-          <textarea className="mt-3 min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask the assistant..." />
-          <button className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white" type="button" onClick={sendChat}>
-            Generate Proposal
+          <textarea
+            className="mt-3 min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            placeholder="Ask the assistant..."
+            disabled={isGenerating}
+          />
+          <button
+            className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            type="button"
+            onClick={sendChat}
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
+                Generating...
+              </span>
+            ) : (
+              "Generate Proposal"
+            )}
           </button>
 
           <div className="mt-4">
@@ -594,8 +657,20 @@ export default function ChapterEditor({
             <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-xs whitespace-pre-line">
               {aiProposal || "No proposal yet."}
             </div>
-            <button className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs" type="button" onClick={applyPatch}>
-              Apply to Chapter
+            <button
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={applyPatch}
+              disabled={isApplying || !aiProposal.trim()}
+            >
+              {isApplying ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
+                  Applying...
+                </span>
+              ) : (
+                "Apply to Chapter"
+              )}
             </button>
           </div>
 
@@ -608,11 +683,12 @@ export default function ChapterEditor({
                   <div className="whitespace-pre-line">{msg.content}</div>
                   {msg.role === "assistant" && (
                     <button
-                      className="mt-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px]"
+                      className="mt-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] disabled:cursor-not-allowed disabled:opacity-60"
                       type="button"
                       onClick={() => applyPatchFromMessage(msg.content)}
+                      disabled={isApplying}
                     >
-                      Insert into chapter
+                      {isApplying ? "Applying..." : "Insert into chapter"}
                     </button>
                   )}
                 </div>
