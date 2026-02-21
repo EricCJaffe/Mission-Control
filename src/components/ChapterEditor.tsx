@@ -138,6 +138,7 @@ export default function ChapterEditor({
   const [chatMode, setChatMode] = useState("Outline");
   const [messages, setMessages] = useState<ChatMessage[]>(chatMessages);
   const [aiProposal, setAiProposal] = useState("");
+  const [aiError, setAiError] = useState("");
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [sectionDraft, setSectionDraft] = useState("");
   const [noteQuery, setNoteQuery] = useState("");
@@ -260,6 +261,7 @@ export default function ChapterEditor({
 
   async function sendChat() {
     if (!chatInput.trim()) return;
+    setAiError("");
     const payload = {
       scope_type: "chapter",
       scope_id: chapter.id,
@@ -271,10 +273,17 @@ export default function ChapterEditor({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setAiError(err?.error || "AI request failed");
+      return;
+    }
     const data = await res.json();
-    setMessages((prev) => [...prev, data.userMessage, data.assistantMessage]);
+    if (data?.userMessage && data?.assistantMessage) {
+      setMessages((prev) => [...prev, data.userMessage, data.assistantMessage]);
+      setAiProposal(data.assistantMessage.content || "");
+    }
     setChatInput("");
-    setAiProposal(data.assistantMessage.content);
   }
 
   async function applyPatch() {
@@ -564,6 +573,7 @@ export default function ChapterEditor({
 
           <div className="text-sm font-semibold mt-6">AI Writing Assistant (Scaffold)</div>
           <div className="mt-2 text-xs text-slate-500">Select a mode and request a draft. Approval required.</div>
+          {aiError && <div className="mt-2 text-xs text-red-600">AI error: {aiError}</div>}
           <select className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" value={chatMode} onChange={(e) => setChatMode(e.target.value)}>
             <option>Outline</option>
             <option>Expand</option>

@@ -11,9 +11,11 @@ type ChatMessage = {
 export default function BookChat({ bookId, initialMessages }: { bookId: string; initialMessages: ChatMessage[] }) {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
+  const [error, setError] = useState("");
 
   async function send() {
     if (!input.trim()) return;
+    setError("");
     const res = await fetch("/api/ai/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -24,14 +26,22 @@ export default function BookChat({ bookId, initialMessages }: { bookId: string; 
         mode: "Book-aware",
       }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setError(err?.error || "AI request failed");
+      return;
+    }
     const data = await res.json();
-    setMessages((prev) => [...prev, data.userMessage, data.assistantMessage]);
+    if (data?.userMessage && data?.assistantMessage) {
+      setMessages((prev) => [...prev, data.userMessage, data.assistantMessage]);
+    }
     setInput("");
   }
 
   return (
     <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
       <div className="text-sm font-semibold">Chat about this book</div>
+      {error && <div className="mt-2 text-xs text-red-600">AI error: {error}</div>}
       <div className="mt-2 grid gap-2 text-xs">
         {messages.map((msg) => (
           <div key={msg.id} className="rounded-lg border border-slate-200 bg-white px-2 py-1">

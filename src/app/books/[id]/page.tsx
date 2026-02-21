@@ -3,6 +3,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import BookChaptersBoard from "@/components/BookChaptersBoard";
 import BookProposalsClient from "@/components/BookProposalsClient";
 import BookChat from "@/components/BookChat";
+import BookInsightsClient from "@/components/BookInsightsClient";
 
 export const dynamic = "force-dynamic";
 
@@ -207,54 +208,88 @@ export default async function BookDetailPage({
 
       {tab === "outline" && (
         <>
-          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
-            <h2 className="text-base font-semibold">Add Chapter</h2>
-            <form className="mt-3 grid gap-3 md:grid-cols-2" action={`/books/${book.id}/chapters/new`} method="post">
-              <input type="hidden" name="book_id" value={book.id} />
-              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Chapter title" required />
-              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="summary" placeholder="Summary / theme" />
-              <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="status" defaultValue="outline">
-                <option value="outline">outline</option>
-                <option value="draft">draft</option>
-                <option value="review">review</option>
-                <option value="final">final</option>
-              </select>
-              <button className="md:col-span-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-                Add Chapter
-              </button>
-            </form>
-          </section>
+          <section className="mt-6 grid gap-4 xl:grid-cols-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+              <h2 className="text-sm font-semibold">AI Insights (Book)</h2>
+              <p className="mt-1 text-xs text-slate-500">Ask about themes, gaps, or next edits.</p>
+              <BookInsightsClient bookId={book.id} />
+            </div>
 
-          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
-            <h2 className="text-base font-semibold">AI Table of Contents</h2>
-            <p className="mt-1 text-xs text-slate-500">Generate a draft chapter outline from a concept.</p>
-            <form className="mt-3 grid gap-3 md:grid-cols-[1fr_140px_auto]" action="/books/ai/toc" method="post">
-              <input type="hidden" name="book_id" value={book.id} />
-              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="concept" placeholder="Book concept or summary" required />
-              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="count" type="number" min="1" placeholder="# Chapters" />
-              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-                Generate TOC
-              </button>
-            </form>
-          </section>
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+              <h2 className="text-sm font-semibold">AI Table of Contents</h2>
+              <form className="mt-3 grid gap-2" action="/books/ai/toc" method="post">
+                <input type="hidden" name="book_id" value={book.id} />
+                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="concept" placeholder="Book concept or summary" required />
+                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="count" type="number" min="1" placeholder="# Chapters" />
+                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
+                  Generate TOC
+                </button>
+              </form>
+            </div>
 
-          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
-            <h2 className="text-base font-semibold">Add Section Break</h2>
-            <form className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_auto]" action={`/books/${book.id}/sections/new`} method="post">
-              <input type="hidden" name="book_id" value={book.id} />
-              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Section title" required />
-              <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="position" defaultValue="1">
-                {(chapterList.length ? chapterList : [{ position: 1, id: "start", title: "Start" }]).map((ch, idx) => (
-                  <option key={ch.id} value={ch.position ?? idx + 1}>
-                    Before: {ch.title || `Chapter ${idx + 1}`}
-                  </option>
-                ))}
-                <option value={chapterList.length + 1}>After last chapter</option>
-              </select>
-              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-                Add Section
-              </button>
-            </form>
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+              <h2 className="text-sm font-semibold">AI Bulk Edit</h2>
+              <form className="mt-3 grid gap-2" action="/books/ai/bulk" method="post">
+                <input type="hidden" name="book_id" value={book.id} />
+                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="instruction" placeholder="Add 3 reflection questions per chapter" required />
+                <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="mode" defaultValue="bulk-edit">
+                  <option value="bulk-edit">Bulk edit</option>
+                  <option value="editor-review">Editor review</option>
+                  <option value="reflection-questions">Reflection questions</option>
+                </select>
+                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
+                  Run AI
+                </button>
+              </form>
+            </div>
+
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+              <h2 className="text-sm font-semibold">Place Concept</h2>
+              <form className="mt-3 grid gap-2" action="/books/ai/place" method="post">
+                <input type="hidden" name="book_id" value={book.id} />
+                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="concept" placeholder="Paste concept to route" required />
+                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
+                  Find Chapter
+                </button>
+              </form>
+            </div>
+
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+              <h2 className="text-sm font-semibold">Add Chapter</h2>
+              <form className="mt-3 grid gap-2" action={`/books/${book.id}/chapters/new`} method="post">
+                <input type="hidden" name="book_id" value={book.id} />
+                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="title" placeholder="Chapter title" required />
+                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="summary" placeholder="Summary / theme" />
+                <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="status" defaultValue="outline">
+                  <option value="outline">outline</option>
+                  <option value="draft">draft</option>
+                  <option value="review">review</option>
+                  <option value="final">final</option>
+                </select>
+                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
+                  Add Chapter
+                </button>
+              </form>
+            </div>
+
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+              <h2 className="text-sm font-semibold">Add Section Break</h2>
+              <form className="mt-3 grid gap-2" action={`/books/${book.id}/sections/new`} method="post">
+                <input type="hidden" name="book_id" value={book.id} />
+                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="title" placeholder="Section title" required />
+                <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="position" defaultValue="1">
+                  {(chapterList.length ? chapterList : [{ position: 1, id: "start", title: "Start" }]).map((ch, idx) => (
+                    <option key={ch.id} value={ch.position ?? idx + 1}>
+                      Before: {ch.title || `Chapter ${idx + 1}`}
+                    </option>
+                  ))}
+                  <option value={chapterList.length + 1}>After last chapter</option>
+                </select>
+                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
+                  Add Section
+                </button>
+              </form>
+            </div>
           </section>
 
           <section className="mt-6">
@@ -272,45 +307,10 @@ export default async function BookDetailPage({
               bookId={book.id}
             />
           </section>
-
-          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
-            <h2 className="text-base font-semibold">AI Bulk Edit (All Chapters)</h2>
-            <p className="mt-1 text-xs text-slate-500">
-              Apply a single instruction across every chapter. Each chapter is saved as a new version.
-            </p>
-            <form className="mt-3 grid gap-3 md:grid-cols-[1fr_200px_auto]" action="/books/ai/bulk" method="post">
-              <input type="hidden" name="book_id" value={book.id} />
-              <input
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                name="instruction"
-                placeholder="e.g. Add 3 reflection questions at the end of each chapter"
-                required
-              />
-              <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="mode" defaultValue="bulk-edit">
-                <option value="bulk-edit">Bulk edit</option>
-                <option value="editor-review">Editor review</option>
-                <option value="reflection-questions">Reflection questions</option>
-              </select>
-              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-                Run AI
-              </button>
-            </form>
-          </section>
-
-          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
-            <h2 className="text-base font-semibold">Place Concept Into Best Chapter</h2>
-            <form className="mt-3 grid gap-3 md:grid-cols-[1fr_auto]" action="/books/ai/place" method="post">
-              <input type="hidden" name="book_id" value={book.id} />
-              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="concept" placeholder="Concept or paragraph to route into the best chapter" required />
-              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-                Find Chapter
-              </button>
-            </form>
-          </section>
         </>
       )}
 
-      {tab === "tasks" && (
+{tab === "tasks" && (
         <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
           <h2 className="text-base font-semibold">Book Tasks</h2>
           <form className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_auto]" action="/tasks/new" method="post">
