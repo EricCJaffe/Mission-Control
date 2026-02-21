@@ -1,6 +1,8 @@
 import path from "path";
 import { NextResponse } from "next/server";
-import * as mammoth from "mammoth";
+// mammoth types are incomplete; import as any to access convertToMarkdown
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const mammoth: any = require("mammoth");
 import { supabaseServer } from "@/lib/supabase/server";
 import { callOpenAI } from "@/lib/openai";
 
