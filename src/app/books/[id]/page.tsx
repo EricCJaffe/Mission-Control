@@ -215,69 +215,160 @@ export default async function BookDetailPage({
               <BookInsightsClient bookId={book.id} />
             </div>
 
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
-              <h2 className="text-sm font-semibold">AI Table of Contents</h2>
-              <form className="mt-3 grid gap-2" action="/books/ai/toc" method="post">
+            <button
+              className="rounded-2xl border border-white/80 bg-white/70 p-4 text-left shadow-sm hover:border-slate-300"
+              type="button"
+              onClick={() => (document.getElementById("toc-dialog") as HTMLDialogElement)?.showModal()}
+            >
+              <div className="text-sm font-semibold">AI Table of Contents</div>
+              <p className="mt-1 text-xs text-slate-500">Generate a chapter outline.</p>
+            </button>
+
+            <button
+              className="rounded-2xl border border-white/80 bg-white/70 p-4 text-left shadow-sm hover:border-slate-300"
+              type="button"
+              onClick={() => (document.getElementById("bulk-dialog") as HTMLDialogElement)?.showModal()}
+            >
+              <div className="text-sm font-semibold">AI Bulk Edit</div>
+              <p className="mt-1 text-xs text-slate-500">Apply changes across chapters.</p>
+            </button>
+
+            <button
+              className="rounded-2xl border border-white/80 bg-white/70 p-4 text-left shadow-sm hover:border-slate-300"
+              type="button"
+              onClick={() => (document.getElementById("place-dialog") as HTMLDialogElement)?.showModal()}
+            >
+              <div className="text-sm font-semibold">Place Concept</div>
+              <p className="mt-1 text-xs text-slate-500">Route text to best chapter.</p>
+            </button>
+
+            <button
+              className="rounded-2xl border border-white/80 bg-white/70 p-4 text-left shadow-sm hover:border-slate-300"
+              type="button"
+              onClick={() => (document.getElementById("chapter-dialog") as HTMLDialogElement)?.showModal()}
+            >
+              <div className="text-sm font-semibold">Add Chapter</div>
+              <p className="mt-1 text-xs text-slate-500">Create a new chapter.</p>
+            </button>
+
+            <button
+              className="rounded-2xl border border-white/80 bg-white/70 p-4 text-left shadow-sm hover:border-slate-300"
+              type="button"
+              onClick={() => (document.getElementById("section-dialog") as HTMLDialogElement)?.showModal()}
+            >
+              <div className="text-sm font-semibold">Add Section Break</div>
+              <p className="mt-1 text-xs text-slate-500">Group chapters into sections.</p>
+            </button>
+          </section>
+
+          <dialog id="toc-dialog" className="rounded-2xl border border-slate-200 p-0 shadow-xl">
+            <div className="rounded-2xl bg-white p-6">
+              <h3 className="text-lg font-semibold">AI Table of Contents</h3>
+              <form className="mt-4 grid gap-3" action="/books/ai/toc" method="post">
                 <input type="hidden" name="book_id" value={book.id} />
-                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="concept" placeholder="Book concept or summary" required />
-                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="count" type="number" min="1" placeholder="# Chapters" />
-                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
-                  Generate TOC
-                </button>
+                <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="concept" placeholder="Book concept or summary" required />
+                <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="count" type="number" min="1" placeholder="# Chapters" />
+                <div className="flex justify-end gap-2">
+                  <button
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                    type="button"
+                    onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+                  >
+                    Cancel
+                  </button>
+                  <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                    Generate
+                  </button>
+                </div>
               </form>
             </div>
+          </dialog>
 
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
-              <h2 className="text-sm font-semibold">AI Bulk Edit</h2>
-              <form className="mt-3 grid gap-2" action="/books/ai/bulk" method="post">
+          <dialog id="bulk-dialog" className="rounded-2xl border border-slate-200 p-0 shadow-xl">
+            <div className="rounded-2xl bg-white p-6">
+              <h3 className="text-lg font-semibold">AI Bulk Edit</h3>
+              <form className="mt-4 grid gap-3" action="/books/ai/bulk" method="post">
                 <input type="hidden" name="book_id" value={book.id} />
-                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="instruction" placeholder="Add 3 reflection questions per chapter" required />
-                <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="mode" defaultValue="bulk-edit">
+                <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="instruction" placeholder="Add 3 reflection questions per chapter" required />
+                <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="mode" defaultValue="bulk-edit">
                   <option value="bulk-edit">Bulk edit</option>
                   <option value="editor-review">Editor review</option>
                   <option value="reflection-questions">Reflection questions</option>
                 </select>
-                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
-                  Run AI
-                </button>
+                <div className="flex justify-end gap-2">
+                  <button
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                    type="button"
+                    onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+                  >
+                    Cancel
+                  </button>
+                  <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                    Run AI
+                  </button>
+                </div>
               </form>
             </div>
+          </dialog>
 
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
-              <h2 className="text-sm font-semibold">Place Concept</h2>
-              <form className="mt-3 grid gap-2" action="/books/ai/place" method="post">
+          <dialog id="place-dialog" className="rounded-2xl border border-slate-200 p-0 shadow-xl">
+            <div className="rounded-2xl bg-white p-6">
+              <h3 className="text-lg font-semibold">Place Concept</h3>
+              <form className="mt-4 grid gap-3" action="/books/ai/place" method="post">
                 <input type="hidden" name="book_id" value={book.id} />
-                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="concept" placeholder="Paste concept to route" required />
-                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
-                  Find Chapter
-                </button>
+                <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="concept" placeholder="Paste concept to route" required />
+                <div className="flex justify-end gap-2">
+                  <button
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                    type="button"
+                    onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+                  >
+                    Cancel
+                  </button>
+                  <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                    Find Chapter
+                  </button>
+                </div>
               </form>
             </div>
+          </dialog>
 
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
-              <h2 className="text-sm font-semibold">Add Chapter</h2>
-              <form className="mt-3 grid gap-2" action={`/books/${book.id}/chapters/new`} method="post">
+          <dialog id="chapter-dialog" className="rounded-2xl border border-slate-200 p-0 shadow-xl">
+            <div className="rounded-2xl bg-white p-6">
+              <h3 className="text-lg font-semibold">Add Chapter</h3>
+              <form className="mt-4 grid gap-3" action={`/books/${book.id}/chapters/new`} method="post">
                 <input type="hidden" name="book_id" value={book.id} />
-                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="title" placeholder="Chapter title" required />
-                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="summary" placeholder="Summary / theme" />
-                <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="status" defaultValue="outline">
+                <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Chapter title" required />
+                <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="summary" placeholder="Summary / theme" />
+                <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="status" defaultValue="outline">
                   <option value="outline">outline</option>
                   <option value="draft">draft</option>
                   <option value="review">review</option>
                   <option value="final">final</option>
                 </select>
-                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
-                  Add Chapter
-                </button>
+                <div className="flex justify-end gap-2">
+                  <button
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                    type="button"
+                    onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+                  >
+                    Cancel
+                  </button>
+                  <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                    Add Chapter
+                  </button>
+                </div>
               </form>
             </div>
+          </dialog>
 
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
-              <h2 className="text-sm font-semibold">Add Section Break</h2>
-              <form className="mt-3 grid gap-2" action={`/books/${book.id}/sections/new`} method="post">
+          <dialog id="section-dialog" className="rounded-2xl border border-slate-200 p-0 shadow-xl">
+            <div className="rounded-2xl bg-white p-6">
+              <h3 className="text-lg font-semibold">Add Section Break</h3>
+              <form className="mt-4 grid gap-3" action={`/books/${book.id}/sections/new`} method="post">
                 <input type="hidden" name="book_id" value={book.id} />
-                <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="title" placeholder="Section title" required />
-                <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs" name="position" defaultValue="1">
+                <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Section title" required />
+                <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="position" defaultValue="1">
                   {(chapterList.length ? chapterList : [{ position: 1, id: "start", title: "Start" }]).map((ch, idx) => (
                     <option key={ch.id} value={ch.position ?? idx + 1}>
                       Before: {ch.title || `Chapter ${idx + 1}`}
@@ -285,12 +376,21 @@ export default async function BookDetailPage({
                   ))}
                   <option value={chapterList.length + 1}>After last chapter</option>
                 </select>
-                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
-                  Add Section
-                </button>
+                <div className="flex justify-end gap-2">
+                  <button
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                    type="button"
+                    onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+                  >
+                    Cancel
+                  </button>
+                  <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                    Add Section
+                  </button>
+                </div>
               </form>
             </div>
-          </section>
+          </dialog>
 
           <section className="mt-6">
             <BookChaptersBoard bookId={book.id} chapters={chapterList} sections={sections || []} />

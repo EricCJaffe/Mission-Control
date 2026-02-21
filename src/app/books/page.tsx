@@ -35,32 +35,82 @@ export default async function BooksPage() {
         <p className="mt-1 text-sm text-slate-500">Create and manage manuscripts.</p>
       </div>
 
-      <form className="mt-6 grid gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm md:grid-cols-2" action="/books/new" method="post">
-        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Book title" required />
-        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="description" placeholder="Short description" />
-        <input
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2"
-          name="target_word_count"
-          placeholder="Target word count (e.g. 50000)"
-          type="number"
-          min="0"
-        />
-        <button className="md:col-span-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button
+          className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm"
+          type="button"
+          onClick={() => {
+            const dialog = document.getElementById("add-book-dialog") as HTMLDialogElement | null;
+            dialog?.showModal();
+          }}
+        >
           Add Book
         </button>
-      </form>
-
-      <form className="mt-4 grid gap-3 rounded-2xl border border-dashed border-slate-200 bg-white/70 p-4 shadow-sm" action="/books/upload" method="post" encType="multipart/form-data">
-        <div className="text-sm font-medium">Upload Manuscript (DOCX or Markdown)</div>
-        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="file" type="file" accept=".docx,.md,text/markdown" required />
-        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="title" placeholder="Book title (optional, inferred if omitted)" />
-        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="description" placeholder="Short description (optional)" />
-        <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="target_word_count" placeholder="Target word count" type="number" min="0" />
-        <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+        <button
+          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm"
+          type="button"
+          onClick={() => {
+            const dialog = document.getElementById("upload-book-dialog") as HTMLDialogElement | null;
+            dialog?.showModal();
+          }}
+        >
           Upload & Build Chapters
         </button>
-        <p className="text-xs text-slate-500">Max file size: 50MB. We store the original file in Supabase Storage.</p>
-      </form>
+      </div>
+
+      <dialog id="add-book-dialog" className="rounded-2xl border border-slate-200 p-0 shadow-xl">
+        <div className="rounded-2xl bg-white p-6">
+          <h2 className="text-lg font-semibold">Add Book</h2>
+          <form className="mt-4 grid gap-3" action="/books/new" method="post">
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Book title" required />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="description" placeholder="Short description" />
+            <input
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+              name="target_word_count"
+              placeholder="Target word count (e.g. 50000)"
+              type="number"
+              min="0"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                type="button"
+                onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+              >
+                Cancel
+              </button>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Create
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      <dialog id="upload-book-dialog" className="rounded-2xl border border-slate-200 p-0 shadow-xl">
+        <div className="rounded-2xl bg-white p-6">
+          <h2 className="text-lg font-semibold">Upload Manuscript</h2>
+          <p className="mt-1 text-xs text-slate-500">DOCX or Markdown up to 50MB.</p>
+          <form className="mt-4 grid gap-3" action="/books/upload" method="post" encType="multipart/form-data">
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="file" type="file" accept=".docx,.md,text/markdown" required />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="title" placeholder="Book title (optional, inferred if omitted)" />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="description" placeholder="Short description (optional)" />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="target_word_count" placeholder="Target word count" type="number" min="0" />
+            <div className="flex justify-end gap-2">
+              <button
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                type="button"
+                onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+              >
+                Cancel
+              </button>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Upload
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
 
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">

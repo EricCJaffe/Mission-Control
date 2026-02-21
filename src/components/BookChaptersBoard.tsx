@@ -87,9 +87,9 @@ export default function BookChaptersBoard({ bookId, chapters, sections }: Props)
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 text-xs">
-                <a className="rounded-full border border-slate-200 bg-white px-3 py-1" href={`/books/${bookId}/chapters/${chapter.id}`}>
-                  Open
-                </a>
+              <a className="rounded-full border border-slate-200 bg-white px-3 py-1" href={`/books/${bookId}/chapters/${chapter.id}`}>
+                Edit
+              </a>
                 <a className="rounded-full border border-slate-200 bg-white px-3 py-1" href={`/books/${bookId}/chapters/${chapter.id}/export`}>
                   Export
                 </a>
