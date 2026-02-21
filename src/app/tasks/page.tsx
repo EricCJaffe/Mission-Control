@@ -36,6 +36,21 @@ export default async function TasksPage() {
     .select("id,title,status,priority,due_date,created_at,category,why,recurrence_rule,recurrence_anchor,book_id,chapter_id")
     .order("created_at", { ascending: false });
 
+  const taskIds = (tasks || []).map((task) => task.id);
+  const { data: taskAttachments } = taskIds.length
+    ? await supabase
+        .from("attachments")
+        .select("id,scope_id,filename,created_at,size_bytes,mime_type")
+        .eq("scope_type", "task")
+        .in("scope_id", taskIds)
+    : { data: [] };
+
+  const attachmentsByTask = (taskAttachments || []).reduce<Record<string, typeof taskAttachments>>((acc, file) => {
+    if (!acc[file.scope_id]) acc[file.scope_id] = [];
+    acc[file.scope_id].push(file);
+    return acc;
+  }, {});
+
   return (
     <main className="pt-8">
       <div>
@@ -188,6 +203,29 @@ export default async function TasksPage() {
                 Upload Attachment
               </button>
             </form>
+
+            <div className="mt-3 grid gap-2 text-xs">
+              {(attachmentsByTask[task.id] || []).map((file) => (
+                <div key={file.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-medium">{file.filename}</div>
+                    <a className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]" href={`/attachments/${file.id}/download`}>
+                      Download
+                    </a>
+                  </div>
+                  {file.mime_type?.startsWith("image/") && (
+                    <img
+                      src={`/attachments/${file.id}/download`}
+                      alt={file.filename}
+                      className="mt-2 max-h-40 rounded border border-slate-200 object-contain"
+                    />
+                  )}
+                  <div className="text-slate-500">
+                    {Math.round((file.size_bytes || 0) / 1024)} KB · {new Date(file.created_at).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
 

@@ -23,7 +23,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
 
   const { data: attachments } = await supabase
     .from("attachments")
-    .select("id,filename,storage_path,created_at,size_bytes")
+    .select("id,filename,storage_path,created_at,size_bytes,mime_type")
     .eq("scope_type", "note")
     .eq("scope_id", id)
     .order("created_at", { ascending: false });
@@ -76,7 +76,19 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
         <div className="mt-3 grid gap-2 text-xs">
           {(attachments || []).map((file) => (
             <div key={file.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-              <div className="font-medium">{file.filename}</div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="font-medium">{file.filename}</div>
+                <a className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]" href={`/attachments/${file.id}/download`}>
+                  Download
+                </a>
+              </div>
+              {file.mime_type?.startsWith("image/") && (
+                <img
+                  src={`/attachments/${file.id}/download`}
+                  alt={file.filename}
+                  className="mt-2 max-h-48 rounded border border-slate-200 object-contain"
+                />
+              )}
               <div className="text-slate-500">
                 {Math.round((file.size_bytes || 0) / 1024)} KB · {new Date(file.created_at).toLocaleString()}
               </div>

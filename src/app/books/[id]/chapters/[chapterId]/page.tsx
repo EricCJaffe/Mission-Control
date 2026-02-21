@@ -56,7 +56,7 @@ export default async function ChapterEditorPage({
 
   const { data: attachments } = await supabase
     .from("attachments")
-    .select("id,filename,storage_path,created_at,size_bytes")
+    .select("id,filename,storage_path,created_at,size_bytes,mime_type")
     .eq("scope_type", "chapter")
     .eq("scope_id", chapter.id)
     .order("created_at", { ascending: false });
