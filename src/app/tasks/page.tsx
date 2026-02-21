@@ -45,7 +45,7 @@ export default async function TasksPage() {
         .in("scope_id", taskIds)
     : { data: [] };
 
-  const attachmentsByTask = (taskAttachments || []).reduce<Record<string, typeof taskAttachments>>((acc, file) => {
+  const attachmentsByTask = (taskAttachments || []).reduce<Record<string, NonNullable<typeof taskAttachments>>>((acc, file) => {
     if (!acc[file.scope_id]) acc[file.scope_id] = [];
     acc[file.scope_id].push(file);
     return acc;
