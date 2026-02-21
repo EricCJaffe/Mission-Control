@@ -181,7 +181,7 @@ export default function ChapterEditor({
 
   useEffect(() => {
     if (editor && markdown !== ((editor.storage as any)?.markdown?.getMarkdown?.() || editor.getText())) {
-      editor.commands.setContent(markdown || "", false);
+      editor.commands.setContent(markdown || "", { emitUpdate: false });
     }
   }, [editor, markdown]);
 
