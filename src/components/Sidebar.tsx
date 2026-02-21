@@ -82,28 +82,28 @@ export default function Sidebar({
           <div>
             <div className={`text-xs uppercase tracking-[0.2em] text-slate-500 ${isCollapsed ? "sr-only" : ""}`}>Core</div>
             <div className={`mt-2 grid gap-2 ${isCollapsed ? "place-items-center" : ""}`}>
-              <NavLink href="/dashboard" label="Dashboard" shortLabel="DB" collapsed={isCollapsed} />
-              <NavLink href="/projects" label="Projects" shortLabel="PR" collapsed={isCollapsed} />
-              <NavLink href="/tasks" label="Tasks" shortLabel="TS" collapsed={isCollapsed} />
-              <NavLink href="/calendar" label="Calendar" shortLabel="CL" collapsed={isCollapsed} />
-              <NavLink href="/books" label="Books" shortLabel="BK" collapsed={isCollapsed} />
+              <NavLink href="/dashboard" label="Dashboard" shortLabel="DB" collapsed={isCollapsed} icon="🏠" />
+              <NavLink href="/projects" label="Projects" shortLabel="PR" collapsed={isCollapsed} icon="🧭" />
+              <NavLink href="/tasks" label="Tasks" shortLabel="TS" collapsed={isCollapsed} icon="✅" />
+              <NavLink href="/calendar" label="Calendar" shortLabel="CL" collapsed={isCollapsed} icon="📅" />
+              <NavLink href="/books" label="Books" shortLabel="BK" collapsed={isCollapsed} icon="📘" />
             </div>
           </div>
 
           <div>
             <div className={`text-xs uppercase tracking-[0.2em] text-slate-500 ${isCollapsed ? "sr-only" : ""}`}>Planning</div>
             <div className={`mt-2 grid gap-2 ${isCollapsed ? "place-items-center" : ""}`}>
-              <NavLink href="/goals" label="Goals" shortLabel="GL" collapsed={isCollapsed} />
-              <NavLink href="/reviews" label="Reviews" shortLabel="RV" collapsed={isCollapsed} />
+              <NavLink href="/goals" label="Goals" shortLabel="GL" collapsed={isCollapsed} icon="🎯" />
+              <NavLink href="/reviews" label="Reviews" shortLabel="RV" collapsed={isCollapsed} icon="🧾" />
             </div>
           </div>
 
           <div>
             <div className={`text-xs uppercase tracking-[0.2em] text-slate-500 ${isCollapsed ? "sr-only" : ""}`}>Knowledge</div>
             <div className={`mt-2 grid gap-2 ${isCollapsed ? "place-items-center" : ""}`}>
-              <NavLink href="/notes" label="Notes" shortLabel="NT" collapsed={isCollapsed} />
-              <NavLink href="/knowledge" label="Persona/Soul" shortLabel="PS" collapsed={isCollapsed} />
-              <NavLink href="/sops" label="SOPs" shortLabel="SOP" collapsed={isCollapsed} />
+              <NavLink href="/notes" label="Notes" shortLabel="NT" collapsed={isCollapsed} icon="🗒️" />
+              <NavLink href="/knowledge" label="Persona/Soul" shortLabel="PS" collapsed={isCollapsed} icon="🧠" />
+              <NavLink href="/sops" label="SOPs" shortLabel="SOP" collapsed={isCollapsed} icon="📌" />
             </div>
           </div>
 

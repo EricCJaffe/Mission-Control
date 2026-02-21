@@ -8,9 +8,10 @@ type NavLinkProps = {
   label: string;
   shortLabel?: string;
   collapsed?: boolean;
+  icon?: React.ReactNode;
 };
 
-export default function NavLink({ href, label, shortLabel, collapsed }: NavLinkProps) {
+export default function NavLink({ href, label, shortLabel, collapsed, icon }: NavLinkProps) {
   const pathname = usePathname();
   const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
   const display = collapsed ? (shortLabel || label.slice(0, 2).toUpperCase()) : label;
@@ -25,7 +26,10 @@ export default function NavLink({ href, label, shortLabel, collapsed }: NavLinkP
       }`}
       title={label}
     >
-      {display}
+      <span className={`inline-flex items-center gap-2 ${collapsed ? "justify-center w-full" : ""}`}>
+        {icon && <span className="text-base">{icon}</span>}
+        {!collapsed && <span>{display}</span>}
+      </span>
     </Link>
   );
 }
