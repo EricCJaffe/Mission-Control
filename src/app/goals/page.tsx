@@ -45,7 +45,7 @@ export default async function GoalsPage() {
 
       <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
         <h2 className="text-base font-semibold">Create 12-Week Cycle</h2>
-        <form className="mt-3 grid gap-3 md:grid-cols-2" action="/goals/cycles" method="post">
+        <form className="mt-3 grid gap-3 md:grid-cols-2" action="/goals/cycles" method="post" data-toast="Cycle saved">
           <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Cycle title" required />
           <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="start_date" type="date" required />
           <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="end_date" type="date" required />
@@ -60,7 +60,7 @@ export default async function GoalsPage() {
 
       <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
         <h2 className="text-base font-semibold">Add Goal</h2>
-        <form className="mt-3 grid gap-3 md:grid-cols-2" action="/goals/new" method="post">
+        <form className="mt-3 grid gap-3 md:grid-cols-2" action="/goals/new" method="post" data-toast="Goal added">
           <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Goal title" required />
           <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="domain" defaultValue="Spirit">
             <option>Spirit</option>
@@ -102,7 +102,7 @@ export default async function GoalsPage() {
                   <div className="mt-2 text-xs text-slate-500">
                     Linked tasks: {(linkedTasks(goal.id) || []).map((task) => task?.title).filter(Boolean).join(", ") || "None"}
                   </div>
-                  <form className="mt-2 flex gap-2" action="/goals/link" method="post">
+                  <form className="mt-2 flex gap-2" action="/goals/link" method="post" data-toast="Tasks linked">
                     <input type="hidden" name="goal_id" value={goal.id} />
                     <select className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="task_id" defaultValue="">
                       <option value="">Link task</option>
@@ -136,7 +136,7 @@ export default async function GoalsPage() {
                 <div className="mt-2 text-xs text-slate-500">
                   Linked tasks: {(linkedTasks(goal.id) || []).map((task) => task?.title).filter(Boolean).join(", ") || "None"}
                 </div>
-                <form className="mt-2 flex gap-2" action="/goals/link" method="post">
+                <form className="mt-2 flex gap-2" action="/goals/link" method="post" data-toast="Tasks linked">
                   <input type="hidden" name="goal_id" value={goal.id} />
                   <select className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="task_id" defaultValue="">
                     <option value="">Link task</option>

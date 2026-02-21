@@ -52,7 +52,7 @@ export default function BookProposalsClient({
               </div>
             </details>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <form action="/books/chapters/proposals/apply" method="post">
+              <form action="/books/chapters/proposals/apply" method="post" data-progress="true" data-toast="Applying proposal">
                 <input type="hidden" name="proposal_id" value={proposal.id} />
                 <input type="hidden" name="chapter_id" value={proposal.chapter_id} />
                 <input type="hidden" name="redirect" value={`/books/${bookId}?tab=outline`} />
@@ -60,7 +60,7 @@ export default function BookProposalsClient({
                   Apply
                 </button>
               </form>
-              <form action="/books/chapters/proposals/reject" method="post">
+              <form action="/books/chapters/proposals/reject" method="post" data-toast="Proposal rejected">
                 <input type="hidden" name="proposal_id" value={proposal.id} />
                 <input type="hidden" name="redirect" value={`/books/${bookId}?tab=outline`} />
                 <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">

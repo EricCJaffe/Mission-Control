@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 type ToastKind = "info" | "success" | "error";
 
@@ -50,6 +50,31 @@ export default function UiFeedbackProvider({ children }: { children: React.React
     }),
     []
   );
+
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? window.sessionStorage.getItem("mc:toast") : null;
+    if (stored) {
+      pushToast({ title: stored });
+      window.sessionStorage.removeItem("mc:toast");
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLFormElement)) return;
+      const toast = target.dataset.toast;
+      const progress = target.dataset.progress;
+      if (progress) {
+        startProgress();
+      }
+      if (toast) {
+        window.sessionStorage.setItem("mc:toast", toast);
+      }
+    };
+    document.addEventListener("submit", handler, true);
+    return () => document.removeEventListener("submit", handler, true);
+  }, []);
 
   return (
     <UiFeedbackContext.Provider value={value}>

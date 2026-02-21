@@ -24,7 +24,7 @@ export default async function ReviewSurveyPage() {
         </p>
       </div>
 
-      <form className="mt-6 grid gap-6" action="/reviews/submit" method="post">
+      <form className="mt-6 grid gap-6" action="/reviews/submit" method="post" data-progress="true" data-toast="Review submitted">
         <input type="hidden" name="period_start" value={periodStart} />
 
         <section className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">

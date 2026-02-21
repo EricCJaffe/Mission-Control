@@ -69,7 +69,7 @@ export default async function TasksPage() {
         </p>
       </div>
 
-      <form className="mt-6 grid gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto]" action="/tasks/new" method="post">
+      <form className="mt-6 grid gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto]" action="/tasks/new" method="post" data-toast="Task added">
         <input
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
           name="title"
@@ -151,7 +151,7 @@ export default async function TasksPage() {
                 )}
               </div>
 
-              <form action="/tasks/update" method="post" className="flex flex-wrap items-center gap-2">
+              <form action="/tasks/update" method="post" className="flex flex-wrap items-center gap-2" data-toast="Task updated">
                 <input type="hidden" name="id" value={task.id} />
                 <input
                   className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
@@ -204,7 +204,7 @@ export default async function TasksPage() {
               </form>
             </div>
 
-            <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data">
+            <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data" data-progress="true" data-toast="Attachment uploading">
               <input type="hidden" name="scope_type" value="task" />
               <input type="hidden" name="scope_id" value={task.id} />
               <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs" name="file" type="file" />

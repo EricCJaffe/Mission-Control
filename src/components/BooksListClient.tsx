@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useUiFeedback } from "@/components/UiFeedbackProvider";
 
 type Book = {
   id: string;
@@ -19,11 +20,14 @@ export default function BooksListClient({
   wordTotals: Record<string, number>;
 }) {
   const [deleting, setDeleting] = useState<string | null>(null);
+  const { startProgress } = useUiFeedback();
 
   function handleDelete(id: string) {
     const ok = window.confirm("Delete this book and all chapters? This cannot be undone.");
     if (!ok) return;
     setDeleting(id);
+    startProgress();
+    window.sessionStorage.setItem("mc:toast", "Book deletion started");
     const form = document.createElement("form");
     form.method = "post";
     form.action = "/books/delete";

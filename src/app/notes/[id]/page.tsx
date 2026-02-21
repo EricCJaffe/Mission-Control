@@ -53,7 +53,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
         >
           Download Markdown
         </a>
-        <form action={`/notes/${note.id}/export-vault`} method="post">
+        <form action={`/notes/${note.id}/export-vault`} method="post" data-progress="true" data-toast="Exporting note to vault">
           <button
             className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm"
             type="submit"
@@ -65,7 +65,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
 
       <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
         <h2 className="text-sm font-semibold">Attachments</h2>
-        <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data">
+        <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data" data-progress="true" data-toast="Attachment uploading">
           <input type="hidden" name="scope_type" value="note" />
           <input type="hidden" name="scope_id" value={note.id} />
           <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="file" type="file" />
@@ -98,7 +98,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
         </div>
       </section>
 
-      <form className="mt-6 grid gap-4" action="/notes/update" method="post">
+      <form className="mt-6 grid gap-4" action="/notes/update" method="post" data-toast="Note saved">
         <input type="hidden" name="id" value={note.id} />
         <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
           <label className="text-xs uppercase tracking-wide text-slate-500">Title</label>

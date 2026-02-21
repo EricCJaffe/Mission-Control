@@ -575,7 +575,7 @@ export default function ChapterEditor({
               <summary className="cursor-pointer">Version History</summary>
               <div className="mt-2 grid gap-2">
                 {versions.map((version) => (
-                  <form key={version.id} action="/books/chapters/restore" method="post" className="flex items-center justify-between gap-2">
+                  <form key={version.id} action="/books/chapters/restore" method="post" className="flex items-center justify-between gap-2" data-toast="Version restored">
                     <input type="hidden" name="chapter_id" value={chapter.id} />
                     <input type="hidden" name="version_id" value={version.id} />
                     <div className="text-xs">Version {version.version_number}</div>
@@ -594,7 +594,7 @@ export default function ChapterEditor({
         <aside className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
           <section className="rounded-xl border border-slate-200 bg-white p-4">
             <h3 className="text-sm font-semibold">Todos (Chapter)</h3>
-            <form className="mt-3 grid gap-2" action="/tasks/new" method="post">
+            <form className="mt-3 grid gap-2" action="/tasks/new" method="post" data-toast="Todo added">
               <input type="hidden" name="chapter_id" value={chapter.id} />
               <input type="hidden" name="redirect" value={`/books/${chapter.book_id}/chapters/${chapter.id}`} />
               <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="title" placeholder="New todo" required />
@@ -604,7 +604,7 @@ export default function ChapterEditor({
             </form>
             <div className="mt-3 grid gap-2 text-xs">
               {todos.map((todo) => (
-                <form key={todo.id} action="/tasks/update" method="post" className="rounded-lg border border-slate-200 bg-white px-2 py-2">
+                <form key={todo.id} action="/tasks/update" method="post" className="rounded-lg border border-slate-200 bg-white px-2 py-2" data-toast="Todo updated">
                   <input type="hidden" name="id" value={todo.id} />
                   <input type="hidden" name="redirect" value={`/books/${chapter.book_id}/chapters/${chapter.id}`} />
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -720,7 +720,7 @@ export default function ChapterEditor({
               onChange={(e) => setNoteQuery(e.target.value)}
               placeholder="Search notes..."
             />
-            <form className="mt-3 grid gap-2" action={`/books/${chapter.book_id}/research`} method="post">
+            <form className="mt-3 grid gap-2" action={`/books/${chapter.book_id}/research`} method="post" data-toast="Research note added">
               <input type="hidden" name="scope_type" value="chapter" />
               <input type="hidden" name="scope_id" value={chapter.id} />
               <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="title" placeholder="Note title" required />
@@ -750,7 +750,7 @@ export default function ChapterEditor({
 
           <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
             <h3 className="text-sm font-semibold">Attachments</h3>
-            <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data">
+            <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data" data-progress="true" data-toast="Attachment uploading">
               <input type="hidden" name="scope_type" value="chapter" />
               <input type="hidden" name="scope_id" value={chapter.id} />
               <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="file" type="file" />
@@ -795,7 +795,7 @@ export default function ChapterEditor({
               </button>
               <span>{commentAnchor ? `Anchor: ${commentAnchor.slice(0, 80)}...` : "No selection captured."}</span>
             </div>
-            <form className="mt-3 grid gap-2" action="/books/chapters/comments/new" method="post">
+            <form className="mt-3 grid gap-2" action="/books/chapters/comments/new" method="post" data-toast="Comment added">
               <input type="hidden" name="chapter_id" value={chapter.id} />
               <input type="hidden" name="anchor_text" value={commentAnchor} />
               <input type="hidden" name="start_offset" value={commentFrom ?? ""} />
@@ -819,7 +819,7 @@ export default function ChapterEditor({
                 Add Comment
               </button>
             </form>
-            <form className="mt-3" action="/books/chapters/comments/ai-review" method="post">
+            <form className="mt-3" action="/books/chapters/comments/ai-review" method="post" data-progress="true" data-toast="AI review started">
               <input type="hidden" name="chapter_id" value={chapter.id} />
               <button className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs" type="submit">
                 Run AI Editor Review
@@ -835,7 +835,7 @@ export default function ChapterEditor({
                     </span>
                   </div>
 
-                  <form className="mt-2 grid gap-2" action="/books/chapters/comments/update" method="post">
+                  <form className="mt-2 grid gap-2" action="/books/chapters/comments/update" method="post" data-toast="Comment updated">
                     <input type="hidden" name="comment_id" value={comment.id} />
                     <textarea
                       className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
@@ -862,7 +862,7 @@ export default function ChapterEditor({
                     </div>
                   </form>
 
-                  <form className="mt-2" action="/books/chapters/comments/suggest" method="post">
+                  <form className="mt-2" action="/books/chapters/comments/suggest" method="post" data-progress="true" data-toast="Suggestion queued">
                     <input type="hidden" name="comment_id" value={comment.id} />
                     <input type="hidden" name="chapter_id" value={chapter.id} />
                     <button className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px]" type="submit">
@@ -874,7 +874,7 @@ export default function ChapterEditor({
                     <div className="mt-2 text-slate-500">Anchor: {comment.anchor_text}</div>
                   )}
                   {comment.suggested_patch && (
-                    <form className="mt-2" action="/books/chapters/comments/apply" method="post">
+                    <form className="mt-2" action="/books/chapters/comments/apply" method="post" data-progress="true" data-toast="Applying suggestion">
                       <input type="hidden" name="comment_id" value={comment.id} />
                       <input type="hidden" name="chapter_id" value={chapter.id} />
                       <button className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px]" type="submit">
