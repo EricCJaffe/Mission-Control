@@ -354,6 +354,7 @@ export default function ChapterEditor({
     }
   }
 
+
   return (
     <main className="pt-8">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -615,28 +616,54 @@ export default function ChapterEditor({
                 Run AI Editor Review
               </button>
             </form>
-            <div className="mt-3 grid gap-2">
+            <div className="mt-3 grid gap-3">
               {comments.map((comment) => (
-                <div key={comment.id} className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs">
+                <div key={comment.id} className="rounded-lg border border-slate-200 bg-white px-3 py-3 text-xs">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="font-medium">{comment.comment}</div>
+                    <div className="font-medium">Comment</div>
                     <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]">
                       {comment.status || "open"}
                     </span>
                   </div>
+
+                  <form className="mt-2 grid gap-2" action="/books/chapters/comments/update" method="post">
+                    <input type="hidden" name="comment_id" value={comment.id} />
+                    <textarea
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                      name="comment"
+                      defaultValue={comment.comment}
+                    />
+                    <textarea
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                      name="suggested_patch"
+                      defaultValue={comment.suggested_patch || ""}
+                      placeholder="Suggested patch..."
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px]" type="submit">
+                        Save
+                      </button>
+                      <button
+                        className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px]"
+                        type="button"
+                        onClick={() => focusComment(comment)}
+                      >
+                        Highlight
+                      </button>
+                    </div>
+                  </form>
+
+                  <form className="mt-2" action="/books/chapters/comments/suggest" method="post">
+                    <input type="hidden" name="comment_id" value={comment.id} />
+                    <input type="hidden" name="chapter_id" value={chapter.id} />
+                    <button className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px]" type="submit">
+                      AI Suggest
+                    </button>
+                  </form>
+
                   {comment.anchor_text && (
-                    <div className="mt-1 text-slate-500">Anchor: {comment.anchor_text}</div>
+                    <div className="mt-2 text-slate-500">Anchor: {comment.anchor_text}</div>
                   )}
-                  {comment.suggested_patch && (
-                    <div className="mt-2 whitespace-pre-line text-slate-600">{comment.suggested_patch}</div>
-                  )}
-                  <button
-                    className="mt-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px]"
-                    type="button"
-                    onClick={() => focusComment(comment)}
-                  >
-                    Highlight
-                  </button>
                   {comment.suggested_patch && (
                     <form className="mt-2" action="/books/chapters/comments/apply" method="post">
                       <input type="hidden" name="comment_id" value={comment.id} />
