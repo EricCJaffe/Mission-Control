@@ -2,6 +2,15 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+type TaskAttachment = {
+  id: string;
+  scope_id: string;
+  filename: string;
+  created_at: string;
+  size_bytes: number | null;
+  mime_type: string | null;
+};
+
 function formatDueDate(value: string | null) {
   if (!value) return "No due date";
   const date = new Date(value);
@@ -45,9 +54,9 @@ export default async function TasksPage() {
         .in("scope_id", taskIds)
     : { data: [] };
 
-  const attachmentsByTask = (taskAttachments || []).reduce<Record<string, NonNullable<typeof taskAttachments>>>((acc, file) => {
+  const attachmentsByTask = (taskAttachments || []).reduce<Record<string, TaskAttachment[]>>((acc, file) => {
     if (!acc[file.scope_id]) acc[file.scope_id] = [];
-    acc[file.scope_id].push(file);
+    acc[file.scope_id].push(file as TaskAttachment);
     return acc;
   }, {});
 
