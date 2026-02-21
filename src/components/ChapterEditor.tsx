@@ -174,13 +174,13 @@ export default function ChapterEditor({
     ],
     content: markdown || "",
     onUpdate: ({ editor }) => {
-      const next = editor.storage.markdown.getMarkdown();
+      const next = (editor.storage as any)?.markdown?.getMarkdown?.() || editor.getText();
       setMarkdown(next);
     },
   });
 
   useEffect(() => {
-    if (editor && markdown !== editor.storage.markdown.getMarkdown()) {
+    if (editor && markdown !== ((editor.storage as any)?.markdown?.getMarkdown?.() || editor.getText())) {
       editor.commands.setContent(markdown || "", false);
     }
   }, [editor, markdown]);
