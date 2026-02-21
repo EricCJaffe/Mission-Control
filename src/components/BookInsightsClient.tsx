@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useUiFeedback } from "@/components/UiFeedbackProvider";
 
 type Message = {
   id: string;
@@ -14,11 +15,13 @@ export default function BookInsightsClient({ bookId }: { bookId: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const { startProgress, stopProgress } = useUiFeedback();
 
   async function send() {
     if (!input.trim() || isSending) return;
     setError("");
     setIsSending(true);
+    startProgress();
     const userId = `user-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const pendingId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const currentInput = input;
@@ -49,6 +52,7 @@ export default function BookInsightsClient({ bookId }: { bookId: string }) {
         )
       );
       setIsSending(false);
+      stopProgress();
       return;
     }
 
@@ -59,6 +63,7 @@ export default function BookInsightsClient({ bookId }: { bookId: string }) {
     );
     setInput("");
     setIsSending(false);
+    stopProgress();
   }
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useUiFeedback } from "@/components/UiFeedbackProvider";
 
 type ChatMessage = {
   id: string;
@@ -13,11 +14,13 @@ export default function BookChat({ bookId, initialMessages }: { bookId: string; 
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const { startProgress, stopProgress } = useUiFeedback();
 
   async function send() {
     if (!input.trim() || isSending) return;
     setError("");
     setIsSending(true);
+    startProgress();
     const userId = `local-user-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const pendingId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const currentInput = input;
@@ -45,6 +48,7 @@ export default function BookChat({ bookId, initialMessages }: { bookId: string; 
         )
       );
       setIsSending(false);
+      stopProgress();
       return;
     }
     const data = await res.json();
@@ -54,6 +58,7 @@ export default function BookChat({ bookId, initialMessages }: { bookId: string; 
     );
     setInput("");
     setIsSending(false);
+    stopProgress();
   }
 
   return (

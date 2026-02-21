@@ -10,6 +10,7 @@ import Link from "@tiptap/extension-link";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "tiptap-markdown";
+import { useUiFeedback } from "@/components/UiFeedbackProvider";
 
 type Chapter = {
   id: string;
@@ -141,6 +142,7 @@ export default function ChapterEditor({
   const [aiError, setAiError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
+  const { startProgress, stopProgress, pushToast } = useUiFeedback();
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [sectionDraft, setSectionDraft] = useState("");
   const [noteQuery, setNoteQuery] = useState("");
@@ -213,10 +215,13 @@ export default function ChapterEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markdown, title, summary, status]);
 
-  async function autosave() {
+  async function autosave(manual = false) {
     const signature = JSON.stringify({ title, summary: summary || "", status, markdown });
     if (signature === lastSavedRef.current) {
       setAutosaveStatus("Saved");
+      if (manual) {
+        pushToast({ title: "Already saved", description: "No new changes to save." });
+      }
       return;
     }
     setAutosaveStatus("Saving...");
@@ -241,6 +246,9 @@ export default function ChapterEditor({
         }
         lastSavedRef.current = signature;
         setAutosaveStatus("Saved");
+        if (manual) {
+          pushToast({ title: "Chapter saved", description: "Your changes are safely stored." });
+        }
       })
       .catch((err) => {
         setSaveError(err?.message || "Save failed");
@@ -265,6 +273,7 @@ export default function ChapterEditor({
     if (!chatInput.trim() || isGenerating) return;
     setAiError("");
     setIsGenerating(true);
+    startProgress();
     const userId = `local-user-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const pendingId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const now = new Date().toISOString();
@@ -294,6 +303,7 @@ export default function ChapterEditor({
         )
       );
       setIsGenerating(false);
+      stopProgress();
       return;
     }
     const data = await res.json();
@@ -304,12 +314,14 @@ export default function ChapterEditor({
     setAiProposal(content);
     setChatInput("");
     setIsGenerating(false);
+    stopProgress();
   }
 
   async function applyPatch() {
     if (!aiProposal.trim() || isApplying) return;
     setAiError("");
     setIsApplying(true);
+    startProgress();
     try {
       const res = await fetch("/api/ai/patch", {
         method: "POST",
@@ -324,6 +336,7 @@ export default function ChapterEditor({
       if (data?.markdown) setMarkdown(data.markdown);
     } finally {
       setIsApplying(false);
+      stopProgress();
     }
   }
 
@@ -331,6 +344,7 @@ export default function ChapterEditor({
     if (!content.trim() || isApplying) return;
     setAiError("");
     setIsApplying(true);
+    startProgress();
     try {
       const res = await fetch("/api/ai/patch", {
         method: "POST",
@@ -345,6 +359,7 @@ export default function ChapterEditor({
       if (data?.markdown) setMarkdown(data.markdown);
     } finally {
       setIsApplying(false);
+      stopProgress();
     }
   }
 
@@ -548,7 +563,7 @@ export default function ChapterEditor({
             <button
               className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white"
               type="button"
-              onClick={autosave}
+              onClick={() => autosave(true)}
             >
               {autosaveStatus === "Saving..." && "Saving…"}
               {autosaveStatus === "Saved" && "Saved ✓"}
