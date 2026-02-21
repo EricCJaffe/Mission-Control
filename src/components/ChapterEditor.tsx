@@ -280,7 +280,10 @@ export default function ChapterEditor({
               type="button"
               onClick={autosave}
             >
-              Save Now
+              {autosaveStatus === "Saving..." && "Saving…"}
+              {autosaveStatus === "Saved" && "Saved ✓"}
+              {autosaveStatus === "Error" && "Save Failed"}
+              {autosaveStatus === "Idle" && "Save Now"}
             </button>
 
             <details className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
