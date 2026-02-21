@@ -1,6 +1,6 @@
 import path from "path";
 import { NextResponse } from "next/server";
-import mammoth from "mammoth";
+import * as mammoth from "mammoth";
 import { supabaseServer } from "@/lib/supabase/server";
 import { callOpenAI } from "@/lib/openai";
 
