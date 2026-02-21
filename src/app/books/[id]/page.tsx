@@ -5,6 +5,7 @@ import BookProposalsClient from "@/components/BookProposalsClient";
 import BookChat from "@/components/BookChat";
 import BookPageClient from "@/components/BookPageClient";
 import BookResearchNotesClient from "@/components/BookResearchNotesClient";
+import BookTasksClient from "@/components/BookTasksClient";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +56,7 @@ export default async function BookDetailPage({
 
   const { data: bookTasks } = await supabase
     .from("tasks")
-    .select("id,title,status,category,due_date")
+    .select("id,title,status,category,due_date,priority,why,recurrence_rule,recurrence_anchor,book_id,chapter_id")
     .eq("book_id", id)
     .order("created_at", { ascending: false });
 
@@ -231,7 +232,7 @@ export default async function BookDetailPage({
         </>
       )}
 
-{tab === "tasks" && (
+      {tab === "tasks" && (
         <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
           <h2 className="text-base font-semibold">Book Tasks</h2>
           <form className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_auto]" action="/tasks/new" method="post" data-toast="Task added">
@@ -243,30 +244,25 @@ export default async function BookDetailPage({
               Add Task
             </button>
           </form>
-          <div className="mt-4 grid gap-2">
-            {(bookTasks || []).map((task) => (
-              <form key={task.id} action="/tasks/update" method="post" className="rounded-xl border border-slate-200 bg-white p-3 text-sm" data-toast="Task updated">
-                <input type="hidden" name="id" value={task.id} />
-                <input type="hidden" name="redirect" value={`/books/${book.id}?tab=tasks`} />
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="font-medium">{task.title}</div>
-                  <select className="rounded-full border border-slate-200 px-2 py-1 text-xs" name="status" defaultValue={task.status || "open"}>
-                    <option value="open">open</option>
-                    <option value="in_progress">in progress</option>
-                    <option value="done">done</option>
-                    <option value="blocked">blocked</option>
-                  </select>
-                </div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {task.category || "Uncategorized"} · {task.due_date || "no due date"}
-                </div>
-                <button className="mt-2 rounded-full border border-slate-200 px-2 py-1 text-xs" type="submit">
-                  Update
-                </button>
-              </form>
-            ))}
-            {bookTasks && bookTasks.length === 0 && <div className="text-xs text-slate-500">No tasks yet.</div>}
-          </div>
+          <BookTasksClient
+            tasks={(bookTasks || []).map((task) => ({
+              ...task,
+              priority: task.priority ?? null,
+              category: task.category ?? null,
+              why: task.why ?? null,
+              recurrence_rule: task.recurrence_rule ?? null,
+              recurrence_anchor: task.recurrence_anchor ?? null,
+            }))}
+            categories={[
+              "God First",
+              "Health",
+              "Family",
+              "Impact / Clients",
+              "Admin",
+              "Writing / Content",
+            ]}
+            redirect={`/books/${book.id}?tab=tasks`}
+          />
         </section>
       )}
 

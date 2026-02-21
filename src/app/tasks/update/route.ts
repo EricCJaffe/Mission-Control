@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   if (!id) return NextResponse.redirect(new URL("/tasks", req.url));
 
   const status = String(form.get("status") || "").trim();
+  const title = String(form.get("title") || "").trim();
   const priorityRaw = String(form.get("priority") || "").trim();
   const dueDate = String(form.get("due_date") || "").trim();
   const category = String(form.get("category") || "").trim();
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
   const redirectTo = String(form.get("redirect") || "").trim();
 
   const payload: Record<string, unknown> = {};
+  if (form.has("title")) payload.title = title || null;
   if (form.has("status")) payload.status = status || null;
 
   if (form.has("priority")) {
