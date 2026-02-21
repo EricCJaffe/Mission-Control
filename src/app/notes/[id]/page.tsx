@@ -8,7 +8,8 @@ function formatTags(tags: string[] | string | null) {
   return tags;
 }
 
-export default async function NoteDetailPage({ params }: { params: { id: string } }) {
+export default async function NoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -17,7 +18,7 @@ export default async function NoteDetailPage({ params }: { params: { id: string 
   const { data: note, error } = await supabase
     .from("notes")
     .select("id,title,content_md,tags,updated_at,created_at")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (error || !note) {
@@ -37,6 +38,23 @@ export default async function NoteDetailPage({ params }: { params: { id: string 
       <p className="mt-1 text-sm text-slate-500">
         Update the markdown content and tags below.
       </p>
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <a
+          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm"
+          href={`/notes/${note.id}/export`}
+        >
+          Download Markdown
+        </a>
+        <form action={`/notes/${note.id}/export-vault`} method="post">
+          <button
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm"
+            type="submit"
+          >
+            Export to Vault
+          </button>
+        </form>
+      </div>
 
       <form className="mt-6 grid gap-4" action="/notes/update" method="post">
         <input type="hidden" name="id" value={note.id} />

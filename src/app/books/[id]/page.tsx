@@ -15,7 +15,7 @@ export default async function BookDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ q?: string }>;
+  searchParams?: Promise<{ q?: string; tab?: string }>;
 }) {
   const { id } = await params;
   const resolvedSearch = searchParams ? await searchParams : undefined;
@@ -26,7 +26,7 @@ export default async function BookDetailPage({
 
   const { data: book } = await supabase
     .from("books")
-    .select("id,title,description")
+    .select("id,title,description,status,target_word_count")
     .eq("id", id)
     .single();
 
@@ -40,9 +40,33 @@ export default async function BookDetailPage({
 
   const { data: chapters } = await supabase
     .from("chapters")
-    .select("id,title,status,position,markdown_current")
+    .select("id,title,status,position,markdown_current,word_count,section_id")
     .eq("book_id", id)
     .order("position", { ascending: true });
+
+  const { data: sections } = await supabase
+    .from("chapter_sections")
+    .select("id,title,position")
+    .eq("book_id", id)
+    .order("position", { ascending: true });
+
+  const { data: bookTasks } = await supabase
+    .from("tasks")
+    .select("id,title,status,category,due_date")
+    .eq("book_id", id)
+    .order("created_at", { ascending: false });
+
+  const { data: milestones } = await supabase
+    .from("book_milestones")
+    .select("id,title,due_date,status")
+    .eq("book_id", id)
+    .order("due_date", { ascending: true });
+
+  const { data: uploads } = await supabase
+    .from("book_uploads")
+    .select("id,filename,storage_path,created_at,size_bytes")
+    .eq("book_id", id)
+    .order("created_at", { ascending: false });
 
   const query = resolvedSearch?.q?.trim() || "";
   let researchQuery = supabase
@@ -80,8 +104,13 @@ export default async function BookDetailPage({
     title: ch.title,
     status: ch.status,
     position: ch.position,
-    wordCount: wordCount(ch.markdown_current),
+    wordCount: ch.word_count ?? wordCount(ch.markdown_current),
   }));
+
+  const totalWords = chapterList.reduce((acc, ch) => acc + ch.wordCount, 0);
+  const targetWords = book.target_word_count || 0;
+  const progress = targetWords > 0 ? Math.min(100, Math.round((totalWords / targetWords) * 100)) : 0;
+  const tab = resolvedSearch?.tab || "outline";
 
   return (
     <main className="pt-8">
@@ -89,6 +118,9 @@ export default async function BookDetailPage({
         <div>
           <h1 className="text-3xl font-semibold">{book.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{book.description || "No description"}</p>
+          <div className="mt-2 text-xs text-slate-500">
+            Status: <span className="font-medium text-slate-700">{book.status || "planning"}</span>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <a className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs" href={`/books/${book.id}/export?format=zip`}>
@@ -104,65 +136,286 @@ export default async function BookDetailPage({
       </div>
 
       <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
-        <h2 className="text-base font-semibold">Add Chapter</h2>
-        <form className="mt-3 grid gap-3 md:grid-cols-2" action={`/books/${book.id}/chapters/new`} method="post">
-          <input type="hidden" name="book_id" value={book.id} />
-          <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Chapter title" required />
-          <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="summary" placeholder="Summary / theme" />
-          <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="status" defaultValue="outline">
-            <option value="outline">outline</option>
-            <option value="draft">draft</option>
-            <option value="review">review</option>
-            <option value="final">final</option>
-          </select>
-          <button className="md:col-span-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-            Add Chapter
-          </button>
-        </form>
-      </section>
-
-      <section className="mt-6">
-        <BookChaptersBoard bookId={book.id} chapters={chapterList} />
-      </section>
-
-      <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
-        <h2 className="text-base font-semibold">Research Notes (Book)</h2>
-        <form className="mt-2" action={`/books/${book.id}`} method="get">
-          <input
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-            name="q"
-            placeholder="Search notes..."
-            defaultValue={query}
-          />
-        </form>
-        <form className="mt-3 grid gap-3" action={`/books/${book.id}/research`} method="post">
-          <input type="hidden" name="scope_type" value="book" />
-          <input type="hidden" name="scope_id" value={book.id} />
-          <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Note title" required />
-          <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="tags" placeholder="tags (comma-separated)" />
-          <textarea className="min-h-[120px] rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm" name="content_md" placeholder="Markdown content" />
-          <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-            Add Note
-          </button>
-        </form>
-
-        <div className="mt-4 grid gap-2">
-          {(researchNotes || []).map((note) => (
-            <div key={note.id} className="rounded-xl border border-slate-200 bg-white p-3">
-              <div className="text-sm font-medium">{note.title}</div>
-              <div className="mt-1 text-xs text-slate-500">{(note.tags || []).join(", ")}</div>
-              <div className="mt-2 text-xs whitespace-pre-line text-slate-600">{note.content_md}</div>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-sm font-semibold">Progress</div>
+            <div className="text-xs text-slate-500">
+              {totalWords.toLocaleString()} words · {targetWords ? `${progress}% of ${targetWords.toLocaleString()}` : "No target set"}
             </div>
-          ))}
-          {researchNotes && researchNotes.length === 0 && (
-            <div className="text-xs text-slate-500">No research notes yet.</div>
-          )}
+          </div>
+          <form className="grid gap-2 md:grid-cols-3" action="/books/update" method="post">
+            <input type="hidden" name="id" value={book.id} />
+            <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="status" defaultValue={book.status || "planning"}>
+              <option value="planning">planning</option>
+              <option value="drafting">drafting</option>
+              <option value="review">review</option>
+              <option value="final">final</option>
+              <option value="archive">archive</option>
+            </select>
+            <input
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              name="target_word_count"
+              placeholder="Target words"
+              type="number"
+              min="0"
+              defaultValue={book.target_word_count || ""}
+            />
+            <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+              Update
+            </button>
+          </form>
+        </div>
+        <div className="mt-3 h-2 w-full rounded-full bg-slate-100">
+          <div className="h-2 rounded-full bg-blue-600" style={{ width: `${progress}%` }} />
         </div>
       </section>
 
-      <section className="mt-6">
-        <BookChat bookId={book.id} initialMessages={bookMessages || []} />
-      </section>
+      <div className="mt-6 flex flex-wrap gap-2 text-xs">
+        <Link className={`rounded-full border px-3 py-1 ${tab === "outline" ? "bg-blue-700 text-white" : "bg-white"}`} href={`/books/${book.id}?tab=outline`}>
+          Outline
+        </Link>
+        <Link className={`rounded-full border px-3 py-1 ${tab === "tasks" ? "bg-blue-700 text-white" : "bg-white"}`} href={`/books/${book.id}?tab=tasks`}>
+          Tasks
+        </Link>
+        <Link className={`rounded-full border px-3 py-1 ${tab === "timeline" ? "bg-blue-700 text-white" : "bg-white"}`} href={`/books/${book.id}?tab=timeline`}>
+          Timeline
+        </Link>
+        <Link className={`rounded-full border px-3 py-1 ${tab === "notes" ? "bg-blue-700 text-white" : "bg-white"}`} href={`/books/${book.id}?tab=notes`}>
+          Research Notes
+        </Link>
+        <Link className={`rounded-full border px-3 py-1 ${tab === "files" ? "bg-blue-700 text-white" : "bg-white"}`} href={`/books/${book.id}?tab=files`}>
+          Files
+        </Link>
+      </div>
+
+      {tab === "outline" && (
+        <>
+          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+            <h2 className="text-base font-semibold">Add Chapter</h2>
+            <form className="mt-3 grid gap-3 md:grid-cols-2" action={`/books/${book.id}/chapters/new`} method="post">
+              <input type="hidden" name="book_id" value={book.id} />
+              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Chapter title" required />
+              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="summary" placeholder="Summary / theme" />
+              <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="status" defaultValue="outline">
+                <option value="outline">outline</option>
+                <option value="draft">draft</option>
+                <option value="review">review</option>
+                <option value="final">final</option>
+              </select>
+              <button className="md:col-span-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Add Chapter
+              </button>
+            </form>
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+            <h2 className="text-base font-semibold">AI Table of Contents</h2>
+            <p className="mt-1 text-xs text-slate-500">Generate a draft chapter outline from a concept.</p>
+            <form className="mt-3 grid gap-3 md:grid-cols-[1fr_140px_auto]" action="/books/ai/toc" method="post">
+              <input type="hidden" name="book_id" value={book.id} />
+              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="concept" placeholder="Book concept or summary" required />
+              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="count" type="number" min="1" placeholder="# Chapters" />
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Generate TOC
+              </button>
+            </form>
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+            <h2 className="text-base font-semibold">Add Section Break</h2>
+            <form className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_auto]" action={`/books/${book.id}/sections/new`} method="post">
+              <input type="hidden" name="book_id" value={book.id} />
+              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Section title" required />
+              <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="position" defaultValue="1">
+                {(chapterList.length ? chapterList : [{ position: 1, id: "start", title: "Start" }]).map((ch, idx) => (
+                  <option key={ch.id} value={ch.position ?? idx + 1}>
+                    Before: {ch.title || `Chapter ${idx + 1}`}
+                  </option>
+                ))}
+                <option value={chapterList.length + 1}>After last chapter</option>
+              </select>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Add Section
+              </button>
+            </form>
+          </section>
+
+          <section className="mt-6">
+            <BookChaptersBoard bookId={book.id} chapters={chapterList} sections={sections || []} />
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+            <h2 className="text-base font-semibold">AI Bulk Edit (All Chapters)</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Apply a single instruction across every chapter. Each chapter is saved as a new version.
+            </p>
+            <form className="mt-3 grid gap-3 md:grid-cols-[1fr_200px_auto]" action="/books/ai/bulk" method="post">
+              <input type="hidden" name="book_id" value={book.id} />
+              <input
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                name="instruction"
+                placeholder="e.g. Add 3 reflection questions at the end of each chapter"
+                required
+              />
+              <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="mode" defaultValue="bulk-edit">
+                <option value="bulk-edit">Bulk edit</option>
+                <option value="editor-review">Editor review</option>
+                <option value="reflection-questions">Reflection questions</option>
+              </select>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Run AI
+              </button>
+            </form>
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+            <h2 className="text-base font-semibold">Place Concept Into Best Chapter</h2>
+            <form className="mt-3 grid gap-3 md:grid-cols-[1fr_auto]" action="/books/ai/place" method="post">
+              <input type="hidden" name="book_id" value={book.id} />
+              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="concept" placeholder="Concept or paragraph to route into the best chapter" required />
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Find Chapter
+              </button>
+            </form>
+          </section>
+        </>
+      )}
+
+      {tab === "tasks" && (
+        <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+          <h2 className="text-base font-semibold">Book Tasks</h2>
+          <form className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_auto]" action="/tasks/new" method="post">
+            <input type="hidden" name="book_id" value={book.id} />
+            <input type="hidden" name="redirect" value={`/books/${book.id}?tab=tasks`} />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Task title" required />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="category" placeholder="category" />
+            <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+              Add Task
+            </button>
+          </form>
+          <div className="mt-4 grid gap-2">
+            {(bookTasks || []).map((task) => (
+              <form key={task.id} action="/tasks/update" method="post" className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                <input type="hidden" name="id" value={task.id} />
+                <input type="hidden" name="redirect" value={`/books/${book.id}?tab=tasks`} />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-medium">{task.title}</div>
+                  <select className="rounded-full border border-slate-200 px-2 py-1 text-xs" name="status" defaultValue={task.status || "open"}>
+                    <option value="open">open</option>
+                    <option value="in_progress">in progress</option>
+                    <option value="done">done</option>
+                    <option value="blocked">blocked</option>
+                  </select>
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {task.category || "Uncategorized"} · {task.due_date || "no due date"}
+                </div>
+                <button className="mt-2 rounded-full border border-slate-200 px-2 py-1 text-xs" type="submit">
+                  Update
+                </button>
+              </form>
+            ))}
+            {bookTasks && bookTasks.length === 0 && <div className="text-xs text-slate-500">No tasks yet.</div>}
+          </div>
+        </section>
+      )}
+
+      {tab === "timeline" && (
+        <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+          <h2 className="text-base font-semibold">Timeline</h2>
+          <form className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_auto]" action={`/books/${book.id}/milestones/new`} method="post">
+            <input type="hidden" name="book_id" value={book.id} />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Milestone title" required />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="due_date" type="date" />
+            <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+              Add Milestone
+            </button>
+          </form>
+          <div className="mt-4 grid gap-2 text-sm">
+            {(milestones || []).map((milestone) => (
+              <form key={milestone.id} action={`/books/${book.id}/milestones/update`} method="post" className="rounded-xl border border-slate-200 bg-white p-3">
+                <input type="hidden" name="id" value={milestone.id} />
+                <input type="hidden" name="book_id" value={book.id} />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-medium">{milestone.title}</div>
+                  <select className="rounded-full border border-slate-200 px-2 py-1 text-xs" name="status" defaultValue={milestone.status || "planned"}>
+                    <option value="planned">planned</option>
+                    <option value="in_progress">in progress</option>
+                    <option value="done">done</option>
+                    <option value="blocked">blocked</option>
+                  </select>
+                </div>
+                <div className="mt-1 text-xs text-slate-500">Due: {milestone.due_date || "tbd"}</div>
+                <button className="mt-2 rounded-full border border-slate-200 px-2 py-1 text-xs" type="submit">
+                  Update
+                </button>
+              </form>
+            ))}
+            {milestones && milestones.length === 0 && <div className="text-xs text-slate-500">No milestones yet.</div>}
+          </div>
+        </section>
+      )}
+
+      {tab === "notes" && (
+        <>
+          <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+            <h2 className="text-base font-semibold">Research Notes (Book)</h2>
+            <form className="mt-2" action={`/books/${book.id}`} method="get">
+              <input type="hidden" name="tab" value="notes" />
+              <input
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                name="q"
+                placeholder="Search notes..."
+                defaultValue={query}
+              />
+            </form>
+            <form className="mt-3 grid gap-3" action={`/books/${book.id}/research`} method="post">
+              <input type="hidden" name="scope_type" value="book" />
+              <input type="hidden" name="scope_id" value={book.id} />
+              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Note title" required />
+              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="tags" placeholder="tags (comma-separated)" />
+              <textarea className="min-h-[120px] rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm" name="content_md" placeholder="Markdown content" />
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Add Note
+              </button>
+            </form>
+
+            <div className="mt-4 grid gap-2">
+              {(researchNotes || []).map((note) => (
+                <div key={note.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="text-sm font-medium">{note.title}</div>
+                  <div className="mt-1 text-xs text-slate-500">{(note.tags || []).join(", ")}</div>
+                  <div className="mt-2 text-xs whitespace-pre-line text-slate-600">{note.content_md}</div>
+                </div>
+              ))}
+              {researchNotes && researchNotes.length === 0 && (
+                <div className="text-xs text-slate-500">No research notes yet.</div>
+              )}
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <BookChat bookId={book.id} initialMessages={bookMessages || []} />
+          </section>
+        </>
+      )}
+
+      {tab === "files" && (
+        <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+          <h2 className="text-base font-semibold">Uploaded Files</h2>
+          <div className="mt-4 grid gap-2 text-sm">
+            {(uploads || []).map((file) => (
+              <div key={file.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                <div className="font-medium">{file.filename}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {Math.round((file.size_bytes || 0) / 1024)} KB · {new Date(file.created_at).toLocaleString()}
+                </div>
+              </div>
+            ))}
+            {uploads && uploads.length === 0 && <div className="text-xs text-slate-500">No uploads yet.</div>}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

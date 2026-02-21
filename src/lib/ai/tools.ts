@@ -48,9 +48,11 @@ export async function applyPatch(chapterId: string, patch: string) {
 
   const nextVersion = (latestVersion?.version_number ?? 0) + 1;
 
+  const wordCount = merged.trim().split(/\s+/).filter(Boolean).length;
+
   await supabase
     .from("chapters")
-    .update({ markdown_current: merged, updated_at: new Date().toISOString() })
+    .update({ markdown_current: merged, word_count: wordCount, updated_at: new Date().toISOString() })
     .eq("id", chapterId);
 
   await supabase.from("chapter_versions").insert({

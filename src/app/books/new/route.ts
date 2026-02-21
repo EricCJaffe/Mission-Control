@@ -10,6 +10,8 @@ export async function POST(req: Request) {
   const form = await req.formData();
   const title = String(form.get("title") || "").trim();
   const description = String(form.get("description") || "").trim();
+  const targetWordCountRaw = String(form.get("target_word_count") || "").trim();
+  const targetWordCount = targetWordCountRaw ? Number(targetWordCountRaw) : null;
 
   if (!title) return NextResponse.redirect(new URL("/books", req.url));
 
@@ -20,6 +22,8 @@ export async function POST(req: Request) {
       created_by: user.id,
       title,
       description: description || null,
+      status: "planning",
+      target_word_count: Number.isFinite(targetWordCount) ? targetWordCount : null,
     })
     .select("id")
     .single();

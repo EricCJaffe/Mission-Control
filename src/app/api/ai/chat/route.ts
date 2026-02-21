@@ -50,7 +50,16 @@ export async function POST(req: Request) {
     .select("id,role,content,created_at")
     .single();
 
-  let aiText = \"\";\n+  try {\n+    aiText = await callOpenAI({\n+      model: process.env.OPENAI_MODEL || \"gpt-4.1-mini\",\n+      system: `You are a writing assistant. Persona: ${persona.title}. Tone: ${persona.tone}. Mission: ${persona.mission_alignment}.`,\n+      user: `Mode: ${mode}\\nScope: ${scopeType}\\nContext: ${JSON.stringify(context)}\\nUser: ${message}`,\n+    });\n+  } catch (err: any) {\n+    return NextResponse.json({ error: err?.message || \"ai_error\" }, { status: 500 });\n+  }
+  let aiText = "";
+  try {
+    aiText = await callOpenAI({
+      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      system: `You are a writing assistant. Persona: ${persona.title}. Tone: ${persona.tone}. Mission: ${persona.mission_alignment}.`,
+      user: `Mode: ${mode}\nScope: ${scopeType}\nContext: ${JSON.stringify(context)}\nUser: ${message}`,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || "ai_error" }, { status: 500 });
+  }
 
   const { data: assistantMessage } = await supabase
     .from("chat_messages")

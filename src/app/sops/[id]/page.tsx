@@ -9,7 +9,8 @@ function toDateInput(value: string | null) {
   return date.toISOString().slice(0, 10);
 }
 
-export default async function SopDetailPage({ params }: { params: { id: string } }) {
+export default async function SopDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -18,7 +19,7 @@ export default async function SopDetailPage({ params }: { params: { id: string }
   const { data: sop, error } = await supabase
     .from("sop_docs")
     .select("id,title,content_md,status")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (error || !sop) {
@@ -33,7 +34,7 @@ export default async function SopDetailPage({ params }: { params: { id: string }
   const { data: checks } = await supabase
     .from("sop_checks")
     .select("id,step,is_done,due_date")
-    .eq("sop_id", params.id)
+    .eq("sop_id", id)
     .order("created_at", { ascending: true });
 
   return (

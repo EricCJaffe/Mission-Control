@@ -17,3 +17,30 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
+
+.ProseMirror {
+  min-height: 380px;
+  outline: none;
+  font-size: 0.95rem;
+}
+
+.ProseMirror > * + * {
+  margin-top: 0.75rem;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.25rem;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid #e2e8f0;
+  padding-left: 0.75rem;
+  color: #475569;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3 {
+  font-weight: 600;
+}

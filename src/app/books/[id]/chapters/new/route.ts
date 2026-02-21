@@ -44,6 +44,7 @@ export async function POST(req: Request) {
       status,
       summary: summary || null,
       markdown_current: "",
+      word_count: 0,
     })
     .select("id")
     .single();

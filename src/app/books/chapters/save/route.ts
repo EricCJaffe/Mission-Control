@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     const title = String(body.title ?? "");
     const status = String(body.status ?? "outline");
     const summary = body.summary ? String(body.summary) : null;
+    const word_count = markdown.trim().split(/\s+/).filter(Boolean).length;
 
     const { data: currentChapter } = await supabase
       .from("chapters")
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
       status,
       summary,
       markdown_current: markdown,
+      word_count,
       updated_at: new Date().toISOString(),
     })
     .eq("id", chapterId);

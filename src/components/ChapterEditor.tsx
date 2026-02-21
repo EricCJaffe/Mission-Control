@@ -1,6 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
+import Underline from "@tiptap/extension-underline";
+import Link from "@tiptap/extension-link";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import { Markdown } from "tiptap-markdown";
 
 type Chapter = {
   id: string;
@@ -9,6 +17,13 @@ type Chapter = {
   status: string | null;
   summary: string | null;
   markdown_current: string | null;
+};
+
+type BookChapter = {
+  id: string;
+  title: string;
+  position: number | null;
+  status: string | null;
 };
 
 type Version = {
@@ -28,6 +43,15 @@ type ChatMessage = {
   id: string;
   role: string;
   content: string;
+  created_at: string;
+};
+
+type Comment = {
+  id: string;
+  anchor_text: string | null;
+  comment: string;
+  suggested_patch: string | null;
+  status: string | null;
   created_at: string;
 };
 
@@ -68,14 +92,18 @@ function extractSections(markdown: string): Section[] {
 
 export default function ChapterEditor({
   chapter,
+  bookChapters,
   versions,
   researchNotes,
   chatMessages,
+  comments,
 }: {
   chapter: Chapter;
+  bookChapters: BookChapter[];
   versions: Version[];
   researchNotes: ResearchNote[];
   chatMessages: ChatMessage[];
+  comments: Comment[];
 }) {
   const [markdown, setMarkdown] = useState(chapter.markdown_current || "");
   const [title, setTitle] = useState(chapter.title || "");
@@ -91,6 +119,9 @@ export default function ChapterEditor({
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [sectionDraft, setSectionDraft] = useState("");
   const [noteQuery, setNoteQuery] = useState("");
+  const [commentText, setCommentText] = useState("");
+  const [commentPatch, setCommentPatch] = useState("");
+  const [commentAnchor, setCommentAnchor] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>(JSON.stringify({
     title: chapter.title,
@@ -100,6 +131,29 @@ export default function ChapterEditor({
   }));
 
   const sections = useMemo(() => extractSections(markdown), [markdown]);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      Link.configure({ openOnClick: false }),
+      TaskList,
+      TaskItem,
+      Placeholder.configure({ placeholder: "Start writing your chapter..." }),
+      Markdown,
+    ],
+    content: markdown || "",
+    onUpdate: ({ editor }) => {
+      const next = editor.storage.markdown.getMarkdown();
+      setMarkdown(next);
+    },
+  });
+
+  useEffect(() => {
+    if (editor && markdown !== editor.storage.markdown.getMarkdown()) {
+      editor.commands.setContent(markdown || "", false);
+    }
+  }, [editor, markdown]);
 
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -201,6 +255,14 @@ export default function ChapterEditor({
     if (data?.markdown) setMarkdown(data.markdown);
   }
 
+  function captureSelection() {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    if (from === to) return;
+    const selected = editor.state.doc.textBetween(from, to, "\n");
+    setCommentAnchor(selected.slice(0, 400));
+  }
+
   return (
     <main className="pt-8">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -214,9 +276,25 @@ export default function ChapterEditor({
         </a>
       </div>
 
-      <section className="mt-6 grid gap-4 lg:grid-cols-[220px_1fr_320px]">
+      <section className="mt-6 grid gap-4 lg:grid-cols-[240px_1fr_320px]">
         <aside className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
-          <div className="text-xs uppercase tracking-widest text-slate-500">Outline</div>
+          <div className="text-xs uppercase tracking-widest text-slate-500">Book Outline</div>
+          <div className="mt-3 grid gap-2 text-xs">
+            {bookChapters.map((bookChapter) => (
+              <a
+                key={bookChapter.id}
+                className={`rounded-lg border px-2 py-1 ${
+                  bookChapter.id === chapter.id ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 bg-white"
+                }`}
+                href={`/books/${chapter.book_id}/chapters/${bookChapter.id}`}
+              >
+                {bookChapter.title}
+              </a>
+            ))}
+            {bookChapters.length === 0 && <div className="text-xs text-slate-500">No chapters yet.</div>}
+          </div>
+
+          <div className="mt-4 text-xs uppercase tracking-widest text-slate-500">Outline</div>
           <div className="mt-3 grid gap-2 text-xs">
             {sections.map((section, idx) => (
               <button
@@ -270,15 +348,44 @@ export default function ChapterEditor({
               <option value="review">review</option>
               <option value="final">final</option>
             </select>
+            <div className="text-xs text-slate-500">
+              Word count: {markdown.trim().split(/\s+/).filter(Boolean).length}
+            </div>
           </div>
 
           <div className="mt-4">
             {mode === "edit" ? (
-              <textarea
-                className="min-h-[420px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm"
-                value={markdown}
-                onChange={(e) => setMarkdown(e.target.value)}
-              />
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                <div className="mb-2 flex flex-wrap gap-2 text-xs">
+                  <button className="rounded border px-2 py-1" type="button" onClick={() => editor?.chain().focus().toggleBold().run()}>
+                    Bold
+                  </button>
+                  <button className="rounded border px-2 py-1" type="button" onClick={() => editor?.chain().focus().toggleItalic().run()}>
+                    Italic
+                  </button>
+                  <button className="rounded border px-2 py-1" type="button" onClick={() => editor?.chain().focus().toggleUnderline().run()}>
+                    Underline
+                  </button>
+                  <button className="rounded border px-2 py-1" type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>
+                    H2
+                  </button>
+                  <button className="rounded border px-2 py-1" type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()}>
+                    Bullets
+                  </button>
+                  <button className="rounded border px-2 py-1" type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
+                    Numbered
+                  </button>
+                  <button className="rounded border px-2 py-1" type="button" onClick={() => editor?.chain().focus().toggleBlockquote().run()}>
+                    Quote
+                  </button>
+                  <button className="rounded border px-2 py-1" type="button" onClick={() => editor?.chain().focus().toggleTaskList().run()}>
+                    Checklist
+                  </button>
+                </div>
+                <div className="min-h-[360px]">
+                  <EditorContent editor={editor} />
+                </div>
+              </div>
             ) : (
               <div className="min-h-[420px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm whitespace-pre-line">
                 {markdown || "No content yet."}
@@ -351,6 +458,76 @@ export default function ChapterEditor({
               {researchNotes.length === 0 && <div className="text-xs text-slate-500">No notes yet.</div>}
             </div>
           </section>
+
+          <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+            <h3 className="text-sm font-semibold">Editorial Comments</h3>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <button
+                className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs"
+                type="button"
+                onClick={captureSelection}
+              >
+                Use selected text
+              </button>
+              <span>{commentAnchor ? `Anchor: ${commentAnchor.slice(0, 80)}...` : "No selection captured."}</span>
+            </div>
+            <form className="mt-3 grid gap-2" action="/books/chapters/comments/new" method="post">
+              <input type="hidden" name="chapter_id" value={chapter.id} />
+              <input type="hidden" name="anchor_text" value={commentAnchor} />
+              <textarea
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                name="comment"
+                placeholder="Comment / feedback"
+                required
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+              />
+              <textarea
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                name="suggested_patch"
+                placeholder="Suggested change (optional)"
+                value={commentPatch}
+                onChange={(e) => setCommentPatch(e.target.value)}
+              />
+              <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
+                Add Comment
+              </button>
+            </form>
+            <form className="mt-3" action="/books/chapters/comments/ai-review" method="post">
+              <input type="hidden" name="chapter_id" value={chapter.id} />
+              <button className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs" type="submit">
+                Run AI Editor Review
+              </button>
+            </form>
+            <div className="mt-3 grid gap-2">
+              {comments.map((comment) => (
+                <div key={comment.id} className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-medium">{comment.comment}</div>
+                    <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]">
+                      {comment.status || "open"}
+                    </span>
+                  </div>
+                  {comment.anchor_text && (
+                    <div className="mt-1 text-slate-500">Anchor: {comment.anchor_text}</div>
+                  )}
+                  {comment.suggested_patch && (
+                    <div className="mt-2 whitespace-pre-line text-slate-600">{comment.suggested_patch}</div>
+                  )}
+                  {comment.suggested_patch && (
+                    <form className="mt-2" action="/books/chapters/comments/apply" method="post">
+                      <input type="hidden" name="comment_id" value={comment.id} />
+                      <input type="hidden" name="chapter_id" value={chapter.id} />
+                      <button className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px]" type="submit">
+                        Apply Patch
+                      </button>
+                    </form>
+                  )}
+                </div>
+              ))}
+              {comments.length === 0 && <div className="text-xs text-slate-500">No comments yet.</div>}
+            </div>
+          </section>
         </div>
 
         <aside className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
@@ -364,6 +541,7 @@ export default function ChapterEditor({
             <option>Add transitions</option>
             <option>Tone check</option>
             <option>Scripture integrity check</option>
+            <option>Editor review</option>
           </select>
           <textarea className="mt-3 min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask the assistant..." />
           <button className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white" type="button" onClick={sendChat}>

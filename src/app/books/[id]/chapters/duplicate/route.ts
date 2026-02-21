@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
   const { data: chapter } = await supabase
     .from("chapters")
-    .select("book_id,title,slug,status,summary,markdown_current,position")
+    .select("book_id,title,slug,status,summary,markdown_current,position,word_count")
     .eq("id", chapterId)
     .single();
 
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     status: chapter.status,
     summary: chapter.summary,
     markdown_current: chapter.markdown_current,
+    word_count: chapter.word_count || 0,
   });
 
   return NextResponse.redirect(new URL(`/books/${chapter.book_id}`, req.url));

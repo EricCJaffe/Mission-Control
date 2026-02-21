@@ -18,25 +18,32 @@ export async function POST(req: Request) {
   const why = String(form.get("why") || "").trim();
   const recurrenceRule = String(form.get("recurrence_rule") || "").trim();
   const recurrenceAnchor = String(form.get("recurrence_anchor") || "").trim();
+  const redirectTo = String(form.get("redirect") || "").trim();
 
   const payload: Record<string, unknown> = {};
-  payload.status = status || null;
+  if (form.has("status")) payload.status = status || null;
 
-  if (!priorityRaw) {
-    payload.priority = null;
-  } else {
-    const parsed = Number(priorityRaw);
-    payload.priority = Number.isNaN(parsed) ? null : parsed;
+  if (form.has("priority")) {
+    if (!priorityRaw) {
+      payload.priority = null;
+    } else {
+      const parsed = Number(priorityRaw);
+      payload.priority = Number.isNaN(parsed) ? null : parsed;
+    }
   }
 
-  payload.due_date = dueDate || null;
-  payload.category = category || null;
-  payload.why = why || null;
-  payload.recurrence_rule = recurrenceRule || null;
-  payload.recurrence_anchor = recurrenceAnchor || null;
+  if (form.has("due_date")) payload.due_date = dueDate || null;
+  if (form.has("category")) payload.category = category || null;
+  if (form.has("why")) payload.why = why || null;
+  if (form.has("recurrence_rule")) payload.recurrence_rule = recurrenceRule || null;
+  if (form.has("recurrence_anchor")) payload.recurrence_anchor = recurrenceAnchor || null;
   payload.updated_at = new Date().toISOString();
 
   await supabase.from("tasks").update(payload).eq("id", id);
+
+  if (redirectTo) {
+    return NextResponse.redirect(new URL(redirectTo, req.url));
+  }
 
   return NextResponse.redirect(new URL("/tasks", req.url));
 }

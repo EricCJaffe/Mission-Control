@@ -35,11 +35,23 @@ export default async function ChapterEditorPage({
     .order("version_number", { ascending: false })
     .limit(30);
 
+  const { data: bookChapters } = await supabase
+    .from("chapters")
+    .select("id,title,position,status")
+    .eq("book_id", chapter.book_id)
+    .order("position", { ascending: true });
+
   const { data: notes } = await supabase
     .from("research_notes")
     .select("id,title,content_md,tags")
     .eq("scope_type", "chapter")
     .eq("scope_id", chapter.id)
+    .order("created_at", { ascending: false });
+
+  const { data: comments } = await supabase
+    .from("chapter_comments")
+    .select("id,anchor_text,comment,suggested_patch,status,created_at")
+    .eq("chapter_id", chapter.id)
     .order("created_at", { ascending: false });
 
   const { data: thread } = await supabase
@@ -62,9 +74,11 @@ export default async function ChapterEditorPage({
   return (
     <ChapterEditor
       chapter={chapter}
+      bookChapters={bookChapters || []}
       versions={versions || []}
       researchNotes={notes || []}
       chatMessages={messages || []}
+      comments={comments || []}
     />
   );
 }
