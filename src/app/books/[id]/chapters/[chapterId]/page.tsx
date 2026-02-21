@@ -50,7 +50,7 @@ export default async function ChapterEditorPage({
 
   const { data: comments } = await supabase
     .from("chapter_comments")
-    .select("id,anchor_text,comment,suggested_patch,status,created_at")
+    .select("id,anchor_text,start_offset,end_offset,comment,suggested_patch,status,created_at")
     .eq("chapter_id", chapter.id)
     .order("created_at", { ascending: false });
 

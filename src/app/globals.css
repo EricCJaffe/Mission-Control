@@ -44,3 +44,9 @@ body {
 .ProseMirror h3 {
   font-weight: 600;
 }
+
+.comment-mark {
+  background: #e0f2fe;
+  border-bottom: 2px solid #38bdf8;
+  border-radius: 2px;
+}

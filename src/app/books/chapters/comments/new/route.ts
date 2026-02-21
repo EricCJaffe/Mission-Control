@@ -12,6 +12,10 @@ export async function POST(req: Request) {
   const comment = String(form.get("comment") || "").trim();
   const anchorText = String(form.get("anchor_text") || "").trim();
   const suggestedPatch = String(form.get("suggested_patch") || "").trim();
+  const startOffsetRaw = String(form.get("start_offset") || "").trim();
+  const endOffsetRaw = String(form.get("end_offset") || "").trim();
+  const startOffset = startOffsetRaw ? Number(startOffsetRaw) : null;
+  const endOffset = endOffsetRaw ? Number(endOffsetRaw) : null;
 
   if (!chapterId || !comment) return NextResponse.redirect(new URL(req.url).origin);
 
@@ -19,6 +23,8 @@ export async function POST(req: Request) {
     chapter_id: chapterId,
     org_id: user.id,
     anchor_text: anchorText || null,
+    start_offset: Number.isFinite(startOffset) ? startOffset : null,
+    end_offset: Number.isFinite(endOffset) ? endOffset : null,
     comment,
     suggested_patch: suggestedPatch || null,
     created_by: user.id,

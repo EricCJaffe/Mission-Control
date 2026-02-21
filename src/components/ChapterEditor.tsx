@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import { Mark, mergeAttributes } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
@@ -49,6 +50,8 @@ type ChatMessage = {
 type Comment = {
   id: string;
   anchor_text: string | null;
+  start_offset: number | null;
+  end_offset: number | null;
   comment: string;
   suggested_patch: string | null;
   status: string | null;
@@ -122,6 +125,22 @@ export default function ChapterEditor({
   const [commentText, setCommentText] = useState("");
   const [commentPatch, setCommentPatch] = useState("");
   const [commentAnchor, setCommentAnchor] = useState("");
+  const [commentFrom, setCommentFrom] = useState<number | null>(null);
+  const [commentTo, setCommentTo] = useState<number | null>(null);
+
+  const CommentMark = Mark.create({
+    name: "commentMark",
+    addAttributes() {
+      return {
+        id: {
+          default: null,
+        },
+      };
+    },
+    renderHTML({ HTMLAttributes }) {
+      return ["mark", mergeAttributes(HTMLAttributes, { class: "comment-mark" }), 0];
+    },
+  });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>(JSON.stringify({
     title: chapter.title,
@@ -141,6 +160,7 @@ export default function ChapterEditor({
       TaskItem,
       Placeholder.configure({ placeholder: "Start writing your chapter..." }),
       Markdown,
+      CommentMark,
     ],
     content: markdown || "",
     onUpdate: ({ editor }) => {
@@ -154,6 +174,11 @@ export default function ChapterEditor({
       editor.commands.setContent(markdown || "", false);
     }
   }, [editor, markdown]);
+
+  useEffect(() => {
+    if (!editor) return;
+    applyCommentHighlights(editor, comments || []);
+  }, [editor, comments, markdown]);
 
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -261,6 +286,63 @@ export default function ChapterEditor({
     if (from === to) return;
     const selected = editor.state.doc.textBetween(from, to, "\n");
     setCommentAnchor(selected.slice(0, 400));
+    setCommentFrom(from);
+    setCommentTo(to);
+  }
+
+  function applyCommentHighlights(currentEditor: typeof editor, commentList: Comment[]) {
+    if (!currentEditor) return;
+    const { state, view } = currentEditor;
+    let tr = state.tr;
+    commentList.forEach((comment) => {
+      if (comment.start_offset && comment.end_offset && comment.end_offset > comment.start_offset) {
+        tr = tr.addMark(comment.start_offset, comment.end_offset, state.schema.marks.commentMark.create({ id: comment.id }));
+        return;
+      }
+      if (comment.anchor_text) {
+        const ranges = findRanges(state.doc, comment.anchor_text);
+        ranges.forEach((range) => {
+          tr = tr.addMark(range.from, range.to, state.schema.marks.commentMark.create({ id: comment.id }));
+        });
+      }
+    });
+    if (tr.docChanged || tr.storedMarks || tr.steps.length) {
+      view.dispatch(tr);
+    }
+  }
+
+  function findRanges(doc: any, needle: string) {
+    const ranges: { from: number; to: number }[] = [];
+    if (!needle) return ranges;
+    doc.descendants((node: any, pos: number) => {
+      if (!node.isText || !node.text) return;
+      let index = node.text.indexOf(needle);
+      while (index !== -1) {
+        const from = pos + index;
+        const to = from + needle.length;
+        ranges.push({ from, to });
+        index = node.text.indexOf(needle, index + needle.length);
+      }
+    });
+    return ranges;
+  }
+
+  function focusComment(comment: Comment) {
+    if (!editor) return;
+    const { state } = editor;
+    let from = comment.start_offset || null;
+    let to = comment.end_offset || null;
+    if ((!from || !to) && comment.anchor_text) {
+      const ranges = findRanges(state.doc, comment.anchor_text);
+      if (ranges.length > 0) {
+        from = ranges[0].from;
+        to = ranges[0].to;
+      }
+    }
+    if (from && to) {
+      editor.commands.setTextSelection({ from, to });
+      editor.commands.scrollIntoView();
+    }
   }
 
   return (
@@ -474,6 +556,8 @@ export default function ChapterEditor({
             <form className="mt-3 grid gap-2" action="/books/chapters/comments/new" method="post">
               <input type="hidden" name="chapter_id" value={chapter.id} />
               <input type="hidden" name="anchor_text" value={commentAnchor} />
+              <input type="hidden" name="start_offset" value={commentFrom ?? ""} />
+              <input type="hidden" name="end_offset" value={commentTo ?? ""} />
               <textarea
                 className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
                 name="comment"
@@ -514,6 +598,13 @@ export default function ChapterEditor({
                   {comment.suggested_patch && (
                     <div className="mt-2 whitespace-pre-line text-slate-600">{comment.suggested_patch}</div>
                   )}
+                  <button
+                    className="mt-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px]"
+                    type="button"
+                    onClick={() => focusComment(comment)}
+                  >
+                    Highlight
+                  </button>
                   {comment.suggested_patch && (
                     <form className="mt-2" action="/books/chapters/comments/apply" method="post">
                       <input type="hidden" name="comment_id" value={comment.id} />
