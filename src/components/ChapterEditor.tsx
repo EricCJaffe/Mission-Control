@@ -83,6 +83,7 @@ export default function ChapterEditor({
   const [status, setStatus] = useState(chapter.status || "outline");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [autosaveStatus, setAutosaveStatus] = useState("Idle");
+  const [saveError, setSaveError] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [chatMode, setChatMode] = useState("Outline");
   const [messages, setMessages] = useState<ChatMessage[]>(chatMessages);
@@ -107,6 +108,7 @@ export default function ChapterEditor({
 
   async function autosave() {
     setAutosaveStatus("Saving...");
+    setSaveError("");
     await fetch("/books/chapters/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -117,8 +119,20 @@ export default function ChapterEditor({
         status,
         markdown,
       }),
-    });
-    setAutosaveStatus("Saved");
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setSaveError(data?.error || "Save failed");
+          setAutosaveStatus("Error");
+          return;
+        }
+        setAutosaveStatus("Saved");
+      })
+      .catch((err) => {
+        setSaveError(err?.message || "Save failed");
+        setAutosaveStatus("Error");
+      });
   }
 
   function selectSection(section: Section) {
@@ -181,6 +195,7 @@ export default function ChapterEditor({
         <div>
           <h1 className="text-3xl font-semibold">Chapter Editor</h1>
           <p className="mt-1 text-sm text-slate-500">Autosave enabled · {autosaveStatus}</p>
+          {saveError && <p className="mt-1 text-xs text-red-600">Save error: {saveError}</p>}
         </div>
         <a className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs" href={`/books/${chapter.book_id}`}>
           Back to book

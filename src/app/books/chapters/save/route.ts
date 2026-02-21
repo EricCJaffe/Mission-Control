@@ -3,21 +3,32 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { chunkMarkdown, upsertChapterChunks } from "@/lib/ai/chunking";
 
 export async function POST(req: Request) {
-  const supabase = await supabaseServer();
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  try {
+    const supabase = await supabaseServer();
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+    if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const body = await req.json().catch(() => null);
-  if (!body?.chapter_id) return NextResponse.json({ error: "missing" }, { status: 400 });
+    let body: any = null;
+    const contentType = req.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      body = await req.json().catch(() => null);
+    } else {
+      const form = await req.formData().catch(() => null);
+      if (form) {
+        body = Object.fromEntries(form.entries());
+      }
+    }
 
-  const chapterId = String(body.chapter_id);
-  const markdown = String(body.markdown ?? "");
-  const title = String(body.title ?? "");
-  const status = String(body.status ?? "outline");
-  const summary = body.summary ? String(body.summary) : null;
+    if (!body?.chapter_id) return NextResponse.json({ error: "missing" }, { status: 400 });
 
-  const { data: latestVersion } = await supabase
+    const chapterId = String(body.chapter_id);
+    const markdown = String(body.markdown ?? "");
+    const title = String(body.title ?? "");
+    const status = String(body.status ?? "outline");
+    const summary = body.summary ? String(body.summary) : null;
+
+    const { data: latestVersion } = await supabase
     .from("chapter_versions")
     .select("version_number")
     .eq("chapter_id", chapterId)
@@ -25,9 +36,9 @@ export async function POST(req: Request) {
     .limit(1)
     .maybeSingle();
 
-  const nextVersion = (latestVersion?.version_number ?? 0) + 1;
+    const nextVersion = (latestVersion?.version_number ?? 0) + 1;
 
-  await supabase
+    const { error: updateError } = await supabase
     .from("chapters")
     .update({
       title,
@@ -38,16 +49,27 @@ export async function POST(req: Request) {
     })
     .eq("id", chapterId);
 
-  await supabase.from("chapter_versions").insert({
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 400 });
+    }
+
+    const { error: versionError } = await supabase.from("chapter_versions").insert({
     chapter_id: chapterId,
     org_id: user.id,
     version_number: nextVersion,
     markdown,
     created_by: user.id,
-  });
+    });
 
-  const chunks = chunkMarkdown(markdown);
-  await upsertChapterChunks(supabase, chapterId, user.id, chunks);
+    if (versionError) {
+      return NextResponse.json({ error: versionError.message }, { status: 400 });
+    }
 
-  return NextResponse.json({ ok: true, version: nextVersion });
+    const chunks = chunkMarkdown(markdown);
+    await upsertChapterChunks(supabase, chapterId, user.id, chunks);
+
+    return NextResponse.json({ ok: true, version: nextVersion });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || "save_failed" }, { status: 500 });
+  }
 }
