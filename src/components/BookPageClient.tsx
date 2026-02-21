@@ -21,57 +21,50 @@ export default function BookPageClient({
 
   return (
     <>
-      <section className="mt-6 grid gap-4 xl:grid-cols-3 md:grid-cols-2">
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
-          <h2 className="text-sm font-semibold">AI Insights (Book)</h2>
+      <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(220px,280px)_1fr]">
+        <div className="grid gap-3">
+          <button
+            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            type="button"
+            onClick={() => (document.getElementById("toc-dialog") as HTMLDialogElement)?.showModal()}
+          >
+            AI Table of Contents
+          </button>
+          <button
+            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            type="button"
+            onClick={() => (document.getElementById("bulk-dialog") as HTMLDialogElement)?.showModal()}
+          >
+            AI Bulk Edit
+          </button>
+          <button
+            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            type="button"
+            onClick={() => (document.getElementById("place-dialog") as HTMLDialogElement)?.showModal()}
+          >
+            Place Concept
+          </button>
+          <button
+            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            type="button"
+            onClick={() => (document.getElementById("chapter-dialog") as HTMLDialogElement)?.showModal()}
+          >
+            Add Chapter
+          </button>
+          <button
+            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            type="button"
+            onClick={() => (document.getElementById("section-dialog") as HTMLDialogElement)?.showModal()}
+          >
+            Add Section Break
+          </button>
+        </div>
+
+        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+          <h2 className="text-base font-semibold">AI Insights (Book)</h2>
           <p className="mt-1 text-xs text-slate-500">Ask about themes, gaps, or next edits.</p>
           <BookInsightsClient bookId={bookId} />
         </div>
-
-        <button
-          className="rounded-2xl border border-white/80 bg-white/70 p-4 text-left shadow-sm hover:border-slate-300"
-          type="button"
-          onClick={() => (document.getElementById("toc-dialog") as HTMLDialogElement)?.showModal()}
-        >
-          <div className="text-sm font-semibold">AI Table of Contents</div>
-          <p className="mt-1 text-xs text-slate-500">Generate a chapter outline.</p>
-        </button>
-
-        <button
-          className="rounded-2xl border border-white/80 bg-white/70 p-4 text-left shadow-sm hover:border-slate-300"
-          type="button"
-          onClick={() => (document.getElementById("bulk-dialog") as HTMLDialogElement)?.showModal()}
-        >
-          <div className="text-sm font-semibold">AI Bulk Edit</div>
-          <p className="mt-1 text-xs text-slate-500">Apply changes across chapters.</p>
-        </button>
-
-        <button
-          className="rounded-2xl border border-white/80 bg-white/70 p-4 text-left shadow-sm hover:border-slate-300"
-          type="button"
-          onClick={() => (document.getElementById("place-dialog") as HTMLDialogElement)?.showModal()}
-        >
-          <div className="text-sm font-semibold">Place Concept</div>
-          <p className="mt-1 text-xs text-slate-500">Route text to best chapter.</p>
-        </button>
-
-        <button
-          className="rounded-2xl border border-white/80 bg-white/70 p-4 text-left shadow-sm hover:border-slate-300"
-          type="button"
-          onClick={() => (document.getElementById("chapter-dialog") as HTMLDialogElement)?.showModal()}
-        >
-          <div className="text-sm font-semibold">Add Chapter</div>
-          <p className="mt-1 text-xs text-slate-500">Create a new chapter.</p>
-        </button>
-
-        <button
-          className="rounded-2xl border border-white/80 bg-white/70 p-4 text-left shadow-sm hover:border-slate-300"
-          type="button"
-          onClick={() => (document.getElementById("section-dialog") as HTMLDialogElement)?.showModal()}
-        >
-          <div className="text-sm font-semibold">Add Section Break</div>
-          <p className="mt-1 text-xs text-slate-500">Group chapters into sections.</p>
-        </button>
       </section>
 
       <dialog id="toc-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
