@@ -48,31 +48,12 @@ export async function POST(req: Request) {
       continue;
     }
 
-    const { data: latestVersion } = await supabase
-      .from("chapter_versions")
-      .select("version_number")
-      .eq("chapter_id", chapter.id)
-      .order("version_number", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const nextVersion = (latestVersion?.version_number ?? 0) + 1;
-
-    await supabase
-      .from("chapters")
-      .update({
-        markdown_current: updatedMarkdown,
-        word_count: wordCount(updatedMarkdown),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", chapter.id);
-
-    await supabase.from("chapter_versions").insert({
+    await supabase.from("chapter_proposals").insert({
       chapter_id: chapter.id,
       org_id: user.id,
-      version_number: nextVersion,
-      markdown: updatedMarkdown,
-      created_by: user.id,
+      instruction,
+      proposed_markdown: updatedMarkdown,
+      status: "pending",
     });
   }
 

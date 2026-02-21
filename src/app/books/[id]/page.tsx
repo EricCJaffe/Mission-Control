@@ -68,6 +68,15 @@ export default async function BookDetailPage({
     .eq("book_id", id)
     .order("created_at", { ascending: false });
 
+  const chapterIds = (chapters || []).map((ch) => ch.id);
+  const { data: proposals } = chapterIds.length
+    ? await supabase
+        .from("chapter_proposals")
+        .select("id,chapter_id,instruction,status,created_at")
+        .in("chapter_id", chapterIds)
+        .eq("status", "pending")
+    : { data: [] };
+
   const query = resolvedSearch?.q?.trim() || "";
   let researchQuery = supabase
     .from("research_notes")
@@ -242,6 +251,44 @@ export default async function BookDetailPage({
 
           <section className="mt-6">
             <BookChaptersBoard bookId={book.id} chapters={chapterList} sections={sections || []} />
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+            <h2 className="text-base font-semibold">AI Proposal Queue</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Review and apply AI changes per chapter.
+            </p>
+            <div className="mt-3 grid gap-2 text-sm">
+              {(proposals || []).map((proposal) => {
+                const chapterTitle = chapterList.find((ch) => ch.id === proposal.chapter_id)?.title || "Chapter";
+                return (
+                  <div key={proposal.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="font-medium">{chapterTitle}</div>
+                    <div className="mt-1 text-xs text-slate-500">{proposal.instruction || "AI proposal"}</div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <form action="/books/chapters/proposals/apply" method="post">
+                        <input type="hidden" name="proposal_id" value={proposal.id} />
+                        <input type="hidden" name="chapter_id" value={proposal.chapter_id} />
+                        <input type="hidden" name="redirect" value={`/books/${book.id}?tab=outline`} />
+                        <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                          Apply
+                        </button>
+                      </form>
+                      <form action="/books/chapters/proposals/reject" method="post">
+                        <input type="hidden" name="proposal_id" value={proposal.id} />
+                        <input type="hidden" name="redirect" value={`/books/${book.id}?tab=outline`} />
+                        <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                          Reject
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                );
+              })}
+              {proposals && proposals.length === 0 && (
+                <div className="text-xs text-slate-500">No pending AI proposals.</div>
+              )}
+            </div>
           </section>
 
           <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
