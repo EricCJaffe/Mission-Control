@@ -58,6 +58,13 @@ type Comment = {
   created_at: string;
 };
 
+type Attachment = {
+  id: string;
+  filename: string;
+  created_at: string;
+  size_bytes: number | null;
+};
+
 type Section = {
   heading: string;
   start: number;
@@ -100,6 +107,7 @@ export default function ChapterEditor({
   researchNotes,
   chatMessages,
   comments,
+  attachments,
 }: {
   chapter: Chapter;
   bookChapters: BookChapter[];
@@ -107,6 +115,7 @@ export default function ChapterEditor({
   researchNotes: ResearchNote[];
   chatMessages: ChatMessage[];
   comments: Comment[];
+  attachments: Attachment[];
 }) {
   const [markdown, setMarkdown] = useState(chapter.markdown_current || "");
   const [title, setTitle] = useState(chapter.title || "");
@@ -538,6 +547,29 @@ export default function ChapterEditor({
                 </div>
               ))}
               {researchNotes.length === 0 && <div className="text-xs text-slate-500">No notes yet.</div>}
+            </div>
+          </section>
+
+          <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+            <h3 className="text-sm font-semibold">Attachments</h3>
+            <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data">
+              <input type="hidden" name="scope_type" value="chapter" />
+              <input type="hidden" name="scope_id" value={chapter.id} />
+              <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="file" type="file" />
+              <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
+                Upload Attachment
+              </button>
+            </form>
+            <div className="mt-3 grid gap-2 text-xs">
+              {attachments.map((file) => (
+                <div key={file.id} className="rounded-lg border border-slate-200 bg-white px-2 py-1">
+                  <div className="font-medium">{file.filename}</div>
+                  <div className="text-slate-500">
+                    {Math.round((file.size_bytes || 0) / 1024)} KB · {new Date(file.created_at).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+              {attachments.length === 0 && <div className="text-xs text-slate-500">No attachments yet.</div>}
             </div>
           </section>
 

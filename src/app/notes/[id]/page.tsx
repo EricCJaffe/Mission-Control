@@ -21,6 +21,13 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
     .eq("id", id)
     .single();
 
+  const { data: attachments } = await supabase
+    .from("attachments")
+    .select("id,filename,storage_path,created_at,size_bytes")
+    .eq("scope_type", "note")
+    .eq("scope_id", id)
+    .order("created_at", { ascending: false });
+
   if (error || !note) {
     return (
       <main className="pt-8">
@@ -55,6 +62,29 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
           </button>
         </form>
       </div>
+
+      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <h2 className="text-sm font-semibold">Attachments</h2>
+        <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data">
+          <input type="hidden" name="scope_type" value="note" />
+          <input type="hidden" name="scope_id" value={note.id} />
+          <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="file" type="file" />
+          <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+            Upload Attachment
+          </button>
+        </form>
+        <div className="mt-3 grid gap-2 text-xs">
+          {(attachments || []).map((file) => (
+            <div key={file.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+              <div className="font-medium">{file.filename}</div>
+              <div className="text-slate-500">
+                {Math.round((file.size_bytes || 0) / 1024)} KB · {new Date(file.created_at).toLocaleString()}
+              </div>
+            </div>
+          ))}
+          {attachments && attachments.length === 0 && <div className="text-xs text-slate-500">No attachments yet.</div>}
+        </div>
+      </section>
 
       <form className="mt-6 grid gap-4" action="/notes/update" method="post">
         <input type="hidden" name="id" value={note.id} />

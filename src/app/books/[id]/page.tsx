@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import BookChaptersBoard from "@/components/BookChaptersBoard";
+import BookProposalsClient from "@/components/BookProposalsClient";
 import BookChat from "@/components/BookChat";
 
 export const dynamic = "force-dynamic";
@@ -68,11 +69,18 @@ export default async function BookDetailPage({
     .eq("book_id", id)
     .order("created_at", { ascending: false });
 
+  const { data: attachments } = await supabase
+    .from("attachments")
+    .select("id,filename,storage_path,created_at,size_bytes")
+    .eq("scope_type", "book")
+    .eq("scope_id", id)
+    .order("created_at", { ascending: false });
+
   const chapterIds = (chapters || []).map((ch) => ch.id);
   const { data: proposals } = chapterIds.length
     ? await supabase
         .from("chapter_proposals")
-        .select("id,chapter_id,instruction,status,created_at")
+        .select("id,chapter_id,instruction,status,created_at,proposed_markdown")
         .in("chapter_id", chapterIds)
         .eq("status", "pending")
     : { data: [] };
@@ -256,39 +264,13 @@ export default async function BookDetailPage({
           <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
             <h2 className="text-base font-semibold">AI Proposal Queue</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Review and apply AI changes per chapter.
+              Review and apply AI changes per chapter (with diff preview).
             </p>
-            <div className="mt-3 grid gap-2 text-sm">
-              {(proposals || []).map((proposal) => {
-                const chapterTitle = chapterList.find((ch) => ch.id === proposal.chapter_id)?.title || "Chapter";
-                return (
-                  <div key={proposal.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                    <div className="font-medium">{chapterTitle}</div>
-                    <div className="mt-1 text-xs text-slate-500">{proposal.instruction || "AI proposal"}</div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                      <form action="/books/chapters/proposals/apply" method="post">
-                        <input type="hidden" name="proposal_id" value={proposal.id} />
-                        <input type="hidden" name="chapter_id" value={proposal.chapter_id} />
-                        <input type="hidden" name="redirect" value={`/books/${book.id}?tab=outline`} />
-                        <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
-                          Apply
-                        </button>
-                      </form>
-                      <form action="/books/chapters/proposals/reject" method="post">
-                        <input type="hidden" name="proposal_id" value={proposal.id} />
-                        <input type="hidden" name="redirect" value={`/books/${book.id}?tab=outline`} />
-                        <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
-                          Reject
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                );
-              })}
-              {proposals && proposals.length === 0 && (
-                <div className="text-xs text-slate-500">No pending AI proposals.</div>
-              )}
-            </div>
+            <BookProposalsClient
+              proposals={proposals || []}
+              chapterMap={Object.fromEntries((chapters || []).map((ch) => [ch.id, ch]))}
+              bookId={book.id}
+            />
           </section>
 
           <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
@@ -450,7 +432,23 @@ export default async function BookDetailPage({
       {tab === "files" && (
         <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
           <h2 className="text-base font-semibold">Uploaded Files</h2>
+          <form className="mt-3 grid gap-3 md:grid-cols-[1fr_auto]" action="/attachments/upload" method="post" encType="multipart/form-data">
+            <input type="hidden" name="scope_type" value="book" />
+            <input type="hidden" name="scope_id" value={book.id} />
+            <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="file" type="file" />
+            <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+              Upload Attachment
+            </button>
+          </form>
           <div className="mt-4 grid gap-2 text-sm">
+            {(attachments || []).map((file) => (
+              <div key={file.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                <div className="font-medium">{file.filename}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {Math.round((file.size_bytes || 0) / 1024)} KB · {new Date(file.created_at).toLocaleString()}
+                </div>
+              </div>
+            ))}
             {(uploads || []).map((file) => (
               <div key={file.id} className="rounded-xl border border-slate-200 bg-white p-3">
                 <div className="font-medium">{file.filename}</div>
@@ -459,7 +457,9 @@ export default async function BookDetailPage({
                 </div>
               </div>
             ))}
-            {uploads && uploads.length === 0 && <div className="text-xs text-slate-500">No uploads yet.</div>}
+            {attachments && uploads && attachments.length === 0 && uploads.length === 0 && (
+              <div className="text-xs text-slate-500">No files yet.</div>
+            )}
           </div>
         </section>
       )}

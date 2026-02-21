@@ -33,7 +33,7 @@ export default async function TasksPage() {
 
   const { data: tasks, error } = await supabase
     .from("tasks")
-    .select("id,title,status,priority,due_date,created_at,category,why,recurrence_rule,recurrence_anchor")
+    .select("id,title,status,priority,due_date,created_at,category,why,recurrence_rule,recurrence_anchor,book_id,chapter_id")
     .order("created_at", { ascending: false });
 
   return (
@@ -109,6 +109,11 @@ export default async function TasksPage() {
                 <div className="mt-1 text-xs text-slate-500">
                   Status: {task.status || "unspecified"} · Priority: {task.priority || "unspecified"} · {formatDueDate(task.due_date)}
                 </div>
+                {(task.book_id || task.chapter_id) && (
+                  <div className="mt-1 text-xs text-slate-500">
+                    Linked: {task.book_id ? `Book ${task.book_id}` : ""} {task.chapter_id ? `Chapter ${task.chapter_id}` : ""}
+                  </div>
+                )}
                 {task.category && (
                   <div className="mt-1 text-xs text-slate-500">Category: {task.category}</div>
                 )}
@@ -174,6 +179,15 @@ export default async function TasksPage() {
                 </button>
               </form>
             </div>
+
+            <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data">
+              <input type="hidden" name="scope_type" value="task" />
+              <input type="hidden" name="scope_id" value={task.id} />
+              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs" name="file" type="file" />
+              <button className="rounded-xl bg-blue-700 px-3 py-2 text-xs font-medium text-white shadow-sm" type="submit">
+                Upload Attachment
+              </button>
+            </form>
           </div>
         ))}
 
