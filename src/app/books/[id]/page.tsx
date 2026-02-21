@@ -86,7 +86,8 @@ export default async function BookDetailPage({
         .eq("status", "pending")
     : { data: [] };
 
-  const query = resolvedSearch?.q?.trim() || "";
+  const rawQuery = resolvedSearch?.q;
+  const query = typeof rawQuery === "string" ? rawQuery.trim() : "";
   let researchQuery = supabase
     .from("research_notes")
     .select("id,title,content_md,tags")
@@ -128,7 +129,8 @@ export default async function BookDetailPage({
   const totalWords = chapterList.reduce((acc, ch) => acc + ch.wordCount, 0);
   const targetWords = book.target_word_count || 0;
   const progress = targetWords > 0 ? Math.min(100, Math.round((totalWords / targetWords) * 100)) : 0;
-  const tab = resolvedSearch?.tab || "outline";
+  const rawTab = resolvedSearch?.tab;
+  const tab = typeof rawTab === "string" ? rawTab : "outline";
 
   return (
     <main className="pt-4 md:pt-8">
