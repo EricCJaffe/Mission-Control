@@ -9,7 +9,11 @@ function slugify(value: string) {
     .slice(0, 80);
 }
 
-export async function GET(req: Request, { params }: { params: { chapterId: string } }) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string; chapterId: string }> }
+) {
+  const { chapterId } = await params;
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -18,7 +22,7 @@ export async function GET(req: Request, { params }: { params: { chapterId: strin
   const { data: chapter } = await supabase
     .from("chapters")
     .select("title,markdown_current")
-    .eq("id", params.chapterId)
+    .eq("id", chapterId)
     .single();
 
   if (!chapter) return NextResponse.redirect(new URL("/books", req.url));

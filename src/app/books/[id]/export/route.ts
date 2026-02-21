@@ -10,7 +10,11 @@ function slugify(value: string) {
     .slice(0, 80);
 }
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -22,7 +26,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const { data: book } = await supabase
     .from("books")
     .select("id,title")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (!book) return NextResponse.redirect(new URL("/books", req.url));
@@ -30,7 +34,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const { data: chapters } = await supabase
     .from("chapters")
     .select("id,title,position,markdown_current")
-    .eq("book_id", params.id)
+    .eq("book_id", id)
     .order("position", { ascending: true });
 
   const safeTitle = slugify(book.title) || "book";
