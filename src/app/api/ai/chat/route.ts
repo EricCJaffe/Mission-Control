@@ -67,7 +67,7 @@ export async function POST(req: Request) {
       thread_id: threadId,
       org_id: user.id,
       role: "assistant",
-      content: aiText || \"(empty)\",
+      content: aiText || "(empty)",
       tool_calls_json: { mode, persona, context },
     })
     .select("id,role,content,created_at")

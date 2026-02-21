@@ -17,10 +17,10 @@ export async function POST(req: Request) {
 
   const persona = await getPersonaProfile(user.id);
 
-  let outlineText = \"\";
+  let outlineText = "";
   try {
     outlineText = await callOpenAI({
-      model: process.env.OPENAI_MODEL || \"gpt-4.1-mini\",
+      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
       system: `You are a writing assistant. Persona: ${persona.title}. Tone: ${persona.tone}.`,
       user: `Generate a structured outline for chapter ${chapterId}.`,
     });
