@@ -3,7 +3,12 @@ import ChapterEditor from "@/components/ChapterEditor";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChapterEditorPage({ params }: { params: { id: string; chapterId: string } }) {
+export default async function ChapterEditorPage({
+  params,
+}: {
+  params: Promise<{ id: string; chapterId: string }>;
+}) {
+  const { chapterId } = await params;
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -12,7 +17,7 @@ export default async function ChapterEditorPage({ params }: { params: { id: stri
   const { data: chapter } = await supabase
     .from("chapters")
     .select("id,book_id,title,status,summary,markdown_current")
-    .eq("id", params.chapterId)
+    .eq("id", chapterId)
     .single();
 
   if (!chapter) {

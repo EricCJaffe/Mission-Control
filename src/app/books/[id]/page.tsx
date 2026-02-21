@@ -14,9 +14,11 @@ export default async function BookDetailPage({
   params,
   searchParams,
 }: {
-  params: { id: string };
-  searchParams?: { q?: string };
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ q?: string }>;
 }) {
+  const { id } = await params;
+  const resolvedSearch = searchParams ? await searchParams : undefined;
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -25,7 +27,7 @@ export default async function BookDetailPage({
   const { data: book } = await supabase
     .from("books")
     .select("id,title,description")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (!book) {
@@ -39,15 +41,15 @@ export default async function BookDetailPage({
   const { data: chapters } = await supabase
     .from("chapters")
     .select("id,title,status,position,markdown_current")
-    .eq("book_id", params.id)
+    .eq("book_id", id)
     .order("position", { ascending: true });
 
-  const query = searchParams?.q?.trim() || "";
+  const query = resolvedSearch?.q?.trim() || "";
   let researchQuery = supabase
     .from("research_notes")
     .select("id,title,content_md,tags")
     .eq("scope_type", "book")
-    .eq("scope_id", params.id)
+    .eq("scope_id", id)
     .order("created_at", { ascending: false });
 
   if (query) {
@@ -60,7 +62,7 @@ export default async function BookDetailPage({
     .from("chat_threads")
     .select("id")
     .eq("scope_type", "book")
-    .eq("scope_id", params.id)
+    .eq("scope_id", id)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
