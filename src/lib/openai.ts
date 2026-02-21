@@ -40,14 +40,8 @@ export async function callOpenAI({
     body: JSON.stringify({
       model,
       input: [
-        {
-          role: "system",
-          content: [{ type: "input_text", text: system }],
-        },
-        {
-          role: "user",
-          content: [{ type: "input_text", text: user }],
-        },
+        { role: "system", content: system },
+        { role: "user", content: user },
       ],
     }),
   });
