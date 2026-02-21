@@ -58,7 +58,7 @@ export async function GET(
     zip.file(name, `# ${ch.title}\n\n${ch.markdown_current || ""}`);
   });
 
-  const blob = await zip.generateAsync({ type: "nodebuffer" });
+  const blob = await zip.generateAsync({ type: "uint8array" });
 
   return new Response(blob, {
     headers: {
