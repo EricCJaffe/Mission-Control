@@ -274,10 +274,15 @@ export default function ChapterEditor({
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white" type="button" onClick={autosave}>
+          <div className="mt-4 grid gap-3">
+            <button
+              className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white"
+              type="button"
+              onClick={autosave}
+            >
               Save Now
             </button>
+
             <details className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
               <summary className="cursor-pointer">Version History</summary>
               <div className="mt-2 grid gap-2">
