@@ -10,7 +10,7 @@ function extractOutputText(payload: OpenAIResponse) {
   if (payload.output && payload.output.length > 0) {
     const texts = payload.output
       .flatMap((o) => o.content || [])
-      .filter((c) => c.type === "text" && c.text)
+      .filter((c) => (c.type === "text" || c.type === "output_text") && c.text)
       .map((c) => c.text as string);
     return texts.join("\n").trim();
   }
@@ -52,5 +52,9 @@ export async function callOpenAI({
   }
 
   const data = (await res.json()) as OpenAIResponse;
-  return extractOutputText(data);
+  const output = extractOutputText(data);
+  if (!output) {
+    throw new Error("OpenAI returned empty response");
+  }
+  return output;
 }
