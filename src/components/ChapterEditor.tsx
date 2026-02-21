@@ -10,6 +10,7 @@ import Link from "@tiptap/extension-link";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "tiptap-markdown";
+import RtfEditor from "@/components/RtfEditor";
 import { useUiFeedback } from "@/components/UiFeedbackProvider";
 
 type Chapter = {
@@ -39,6 +40,8 @@ type ResearchNote = {
   title: string;
   content_md: string | null;
   tags: string[] | null;
+  scope_type: string | null;
+  scope_id: string | null;
 };
 
 type ChatMessage = {
@@ -146,6 +149,17 @@ export default function ChapterEditor({
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [sectionDraft, setSectionDraft] = useState("");
   const [noteQuery, setNoteQuery] = useState("");
+  const [noteScope, setNoteScope] = useState<"chapter" | "book">("chapter");
+  const [noteScopeId, setNoteScopeId] = useState(chapter.id);
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteTags, setNoteTags] = useState("");
+  const [noteContent, setNoteContent] = useState("");
+  const [editNoteId, setEditNoteId] = useState<string | null>(null);
+  const [editNoteTitle, setEditNoteTitle] = useState("");
+  const [editNoteTags, setEditNoteTags] = useState("");
+  const [editNoteContent, setEditNoteContent] = useState("");
+  const [editNoteScope, setEditNoteScope] = useState<"chapter" | "book">("chapter");
+  const [editNoteScopeId, setEditNoteScopeId] = useState(chapter.id);
   const [commentText, setCommentText] = useState("");
   const [commentPatch, setCommentPatch] = useState("");
   const [commentAnchor, setCommentAnchor] = useState("");
@@ -267,6 +281,27 @@ export default function ChapterEditor({
     const after = markdown.slice(selectedSection.end);
     const next = `${before}${sectionDraft}\n${after}`;
     setMarkdown(next);
+  }
+
+  function openEditNote(note: ResearchNote) {
+    setEditNoteId(note.id);
+    setEditNoteTitle(note.title);
+    setEditNoteTags((note.tags || []).join(", "));
+    setEditNoteContent(note.content_md || "");
+    const scope = note.scope_type === "book" ? "book" : "chapter";
+    setEditNoteScope(scope);
+    setEditNoteScopeId(scope === "book" ? chapter.book_id : chapter.id);
+    (document.getElementById("edit-chapter-note-dialog") as HTMLDialogElement | null)?.showModal();
+  }
+
+  function noteSnippet(text: string) {
+    const cleaned = text
+      .replace(/[#*_>`]/g, "")
+      .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!cleaned) return "";
+    return cleaned.length > 180 ? `${cleaned.slice(0, 180)}…` : cleaned;
   }
 
   async function sendChat() {
@@ -714,22 +749,169 @@ export default function ChapterEditor({
 
           <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
             <h3 className="text-sm font-semibold">Research Notes (Chapter)</h3>
-            <input
-              className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
-              value={noteQuery}
-              onChange={(e) => setNoteQuery(e.target.value)}
-              placeholder="Search notes..."
-            />
-            <form className="mt-3 grid gap-2" action={`/books/${chapter.book_id}/research`} method="post" data-toast="Research note added">
-              <input type="hidden" name="scope_type" value="chapter" />
-              <input type="hidden" name="scope_id" value={chapter.id} />
-              <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="title" placeholder="Note title" required />
-              <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="tags" placeholder="tags" />
-              <textarea className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="content_md" placeholder="Markdown content" />
-              <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <input
+                className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                value={noteQuery}
+                onChange={(e) => setNoteQuery(e.target.value)}
+                placeholder="Search notes..."
+              />
+              <button
+                className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white"
+                type="button"
+                onClick={() => (document.getElementById("add-chapter-note-dialog") as HTMLDialogElement | null)?.showModal()}
+              >
                 Add Note
               </button>
-            </form>
+            </div>
+
+            <dialog id="add-chapter-note-dialog" className="w-[92vw] max-w-2xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+              <div className="rounded-2xl bg-white p-6">
+                <h4 className="text-base font-semibold">Add Research Note</h4>
+                <form className="mt-3 grid gap-3" action={`/books/${chapter.book_id}/research`} method="post" data-toast="Research note added">
+                  <input type="hidden" name="redirect" value={`/books/${chapter.book_id}/chapters/${chapter.id}`} />
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <div>
+                      <label className="text-xs text-slate-500">Scope</label>
+                      <select
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                        name="scope_type"
+                        value={noteScope}
+                        onChange={(e) => {
+                          const next = e.target.value as "chapter" | "book";
+                          setNoteScope(next);
+                          setNoteScopeId(next === "book" ? chapter.book_id : chapter.id);
+                        }}
+                      >
+                        <option value="chapter">Chapter</option>
+                        <option value="book">Book</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500">Chapter</label>
+                      <select
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                        name="scope_id"
+                        value={noteScopeId}
+                        onChange={(e) => setNoteScopeId(e.target.value)}
+                        disabled={noteScope !== "chapter"}
+                      >
+                        {bookChapters.map((ch) => (
+                          <option key={ch.id} value={ch.id}>
+                            {ch.title}
+                          </option>
+                        ))}
+                      </select>
+                      {noteScope === "book" && <input type="hidden" name="scope_id" value={chapter.book_id} />}
+                    </div>
+                  </div>
+                  <input
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                    name="title"
+                    placeholder="Note title"
+                    required
+                    value={noteTitle}
+                    onChange={(e) => setNoteTitle(e.target.value)}
+                  />
+                  <input
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                    name="tags"
+                    placeholder="tags (comma-separated)"
+                    value={noteTags}
+                    onChange={(e) => setNoteTags(e.target.value)}
+                  />
+                  <input type="hidden" name="content_md" value={noteContent} />
+                  <RtfEditor value={noteContent} onChange={setNoteContent} placeholder="Write the note..." minHeight="160px" />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                      type="button"
+                      onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+                    >
+                      Cancel
+                    </button>
+                    <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                      Save Note
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </dialog>
+
+            <dialog id="edit-chapter-note-dialog" className="w-[92vw] max-w-2xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+              <div className="rounded-2xl bg-white p-6">
+                <h4 className="text-base font-semibold">Edit Research Note</h4>
+                <form className="mt-3 grid gap-3" action="/books/research/update" method="post" data-toast="Research note updated">
+                  <input type="hidden" name="note_id" value={editNoteId || ""} />
+                  <input type="hidden" name="redirect" value={`/books/${chapter.book_id}/chapters/${chapter.id}`} />
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <div>
+                      <label className="text-xs text-slate-500">Scope</label>
+                      <select
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                        name="scope_type"
+                        value={editNoteScope}
+                        onChange={(e) => {
+                          const next = e.target.value as "chapter" | "book";
+                          setEditNoteScope(next);
+                          setEditNoteScopeId(next === "book" ? chapter.book_id : chapter.id);
+                        }}
+                      >
+                        <option value="chapter">Chapter</option>
+                        <option value="book">Book</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500">Chapter</label>
+                      <select
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                        name="scope_id"
+                        value={editNoteScopeId}
+                        onChange={(e) => setEditNoteScopeId(e.target.value)}
+                        disabled={editNoteScope !== "chapter"}
+                      >
+                        {bookChapters.map((ch) => (
+                          <option key={ch.id} value={ch.id}>
+                            {ch.title}
+                          </option>
+                        ))}
+                      </select>
+                      {editNoteScope === "book" && <input type="hidden" name="scope_id" value={chapter.book_id} />}
+                    </div>
+                  </div>
+                  <input
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                    name="title"
+                    placeholder="Note title"
+                    required
+                    value={editNoteTitle}
+                    onChange={(e) => setEditNoteTitle(e.target.value)}
+                  />
+                  <input
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                    name="tags"
+                    placeholder="tags (comma-separated)"
+                    value={editNoteTags}
+                    onChange={(e) => setEditNoteTags(e.target.value)}
+                  />
+                  <input type="hidden" name="content_md" value={editNoteContent} />
+                  <RtfEditor value={editNoteContent} onChange={setEditNoteContent} placeholder="Write the note..." minHeight="160px" />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                      type="button"
+                      onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+                    >
+                      Cancel
+                    </button>
+                    <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                      Update Note
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </dialog>
+
             <div className="mt-3 grid gap-2">
               {researchNotes
                 .filter((note) =>
@@ -738,10 +920,27 @@ export default function ChapterEditor({
                     : true
                 )
                 .map((note) => (
-                <div key={note.id} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs">
-                  <div className="font-medium">{note.title}</div>
-                  <div className="text-slate-500">{(note.tags || []).join(", ")}</div>
-                  <div className="whitespace-pre-line">{note.content_md}</div>
+                <div key={note.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-medium">{note.title}</div>
+                      <div className="text-slate-500">{(note.tags || []).join(", ")}</div>
+                      <div className="mt-1 text-[10px] text-slate-400">Scope: {note.scope_type === "book" ? "Book" : "Chapter"}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]" type="button" onClick={() => openEditNote(note)}>
+                        Edit
+                      </button>
+                      <form action="/books/research/delete" method="post" data-toast="Research note deleted">
+                        <input type="hidden" name="note_id" value={note.id} />
+                        <input type="hidden" name="redirect" value={`/books/${chapter.book_id}/chapters/${chapter.id}`} />
+                        <button className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]" type="submit">
+                          Delete
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-[11px] text-slate-600">{noteSnippet(note.content_md || "") || "No content yet."}</div>
                 </div>
               ))}
               {researchNotes.length === 0 && <div className="text-xs text-slate-500">No notes yet.</div>}

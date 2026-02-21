@@ -4,6 +4,7 @@ import BookChaptersBoard from "@/components/BookChaptersBoard";
 import BookProposalsClient from "@/components/BookProposalsClient";
 import BookChat from "@/components/BookChat";
 import BookPageClient from "@/components/BookPageClient";
+import BookResearchNotesClient from "@/components/BookResearchNotesClient";
 
 export const dynamic = "force-dynamic";
 
@@ -90,7 +91,7 @@ export default async function BookDetailPage({
   const query = typeof rawQuery === "string" ? rawQuery.trim() : "";
   let researchQuery = supabase
     .from("research_notes")
-    .select("id,title,content_md,tags")
+    .select("id,title,content_md,tags,scope_type,scope_id")
     .eq("scope_type", "book")
     .eq("scope_id", id)
     .order("created_at", { ascending: false });
@@ -309,38 +310,15 @@ export default async function BookDetailPage({
         <>
           <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
             <h2 className="text-base font-semibold">Research Notes (Book)</h2>
-            <form className="mt-2" action={`/books/${book.id}`} method="get">
-              <input type="hidden" name="tab" value="notes" />
-              <input
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                name="q"
-                placeholder="Search notes..."
-                defaultValue={query}
-              />
-            </form>
-            <form className="mt-3 grid gap-3" action={`/books/${book.id}/research`} method="post" data-toast="Research note added">
-              <input type="hidden" name="scope_type" value="book" />
-              <input type="hidden" name="scope_id" value={book.id} />
-              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Note title" required />
-              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="tags" placeholder="tags (comma-separated)" />
-              <textarea className="min-h-[120px] rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm" name="content_md" placeholder="Markdown content" />
-              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-                Add Note
-              </button>
-            </form>
-
-            <div className="mt-4 grid gap-2">
-              {(researchNotes || []).map((note) => (
-                <div key={note.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                  <div className="text-sm font-medium">{note.title}</div>
-                  <div className="mt-1 text-xs text-slate-500">{(note.tags || []).join(", ")}</div>
-                  <div className="mt-2 text-xs whitespace-pre-line text-slate-600">{note.content_md}</div>
-                </div>
-              ))}
-              {researchNotes && researchNotes.length === 0 && (
-                <div className="text-xs text-slate-500">No research notes yet.</div>
-              )}
-            </div>
+            <BookResearchNotesClient
+              bookId={book.id}
+              chapters={(chapters || []).map((ch) => ({ id: ch.id, title: ch.title }))}
+              notes={(researchNotes || []).map((note) => ({
+                ...note,
+                scope_type: note.scope_type || "book",
+                scope_id: note.scope_id || book.id,
+              }))}
+            />
           </section>
 
           <section className="mt-6">
