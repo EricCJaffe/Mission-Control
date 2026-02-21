@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getPersonaProfile } from "@/lib/ai/persona";
 import { retrieveContext } from "@/lib/ai/tools";
+import { callOpenAI } from "@/lib/openai";
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
     .select("id,role,content,created_at")
     .single();
 
-  const stub = `Stub response (${mode}). Persona: ${persona.title}.`;
+  let aiText = \"\";\n+  try {\n+    aiText = await callOpenAI({\n+      model: process.env.OPENAI_MODEL || \"gpt-4.1-mini\",\n+      system: `You are a writing assistant. Persona: ${persona.title}. Tone: ${persona.tone}. Mission: ${persona.mission_alignment}.`,\n+      user: `Mode: ${mode}\\nScope: ${scopeType}\\nContext: ${JSON.stringify(context)}\\nUser: ${message}`,\n+    });\n+  } catch (err: any) {\n+    return NextResponse.json({ error: err?.message || \"ai_error\" }, { status: 500 });\n+  }
 
   const { data: assistantMessage } = await supabase
     .from("chat_messages")
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
       thread_id: threadId,
       org_id: user.id,
       role: "assistant",
-      content: stub,
+      content: aiText || \"(empty)\",
       tool_calls_json: { mode, persona, context },
     })
     .select("id,role,content,created_at")

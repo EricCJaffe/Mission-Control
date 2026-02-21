@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { generateOutline } from "@/lib/ai/tools";
 import { getPersonaProfile } from "@/lib/ai/persona";
+import { callOpenAI } from "@/lib/openai";
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -15,7 +16,18 @@ export async function POST(req: Request) {
   if (!chapterId) return NextResponse.json({ error: "missing" }, { status: 400 });
 
   const persona = await getPersonaProfile(user.id);
-  const outline = await generateOutline(chapterId);
 
-  return NextResponse.json({ ok: true, outline, persona });
+  let outlineText = \"\";
+  try {
+    outlineText = await callOpenAI({
+      model: process.env.OPENAI_MODEL || \"gpt-4.1-mini\",
+      system: `You are a writing assistant. Persona: ${persona.title}. Tone: ${persona.tone}.`,
+      user: `Generate a structured outline for chapter ${chapterId}.`,
+    });
+  } catch {
+    const outline = await generateOutline(chapterId);
+    return NextResponse.json({ ok: true, outline, persona, fallback: true });
+  }
+
+  return NextResponse.json({ ok: true, outline: { outline: outlineText }, persona });
 }

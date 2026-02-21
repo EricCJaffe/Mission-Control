@@ -92,6 +92,12 @@ export default function ChapterEditor({
   const [sectionDraft, setSectionDraft] = useState("");
   const [noteQuery, setNoteQuery] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedRef = useRef<string>(JSON.stringify({
+    title: chapter.title,
+    summary: chapter.summary || "",
+    status: chapter.status || "outline",
+    markdown: chapter.markdown_current || "",
+  }));
 
   const sections = useMemo(() => extractSections(markdown), [markdown]);
 
@@ -107,6 +113,11 @@ export default function ChapterEditor({
   }, [markdown, title, summary, status]);
 
   async function autosave() {
+    const signature = JSON.stringify({ title, summary: summary || "", status, markdown });
+    if (signature === lastSavedRef.current) {
+      setAutosaveStatus("Saved");
+      return;
+    }
     setAutosaveStatus("Saving...");
     setSaveError("");
     await fetch("/books/chapters/save", {
@@ -127,6 +138,7 @@ export default function ChapterEditor({
           setAutosaveStatus("Error");
           return;
         }
+        lastSavedRef.current = signature;
         setAutosaveStatus("Saved");
       })
       .catch((err) => {

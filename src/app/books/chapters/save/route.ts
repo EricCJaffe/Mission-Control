@@ -28,9 +28,26 @@ export async function POST(req: Request) {
     const status = String(body.status ?? "outline");
     const summary = body.summary ? String(body.summary) : null;
 
+    const { data: currentChapter } = await supabase
+      .from("chapters")
+      .select("markdown_current,title,summary,status")
+      .eq("id", chapterId)
+      .single();
+
+    const unchanged =
+      currentChapter &&
+      currentChapter.markdown_current === markdown &&
+      currentChapter.title === title &&
+      (currentChapter.summary || "") === (summary || "") &&
+      (currentChapter.status || "") === (status || "");
+
+    if (unchanged) {
+      return NextResponse.json({ ok: true, version: null, unchanged: true });
+    }
+
     const { data: latestVersion } = await supabase
-    .from("chapter_versions")
-    .select("version_number")
+      .from("chapter_versions")
+      .select("version_number")
     .eq("chapter_id", chapterId)
     .order("version_number", { ascending: false })
     .limit(1)
