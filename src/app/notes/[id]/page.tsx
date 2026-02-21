@@ -30,7 +30,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
 
   if (error || !note) {
     return (
-      <main className="pt-8">
+      <main className="pt-4 md:pt-8">
         <h1 className="text-3xl font-semibold">Note not found</h1>
         <p className="mt-2 text-sm text-slate-500">
           The note could not be loaded. Check the URL or return to the list.
@@ -40,7 +40,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
   }
 
   return (
-    <main className="pt-8">
+    <main className="pt-4 md:pt-8">
       <h1 className="text-3xl font-semibold">Edit Note</h1>
       <p className="mt-1 text-sm text-slate-500">
         Update the markdown content and tags below.

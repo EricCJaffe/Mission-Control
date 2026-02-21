@@ -15,7 +15,7 @@ export default async function ProjectsPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <main className="pt-8">
+    <main className="pt-4 md:pt-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold">Projects</h1>

@@ -22,7 +22,7 @@ export default async function ChapterEditorPage({
 
   if (!chapter) {
     return (
-      <main className="pt-8">
+      <main className="pt-4 md:pt-8">
         <h1 className="text-3xl font-semibold">Chapter not found</h1>
       </main>
     );

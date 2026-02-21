@@ -29,7 +29,7 @@ export default async function BooksPage() {
   }, {});
 
   return (
-    <main className="pt-8">
+    <main className="pt-4 md:pt-8">
       <div>
         <h1 className="text-3xl font-semibold">Books</h1>
         <p className="mt-1 text-sm text-slate-500">Create and manage manuscripts.</p>

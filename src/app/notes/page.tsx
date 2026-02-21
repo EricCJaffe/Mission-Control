@@ -21,7 +21,7 @@ export default async function NotesPage() {
     .order("updated_at", { ascending: false });
 
   return (
-    <main className="pt-8">
+    <main className="pt-4 md:pt-8">
       <div>
         <h1 className="text-3xl font-semibold">Notes</h1>
         <p className="mt-1 text-sm text-slate-500">

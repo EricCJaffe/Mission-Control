@@ -24,7 +24,7 @@ export default async function SopDetailPage({ params }: { params: Promise<{ id: 
 
   if (error || !sop) {
     return (
-      <main className="pt-8">
+      <main className="pt-4 md:pt-8">
         <h1 className="text-3xl font-semibold">SOP not found</h1>
         <p className="mt-2 text-sm text-slate-500">Check the URL or return to the list.</p>
       </main>
@@ -38,7 +38,7 @@ export default async function SopDetailPage({ params }: { params: Promise<{ id: 
     .order("created_at", { ascending: true });
 
   return (
-    <main className="pt-8">
+    <main className="pt-4 md:pt-8">
       <h1 className="text-3xl font-semibold">{sop.title}</h1>
       <p className="mt-1 text-sm text-slate-500">Status: {sop.status}</p>
 

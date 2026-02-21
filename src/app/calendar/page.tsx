@@ -26,7 +26,7 @@ export default async function CalendarPage() {
   const { data: reviews } = await supabase.from("monthly_reviews").select("id,period_start").order("period_start", { ascending: false }).limit(12);
 
   return (
-    <main className="pt-8">
+    <main className="pt-4 md:pt-8">
       <div>
         <h1 className="text-3xl font-semibold">Calendar</h1>
         <p className="mt-1 text-sm text-slate-500">Supabase-only calendar events.</p>

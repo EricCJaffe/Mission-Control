@@ -10,7 +10,7 @@ export default async function HealthPage() {
   const ms = Date.now() - start
 
   return (
-    <main className="pt-8">
+    <main className="pt-4 md:pt-8">
       <h1 className="text-3xl font-semibold">Health</h1>
       <p className="mt-2 text-sm text-slate-500">Connectivity check for Supabase auth.</p>
 

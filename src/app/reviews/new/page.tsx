@@ -16,7 +16,7 @@ export default async function ReviewSurveyPage() {
   const periodStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
   return (
-    <main className="pt-8">
+    <main className="pt-4 md:pt-8">
       <div>
         <h1 className="text-3xl font-semibold">Monthly Review Survey</h1>
         <p className="mt-1 text-sm text-slate-500">

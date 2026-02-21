@@ -33,7 +33,7 @@ export default async function BookDetailPage({
 
   if (!book) {
     return (
-      <main className="pt-8">
+      <main className="pt-4 md:pt-8">
         <h1 className="text-3xl font-semibold">Book not found</h1>
       </main>
     );
@@ -130,7 +130,7 @@ export default async function BookDetailPage({
   const tab = resolvedSearch?.tab || "outline";
 
   return (
-    <main className="pt-8">
+    <main className="pt-4 md:pt-8">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-semibold">{book.title}</h1>

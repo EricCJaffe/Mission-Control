@@ -2,11 +2,17 @@ import NavLink from "@/components/NavLink";
 
 type SidebarProps = {
   userEmail: string | null;
+  isOpen?: boolean;
+  onClose?: () => void;
 };
 
-export default function Sidebar({ userEmail }: SidebarProps) {
+export default function Sidebar({ userEmail, isOpen = true, onClose }: SidebarProps) {
   return (
-    <aside className="border-b border-white/70 bg-white/70 backdrop-blur md:min-h-screen md:w-64 md:border-b-0 md:border-r">
+    <aside
+      className={`border-b border-white/70 bg-white/95 backdrop-blur md:min-h-screen md:w-64 md:border-b-0 md:border-r ${
+        isOpen ? "block" : "hidden"
+      } md:block`}
+    >
       <div className="flex items-center justify-between px-6 py-5 md:flex-col md:items-start md:gap-6">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-2xl bg-blue-700 text-white flex items-center justify-center font-semibold">
@@ -20,7 +26,16 @@ export default function Sidebar({ userEmail }: SidebarProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 md:hidden">
+        <div className="flex items-center gap-2 md:hidden">
+          {onClose && (
+            <button
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm"
+              type="button"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          )}
           {userEmail ? (
             <form action="/auth/signout" method="post">
               <button
