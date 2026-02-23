@@ -63,6 +63,13 @@ export default function AppShell({ userEmail, children }: AppShellProps) {
           </div>
           <div className="px-4 pb-16 pt-4 md:px-6 md:pt-6">{children}</div>
         </div>
+        <button
+          className="fixed bottom-5 left-5 z-40 hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-lg md:flex"
+          type="button"
+          onClick={() => setSidebarCollapsed((prev) => !prev)}
+        >
+          {sidebarCollapsed ? "Expand Menu" : "Collapse Menu"}
+        </button>
       </div>
     </UiFeedbackProvider>
   );
