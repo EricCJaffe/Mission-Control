@@ -38,6 +38,12 @@ export default function BookPageClient({
     if (toast === "merge_failed") {
       pushToast({ title: "Merge failed", description: "AI response could not be parsed. Try again." });
     }
+    if (toast === "duplicates_ready") {
+      pushToast({ title: "Duplicate proposals ready", description: "Review them in the AI Proposal Queue below." });
+    }
+    if (toast === "duplicates_none") {
+      pushToast({ title: "No duplicates found", description: "AI did not return any edits. Try a more specific prompt." });
+    }
   }, [toast, pushToast]);
 
   return (

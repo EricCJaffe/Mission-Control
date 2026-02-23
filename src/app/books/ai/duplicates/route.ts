@@ -50,11 +50,19 @@ export async function POST(req: Request) {
     const parsed = JSON.parse(output);
     if (Array.isArray(parsed)) items = parsed as DuplicateResult[];
   } catch {
-    items = [];
+    const match = output.match(/\[[\s\S]*\]/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[0]);
+        if (Array.isArray(parsed)) items = parsed as DuplicateResult[];
+      } catch {
+        items = [];
+      }
+    }
   }
 
   if (!items.length) {
-    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline`, req.url));
+    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=duplicates_none`, req.url));
   }
 
   const inserts = items
@@ -69,7 +77,8 @@ export async function POST(req: Request) {
 
   if (inserts.length > 0) {
     await supabase.from("chapter_proposals").insert(inserts);
+    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=duplicates_ready`, req.url));
   }
 
-  return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline`, req.url));
+  return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=duplicates_none`, req.url));
 }
