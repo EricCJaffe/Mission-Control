@@ -47,6 +47,7 @@ export default async function BookDetailPage({
     .from("chapters")
     .select("id,title,status,position,markdown_current,word_count,section_id")
     .eq("book_id", id)
+    .neq("status", "archive")
     .order("position", { ascending: true });
 
   const { data: sections } = await supabase

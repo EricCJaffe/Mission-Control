@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
       await supabase
         .from("chapters")
-        .update({ status: "archive" })
+        .update({ status: "archive", position: null })
         .eq("id", sourceId);
     }
   }
