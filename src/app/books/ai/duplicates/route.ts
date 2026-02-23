@@ -77,17 +77,17 @@ export async function POST(req: Request) {
       const proposed = item.proposed_markdown || "";
       const requiredLines: string[] = [];
 
-      const firstQuote = currentMarkdown.split("\n").find((line) => line.trim().startsWith("> "));
+      const firstQuote = currentMarkdown.split("\n").find((line: string) => line.trim().startsWith("> "));
       if (firstQuote) requiredLines.push(firstQuote.trim());
-      const scriptureLine = currentMarkdown.split("\n").find((line) => line.toLowerCase().includes("scripture:"));
+      const scriptureLine = currentMarkdown.split("\n").find((line: string) => line.toLowerCase().includes("scripture:"));
       if (scriptureLine) requiredLines.push(scriptureLine.trim());
-      const nextStepsLine = currentMarkdown.split("\n").find((line) => line.toLowerCase().includes("next steps"));
+      const nextStepsLine = currentMarkdown.split("\n").find((line: string) => line.toLowerCase().includes("next steps"));
       if (nextStepsLine) requiredLines.push(nextStepsLine.trim());
-      const challengeLine = currentMarkdown.split("\n").find((line) => line.toLowerCase().includes("challenge"));
+      const challengeLine = currentMarkdown.split("\n").find((line: string) => line.toLowerCase().includes("challenge"));
       if (challengeLine) requiredLines.push(challengeLine.trim());
       const questionsLine = currentMarkdown
         .split("\n")
-        .find((line) => line.toLowerCase().includes("questions for reflection"));
+        .find((line: string) => line.toLowerCase().includes("questions for reflection"));
       if (questionsLine) requiredLines.push(questionsLine.trim());
 
       const missingRequired = requiredLines.some((line) => line && !proposed.includes(line));
