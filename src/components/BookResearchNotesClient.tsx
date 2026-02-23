@@ -47,6 +47,7 @@ export default function BookResearchNotesClient({
   const [editContent, setEditContent] = useState("");
   const [editScope, setEditScope] = useState<"book" | "chapter">("book");
   const [editScopeId, setEditScopeId] = useState(bookId);
+  const [viewNote, setViewNote] = useState<ResearchNote | null>(null);
 
   const filtered = useMemo(() => {
     return notes.filter((note) => {
@@ -57,6 +58,10 @@ export default function BookResearchNotesClient({
     });
   }, [notes, filterScope, filterText]);
 
+  const chapterMap = useMemo(() => {
+    return new Map(chapters.map((ch) => [ch.id, ch.title]));
+  }, [chapters]);
+
   function openEdit(note: ResearchNote) {
     setEditNoteId(note.id);
     setEditTitle(note.title);
@@ -66,6 +71,11 @@ export default function BookResearchNotesClient({
     setEditScope(scope);
     setEditScopeId(scope === "book" ? bookId : note.scope_id);
     (document.getElementById("edit-note-dialog") as HTMLDialogElement | null)?.showModal();
+  }
+
+  function openView(note: ResearchNote) {
+    setViewNote(note);
+    (document.getElementById("view-note-dialog") as HTMLDialogElement | null)?.showModal();
   }
 
   return (
@@ -248,9 +258,65 @@ export default function BookResearchNotesClient({
         </div>
       </dialog>
 
+      <dialog id="view-note-dialog" className="w-[92vw] max-w-2xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+        <div className="rounded-2xl bg-white p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-semibold">{viewNote?.title || "Research Note"}</h3>
+              <div className="mt-1 text-xs text-slate-500">
+                {viewNote?.scope_type === "chapter"
+                  ? `Chapter: ${chapterMap.get(viewNote?.scope_id || "") || "Unknown"}`
+                  : "Book note"}
+              </div>
+            </div>
+            {viewNote && (
+              <div className="flex gap-2 text-xs">
+                <button
+                  className="rounded-full border border-slate-200 px-3 py-1"
+                  type="button"
+                  onClick={() => {
+                    (document.getElementById("view-note-dialog") as HTMLDialogElement | null)?.close();
+                    openEdit(viewNote);
+                  }}
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 whitespace-pre-line">
+            {viewNote?.content_md || "No content yet."}
+          </div>
+          <div className="mt-3 text-xs text-slate-500">
+            {(viewNote?.tags || []).length > 0 ? `Tags: ${(viewNote?.tags || []).join(", ")}` : "No tags"}
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              type="button"
+              onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </dialog>
+
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         {filtered.map((note) => (
-          <div key={note.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div
+            key={note.id}
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300"
+            role="button"
+            tabIndex={0}
+            onClick={() => openView(note)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openView(note);
+              }
+            }}
+          >
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="text-sm font-semibold">{note.title}</div>
@@ -258,14 +324,29 @@ export default function BookResearchNotesClient({
                   {(note.tags || []).join(", ") || "No tags"}
                 </div>
                 <div className="mt-1 text-[11px] text-slate-400">
-                  Scope: {note.scope_type === "chapter" ? "Chapter" : "Book"}
+                  Scope:{" "}
+                  {note.scope_type === "chapter"
+                    ? `Chapter — ${chapterMap.get(note.scope_id) || "Unknown"}`
+                    : "Book"}
                 </div>
               </div>
               <div className="flex gap-2 text-xs">
-                <button className="rounded-full border border-slate-200 px-3 py-1" type="button" onClick={() => openEdit(note)}>
+                <button
+                  className="rounded-full border border-slate-200 px-3 py-1"
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openEdit(note);
+                  }}
+                >
                   Edit
                 </button>
-                <form action="/books/research/delete" method="post" data-toast="Research note deleted">
+                <form
+                  action="/books/research/delete"
+                  method="post"
+                  data-toast="Research note deleted"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   <input type="hidden" name="note_id" value={note.id} />
                   <input type="hidden" name="redirect" value={`/books/${bookId}?tab=notes`} />
                   <button className="rounded-full border border-slate-200 px-3 py-1" type="submit">
