@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase/server";
+import InlineReviewQueueClient from "@/components/InlineReviewQueueClient";
 
 export const dynamic = "force-dynamic";
 
@@ -183,80 +184,7 @@ export default async function AICompanionPage({
             Filter
           </button>
         </form>
-        {commentQueue && commentQueue.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <form action="/books/chapters/comments/bulk-apply" method="post" data-progress="true" data-toast="Applying inline comments">
-              {commentQueue.map((comment) => (
-                <input key={comment.id} type="hidden" name="comment_ids" value={comment.id} />
-              ))}
-              <input type="hidden" name="redirect" value="/ai" />
-              <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
-                Apply All
-              </button>
-            </form>
-            <form action="/books/chapters/comments/bulk-reject" method="post" data-toast="Rejecting inline comments">
-              {commentQueue.map((comment) => (
-                <input key={comment.id} type="hidden" name="comment_ids" value={comment.id} />
-              ))}
-              <input type="hidden" name="redirect" value="/ai" />
-              <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
-                Reject All
-              </button>
-            </form>
-          </div>
-        )}
-        <div className="mt-3 grid gap-2 text-xs">
-          {(commentQueue || []).map((comment) => (
-            <div key={comment.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-              <div className="font-medium">{comment.comment || "Editor note"}</div>
-              {comment.anchor_text && (
-                <div className="mt-1 text-[11px] text-slate-500">Anchor: {comment.anchor_text}</div>
-              )}
-              {comment.suggested_patch && (
-                <div className="mt-1 text-[11px] text-slate-600">Suggested: {comment.suggested_patch.slice(0, 140)}…</div>
-              )}
-              <div className="mt-1 text-[11px] text-slate-500">
-                {chapterMap[comment.chapter_id]?.title ? `Chapter: ${chapterMap[comment.chapter_id]?.title}` : "Chapter comment"} ·{" "}
-                {new Date(comment.created_at).toLocaleString()}
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                {comment.suggested_patch ? (
-                  <form action="/books/chapters/comments/apply" method="post" data-progress="true" data-toast="Applying suggestion">
-                    <input type="hidden" name="comment_id" value={comment.id} />
-                    <input type="hidden" name="chapter_id" value={comment.chapter_id} />
-                    <input type="hidden" name="redirect" value="/ai" />
-                    <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
-                      Apply
-                    </button>
-                  </form>
-                ) : (
-                  <form action="/books/chapters/comments/suggest" method="post" data-progress="true" data-toast="Suggestion queued">
-                    <input type="hidden" name="comment_id" value={comment.id} />
-                    <input type="hidden" name="chapter_id" value={comment.chapter_id} />
-                    <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
-                      AI Suggest
-                    </button>
-                  </form>
-                )}
-                <form action="/books/chapters/comments/reject" method="post" data-toast="Comment rejected">
-                  <input type="hidden" name="comment_id" value={comment.id} />
-                  <input type="hidden" name="redirect" value="/ai" />
-                  <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
-                    Reject
-                  </button>
-                </form>
-                {chapterMap[comment.chapter_id]?.book_id && (
-                  <a className="rounded-full border border-slate-200 bg-white px-3 py-1" href={`/books/${chapterMap[comment.chapter_id].book_id}/chapters/${comment.chapter_id}`}>
-                    View Chapter
-                  </a>
-                )}
-              </div>
-            </div>
-          ))}
-          {(!commentQueue || commentQueue.length === 0) && (
-            <div className="text-slate-500">No inline comments pending.</div>
-          )}
-        </div>
+        <InlineReviewQueueClient comments={commentQueue || []} chapterMap={chapterMap} redirect="/ai" />
       </section>
 
       <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
