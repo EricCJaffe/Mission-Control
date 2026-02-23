@@ -81,9 +81,12 @@ export default function BookChaptersBoard({ bookId, chapters, sections }: Props)
           >
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-base font-semibold">
+                <a
+                  className="text-base font-semibold hover:text-blue-700"
+                  href={`/books/${bookId}/chapters/${chapter.id}`}
+                >
                   Chapter {idx + 1}: {chapter.title || "Untitled"}
-                </div>
+                </a>
                 <div className="text-xs text-slate-500">
                   Status: {chapter.status || "outline"} · Words: {chapter.wordCount}
                 </div>

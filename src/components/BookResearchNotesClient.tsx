@@ -35,7 +35,6 @@ export default function BookResearchNotesClient({
 }) {
   const [filterScope, setFilterScope] = useState<"all" | "book" | "chapter">("all");
   const [filterText, setFilterText] = useState("");
-  const [addScope, setAddScope] = useState<"book" | "chapter">("book");
   const [addScopeId, setAddScopeId] = useState(bookId);
   const [addTitle, setAddTitle] = useState("");
   const [addTags, setAddTags] = useState("");
@@ -124,34 +123,15 @@ export default function BookResearchNotesClient({
             data-progress="true"
           >
             <input type="hidden" name="redirect" value={`/books/${bookId}?tab=notes`} />
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="grid gap-2">
               <div>
-                <label className="text-xs text-slate-500">Scope</label>
+                <label className="text-xs text-slate-500">Chapter (optional)</label>
                 <select
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  name="scope_type"
-                  value={addScope}
-                  onChange={(e) => {
-                    const next = e.target.value as "book" | "chapter";
-                    setAddScope(next);
-                    setAddScopeId(next === "book" ? bookId : chapters[0]?.id || "");
-                  }}
-                >
-                  <option value="book">Book (General)</option>
-                  <option value="chapter" disabled={!hasChapters}>
-                    Chapter
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-slate-500">Chapter</label>
-                <select
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  name="scope_id"
                   value={addScopeId}
                   onChange={(e) => setAddScopeId(e.target.value)}
-                  disabled={addScope !== "chapter" || !hasChapters}
                 >
+                  <option value={bookId}>Book (General)</option>
                   {hasChapters ? (
                     chapters.map((ch) => (
                       <option key={ch.id} value={ch.id}>
@@ -159,12 +139,13 @@ export default function BookResearchNotesClient({
                       </option>
                     ))
                   ) : (
-                    <option value="">No chapters yet</option>
+                    <option value={bookId}>No chapters yet</option>
                   )}
                 </select>
-                {addScope === "book" && <input type="hidden" name="scope_id" value={bookId} />}
               </div>
             </div>
+            <input type="hidden" name="scope_type" value={addScopeId === bookId ? "book" : "chapter"} />
+            <input type="hidden" name="scope_id" value={addScopeId} />
             <input
               className="rounded-xl border border-slate-200 bg-white px-3 py-2"
               name="title"
@@ -191,16 +172,12 @@ export default function BookResearchNotesClient({
                 Cancel
               </button>
               <button
-                className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm"
                 type="submit"
-                disabled={addScope === "chapter" && !hasChapters}
               >
                 Save Note
               </button>
             </div>
-            {addScope === "chapter" && !hasChapters && (
-              <div className="text-xs text-amber-600">Add a chapter first or choose Book (General).</div>
-            )}
           </form>
         </div>
       </dialog>
