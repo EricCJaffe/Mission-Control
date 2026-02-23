@@ -47,6 +47,32 @@ export default async function TasksPage() {
     return acc;
   }, {});
 
+  const { data: subtasks } = taskIds.length
+    ? await supabase
+        .from("task_subtasks")
+        .select("id,task_id,title,status")
+        .in("task_id", taskIds)
+    : { data: [] };
+
+  const { data: links } = taskIds.length
+    ? await supabase
+        .from("task_links")
+        .select("id,task_id,label,url")
+        .in("task_id", taskIds)
+    : { data: [] };
+
+  const { data: noteLinks } = taskIds.length
+    ? await supabase
+        .from("task_note_links")
+        .select("id,task_id,note_id")
+        .in("task_id", taskIds)
+    : { data: [] };
+
+  const { data: notes } = await supabase
+    .from("notes")
+    .select("id,title")
+    .order("created_at", { ascending: false });
+
   return (
     <main className="pt-4 md:pt-8">
       <div>
@@ -111,7 +137,15 @@ export default async function TasksPage() {
         </div>
       )}
 
-      <TasksListClient tasks={tasks || []} attachmentsByTask={attachmentsByTask} categories={CATEGORIES} />
+      <TasksListClient
+        tasks={tasks || []}
+        attachmentsByTask={attachmentsByTask}
+        categories={CATEGORIES}
+        subtasks={subtasks || []}
+        links={links || []}
+        noteLinks={noteLinks || []}
+        notes={notes || []}
+      />
     </main>
   );
 }

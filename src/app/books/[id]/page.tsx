@@ -60,6 +60,24 @@ export default async function BookDetailPage({
     .eq("book_id", id)
     .order("created_at", { ascending: false });
 
+  const bookTaskIds = (bookTasks || []).map((task) => task.id);
+  const { data: bookSubtasks } = bookTaskIds.length
+    ? await supabase.from("task_subtasks").select("id,task_id,title,status").in("task_id", bookTaskIds)
+    : { data: [] };
+
+  const { data: bookLinks } = bookTaskIds.length
+    ? await supabase.from("task_links").select("id,task_id,label,url").in("task_id", bookTaskIds)
+    : { data: [] };
+
+  const { data: bookNoteLinks } = bookTaskIds.length
+    ? await supabase.from("task_note_links").select("id,task_id,note_id").in("task_id", bookTaskIds)
+    : { data: [] };
+
+  const { data: notes } = await supabase
+    .from("notes")
+    .select("id,title")
+    .order("created_at", { ascending: false });
+
   const { data: milestones } = await supabase
     .from("book_milestones")
     .select("id,title,due_date,status")
@@ -322,6 +340,10 @@ export default async function BookDetailPage({
               "Writing / Content",
             ]}
             redirect={`/books/${book.id}?tab=tasks`}
+            subtasks={bookSubtasks || []}
+            links={bookLinks || []}
+            noteLinks={bookNoteLinks || []}
+            notes={notes || []}
           />
         </section>
       )}

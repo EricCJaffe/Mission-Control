@@ -17,6 +17,30 @@ type Task = {
   chapter_id: string | null;
 };
 
+type Subtask = {
+  id: string;
+  task_id: string;
+  title: string;
+  status: string | null;
+};
+
+type TaskLink = {
+  id: string;
+  task_id: string;
+  label: string | null;
+  url: string;
+};
+
+type TaskNoteLink = {
+  id: string;
+  task_id: string;
+  note_id: string;
+};
+
+type NoteOption = {
+  id: string;
+  title: string;
+};
 function toDateInput(value: string | null) {
   if (!value) return "";
   const date = new Date(value);
@@ -38,10 +62,18 @@ export default function BookTasksClient({
   tasks,
   redirect,
   categories,
+  subtasks,
+  links,
+  noteLinks,
+  notes,
 }: {
   tasks: Task[];
   redirect: string;
   categories: string[];
+  subtasks: Subtask[];
+  links: TaskLink[];
+  noteLinks: TaskNoteLink[];
+  notes: NoteOption[];
 }) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -52,6 +84,13 @@ export default function BookTasksClient({
   const [editWhy, setEditWhy] = useState("");
   const [editRecurrence, setEditRecurrence] = useState("");
   const [editRecurrenceAnchor, setEditRecurrenceAnchor] = useState("");
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [newLinkLabel, setNewLinkLabel] = useState("");
+  const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [newNoteId, setNewNoteId] = useState("");
+  const subtasksForSelected = selectedTask ? subtasks.filter((item) => item.task_id === selectedTask.id) : [];
+  const linksForSelected = selectedTask ? links.filter((item) => item.task_id === selectedTask.id) : [];
+  const noteLinksForSelected = selectedTask ? noteLinks.filter((item) => item.task_id === selectedTask.id) : [];
 
   function openTask(task: Task) {
     setSelectedTask(task);
@@ -63,6 +102,10 @@ export default function BookTasksClient({
     setEditWhy(task.why || "");
     setEditRecurrence(task.recurrence_rule || "");
     setEditRecurrenceAnchor(toDateInput(task.recurrence_anchor));
+    setNewSubtaskTitle("");
+    setNewLinkLabel("");
+    setNewLinkUrl("");
+    setNewNoteId("");
     (document.getElementById("book-task-dialog") as HTMLDialogElement | null)?.showModal();
   }
 
@@ -159,6 +202,114 @@ export default function BookTasksClient({
                 </button>
               </div>
             </form>
+          )}
+
+          {selectedTask && (
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-sm font-semibold">Subtasks</div>
+                <form className="mt-3 flex gap-2" action="/tasks/subtasks/new" method="post" data-toast="Subtask added">
+                  <input type="hidden" name="task_id" value={selectedTask.id} />
+                  <input type="hidden" name="redirect" value={redirect} />
+                  <input
+                    className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                    name="title"
+                    placeholder="New subtask"
+                    value={newSubtaskTitle}
+                    onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                  />
+                  <button className="rounded-lg border border-slate-200 px-2 py-1 text-xs" type="submit">
+                    Add
+                  </button>
+                </form>
+                <div className="mt-3 grid gap-2 text-xs">
+                  {subtasksForSelected.map((sub) => (
+                    <form key={sub.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1" action="/tasks/subtasks/update" method="post" data-toast="Subtask updated">
+                      <input type="hidden" name="id" value={sub.id} />
+                      <input type="hidden" name="redirect" value={redirect} />
+                      <input className="flex-1 rounded border border-slate-200 px-2 py-1 text-xs" name="title" defaultValue={sub.title} />
+                      <select className="rounded border border-slate-200 px-2 py-1 text-[10px]" name="status" defaultValue={sub.status || "open"}>
+                        <option value="open">open</option>
+                        <option value="in_progress">in progress</option>
+                        <option value="done">done</option>
+                        <option value="blocked">blocked</option>
+                      </select>
+                      <button className="rounded border border-slate-200 px-2 py-1 text-[10px]" type="submit">
+                        Save
+                      </button>
+                    </form>
+                  ))}
+                  {subtasksForSelected.length === 0 && <div className="text-xs text-slate-500">No subtasks yet.</div>}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-sm font-semibold">Links</div>
+                <form className="mt-3 grid gap-2" action="/tasks/links/new" method="post" data-toast="Link added">
+                  <input type="hidden" name="task_id" value={selectedTask.id} />
+                  <input type="hidden" name="redirect" value={redirect} />
+                  <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="label" placeholder="Label (optional)" value={newLinkLabel} onChange={(e) => setNewLinkLabel(e.target.value)} />
+                  <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="url" placeholder="https://..." value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} required />
+                  <button className="rounded-lg border border-slate-200 px-2 py-1 text-xs" type="submit">
+                    Add Link
+                  </button>
+                </form>
+                <div className="mt-3 grid gap-2 text-xs">
+                  {linksForSelected.map((link) => (
+                    <div key={link.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
+                      <a className="truncate text-blue-700" href={link.url} target="_blank" rel="noreferrer">
+                        {link.label || link.url}
+                      </a>
+                      <form action="/tasks/links/delete" method="post" data-toast="Link removed">
+                        <input type="hidden" name="id" value={link.id} />
+                        <input type="hidden" name="redirect" value={redirect} />
+                        <button className="rounded border border-slate-200 px-2 py-1 text-[10px]" type="submit">
+                          Remove
+                        </button>
+                      </form>
+                    </div>
+                  ))}
+                  {linksForSelected.length === 0 && <div className="text-xs text-slate-500">No links yet.</div>}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4 md:col-span-2">
+                <div className="text-sm font-semibold">Linked Notes</div>
+                <form className="mt-3 flex flex-wrap gap-2" action="/tasks/notes/link" method="post" data-toast="Note linked">
+                  <input type="hidden" name="task_id" value={selectedTask.id} />
+                  <input type="hidden" name="redirect" value={redirect} />
+                  <select className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="note_id" value={newNoteId} onChange={(e) => setNewNoteId(e.target.value)}>
+                    <option value="">Select note…</option>
+                    {notes.map((note) => (
+                      <option key={note.id} value={note.id}>
+                        {note.title}
+                      </option>
+                    ))}
+                  </select>
+                  <button className="rounded-lg border border-slate-200 px-2 py-1 text-xs" type="submit" disabled={!newNoteId}>
+                    Link
+                  </button>
+                </form>
+                <div className="mt-3 grid gap-2 text-xs">
+                  {noteLinksForSelected.map((link) => {
+                    const note = notes.find((n) => n.id === link.note_id);
+                    return (
+                      <div key={link.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
+                        <div className="truncate">{note?.title || "Linked note"}</div>
+                        <form action="/tasks/notes/unlink" method="post" data-toast="Note unlinked">
+                          <input type="hidden" name="id" value={link.id} />
+                          <input type="hidden" name="redirect" value={redirect} />
+                          <button className="rounded border border-slate-200 px-2 py-1 text-[10px]" type="submit">
+                            Unlink
+                          </button>
+                        </form>
+                      </div>
+                    );
+                  })}
+                  {noteLinksForSelected.length === 0 && <div className="text-xs text-slate-500">No linked notes yet.</div>}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </dialog>
