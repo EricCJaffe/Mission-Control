@@ -38,6 +38,15 @@ type TaskNoteLink = {
   note_id: string;
 };
 
+type TaskAttachment = {
+  id: string;
+  scope_id: string;
+  filename: string;
+  created_at: string;
+  size_bytes: number | null;
+  mime_type: string | null;
+};
+
 type NoteOption = {
   id: string;
   title: string;
@@ -66,6 +75,7 @@ export default function BookTasksClient({
   subtasks,
   links,
   noteLinks,
+  attachments,
   notes,
 }: {
   tasks: Task[];
@@ -74,6 +84,7 @@ export default function BookTasksClient({
   subtasks: Subtask[];
   links: TaskLink[];
   noteLinks: TaskNoteLink[];
+  attachments: TaskAttachment[];
   notes: NoteOption[];
 }) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -93,6 +104,9 @@ export default function BookTasksClient({
   const subtasksForSelected = selectedTask ? subtasks.filter((item) => item.task_id === selectedTask.id) : [];
   const linksForSelected = selectedTask ? links.filter((item) => item.task_id === selectedTask.id) : [];
   const noteLinksForSelected = selectedTask ? noteLinks.filter((item) => item.task_id === selectedTask.id) : [];
+  const attachmentsForSelected = selectedTask
+    ? attachments.filter((item) => item.scope_id === selectedTask.id)
+    : [];
 
   function openTask(task: Task) {
     setSelectedTask(task);
@@ -116,7 +130,19 @@ export default function BookTasksClient({
     <>
       <div className="mt-4 grid gap-2 text-sm">
         {tasks.map((task) => (
-          <div key={task.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+          <div
+            key={task.id}
+            className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300"
+            role="button"
+            tabIndex={0}
+            onClick={() => openTask(task)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openTask(task);
+              }
+            }}
+          >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="text-sm font-semibold">{task.title}</div>
@@ -128,9 +154,6 @@ export default function BookTasksClient({
                 </div>
                 {task.why && <div className="mt-2 text-xs text-slate-500">{snippet(task.why)}</div>}
               </div>
-              <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" type="button" onClick={() => openTask(task)}>
-                Edit
-              </button>
             </div>
           </div>
         ))}
@@ -334,6 +357,54 @@ export default function BookTasksClient({
                   })}
                   {noteLinksForSelected.length === 0 && <div className="text-xs text-slate-500">No linked notes yet.</div>}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {selectedTask && (
+            <div className="mt-6">
+              <div className="text-sm font-semibold">Attachments</div>
+              <form
+                className="mt-3 grid gap-2"
+                action="/attachments/upload"
+                method="post"
+                encType="multipart/form-data"
+                data-progress="true"
+                data-toast="Attachment uploading"
+              >
+                <input type="hidden" name="scope_type" value="task" />
+                <input type="hidden" name="scope_id" value={selectedTask.id} />
+                <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs" name="file" type="file" />
+                <button className="rounded-xl bg-blue-700 px-3 py-2 text-xs font-medium text-white shadow-sm" type="submit">
+                  Upload Attachment
+                </button>
+              </form>
+              <div className="mt-3 grid gap-2 text-xs">
+                {attachmentsForSelected.map((file) => (
+                  <div key={file.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-medium">{file.filename}</div>
+                      <a className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]" href={`/attachments/${file.id}/download`}>
+                        Download
+                      </a>
+                    </div>
+                    {file.mime_type?.startsWith("image/") && (
+                      <img
+                        src={`/attachments/${file.id}/download`}
+                        alt={file.filename}
+                        className="mt-2 max-h-40 rounded border border-slate-200 object-contain"
+                      />
+                    )}
+                    <div className="text-slate-500">
+                      {Math.round((file.size_bytes || 0) / 1024)} KB · {new Date(file.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+                {attachmentsForSelected.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 p-3 text-xs text-slate-500">
+                    No attachments yet.
+                  </div>
+                )}
               </div>
             </div>
           )}

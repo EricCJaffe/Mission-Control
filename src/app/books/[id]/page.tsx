@@ -75,6 +75,14 @@ export default async function BookDetailPage({
     ? await supabase.from("task_note_links").select("id,task_id,note_id").in("task_id", bookTaskIds)
     : { data: [] };
 
+  const { data: bookTaskAttachments } = bookTaskIds.length
+    ? await supabase
+        .from("attachments")
+        .select("id,scope_id,filename,created_at,size_bytes,mime_type")
+        .eq("scope_type", "task")
+        .in("scope_id", bookTaskIds)
+    : { data: [] };
+
   const { data: notes } = await supabase
     .from("notes")
     .select("id,title")
@@ -311,6 +319,7 @@ export default async function BookDetailPage({
             subtasks={bookSubtasks || []}
             links={bookLinks || []}
             noteLinks={bookNoteLinks || []}
+            attachments={bookTaskAttachments || []}
             notes={notes || []}
           />
         </section>
