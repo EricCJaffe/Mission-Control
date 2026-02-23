@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
@@ -24,6 +24,8 @@ type Props = {
 export default function RtfEditor({ value, onChange, placeholder, minHeight = "140px" }: Props) {
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashPos, setSlashPos] = useState<number | null>(null);
+  const [slashQuery, setSlashQuery] = useState("");
+  const [slashIndex, setSlashIndex] = useState(0);
 
   const commands = useMemo(
     () => [
@@ -40,6 +42,12 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
     ],
     []
   );
+
+  const filteredCommands = useMemo(() => {
+    if (!slashQuery.trim()) return commands;
+    const q = slashQuery.toLowerCase();
+    return commands.filter((cmd) => cmd.label.toLowerCase().includes(q));
+  }, [commands, slashQuery]);
 
   const editor = useEditor({
     extensions: [
@@ -71,6 +79,8 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
           const pos = editor?.state.selection.from || null;
           setSlashOpen(true);
           setSlashPos(pos);
+          setSlashQuery("");
+          setSlashIndex(0);
         }
         if (event.key === "Escape" && slashOpen) {
           setSlashOpen(false);
@@ -88,6 +98,41 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white">
+      {editor && (
+        <BubbleMenu editor={editor} tippyOptions={{ duration: 150 }}>
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs shadow-lg">
+            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleBold().run()}>
+              B
+            </button>
+            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleItalic().run()}>
+              I
+            </button>
+            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleUnderline().run()}>
+              U
+            </button>
+            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleStrike().run()}>
+              S
+            </button>
+            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleCode().run()}>
+              {"</>"}
+            </button>
+            <button
+              className="rounded border px-2 py-1"
+              type="button"
+              onClick={() => {
+                const href = window.prompt("Link URL");
+                if (href) {
+                  editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+                } else {
+                  editor.chain().focus().unsetLink().run();
+                }
+              }}
+            >
+              Link
+            </button>
+          </div>
+        </BubbleMenu>
+      )}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2 text-xs">
         <button className="rounded border px-2 py-1" type="button" onClick={() => editor?.chain().focus().toggleBold().run()}>
           Bold
@@ -139,11 +184,44 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
         {slashOpen && (
           <div className="absolute left-3 top-3 z-10 w-56 rounded-xl border border-slate-200 bg-white p-2 text-xs shadow-lg">
             <div className="mb-2 text-[10px] uppercase tracking-widest text-slate-400">Insert</div>
+            <input
+              className="mb-2 w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
+              placeholder="Search…"
+              value={slashQuery}
+              onChange={(e) => {
+                setSlashQuery(e.target.value);
+                setSlashIndex(0);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setSlashIndex((idx) => Math.min(idx + 1, filteredCommands.length - 1));
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSlashIndex((idx) => Math.max(idx - 1, 0));
+                }
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const cmd = filteredCommands[slashIndex];
+                  if (cmd) {
+                    if (slashPos && editor) {
+                      editor.commands.deleteRange({ from: slashPos - 1, to: slashPos });
+                    }
+                    cmd.run(editor);
+                    setSlashOpen(false);
+                  }
+                }
+                if (e.key === "Escape") {
+                  setSlashOpen(false);
+                }
+              }}
+            />
             <div className="grid gap-1">
-              {commands.map((cmd) => (
+              {filteredCommands.map((cmd, idx) => (
                 <button
                   key={cmd.label}
-                  className="rounded-lg px-2 py-1 text-left hover:bg-slate-100"
+                  className={`rounded-lg px-2 py-1 text-left hover:bg-slate-100 ${idx === slashIndex ? "bg-slate-100" : ""}`}
                   type="button"
                   onClick={() => {
                     if (slashPos && editor) {
@@ -156,6 +234,9 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
                   {cmd.label}
                 </button>
               ))}
+              {filteredCommands.length === 0 && (
+                <div className="px-2 py-1 text-[11px] text-slate-400">No matches</div>
+              )}
             </div>
           </div>
         )}
