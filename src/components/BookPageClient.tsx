@@ -50,6 +50,12 @@ export default function BookPageClient({
     if (toast === "place_failed") {
       pushToast({ title: "Concept placement failed", description: "AI response could not be parsed. Try again." });
     }
+    if (toast === "refs_ready") {
+      pushToast({ title: "Reference fixes ready", description: "Review them in the AI Proposal Queue." });
+    }
+    if (toast === "refs_none") {
+      pushToast({ title: "No reference fixes needed", description: "AI did not return any changes." });
+    }
   }, [toast, pushToast]);
 
   return (
