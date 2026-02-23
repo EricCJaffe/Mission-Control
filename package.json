@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "backup:books": "node scripts/backup_books.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
