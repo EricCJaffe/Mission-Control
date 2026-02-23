@@ -119,8 +119,8 @@ export default function InlineReviewQueueClient({ comments, chapterMap, redirect
                     <div className="mt-1 text-[11px] text-slate-500">Anchor: {comment.anchor_text}</div>
                   )}
                   {comment.suggested_patch && (
-                    <div className="mt-1 text-[11px] text-slate-600">
-                      Suggested: {comment.suggested_patch.slice(0, 140)}…
+                    <div className="mt-1 text-[11px] text-slate-600 whitespace-pre-wrap">
+                      Suggested: {comment.suggested_patch}
                     </div>
                   )}
                   <div className="mt-1 text-[11px] text-slate-500">
