@@ -791,7 +791,7 @@ export default function ChapterEditor({
                         }}
                       >
                         <option value="chapter">Chapter</option>
-                        <option value="book">Book</option>
+                        <option value="book">Book (General)</option>
                       </select>
                     </div>
                     <div>
@@ -865,7 +865,7 @@ export default function ChapterEditor({
                         }}
                       >
                         <option value="chapter">Chapter</option>
-                        <option value="book">Book</option>
+                        <option value="book">Book (General)</option>
                       </select>
                     </div>
                     <div>
@@ -915,6 +915,18 @@ export default function ChapterEditor({
                       Update Note
                     </button>
                   </div>
+                </form>
+                <form className="mt-4 grid gap-2" action="/books/ai/place" method="post" data-progress="true" data-toast="Concept placement started">
+                  <input type="hidden" name="book_id" value={chapter.book_id} />
+                  <input type="hidden" name="concept" value={`${editNoteTitle}\n\n${editNoteContent}`} />
+                  <textarea
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                    name="instruction"
+                    placeholder="AI placement notes (optional)"
+                  />
+                  <button className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs" type="submit">
+                    AI Place This Note Into Book
+                  </button>
                 </form>
               </div>
             </dialog>

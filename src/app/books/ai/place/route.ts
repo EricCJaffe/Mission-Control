@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   const form = await req.formData();
   const bookId = String(form.get("book_id") || "").trim();
   const concept = String(form.get("concept") || "").trim();
+  const instruction = String(form.get("instruction") || "").trim();
 
   if (!bookId || !concept) {
     return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline`, req.url));
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
     const response = await callOpenAI({
       model: process.env.OPENAI_MODEL || "gpt-5.2",
       system: `You are a book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`,
-      user: `Insert the concept into the most appropriate chapter. Make the smallest necessary edit: keep 95% of the existing chapter intact, do not remove signature blocks (Quote, Scripture, Next Steps, Challenge, Questions for Reflection). Reword the concept to match tone and insert near the best fitting paragraph. Return JSON with keys: chapter_id, proposed_markdown, instruction.\nConcept:\n${concept}\nChapters:\n${JSON.stringify(
+      user: `Insert the concept into the most appropriate chapter. Make the smallest necessary edit: keep 95% of the existing chapter intact, do not remove signature blocks (Quote, Scripture, Next Steps, Challenge, Questions for Reflection). Reword the concept to match tone and insert near the best fitting paragraph. Return JSON with keys: chapter_id, proposed_markdown, instruction.\n${instruction ? `Additional instructions: ${instruction}` : ""}\nConcept:\n${concept}\nChapters:\n${JSON.stringify(
         context
       )}`,
     });
