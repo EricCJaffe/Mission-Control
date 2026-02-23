@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const instruction = String(form.get("instruction") || "").trim();
 
   if (!bookId || !concept) {
-    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline`, req.url));
+    return NextResponse.redirect(new URL(`/books/${bookId || "books"}?tab=outline&toast=place_failed`, req.url));
   }
 
   const { data: chapters } = await supabase
@@ -61,17 +61,17 @@ export async function POST(req: Request) {
 
   if (!plan?.chapter_id || !plan?.proposed_markdown) {
     const fallbackChapter = (chapters || [])[0];
-    const currentMarkdown = fallbackChapter?.markdown_current || "";
-    if (!fallbackChapter || !currentMarkdown) {
+    if (!fallbackChapter) {
       return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
     }
-    const lines = currentMarkdown.split("\n");
+    const currentMarkdown = fallbackChapter.markdown_current || "";
+    const lines = currentMarkdown ? currentMarkdown.split("\n") : [];
     const insertAt = lines.findIndex((line: string) => line.toLowerCase().includes("next steps"));
     const insertBlock = `\n${concept}\n`;
     const nextMarkdown =
-      insertAt > 0
+      lines.length && insertAt > 0
         ? [...lines.slice(0, insertAt), insertBlock, ...lines.slice(insertAt)].join("\n")
-        : `${currentMarkdown.trim()}\n\n${concept}\n`;
+        : `${currentMarkdown.trim()}\n\n${concept}\n`.trim();
     await supabase.from("chapter_proposals").insert({
       chapter_id: fallbackChapter.id,
       org_id: user.id,
@@ -85,8 +85,9 @@ export async function POST(req: Request) {
   const original = (chapters || []).find((ch) => ch.id === plan?.chapter_id);
   const currentMarkdown = original?.markdown_current || "";
   const proposed = plan.proposed_markdown || "";
-  if (proposed.length < currentMarkdown.length * 0.7) {
-    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
+  let lengthWarning = "";
+  if (currentMarkdown && proposed.length < currentMarkdown.length * 0.7) {
+    lengthWarning = "Warning: Proposed edit is significantly shorter than current chapter. Review carefully.";
   }
 
   const requiredLines: string[] = [];
@@ -112,7 +113,7 @@ export async function POST(req: Request) {
   await supabase.from("chapter_proposals").insert({
     chapter_id: plan.chapter_id,
     org_id: user.id,
-    instruction: [plan.instruction || "Insert concept into best chapter", warning].filter(Boolean).join("\n"),
+    instruction: [plan.instruction || "Insert concept into best chapter", warning, lengthWarning].filter(Boolean).join("\n"),
     proposed_markdown: plan.proposed_markdown,
     status: "pending",
   });
