@@ -21,9 +21,11 @@ export default async function AICompanionPage() {
 
   const { data: bookProposals } = await supabase
     .from("book_proposals")
-    .select("id,book_id,proposal_type,created_at,status")
+    .select("id,book_id,proposal_type,created_at,status,payload")
     .eq("status", "pending")
     .order("created_at", { ascending: false });
+
+  const bookMap = Object.fromEntries((books || []).map((book) => [book.id, book]));
 
   return (
     <main className="pt-4 md:pt-8">
@@ -41,7 +43,26 @@ export default async function AICompanionPage() {
             {(bookProposals || []).map((proposal) => (
               <div key={proposal.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                 <div className="font-medium">{proposal.proposal_type}</div>
+                <div className="text-[11px] text-slate-500">
+                  {bookMap[proposal.book_id]?.title || "Book"}
+                </div>
                 <div className="text-slate-500">{new Date(proposal.created_at).toLocaleString()}</div>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <form action="/books/book-proposals/apply" method="post" data-progress="true" data-toast="Applying proposal">
+                    <input type="hidden" name="proposal_id" value={proposal.id} />
+                    <input type="hidden" name="redirect" value="/ai" />
+                    <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                      Apply
+                    </button>
+                  </form>
+                  <form action="/books/book-proposals/reject" method="post" data-toast="Proposal rejected">
+                    <input type="hidden" name="proposal_id" value={proposal.id} />
+                    <input type="hidden" name="redirect" value="/ai" />
+                    <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                      Reject
+                    </button>
+                  </form>
+                </div>
               </div>
             ))}
             {(!bookProposals || bookProposals.length === 0) && (
@@ -57,6 +78,23 @@ export default async function AICompanionPage() {
               <div key={proposal.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                 <div className="font-medium">{proposal.instruction || "AI proposal"}</div>
                 <div className="text-slate-500">{new Date(proposal.created_at).toLocaleString()}</div>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <form action="/books/chapters/proposals/apply" method="post" data-progress="true" data-toast="Applying proposal">
+                    <input type="hidden" name="proposal_id" value={proposal.id} />
+                    <input type="hidden" name="chapter_id" value={proposal.chapter_id} />
+                    <input type="hidden" name="redirect" value="/ai" />
+                    <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                      Apply
+                    </button>
+                  </form>
+                  <form action="/books/chapters/proposals/reject" method="post" data-toast="Proposal rejected">
+                    <input type="hidden" name="proposal_id" value={proposal.id} />
+                    <input type="hidden" name="redirect" value="/ai" />
+                    <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                      Reject
+                    </button>
+                  </form>
+                </div>
               </div>
             ))}
             {(!chapterProposals || chapterProposals.length === 0) && (
