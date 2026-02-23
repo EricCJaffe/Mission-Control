@@ -16,6 +16,7 @@ type Task = {
   recurrence_anchor: string | null;
   book_id: string | null;
   chapter_id: string | null;
+  is_template?: boolean | null;
 };
 
 type TaskAttachment = {
@@ -130,6 +131,7 @@ export default function TasksListClient({
   const [editCategory, setEditCategory] = useState("");
   const [editRecurrence, setEditRecurrence] = useState("");
   const [editRecurrenceAnchor, setEditRecurrenceAnchor] = useState("");
+  const [editTemplate, setEditTemplate] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newLinkLabel, setNewLinkLabel] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
@@ -139,6 +141,7 @@ export default function TasksListClient({
   const [newPriority, setNewPriority] = useState("");
   const [newDue, setNewDue] = useState("");
   const [newWhy, setNewWhy] = useState("");
+  const [newTemplate, setNewTemplate] = useState(false);
   const attachmentsForSelected = selectedTask ? attachmentsByTask[selectedTask.id] || [] : [];
   const subtasksForSelected = selectedTask ? subtasks.filter((item) => item.task_id === selectedTask.id) : [];
   const linksForSelected = selectedTask ? links.filter((item) => item.task_id === selectedTask.id) : [];
@@ -155,7 +158,7 @@ export default function TasksListClient({
 
   const visibleTasks = useMemo(() => {
     if (tab === "recurring") return filtered.filter((task) => task.recurrence_rule);
-    if (tab === "templates") return [];
+    if (tab === "templates") return filtered.filter((task) => task.is_template);
     return filtered;
   }, [filtered, tab]);
 
@@ -175,6 +178,7 @@ export default function TasksListClient({
     setEditWhy(task.why || "");
     setEditRecurrence(task.recurrence_rule || "");
     setEditRecurrenceAnchor(toDateInput(task.recurrence_anchor));
+    setEditTemplate(Boolean(task.is_template));
     setNewSubtaskTitle("");
     setNewLinkLabel("");
     setNewLinkUrl("");
@@ -414,7 +418,30 @@ export default function TasksListClient({
                 </div>
               </div>
 
+              <label className="inline-flex items-center gap-2 text-xs text-slate-500">
+                <input type="checkbox" name="is_template" checked={editTemplate} onChange={(e) => setEditTemplate(e.target.checked)} />
+                Save as template
+              </label>
+              <div>
+                <button
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs"
+                  type="button"
+                  onClick={() => {
+                    setEditPriority(editPriority === "1" ? "" : "1");
+                  }}
+                >
+                  {editPriority === "1" ? "Unpin" : "Pin"}
+                </button>
+              </div>
+
               <div className="flex justify-end gap-2">
+                <form action="/tasks/delete" method="post" data-toast="Task deleted">
+                  <input type="hidden" name="id" value={selectedTask.id} />
+                  <input type="hidden" name="redirect" value="/tasks" />
+                  <button className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" type="submit">
+                    Delete
+                  </button>
+                </form>
                 <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" type="button" onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}>
                   Cancel
                 </button>
@@ -617,6 +644,10 @@ export default function TasksListClient({
               <input type="hidden" name="why" value={newWhy} />
               <RtfEditor value={newWhy} onChange={setNewWhy} placeholder="Why this matters..." minHeight="140px" />
             </div>
+            <label className="inline-flex items-center gap-2 text-xs text-slate-500">
+              <input type="checkbox" name="is_template" checked={newTemplate} onChange={(e) => setNewTemplate(e.target.checked)} />
+              Save as template
+            </label>
             <div className="flex justify-end gap-2">
               <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" type="button" onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}>
                 Cancel

@@ -15,6 +15,7 @@ export async function POST(req: Request) {
   const why = String(form.get("why") || "").trim();
   const recurrenceRule = String(form.get("recurrence_rule") || "").trim();
   const recurrenceAnchor = String(form.get("recurrence_anchor") || "").trim();
+  const isTemplate = String(form.get("is_template") || "").trim() === "on";
   const bookId = String(form.get("book_id") || "").trim();
   const chapterId = String(form.get("chapter_id") || "").trim();
   const redirectTo = String(form.get("redirect") || "").trim();
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
   if (why) payload.why = why;
   if (recurrenceRule) payload.recurrence_rule = recurrenceRule;
   if (recurrenceAnchor) payload.recurrence_anchor = recurrenceAnchor;
+  if (form.has("is_template")) payload.is_template = isTemplate;
   if (bookId) payload.book_id = bookId;
   if (chapterId) payload.chapter_id = chapterId;
 

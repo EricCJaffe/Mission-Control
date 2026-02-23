@@ -29,7 +29,7 @@ export default async function TasksPage() {
 
   const { data: tasks, error } = await supabase
     .from("tasks")
-    .select("id,title,status,priority,due_date,created_at,category,why,recurrence_rule,recurrence_anchor,book_id,chapter_id")
+    .select("id,title,status,priority,due_date,created_at,category,why,recurrence_rule,recurrence_anchor,book_id,chapter_id,is_template")
     .order("created_at", { ascending: false });
 
   const taskIds = (tasks || []).map((task) => task.id);

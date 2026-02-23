@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   const why = String(form.get("why") || "").trim();
   const recurrenceRule = String(form.get("recurrence_rule") || "").trim();
   const recurrenceAnchor = String(form.get("recurrence_anchor") || "").trim();
+  const isTemplate = String(form.get("is_template") || "").trim();
   const redirectTo = String(form.get("redirect") || "").trim();
 
   const payload: Record<string, unknown> = {};
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
   if (form.has("why")) payload.why = why || null;
   if (form.has("recurrence_rule")) payload.recurrence_rule = recurrenceRule || null;
   if (form.has("recurrence_anchor")) payload.recurrence_anchor = recurrenceAnchor || null;
+  if (form.has("is_template")) payload.is_template = isTemplate === "on";
   payload.updated_at = new Date().toISOString();
 
   await supabase.from("tasks").update(payload).eq("id", id);

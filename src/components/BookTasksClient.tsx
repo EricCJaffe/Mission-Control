@@ -15,6 +15,7 @@ type Task = {
   recurrence_anchor: string | null;
   book_id: string | null;
   chapter_id: string | null;
+  is_template?: boolean | null;
 };
 
 type Subtask = {
@@ -84,6 +85,7 @@ export default function BookTasksClient({
   const [editWhy, setEditWhy] = useState("");
   const [editRecurrence, setEditRecurrence] = useState("");
   const [editRecurrenceAnchor, setEditRecurrenceAnchor] = useState("");
+  const [editTemplate, setEditTemplate] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newLinkLabel, setNewLinkLabel] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
@@ -102,6 +104,7 @@ export default function BookTasksClient({
     setEditWhy(task.why || "");
     setEditRecurrence(task.recurrence_rule || "");
     setEditRecurrenceAnchor(toDateInput(task.recurrence_anchor));
+    setEditTemplate(Boolean(task.is_template));
     setNewSubtaskTitle("");
     setNewLinkLabel("");
     setNewLinkUrl("");
@@ -176,6 +179,22 @@ export default function BookTasksClient({
                 </div>
               </div>
 
+              <label className="inline-flex items-center gap-2 text-xs text-slate-500">
+                <input type="checkbox" name="is_template" checked={editTemplate} onChange={(e) => setEditTemplate(e.target.checked)} />
+                Save as template
+              </label>
+              <div>
+                <button
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs"
+                  type="button"
+                  onClick={() => {
+                    setEditPriority(editPriority === "1" ? "" : "1");
+                  }}
+                >
+                  {editPriority === "1" ? "Unpin" : "Pin"}
+                </button>
+              </div>
+
               <div>
                 <label className="text-xs text-slate-500">Description</label>
                 <input type="hidden" name="why" value={editWhy} />
@@ -194,6 +213,13 @@ export default function BookTasksClient({
               </div>
 
               <div className="flex justify-end gap-2">
+                <form action="/tasks/delete" method="post" data-toast="Task deleted">
+                  <input type="hidden" name="id" value={selectedTask.id} />
+                  <input type="hidden" name="redirect" value={redirect} />
+                  <button className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" type="submit">
+                    Delete
+                  </button>
+                </form>
                 <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" type="button" onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}>
                   Cancel
                 </button>

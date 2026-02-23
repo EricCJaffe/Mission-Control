@@ -56,7 +56,7 @@ export default async function BookDetailPage({
 
   const { data: bookTasks } = await supabase
     .from("tasks")
-    .select("id,title,status,category,due_date,priority,why,recurrence_rule,recurrence_anchor,book_id,chapter_id")
+    .select("id,title,status,category,due_date,priority,why,recurrence_rule,recurrence_anchor,book_id,chapter_id,is_template")
     .eq("book_id", id)
     .order("created_at", { ascending: false });
 
@@ -330,6 +330,7 @@ export default async function BookDetailPage({
               why: task.why ?? null,
               recurrence_rule: task.recurrence_rule ?? null,
               recurrence_anchor: task.recurrence_anchor ?? null,
+              is_template: task.is_template ?? null,
             }))}
             categories={[
               "God First",

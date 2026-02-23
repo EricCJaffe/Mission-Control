@@ -87,6 +87,7 @@ export default function Sidebar({
               <NavLink href="/tasks" label="Tasks" shortLabel="TS" collapsed={isCollapsed} icon="✅" />
               <NavLink href="/calendar" label="Calendar" shortLabel="CL" collapsed={isCollapsed} icon="📅" />
               <NavLink href="/books" label="Books" shortLabel="BK" collapsed={isCollapsed} icon="📘" />
+              <NavLink href="/ai" label="AI Companion" shortLabel="AI" collapsed={isCollapsed} icon="🤖" />
             </div>
           </div>
 
