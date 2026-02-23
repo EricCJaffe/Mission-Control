@@ -28,8 +28,30 @@ export default function BookProposalsClient({
     return <div className="mt-3 text-xs text-slate-500">No pending AI proposals.</div>;
   }
 
+  const allIds = proposals.map((proposal) => proposal.id);
+
   return (
     <div className="mt-3 grid gap-3 text-sm">
+      <div className="flex flex-wrap gap-2 text-xs">
+        <form action="/books/chapters/proposals/bulk-apply" method="post" data-progress="true" data-toast="Applying all proposals">
+          {allIds.map((id) => (
+            <input key={id} type="hidden" name="proposal_ids" value={id} />
+          ))}
+          <input type="hidden" name="redirect" value={`/books/${bookId}?tab=outline`} />
+          <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+            Apply All
+          </button>
+        </form>
+        <form action="/books/chapters/proposals/bulk-reject" method="post" data-progress="true" data-toast="Rejecting all proposals">
+          {allIds.map((id) => (
+            <input key={id} type="hidden" name="proposal_ids" value={id} />
+          ))}
+          <input type="hidden" name="redirect" value={`/books/${bookId}?tab=outline`} />
+          <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+            Reject All
+          </button>
+        </form>
+      </div>
       {proposals.map((proposal) => {
         const chapter = chapterMap[proposal.chapter_id];
         const current = chapter?.markdown_current || "";
