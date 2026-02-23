@@ -8,6 +8,12 @@ type ReorderPlan = {
   ordered_ids: string[];
   rationale?: string;
   toc?: Array<{ id: string; title?: string; summary?: string }>;
+  merge_plan?: Array<{
+    source_id: string;
+    target_id: string;
+    summary?: string;
+    integration_notes?: string;
+  }>;
 };
 
 export async function POST(req: Request) {
@@ -38,7 +44,9 @@ export async function POST(req: Request) {
 
   const persona = await getPersonaProfile(user.id);
   const system = `You are a senior book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`;
-  const userPrompt = `Reorder chapters for best narrative flow. ${prompt ? `Additional instructions: ${prompt}` : ""}\nChapters:\n${JSON.stringify(chapterContext)}\nReturn JSON with keys ordered_ids (array of chapter ids in new order), rationale (string), toc (array of {id,title,summary}).`;
+  const userPrompt = `Reorder chapters for best narrative flow. ${prompt ? `Additional instructions: ${prompt}` : ""}\nChapters:\n${JSON.stringify(
+    chapterContext
+  )}\nReturn JSON with keys:\n- ordered_ids (array of chapter ids in new order)\n- rationale (string)\n- toc (array of {id,title,summary})\n- merge_plan (array of {source_id,target_id,summary,integration_notes}) if any chapters should be merged or removed.\nIf a chapter should be eliminated, include it in merge_plan with a target_id and explain how to integrate key content.`;
 
   const output = await callOpenAI({
     model: process.env.OPENAI_MODEL || "gpt-5.2",
@@ -71,6 +79,11 @@ export async function POST(req: Request) {
       ...item,
       title: item.title ? stripChapterPrefix(item.title) : item.title,
     })),
+    merge_plan: (plan.merge_plan || []).map((item) => ({
+      ...item,
+      summary: item.summary || "",
+      integration_notes: item.integration_notes || "",
+    })),
   };
 
   await supabase.from("book_proposals").insert({
@@ -81,5 +94,5 @@ export async function POST(req: Request) {
     payload: normalizedPlan,
   });
 
-  return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline`, req.url));
+  return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=reorder_ready`, req.url));
 }

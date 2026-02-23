@@ -29,6 +29,9 @@ export default function BookPageClient({
     if (toast === "reorder_failed") {
       pushToast({ title: "Reorder failed", description: "AI response could not be parsed. Try again." });
     }
+    if (toast === "reorder_ready") {
+      pushToast({ title: "Reorder proposal ready", description: "Review it below before applying." });
+    }
   }, [toast, pushToast]);
 
   return (

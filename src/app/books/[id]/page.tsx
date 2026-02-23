@@ -270,6 +270,8 @@ export default async function BookDetailPage({
               {(bookProposals || []).map((proposal) => {
                 const payload = proposal.payload as any;
                 const orderedIds = Array.isArray(payload?.ordered_ids) ? payload.ordered_ids : [];
+                const tocItems = Array.isArray(payload?.toc) ? payload.toc : [];
+                const mergePlan = Array.isArray(payload?.merge_plan) ? payload.merge_plan : [];
                 return (
                   <div key={proposal.id} className="rounded-xl border border-slate-200 bg-white p-4">
                     <div className="font-medium">{proposal.proposal_type}</div>
@@ -287,6 +289,38 @@ export default async function BookDetailPage({
                           ))}
                         </ol>
                       </div>
+                    )}
+                    {mergePlan.length > 0 && (
+                      <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                        <summary className="cursor-pointer font-medium">Merge plan</summary>
+                        <div className="mt-2 grid gap-2 text-slate-600">
+                          {mergePlan.map((merge: any, idx: number) => (
+                            <div key={`${merge.source_id}-${merge.target_id}-${idx}`}>
+                              <div className="font-medium text-slate-800">
+                                Merge: {chapterMap[merge.source_id]?.title || "Source chapter"} →{" "}
+                                {chapterMap[merge.target_id]?.title || "Target chapter"}
+                              </div>
+                              {merge.summary && <div className="mt-1">Summary: {merge.summary}</div>}
+                              {merge.integration_notes && <div className="mt-1">Notes: {merge.integration_notes}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                    {tocItems.length > 0 && (
+                      <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                        <summary className="cursor-pointer font-medium">Proposed TOC</summary>
+                        <ol className="mt-2 grid gap-2 text-slate-600">
+                          {tocItems.map((item: any, idx: number) => (
+                            <li key={`${item.id || idx}`}>
+                              <div className="font-medium text-slate-800">
+                                {idx + 1}. {item.title || chapterMap[item.id]?.title || "Untitled"}
+                              </div>
+                              {item.summary && <div className="mt-1">{item.summary}</div>}
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
                     )}
                     <div className="mt-3 flex flex-wrap gap-2 text-xs">
                       <form action="/books/book-proposals/apply" method="post" data-progress="true" data-toast="Applying proposal">
