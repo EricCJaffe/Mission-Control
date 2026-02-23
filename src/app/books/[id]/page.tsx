@@ -128,7 +128,7 @@ export default async function BookDetailPage({
   const query = typeof rawQuery === "string" ? rawQuery.trim() : "";
   let researchQuery = supabase
     .from("research_notes")
-    .select("id,title,content_md,tags,scope_type,scope_id")
+    .select("id,title,content_md,tags,scope_type,scope_id,status")
     .eq("scope_type", "book")
     .eq("scope_id", id)
     .order("created_at", { ascending: false });

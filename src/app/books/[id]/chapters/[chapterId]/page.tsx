@@ -43,7 +43,7 @@ export default async function ChapterEditorPage({
 
   const { data: notes } = await supabase
     .from("research_notes")
-    .select("id,title,content_md,tags,scope_type,scope_id")
+    .select("id,title,content_md,tags,scope_type,scope_id,status")
     .or(`and(scope_type.eq.chapter,scope_id.eq.${chapter.id}),and(scope_type.eq.book,scope_id.eq.${chapter.book_id})`)
     .order("created_at", { ascending: false });
 

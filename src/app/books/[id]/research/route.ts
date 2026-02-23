@@ -20,6 +20,7 @@ export async function POST(req: Request) {
   const title = String(form.get("title") || "").trim();
   const tagsInput = String(form.get("tags") || "").trim();
   const contentMd = String(form.get("content_md") || "");
+  const status = String(form.get("status") || "inbox").trim();
   const redirect = String(form.get("redirect") || "").trim();
 
   if (!scopeType || !scopeId || !title) {
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
     title,
     content_md: contentMd,
     tags: tagsInput ? parseTags(tagsInput) : [],
+    status: status || "inbox",
   });
 
   return NextResponse.redirect(new URL(redirect || `/books/${scopeId}`, req.url));

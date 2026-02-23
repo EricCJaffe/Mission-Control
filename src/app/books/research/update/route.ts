@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   const title = String(form.get("title") || "").trim();
   const tagsInput = String(form.get("tags") || "").trim();
   const contentMd = String(form.get("content_md") || "");
+  const status = String(form.get("status") || "inbox").trim();
   const scopeType = String(form.get("scope_type") || "").trim();
   const scopeId = String(form.get("scope_id") || "").trim();
   const redirect = String(form.get("redirect") || "").trim();
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
       title,
       content_md: contentMd,
       tags: tagsInput ? parseTags(tagsInput) : [],
+      status: status || "inbox",
       scope_type: scopeType || undefined,
       scope_id: scopeId || undefined,
     })

@@ -42,6 +42,13 @@ type ResearchNote = {
   tags: string[] | null;
   scope_type: string | null;
   scope_id: string | null;
+  status?: string | null;
+};
+
+const noteStatusStyles: Record<string, string> = {
+  inbox: "bg-slate-100 text-slate-600",
+  in_progress: "bg-amber-100 text-amber-700",
+  review: "bg-blue-100 text-blue-700",
 };
 
 type ChatMessage = {
@@ -154,10 +161,12 @@ export default function ChapterEditor({
   const [noteTitle, setNoteTitle] = useState("");
   const [noteTags, setNoteTags] = useState("");
   const [noteContent, setNoteContent] = useState("");
+  const [noteStatus, setNoteStatus] = useState("inbox");
   const [editNoteId, setEditNoteId] = useState<string | null>(null);
   const [editNoteTitle, setEditNoteTitle] = useState("");
   const [editNoteTags, setEditNoteTags] = useState("");
   const [editNoteContent, setEditNoteContent] = useState("");
+  const [editNoteStatus, setEditNoteStatus] = useState("inbox");
   const [editNoteScopeTarget, setEditNoteScopeTarget] = useState<string>(chapter.id);
   const [viewNote, setViewNote] = useState<ResearchNote | null>(null);
   const [commentText, setCommentText] = useState("");
@@ -296,6 +305,7 @@ export default function ChapterEditor({
     setEditNoteTitle(note.title);
     setEditNoteTags((note.tags || []).join(", "));
     setEditNoteContent(note.content_md || "");
+    setEditNoteStatus(note.status || "inbox");
     if (note.scope_type === "book") {
       setEditNoteScopeTarget("book");
     } else if (note.scope_id) {
@@ -839,6 +849,19 @@ export default function ChapterEditor({
                     value={noteTags}
                     onChange={(e) => setNoteTags(e.target.value)}
                   />
+                  <div>
+                    <label className="text-xs text-slate-500">Status</label>
+                    <select
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                      name="status"
+                      value={noteStatus}
+                      onChange={(e) => setNoteStatus(e.target.value)}
+                    >
+                      <option value="inbox">Inbox</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="review">Review</option>
+                    </select>
+                  </div>
                   <input type="hidden" name="content_md" value={noteContent} />
                   <RtfEditor value={noteContent} onChange={setNoteContent} placeholder="Write the note..." minHeight="160px" />
                   <div className="flex justify-end gap-2">
@@ -901,6 +924,19 @@ export default function ChapterEditor({
                     value={editNoteTags}
                     onChange={(e) => setEditNoteTags(e.target.value)}
                   />
+                  <div>
+                    <label className="text-xs text-slate-500">Status</label>
+                    <select
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                      name="status"
+                      value={editNoteStatus}
+                      onChange={(e) => setEditNoteStatus(e.target.value)}
+                    >
+                      <option value="inbox">Inbox</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="review">Review</option>
+                    </select>
+                  </div>
                   <input type="hidden" name="content_md" value={editNoteContent} />
                   <RtfEditor value={editNoteContent} onChange={setEditNoteContent} placeholder="Write the note..." minHeight="160px" />
                   <div className="flex justify-end gap-2">
@@ -953,12 +989,19 @@ export default function ChapterEditor({
                     </button>
                   )}
                 </div>
-                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 whitespace-pre-line">
-                  {viewNote?.content_md || "No content yet."}
-                </div>
-                <div className="mt-3 text-xs text-slate-500">
-                  {(viewNote?.tags || []).length ? `Tags: ${(viewNote?.tags || []).join(", ")}` : "No tags"}
-                </div>
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 whitespace-pre-line">
+            {viewNote?.content_md || "No content yet."}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span>{(viewNote?.tags || []).length ? `Tags: ${(viewNote?.tags || []).join(", ")}` : "No tags"}</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                noteStatusStyles[viewNote?.status || "inbox"] || noteStatusStyles.inbox
+              }`}
+            >
+              {viewNote?.status || "inbox"}
+            </span>
+          </div>
                 <form
                   className="mt-4 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs"
                   action="/books/ai/place"
@@ -1017,7 +1060,16 @@ export default function ChapterEditor({
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="font-medium">{note.title}</div>
-                      <div className="text-slate-500">{(note.tags || []).join(", ")}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-slate-500">
+                        <span>{(note.tags || []).join(", ")}</span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                            noteStatusStyles[note.status || "inbox"] || noteStatusStyles.inbox
+                          }`}
+                        >
+                          {note.status || "inbox"}
+                        </span>
+                      </div>
                       <div className="mt-1 text-[10px] text-slate-400">Scope: {note.scope_type === "book" ? "Book" : "Chapter"}</div>
                     </div>
                     <div className="flex gap-2">

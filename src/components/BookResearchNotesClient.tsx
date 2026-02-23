@@ -12,6 +12,13 @@ type ResearchNote = {
   tags: string[] | null;
   scope_type: string;
   scope_id: string;
+  status?: string | null;
+};
+
+const statusStyles: Record<string, string> = {
+  inbox: "bg-slate-100 text-slate-600",
+  in_progress: "bg-amber-100 text-amber-700",
+  review: "bg-blue-100 text-blue-700",
 };
 
 function snippet(text: string, max = 200) {
@@ -39,11 +46,13 @@ export default function BookResearchNotesClient({
   const [addTitle, setAddTitle] = useState("");
   const [addTags, setAddTags] = useState("");
   const [addContent, setAddContent] = useState("");
+  const [addStatus, setAddStatus] = useState("inbox");
 
   const [editNoteId, setEditNoteId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editTags, setEditTags] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [editStatus, setEditStatus] = useState("inbox");
   const [editScopeTarget, setEditScopeTarget] = useState<string>("book");
   const [viewNote, setViewNote] = useState<ResearchNote | null>(null);
   const hasChapters = chapters.length > 0;
@@ -66,6 +75,7 @@ export default function BookResearchNotesClient({
     setEditTitle(note.title);
     setEditTags((note.tags || []).join(", "));
     setEditContent(note.content_md || "");
+    setEditStatus(note.status || "inbox");
     if (note.scope_type === "chapter" && note.scope_id) {
       setEditScopeTarget(note.scope_id);
     } else {
@@ -161,6 +171,19 @@ export default function BookResearchNotesClient({
               value={addTags}
               onChange={(e) => setAddTags(e.target.value)}
             />
+            <div>
+              <label className="text-xs text-slate-500">Status</label>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                name="status"
+                value={addStatus}
+                onChange={(e) => setAddStatus(e.target.value)}
+              >
+                <option value="inbox">Inbox</option>
+                <option value="in_progress">In Progress</option>
+                <option value="review">Review</option>
+              </select>
+            </div>
             <input type="hidden" name="content_md" value={addContent} />
             <RtfEditor value={addContent} onChange={setAddContent} placeholder="Write the note..." minHeight="160px" />
             <div className="flex justify-end gap-2">
@@ -232,6 +255,19 @@ export default function BookResearchNotesClient({
               value={editTags}
               onChange={(e) => setEditTags(e.target.value)}
             />
+            <div>
+              <label className="text-xs text-slate-500">Status</label>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                name="status"
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value)}
+              >
+                <option value="inbox">Inbox</option>
+                <option value="in_progress">In Progress</option>
+                <option value="review">Review</option>
+              </select>
+            </div>
             <input type="hidden" name="content_md" value={editContent} />
             <RtfEditor value={editContent} onChange={setEditContent} placeholder="Write the note..." minHeight="160px" />
             <div className="flex justify-end gap-2">
@@ -301,8 +337,15 @@ export default function BookResearchNotesClient({
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 whitespace-pre-line">
             {viewNote?.content_md || "No content yet."}
           </div>
-          <div className="mt-3 text-xs text-slate-500">
-            {(viewNote?.tags || []).length > 0 ? `Tags: ${(viewNote?.tags || []).join(", ")}` : "No tags"}
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span>{(viewNote?.tags || []).length > 0 ? `Tags: ${(viewNote?.tags || []).join(", ")}` : "No tags"}</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                statusStyles[viewNote?.status || "inbox"] || statusStyles.inbox
+              }`}
+            >
+              {viewNote?.status || "inbox"}
+            </span>
           </div>
           <div className="mt-4 flex justify-end">
             <button
@@ -334,8 +377,15 @@ export default function BookResearchNotesClient({
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="text-sm font-semibold">{note.title}</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {(note.tags || []).join(", ") || "No tags"}
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <span>{(note.tags || []).join(", ") || "No tags"}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                      statusStyles[note.status || "inbox"] || statusStyles.inbox
+                    }`}
+                  >
+                    {note.status || "inbox"}
+                  </span>
                 </div>
                 <div className="mt-1 text-[11px] text-slate-400">
                   Scope:{" "}
