@@ -34,6 +34,13 @@ export default async function AICompanionPage() {
 
   const chapterMap = Object.fromEntries((chapterTitles || []).map((ch) => [ch.id, ch]));
 
+  const { data: commentQueue } = await supabase
+    .from("chapter_comments")
+    .select("id,chapter_id,comment,anchor_text,suggested_patch,status,created_at")
+    .or("status.is.null,status.eq.open")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
   return (
     <main className="pt-4 md:pt-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -129,6 +136,63 @@ export default async function AICompanionPage() {
               <div className="text-slate-500">No pending chapter proposals.</div>
             )}
           </div>
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <div className="text-sm font-semibold">Inline Review Queue</div>
+        <p className="mt-1 text-xs text-slate-500">Anchored editor comments waiting for review.</p>
+        <div className="mt-3 grid gap-2 text-xs">
+          {(commentQueue || []).map((comment) => (
+            <div key={comment.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+              <div className="font-medium">{comment.comment || "Editor note"}</div>
+              {comment.anchor_text && (
+                <div className="mt-1 text-[11px] text-slate-500">Anchor: {comment.anchor_text}</div>
+              )}
+              {comment.suggested_patch && (
+                <div className="mt-1 text-[11px] text-slate-600">Suggested: {comment.suggested_patch.slice(0, 140)}…</div>
+              )}
+              <div className="mt-1 text-[11px] text-slate-500">
+                {chapterMap[comment.chapter_id]?.title ? `Chapter: ${chapterMap[comment.chapter_id]?.title}` : "Chapter comment"} ·{" "}
+                {new Date(comment.created_at).toLocaleString()}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                {comment.suggested_patch ? (
+                  <form action="/books/chapters/comments/apply" method="post" data-progress="true" data-toast="Applying suggestion">
+                    <input type="hidden" name="comment_id" value={comment.id} />
+                    <input type="hidden" name="chapter_id" value={comment.chapter_id} />
+                    <input type="hidden" name="redirect" value="/ai" />
+                    <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                      Apply
+                    </button>
+                  </form>
+                ) : (
+                  <form action="/books/chapters/comments/suggest" method="post" data-progress="true" data-toast="Suggestion queued">
+                    <input type="hidden" name="comment_id" value={comment.id} />
+                    <input type="hidden" name="chapter_id" value={comment.chapter_id} />
+                    <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                      AI Suggest
+                    </button>
+                  </form>
+                )}
+                <form action="/books/chapters/comments/reject" method="post" data-toast="Comment rejected">
+                  <input type="hidden" name="comment_id" value={comment.id} />
+                  <input type="hidden" name="redirect" value="/ai" />
+                  <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                    Reject
+                  </button>
+                </form>
+                {chapterMap[comment.chapter_id]?.book_id && (
+                  <a className="rounded-full border border-slate-200 bg-white px-3 py-1" href={`/books/${chapterMap[comment.chapter_id].book_id}/chapters/${comment.chapter_id}`}>
+                    View Chapter
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+          {(!commentQueue || commentQueue.length === 0) && (
+            <div className="text-slate-500">No inline comments pending.</div>
+          )}
         </div>
       </section>
 
