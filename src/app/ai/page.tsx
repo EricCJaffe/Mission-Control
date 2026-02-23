@@ -2,7 +2,14 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function AICompanionPage() {
+export default async function AICompanionPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ book?: string; status?: string }>;
+}) {
+  const resolvedSearch = searchParams ? await searchParams : undefined;
+  const bookFilter = resolvedSearch?.book || "";
+  const statusFilter = resolvedSearch?.status || "open";
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -34,12 +41,27 @@ export default async function AICompanionPage() {
 
   const chapterMap = Object.fromEntries((chapterTitles || []).map((ch) => [ch.id, ch]));
 
-  const { data: commentQueue } = await supabase
+  const chapterIdsForBook = bookFilter
+    ? (chapterTitles || []).filter((ch) => ch.book_id === bookFilter).map((ch) => ch.id)
+    : [];
+
+  let commentQuery = supabase
     .from("chapter_comments")
     .select("id,chapter_id,comment,anchor_text,suggested_patch,status,created_at")
-    .or("status.is.null,status.eq.open")
     .order("created_at", { ascending: false })
     .limit(50);
+
+  if (bookFilter && chapterIdsForBook.length > 0) {
+    commentQuery = commentQuery.in("chapter_id", chapterIdsForBook);
+  }
+
+  if (statusFilter === "open") {
+    commentQuery = commentQuery.or("status.is.null,status.eq.open");
+  } else if (statusFilter === "applied" || statusFilter === "rejected") {
+    commentQuery = commentQuery.eq("status", statusFilter);
+  }
+
+  const { data: commentQueue } = await commentQuery;
 
   return (
     <main className="pt-4 md:pt-8">
@@ -142,6 +164,47 @@ export default async function AICompanionPage() {
       <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
         <div className="text-sm font-semibold">Inline Review Queue</div>
         <p className="mt-1 text-xs text-slate-500">Anchored editor comments waiting for review.</p>
+        <form className="mt-3 flex flex-wrap gap-2 text-xs" method="get" action="/ai">
+          <select className="rounded-full border border-slate-200 bg-white px-3 py-1" name="book" defaultValue={bookFilter}>
+            <option value="">All books</option>
+            {(books || []).map((book) => (
+              <option key={book.id} value={book.id}>
+                {book.title}
+              </option>
+            ))}
+          </select>
+          <select className="rounded-full border border-slate-200 bg-white px-3 py-1" name="status" defaultValue={statusFilter}>
+            <option value="open">Open</option>
+            <option value="applied">Applied</option>
+            <option value="rejected">Rejected</option>
+            <option value="all">All</option>
+          </select>
+          <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+            Filter
+          </button>
+        </form>
+        {commentQueue && commentQueue.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <form action="/books/chapters/comments/bulk-apply" method="post" data-progress="true" data-toast="Applying inline comments">
+              {commentQueue.map((comment) => (
+                <input key={comment.id} type="hidden" name="comment_ids" value={comment.id} />
+              ))}
+              <input type="hidden" name="redirect" value="/ai" />
+              <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                Apply All
+              </button>
+            </form>
+            <form action="/books/chapters/comments/bulk-reject" method="post" data-toast="Rejecting inline comments">
+              {commentQueue.map((comment) => (
+                <input key={comment.id} type="hidden" name="comment_ids" value={comment.id} />
+              ))}
+              <input type="hidden" name="redirect" value="/ai" />
+              <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                Reject All
+              </button>
+            </form>
+          </div>
+        )}
         <div className="mt-3 grid gap-2 text-xs">
           {(commentQueue || []).map((comment) => (
             <div key={comment.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">

@@ -91,6 +91,7 @@ export default function Sidebar({
             <div className={`mt-2 grid gap-2 ${isCollapsed ? "place-items-center" : ""}`}>
               <NavLink href="/goals" label="Goals" shortLabel="GL" collapsed={isCollapsed} icon="🎯" onClick={handleNavigate} />
               <NavLink href="/reviews" label="Reviews" shortLabel="RV" collapsed={isCollapsed} icon="🧾" onClick={handleNavigate} />
+              <NavLink href="/templates" label="Templates" shortLabel="TP" collapsed={isCollapsed} icon="📋" onClick={handleNavigate} />
             </div>
           </div>
 

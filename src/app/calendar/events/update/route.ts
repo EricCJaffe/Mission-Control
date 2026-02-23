@@ -27,6 +27,7 @@ export async function POST(req: Request) {
   const noteId = String(form.get("note_id") || "").trim();
   const reviewId = String(form.get("review_id") || "").trim();
   const redirect = String(form.get("redirect") || "").trim();
+  const expandCount = Number(String(form.get("expand_count") || "0").trim());
 
   const startAt = combineDateTime(date, startTime);
   const endAt = combineDateTime(date, endTime);
@@ -52,6 +53,47 @@ export async function POST(req: Request) {
     })
     .eq("id", id)
     .eq("user_id", user.id);
+
+  const rule = (recurrenceRule || "").toLowerCase();
+  const shouldExpand = expandCount && expandCount > 0 && recurrenceRule;
+  if (shouldExpand) {
+    const instances: Array<Record<string, unknown>> = [];
+    let currentStart = new Date(startAt);
+    let currentEnd = new Date(endAt);
+    for (let i = 0; i < expandCount; i++) {
+      if (rule.includes("daily")) {
+        currentStart.setDate(currentStart.getDate() + 1);
+        currentEnd.setDate(currentEnd.getDate() + 1);
+      } else if (rule.includes("weekly")) {
+        currentStart.setDate(currentStart.getDate() + 7);
+        currentEnd.setDate(currentEnd.getDate() + 7);
+      } else if (rule.includes("monthly")) {
+        currentStart.setMonth(currentStart.getMonth() + 1);
+        currentEnd.setMonth(currentEnd.getMonth() + 1);
+      } else {
+        break;
+      }
+      const dateStr = currentStart.toISOString().slice(0, 10);
+      if (recurrenceUntil && recurrenceUntil < dateStr) break;
+      instances.push({
+        user_id: user.id,
+        title,
+        start_at: currentStart.toISOString(),
+        end_at: currentEnd.toISOString(),
+        event_type: eventType,
+        recurrence_rule: recurrenceRule,
+        recurrence_until: recurrenceUntil || null,
+        alignment_tag: alignmentTag || null,
+        goal_id: goalId || null,
+        task_id: taskId || null,
+        note_id: noteId || null,
+        review_id: reviewId || null,
+      });
+    }
+    if (instances.length > 0) {
+      await supabase.from("calendar_events").insert(instances);
+    }
+  }
 
   return NextResponse.redirect(new URL(redirect || "/calendar", req.url));
 }
