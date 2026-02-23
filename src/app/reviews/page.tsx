@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -23,14 +24,14 @@ export default async function ReviewsPage() {
       </div>
 
       <div className="mt-4">
-        <a className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" href="/reviews/new">
+        <Link className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" href="/reviews/new">
           Run Monthly Survey
-        </a>
+        </Link>
       </div>
 
       <section className="mt-6 grid gap-3">
         {(reviews || []).map((review) => (
-          <div key={review.id} className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <Link key={review.id} href={`/reviews/${review.id}`} className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm transition hover:border-slate-300">
             <div className="text-sm uppercase tracking-widest text-slate-500">Monthly Review</div>
             <div className="text-base font-semibold">
               {review.period_start} → {review.period_end}
@@ -41,7 +42,7 @@ export default async function ReviewsPage() {
             {review.drift_flags && review.drift_flags.length > 0 && (
               <div className="mt-2 text-xs text-slate-600">Drift flags: {review.drift_flags.join(", ")}</div>
             )}
-          </div>
+          </Link>
         ))}
         {reviews && reviews.length === 0 && (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 p-6 text-sm text-slate-500">
