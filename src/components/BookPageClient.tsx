@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import BookInsightsClient from "@/components/BookInsightsClient";
+import { useUiFeedback } from "@/components/UiFeedbackProvider";
 
 type ChapterOption = {
   id: string;
@@ -11,13 +13,23 @@ type ChapterOption = {
 export default function BookPageClient({
   bookId,
   chapterOptions,
+  toast,
 }: {
   bookId: string;
   chapterOptions: ChapterOption[];
+  toast?: string | null;
 }) {
   const options = chapterOptions.length
     ? chapterOptions
     : [{ id: "start", title: "Start", position: 1 }];
+  const { pushToast } = useUiFeedback();
+
+  useEffect(() => {
+    if (!toast) return;
+    if (toast === "reorder_failed") {
+      pushToast({ title: "Reorder failed", description: "AI response could not be parsed. Try again." });
+    }
+  }, [toast, pushToast]);
 
   return (
     <>

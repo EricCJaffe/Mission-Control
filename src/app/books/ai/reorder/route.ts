@@ -50,11 +50,18 @@ export async function POST(req: Request) {
   try {
     plan = JSON.parse(output);
   } catch {
-    plan = null;
+    const match = output.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        plan = JSON.parse(match[0]);
+      } catch {
+        plan = null;
+      }
+    }
   }
 
   if (!plan?.ordered_ids?.length) {
-    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline`, req.url));
+    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=reorder_failed`, req.url));
   }
 
   const normalizedPlan: ReorderPlan = {

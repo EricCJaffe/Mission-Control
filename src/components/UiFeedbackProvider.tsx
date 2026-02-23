@@ -65,8 +65,21 @@ export default function UiFeedbackProvider({ children }: { children: React.React
       if (!(target instanceof HTMLFormElement)) return;
       const toast = target.dataset.toast;
       const progress = target.dataset.progress;
+      const submitEvent = event as SubmitEvent;
+      const submitter = submitEvent?.submitter instanceof HTMLButtonElement ? submitEvent.submitter : null;
       if (progress) {
         startProgress();
+        target.setAttribute("aria-busy", "true");
+        if (submitter) {
+          submitter.disabled = true;
+          if (!submitter.dataset.originalLabel) {
+            submitter.dataset.originalLabel = submitter.textContent || "";
+          }
+          if (!submitter.dataset.submittingLabel) {
+            submitter.dataset.submittingLabel = "Working...";
+          }
+          submitter.textContent = submitter.dataset.submittingLabel;
+        }
       }
       if (toast) {
         window.sessionStorage.setItem("mc:toast", toast);

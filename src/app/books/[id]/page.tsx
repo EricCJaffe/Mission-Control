@@ -19,7 +19,7 @@ export default async function BookDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ q?: string; tab?: string }>;
+  searchParams?: Promise<{ q?: string; tab?: string; toast?: string }>;
 }) {
   const { id } = await params;
   const resolvedSearch = searchParams ? await searchParams : undefined;
@@ -114,6 +114,7 @@ export default async function BookDetailPage({
     .order("created_at", { ascending: false });
 
   const rawQuery = resolvedSearch?.q;
+  const toast = resolvedSearch?.toast;
   const query = typeof rawQuery === "string" ? rawQuery.trim() : "";
   let researchQuery = supabase
     .from("research_notes")
@@ -238,7 +239,11 @@ export default async function BookDetailPage({
 
       {tab === "outline" && (
         <>
-          <BookPageClient bookId={book.id} chapterOptions={chapterList.map((ch) => ({ id: ch.id, title: ch.title, position: ch.position ?? null }))} />
+          <BookPageClient
+            bookId={book.id}
+            chapterOptions={chapterList.map((ch) => ({ id: ch.id, title: ch.title, position: ch.position ?? null }))}
+            toast={toast}
+          />
 
           <section className="mt-6">
             <BookChaptersBoard bookId={book.id} chapters={chapterList} sections={sections || []} />
