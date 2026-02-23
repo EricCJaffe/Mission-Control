@@ -82,55 +82,6 @@ export default async function TasksPage() {
         </p>
       </div>
 
-      <form className="mt-6 grid gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto]" action="/tasks/new" method="post" data-toast="Task added">
-        <input
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
-          name="title"
-          placeholder="New task title…"
-          required
-        />
-        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="category" defaultValue="">
-          <option value="">Category</option>
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
-        <input
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-          name="priority"
-          type="number"
-          min="1"
-          max="5"
-          placeholder="Priority (1-5)"
-        />
-        <input
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-          name="due_date"
-          type="date"
-        />
-        <input
-          className="sm:col-span-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-          name="why"
-          placeholder="Why this matters (alignment)"
-        />
-        <input
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-          name="recurrence_rule"
-          placeholder="Recurrence (e.g., weekly)"
-        />
-        <input
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-          name="recurrence_anchor"
-          type="date"
-        />
-        <button
-          className="sm:col-span-3 rounded-xl bg-blue-700 text-white px-4 py-2 text-sm font-medium shadow-sm"
-          type="submit"
-        >
-          Add Task
-        </button>
-      </form>
-
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           Error loading tasks: {error.message}

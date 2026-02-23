@@ -105,6 +105,10 @@ export default function TasksListClient({
   tasks,
   attachmentsByTask,
   categories,
+  subtasks,
+  links,
+  noteLinks,
+  notes,
 }: {
   tasks: Task[];
   attachmentsByTask: Record<string, TaskAttachment[]>;
@@ -130,6 +134,11 @@ export default function TasksListClient({
   const [newLinkLabel, setNewLinkLabel] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
   const [newNoteId, setNewNoteId] = useState("");
+  const [newTitle, setNewTitle] = useState("");
+  const [newCategory, setNewCategory] = useState("");
+  const [newPriority, setNewPriority] = useState("");
+  const [newDue, setNewDue] = useState("");
+  const [newWhy, setNewWhy] = useState("");
   const attachmentsForSelected = selectedTask ? attachmentsByTask[selectedTask.id] || [] : [];
   const subtasksForSelected = selectedTask ? subtasks.filter((item) => item.task_id === selectedTask.id) : [];
   const linksForSelected = selectedTask ? links.filter((item) => item.task_id === selectedTask.id) : [];
@@ -175,29 +184,45 @@ export default function TasksListClient({
 
   return (
     <div className="mt-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500">
-          My Tasks ({visibleTasks.length})
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold">Tasks</div>
+          <div className="text-xs text-slate-500">Manage your tasks and assignments.</div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+          <button
+            className="rounded-xl bg-blue-700 px-3 py-2 text-xs font-medium text-white shadow-sm"
+            type="button"
+            onClick={() => (document.getElementById("new-task-dialog") as HTMLDialogElement | null)?.showModal()}
           >
-            <option value="all">All Status</option>
-            <option value="open">To Do</option>
-            <option value="in_progress">In Progress</option>
-            <option value="done">Done</option>
-            <option value="blocked">Blocked</option>
-          </select>
-          <input
-            className="w-56 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
-            placeholder="Search tasks..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+            + New Task
+          </button>
+          <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm" type="button">
+            Manage Lists
+          </button>
         </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="all">All Lists</option>
+          <option value="open">To Do</option>
+          <option value="in_progress">In Progress</option>
+          <option value="done">Done</option>
+          <option value="blocked">Blocked</option>
+        </select>
+        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <option>All Projects</option>
+        </select>
+        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <option>All Tags</option>
+        </select>
+        <input
+          className="w-56 rounded-xl border border-slate-200 bg-white px-3 py-2"
+          placeholder="Search tasks..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 text-xs">
@@ -555,6 +580,52 @@ export default function TasksListClient({
               </div>
             </div>
           )}
+        </div>
+      </dialog>
+
+      <dialog id="new-task-dialog" className="w-[92vw] max-w-2xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+        <div className="rounded-2xl bg-white p-6">
+          <h3 className="text-lg font-semibold">New Task</h3>
+          <form className="mt-4 grid gap-4" action="/tasks/new" method="post" data-toast="Task added">
+            <div>
+              <label className="text-xs text-slate-500">Title</label>
+              <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required />
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <label className="text-xs text-slate-500">Category</label>
+                <select className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
+                  <option value="">None</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500">Priority</label>
+                <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="priority" type="number" min="1" max="5" value={newPriority} onChange={(e) => setNewPriority(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500">Due Date</label>
+                <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="due_date" type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Description</label>
+              <input type="hidden" name="why" value={newWhy} />
+              <RtfEditor value={newWhy} onChange={setNewWhy} placeholder="Why this matters..." minHeight="140px" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" type="button" onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}>
+                Cancel
+              </button>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Create Task
+              </button>
+            </div>
+          </form>
         </div>
       </dialog>
     </div>
