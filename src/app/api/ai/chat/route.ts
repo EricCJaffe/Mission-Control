@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   let aiText = "";
   try {
     aiText = await callOpenAI({
-      model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
+      model: process.env.OPENAI_MODEL || "gpt-5.2",
       system: `You are a writing assistant aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`,
       user: `Mode: ${mode}\nScope: ${scopeType}\nContext: ${JSON.stringify(context)}\nUser: ${message}`,
     });

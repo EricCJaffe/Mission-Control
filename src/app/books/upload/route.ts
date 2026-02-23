@@ -64,7 +64,7 @@ async function ensureHeadings(markdown: string, persona?: { title?: string; tone
   let aiMarkdown = markdown;
   try {
     aiMarkdown = await callOpenAI({
-      model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
+      model: process.env.OPENAI_MODEL || "gpt-5.2",
       system: `You are a careful book editor aligned to this persona.\nPersona: ${persona?.title || "Default"}\nTone: ${persona?.tone || ""}\nMission: ${persona?.mission_alignment || ""}\nPersona Notes:\n${persona?.content_md || ""}`,
       user: `${aiPrompt}\n\nMANUSCRIPT:\n${markdown.slice(0, 12000)}`,
     });

@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   let chosenId = chapters?.[0]?.id || "";
   try {
     const response = await callOpenAI({
-      model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
+      model: process.env.OPENAI_MODEL || "gpt-5.2",
       system: `You are a book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`,
       user: `Concept: ${concept}\nChapters: ${JSON.stringify(context)}\nReturn only the chapter id.`,
     });

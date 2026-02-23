@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   let reviewText = "";
   try {
     reviewText = await callOpenAI({
-      model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
+      model: process.env.OPENAI_MODEL || "gpt-5.2",
       system: `You are a senior book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`,
       user: `Review this chapter for grammar, clarity, consistency, and flow. Provide 3-6 bullet points of suggested changes with optional patch text.\n\n${chapter.markdown_current || ""}`,
     });
