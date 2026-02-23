@@ -56,8 +56,7 @@ export async function POST(req: Request) {
   const original = (chapters || []).find((ch) => ch.id === plan?.chapter_id);
   const currentMarkdown = original?.markdown_current || "";
   const proposed = plan.proposed_markdown || "";
-  const lengthDelta = Math.abs(proposed.length - currentMarkdown.length) / Math.max(1, currentMarkdown.length);
-  if (lengthDelta > 0.25) {
+  if (proposed.length < currentMarkdown.length * 0.85) {
     return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
   }
 

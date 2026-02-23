@@ -17,7 +17,7 @@ export default async function NotesPage() {
 
   const { data: notes, error } = await supabase
     .from("notes")
-    .select("id,title,tags,updated_at,created_at")
+    .select("id,title,tags,updated_at,created_at,status")
     .order("updated_at", { ascending: false });
 
   return (
@@ -36,6 +36,11 @@ export default async function NotesPage() {
           placeholder="New note title…"
           required
         />
+        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="status" defaultValue="inbox">
+          <option value="inbox">Inbox</option>
+          <option value="in_process">In Process</option>
+          <option value="review">Review</option>
+        </select>
         <input
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
           name="tags"
@@ -61,7 +66,7 @@ export default async function NotesPage() {
           >
             <div className="text-base font-semibold">{note.title}</div>
             <div className="mt-1 text-xs text-slate-500">
-              Tags: {formatTags(note.tags)} · Updated:{" "}
+              Status: {note.status || "inbox"} · Tags: {formatTags(note.tags)} · Updated:{" "}
               {note.updated_at ? new Date(note.updated_at).toLocaleString() : "n/a"}
             </div>
           </Link>

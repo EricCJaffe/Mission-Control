@@ -17,7 +17,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
 
   const { data: note, error } = await supabase
     .from("notes")
-    .select("id,title,content_md,tags,updated_at,created_at")
+    .select("id,title,content_md,tags,updated_at,created_at,status")
     .eq("id", id)
     .single();
 
@@ -108,6 +108,15 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
             defaultValue={note.title || ""}
             required
           />
+        </div>
+
+        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <label className="text-xs uppercase tracking-wide text-slate-500">Status</label>
+          <select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" name="status" defaultValue={note.status || "inbox"}>
+            <option value="inbox">Inbox</option>
+            <option value="in_process">In Process</option>
+            <option value="review">Review</option>
+          </select>
         </div>
 
         <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">

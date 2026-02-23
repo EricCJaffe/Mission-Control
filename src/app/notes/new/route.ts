@@ -16,6 +16,7 @@ export async function POST(req: Request) {
 
   const form = await req.formData();
   const title = String(form.get("title") || "").trim();
+  const status = String(form.get("status") || "inbox").trim();
   const tagsInput = String(form.get("tags") || "").trim();
   const tags = tagsInput ? parseTags(tagsInput) : [];
 
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
     .insert({
       user_id: user.id,
       title,
+      status: status || "inbox",
       tags,
       content_md: "",
     })

@@ -20,6 +20,7 @@ export async function POST(req: Request) {
 
   const title = String(form.get("title") || "").trim();
   const content = String(form.get("content") || "");
+  const status = String(form.get("status") || "inbox").trim();
   const tagsInput = String(form.get("tags") || "").trim();
   const tags = tagsInput ? parseTags(tagsInput) : [];
 
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
       title,
       content_md: content,
       tags,
+      status: status || "inbox",
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
