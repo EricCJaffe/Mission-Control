@@ -56,10 +56,50 @@ export default function BookProposalsClient({
         const chapter = chapterMap[proposal.chapter_id];
         const current = chapter?.markdown_current || "";
         const diff = diffLines(current, proposal.proposed_markdown || "");
+        const removedLines = diff
+          .filter((part) => part.removed)
+          .flatMap((part) => part.value.split("\n"))
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+          .slice(0, 6);
+        const addedLines = diff
+          .filter((part) => part.added)
+          .flatMap((part) => part.value.split("\n"))
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+          .slice(0, 6);
         return (
           <div key={proposal.id} className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="font-medium">{chapter?.title || "Chapter"}</div>
             <div className="mt-1 text-xs text-slate-500">{proposal.instruction || "AI proposal"}</div>
+            {(removedLines.length > 0 || addedLines.length > 0) && (
+              <div className="mt-3 grid gap-2 text-xs">
+                {removedLines.length > 0 && (
+                  <div>
+                    <div className="font-semibold text-red-700">Will remove</div>
+                    <ul className="mt-1 grid gap-1 text-red-700">
+                      {removedLines.map((line, idx) => (
+                        <li key={`rm-${idx}`} className="rounded-md border border-red-200 bg-red-50 px-2 py-1">
+                          {line.length > 140 ? `${line.slice(0, 140)}…` : line}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {addedLines.length > 0 && (
+                  <div>
+                    <div className="font-semibold text-emerald-700">Will add</div>
+                    <ul className="mt-1 grid gap-1 text-emerald-700">
+                      {addedLines.map((line, idx) => (
+                        <li key={`add-${idx}`} className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1">
+                          {line.length > 140 ? `${line.slice(0, 140)}…` : line}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
             <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
               <summary className="cursor-pointer">Preview diff</summary>
               <div className="mt-2 font-mono text-[11px] leading-relaxed">
