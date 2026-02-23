@@ -45,8 +45,7 @@ export default function BookResearchNotesClient({
   const [editTitle, setEditTitle] = useState("");
   const [editTags, setEditTags] = useState("");
   const [editContent, setEditContent] = useState("");
-  const [editScope, setEditScope] = useState<"book" | "chapter">("book");
-  const [editScopeId, setEditScopeId] = useState(bookId);
+  const [editScopeTarget, setEditScopeTarget] = useState<string>("book");
   const [viewNote, setViewNote] = useState<ResearchNote | null>(null);
   const hasChapters = chapters.length > 0;
 
@@ -68,9 +67,11 @@ export default function BookResearchNotesClient({
     setEditTitle(note.title);
     setEditTags((note.tags || []).join(", "));
     setEditContent(note.content_md || "");
-    const scope = note.scope_type === "chapter" ? "chapter" : "book";
-    setEditScope(scope);
-    setEditScopeId(scope === "book" ? bookId : note.scope_id);
+    if (note.scope_type === "chapter" && note.scope_id) {
+      setEditScopeTarget(note.scope_id);
+    } else {
+      setEditScopeTarget("book");
+    }
     (document.getElementById("edit-note-dialog") as HTMLDialogElement | null)?.showModal();
   }
 
@@ -216,34 +217,15 @@ export default function BookResearchNotesClient({
           >
             <input type="hidden" name="note_id" value={editNoteId || ""} />
             <input type="hidden" name="redirect" value={`/books/${bookId}?tab=notes`} />
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="grid gap-2">
               <div>
-                <label className="text-xs text-slate-500">Scope</label>
+                <label className="text-xs text-slate-500">Chapter (optional)</label>
                 <select
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  name="scope_type"
-                  value={editScope}
-                  onChange={(e) => {
-                    const next = e.target.value as "book" | "chapter";
-                    setEditScope(next);
-                    setEditScopeId(next === "book" ? bookId : chapters[0]?.id || "");
-                  }}
+                  value={editScopeTarget}
+                  onChange={(e) => setEditScopeTarget(e.target.value)}
                 >
                   <option value="book">Book (General)</option>
-                  <option value="chapter" disabled={!hasChapters}>
-                    Chapter
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-slate-500">Chapter</label>
-                <select
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  name="scope_id"
-                  value={editScopeId}
-                  onChange={(e) => setEditScopeId(e.target.value)}
-                  disabled={editScope !== "chapter" || !hasChapters}
-                >
                   {hasChapters ? (
                     chapters.map((ch) => (
                       <option key={ch.id} value={ch.id}>
@@ -251,12 +233,13 @@ export default function BookResearchNotesClient({
                       </option>
                     ))
                   ) : (
-                    <option value="">No chapters yet</option>
+                    <option value="book">No chapters yet</option>
                   )}
                 </select>
-                {editScope === "book" && <input type="hidden" name="scope_id" value={bookId} />}
               </div>
             </div>
+            <input type="hidden" name="scope_type" value={editScopeTarget === "book" ? "book" : "chapter"} />
+            <input type="hidden" name="scope_id" value={editScopeTarget === "book" ? bookId : editScopeTarget} />
             <input
               className="rounded-xl border border-slate-200 bg-white px-3 py-2"
               name="title"

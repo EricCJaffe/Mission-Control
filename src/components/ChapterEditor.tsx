@@ -158,8 +158,7 @@ export default function ChapterEditor({
   const [editNoteTitle, setEditNoteTitle] = useState("");
   const [editNoteTags, setEditNoteTags] = useState("");
   const [editNoteContent, setEditNoteContent] = useState("");
-  const [editNoteScope, setEditNoteScope] = useState<"chapter" | "book">("chapter");
-  const [editNoteScopeId, setEditNoteScopeId] = useState(chapter.id);
+  const [editNoteScopeTarget, setEditNoteScopeTarget] = useState<string>(chapter.id);
   const [viewNote, setViewNote] = useState<ResearchNote | null>(null);
   const [commentText, setCommentText] = useState("");
   const [commentPatch, setCommentPatch] = useState("");
@@ -294,9 +293,13 @@ export default function ChapterEditor({
     setEditNoteTitle(note.title);
     setEditNoteTags((note.tags || []).join(", "));
     setEditNoteContent(note.content_md || "");
-    const scope = note.scope_type === "book" ? "book" : "chapter";
-    setEditNoteScope(scope);
-    setEditNoteScopeId(scope === "book" ? chapter.book_id : chapter.id);
+    if (note.scope_type === "book") {
+      setEditNoteScopeTarget("book");
+    } else if (note.scope_id) {
+      setEditNoteScopeTarget(note.scope_id);
+    } else {
+      setEditNoteScopeTarget(chapter.id);
+    }
     (document.getElementById("edit-chapter-note-dialog") as HTMLDialogElement | null)?.showModal();
   }
 
@@ -857,41 +860,29 @@ export default function ChapterEditor({
                 <form className="mt-3 grid gap-3" action="/books/research/update" method="post" data-toast="Research note updated">
                   <input type="hidden" name="note_id" value={editNoteId || ""} />
                   <input type="hidden" name="redirect" value={`/books/${chapter.book_id}/chapters/${chapter.id}`} />
-                  <div className="grid gap-2 md:grid-cols-2">
+                  <div className="grid gap-2">
                     <div>
-                      <label className="text-xs text-slate-500">Scope</label>
+                      <label className="text-xs text-slate-500">Chapter (optional)</label>
                       <select
                         className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                        name="scope_type"
-                        value={editNoteScope}
-                        onChange={(e) => {
-                          const next = e.target.value as "chapter" | "book";
-                          setEditNoteScope(next);
-                          setEditNoteScopeId(next === "book" ? chapter.book_id : chapter.id);
-                        }}
+                        value={editNoteScopeTarget}
+                        onChange={(e) => setEditNoteScopeTarget(e.target.value)}
                       >
-                        <option value="chapter">Chapter</option>
                         <option value="book">Book (General)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs text-slate-500">Chapter</label>
-                      <select
-                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                        name="scope_id"
-                        value={editNoteScopeId}
-                        onChange={(e) => setEditNoteScopeId(e.target.value)}
-                        disabled={editNoteScope !== "chapter"}
-                      >
                         {bookChapters.map((ch) => (
                           <option key={ch.id} value={ch.id}>
                             {ch.title}
                           </option>
                         ))}
                       </select>
-                      {editNoteScope === "book" && <input type="hidden" name="scope_id" value={chapter.book_id} />}
                     </div>
                   </div>
+                  <input type="hidden" name="scope_type" value={editNoteScopeTarget === "book" ? "book" : "chapter"} />
+                  <input
+                    type="hidden"
+                    name="scope_id"
+                    value={editNoteScopeTarget === "book" ? chapter.book_id : editNoteScopeTarget}
+                  />
                   <input
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2"
                     name="title"
