@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     const response = await callOpenAI({
       model: process.env.OPENAI_MODEL || "gpt-5.2",
       system: `You are a book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`,
-      user: `Insert the concept into the most appropriate chapter. Reword the concept to fit the surrounding context and flow. Return JSON with keys: chapter_id, proposed_markdown, instruction.\nConcept:\n${concept}\nChapters:\n${JSON.stringify(
+      user: `Insert the concept into the most appropriate chapter. Make the smallest necessary edit: keep 95% of the existing chapter intact, do not remove signature blocks (Quote, Scripture, Next Steps, Challenge, Questions for Reflection). Reword the concept to match tone and insert near the best fitting paragraph. Return JSON with keys: chapter_id, proposed_markdown, instruction.\nConcept:\n${concept}\nChapters:\n${JSON.stringify(
         context
       )}`,
     });
@@ -50,6 +50,32 @@ export async function POST(req: Request) {
   }
 
   if (!plan?.chapter_id || !plan?.proposed_markdown) {
+    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
+  }
+
+  const original = (chapters || []).find((ch) => ch.id === plan?.chapter_id);
+  const currentMarkdown = original?.markdown_current || "";
+  const proposed = plan.proposed_markdown || "";
+  const lengthDelta = Math.abs(proposed.length - currentMarkdown.length) / Math.max(1, currentMarkdown.length);
+  if (lengthDelta > 0.25) {
+    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
+  }
+
+  const requiredLines: string[] = [];
+  const firstQuote = currentMarkdown.split("\n").find((line: string) => line.trim().startsWith("> "));
+  if (firstQuote) requiredLines.push(firstQuote.trim());
+  const scriptureLine = currentMarkdown.split("\n").find((line: string) => line.toLowerCase().includes("scripture:"));
+  if (scriptureLine) requiredLines.push(scriptureLine.trim());
+  const nextStepsLine = currentMarkdown.split("\n").find((line: string) => line.toLowerCase().includes("next steps"));
+  if (nextStepsLine) requiredLines.push(nextStepsLine.trim());
+  const challengeLine = currentMarkdown.split("\n").find((line: string) => line.toLowerCase().includes("challenge"));
+  if (challengeLine) requiredLines.push(challengeLine.trim());
+  const questionsLine = currentMarkdown
+    .split("\n")
+    .find((line: string) => line.toLowerCase().includes("questions for reflection"));
+  if (questionsLine) requiredLines.push(questionsLine.trim());
+  const missingRequired = requiredLines.some((line) => line && !proposed.includes(line));
+  if (missingRequired) {
     return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
   }
 
