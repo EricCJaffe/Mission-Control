@@ -113,9 +113,14 @@ export default async function AICompanionPage() {
                     </button>
                   </form>
                   {chapterMap[proposal.chapter_id]?.book_id && (
-                    <a className="rounded-full border border-slate-200 bg-white px-3 py-1" href={`/books/${chapterMap[proposal.chapter_id].book_id}?tab=outline`}>
-                      View Book
-                    </a>
+                    <>
+                      <a className="rounded-full border border-slate-200 bg-white px-3 py-1" href={`/books/${chapterMap[proposal.chapter_id].book_id}?tab=outline`}>
+                        View Book
+                      </a>
+                      <a className="rounded-full border border-slate-200 bg-white px-3 py-1" href={`/books/${chapterMap[proposal.chapter_id].book_id}/chapters/${proposal.chapter_id}`}>
+                        View Chapter
+                      </a>
+                    </>
                   )}
                 </div>
               </div>
