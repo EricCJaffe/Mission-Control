@@ -33,7 +33,9 @@ export async function POST(req: Request) {
 
   const persona = await getPersonaProfile(user.id);
 
-  let plan: { chapter_id: string; proposed_markdown: string; instruction?: string } | null = null;
+  let plan:
+    | { chapter_id: string; proposed_markdown?: string; instruction?: string; insert_after_heading?: string; insert_block?: string }
+    | null = null;
   const parsePlan = (text: string) => {
     const fenced = text.match(/```json\s*([\s\S]*?)```/i) || text.match(/```([\s\S]*?)```/);
     const raw = fenced ? fenced[1] : text;
@@ -50,7 +52,7 @@ export async function POST(req: Request) {
     const response = await callOpenAI({
       model: process.env.OPENAI_MODEL || "gpt-5.2",
       system: `You are a book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}\nReturn STRICT JSON only.`,
-      user: `Insert the concept into the most appropriate chapter. Make the smallest necessary edit: keep 95% of the existing chapter intact, do not remove signature blocks (Quote, Scripture, Next Steps, Challenge, Questions for Reflection). Reword the concept to match tone and insert near the best fitting paragraph. Return JSON with keys: chapter_id, proposed_markdown, instruction.\n${instruction ? `Additional instructions: ${instruction}` : ""}\nConcept:\n${concept}\nChapters:\n${JSON.stringify(
+      user: `Place the concept into the most appropriate chapter with minimal disruption. Do NOT delete or rewrite existing content. Only INSERT the new text. Return JSON with keys: chapter_id, insert_after_heading (optional), insert_block (required), instruction.\n${instruction ? `Additional instructions: ${instruction}` : ""}\nConcept:\n${concept}\nChapters:\n${JSON.stringify(
         context
       )}`,
     });
@@ -59,19 +61,13 @@ export async function POST(req: Request) {
     plan = null;
   }
 
-  if (!plan?.chapter_id || !plan?.proposed_markdown) {
+  if (!plan?.chapter_id || (!plan?.proposed_markdown && !plan?.insert_block)) {
     const fallbackChapter = (chapters || [])[0];
     if (!fallbackChapter) {
       return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
     }
     const currentMarkdown = fallbackChapter.markdown_current || "";
-    const lines = currentMarkdown ? currentMarkdown.split("\n") : [];
-    const insertAt = lines.findIndex((line: string) => line.toLowerCase().includes("next steps"));
-    const insertBlock = `\n${concept}\n`;
-    const nextMarkdown =
-      lines.length && insertAt > 0
-        ? [...lines.slice(0, insertAt), insertBlock, ...lines.slice(insertAt)].join("\n")
-        : `${currentMarkdown.trim()}\n\n${concept}\n`.trim();
+    const nextMarkdown = insertBlockIntoMarkdown(currentMarkdown, concept, "next steps");
     await supabase.from("chapter_proposals").insert({
       chapter_id: fallbackChapter.id,
       org_id: user.id,
@@ -84,11 +80,11 @@ export async function POST(req: Request) {
 
   const original = (chapters || []).find((ch) => ch.id === plan?.chapter_id);
   const currentMarkdown = original?.markdown_current || "";
-  const proposed = plan.proposed_markdown || "";
-  let lengthWarning = "";
-  if (currentMarkdown && proposed.length < currentMarkdown.length * 0.7) {
-    lengthWarning = "Warning: Proposed edit is significantly shorter than current chapter. Review carefully.";
+  let proposed = plan.proposed_markdown || "";
+  if (!proposed && plan.insert_block) {
+    proposed = insertBlockIntoMarkdown(currentMarkdown, plan.insert_block, plan.insert_after_heading || "next steps");
   }
+  let lengthWarning = "";
 
   const requiredLines: string[] = [];
   const firstQuote = currentMarkdown.split("\n").find((line: string) => line.trim().startsWith("> "));
@@ -114,9 +110,20 @@ export async function POST(req: Request) {
     chapter_id: plan.chapter_id,
     org_id: user.id,
     instruction: [plan.instruction || "Insert concept into best chapter", warning, lengthWarning].filter(Boolean).join("\n"),
-    proposed_markdown: plan.proposed_markdown,
+    proposed_markdown: proposed,
     status: "pending",
   });
 
   return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_ready`, req.url));
+}
+
+function insertBlockIntoMarkdown(markdown: string, block: string, anchorHeading: string) {
+  const lines = markdown ? markdown.split("\n") : [];
+  const anchor = anchorHeading.toLowerCase();
+  const insertAt = lines.findIndex((line: string) => line.toLowerCase().includes(anchor));
+  const insertBlock = `\n${block}\n`;
+  if (lines.length && insertAt > 0) {
+    return [...lines.slice(0, insertAt), insertBlock, ...lines.slice(insertAt)].join("\n");
+  }
+  return `${markdown.trim()}\n\n${block}\n`.trim();
 }
