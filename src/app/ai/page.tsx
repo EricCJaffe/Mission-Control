@@ -27,6 +27,13 @@ export default async function AICompanionPage() {
 
   const bookMap = Object.fromEntries((books || []).map((book) => [book.id, book]));
 
+  const { data: chapterTitles } = await supabase
+    .from("chapters")
+    .select("id,book_id,title")
+    .order("created_at", { ascending: false });
+
+  const chapterMap = Object.fromEntries((chapterTitles || []).map((ch) => [ch.id, ch]));
+
   return (
     <main className="pt-4 md:pt-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -47,6 +54,11 @@ export default async function AICompanionPage() {
                   {bookMap[proposal.book_id]?.title || "Book"}
                 </div>
                 <div className="text-slate-500">{new Date(proposal.created_at).toLocaleString()}</div>
+                {proposal.proposal_type === "reorder" && Array.isArray((proposal.payload as any)?.ordered_ids) && (
+                  <div className="mt-2 text-[11px] text-slate-600">
+                    Proposed order: {((proposal.payload as any).ordered_ids as string[]).length} chapters
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap gap-2 text-xs">
                   <form action="/books/book-proposals/apply" method="post" data-progress="true" data-toast="Applying proposal">
                     <input type="hidden" name="proposal_id" value={proposal.id} />
@@ -62,6 +74,9 @@ export default async function AICompanionPage() {
                       Reject
                     </button>
                   </form>
+                  <a className="rounded-full border border-slate-200 bg-white px-3 py-1" href={`/books/${proposal.book_id}?tab=outline`}>
+                    View Book
+                  </a>
                 </div>
               </div>
             ))}
@@ -78,6 +93,9 @@ export default async function AICompanionPage() {
               <div key={proposal.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                 <div className="font-medium">{proposal.instruction || "AI proposal"}</div>
                 <div className="text-slate-500">{new Date(proposal.created_at).toLocaleString()}</div>
+                <div className="mt-2 text-[11px] text-slate-600">
+                  {chapterMap[proposal.chapter_id]?.title ? `Chapter: ${chapterMap[proposal.chapter_id]?.title}` : "Chapter proposal"}
+                </div>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs">
                   <form action="/books/chapters/proposals/apply" method="post" data-progress="true" data-toast="Applying proposal">
                     <input type="hidden" name="proposal_id" value={proposal.id} />
@@ -94,6 +112,11 @@ export default async function AICompanionPage() {
                       Reject
                     </button>
                   </form>
+                  {chapterMap[proposal.chapter_id]?.book_id && (
+                    <a className="rounded-full border border-slate-200 bg-white px-3 py-1" href={`/books/${chapterMap[proposal.chapter_id].book_id}?tab=outline`}>
+                      View Book
+                    </a>
+                  )}
                 </div>
               </div>
             ))}
