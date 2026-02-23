@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import UiFeedbackProvider from "@/components/UiFeedbackProvider";
 
@@ -12,6 +12,16 @@ type AppShellProps = {
 export default function AppShell({ userEmail, children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem("mc:sidebar-collapsed") : null;
+    if (stored === "true") setSidebarCollapsed(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("mc:sidebar-collapsed", sidebarCollapsed ? "true" : "false");
+  }, [sidebarCollapsed]);
 
   return (
     <UiFeedbackProvider>
@@ -31,18 +41,27 @@ export default function AppShell({ userEmail, children }: AppShellProps) {
           />
         </div>
 
-        <div className="flex-1 px-4 pb-16 pt-4 md:px-6 md:pt-6">
-          <div className="mb-4 flex items-center justify-between md:hidden">
-            <button
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm"
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-            >
-              Menu
-            </button>
-            {userEmail && <div className="text-xs text-slate-500">Signed in</div>}
+        <div className="flex-1">
+          <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-100 bg-white/90 px-4 py-3 backdrop-blur md:px-6">
+            <div className="flex items-center gap-2">
+              <button
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm md:hidden"
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+              >
+                Menu
+              </button>
+              <button
+                className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm md:inline-flex"
+                type="button"
+                onClick={() => setSidebarCollapsed((prev) => !prev)}
+              >
+                {sidebarCollapsed ? "Expand" : "Collapse"}
+              </button>
+            </div>
+            {userEmail && <div className="text-xs text-slate-500">{userEmail}</div>}
           </div>
-          {children}
+          <div className="px-4 pb-16 pt-4 md:px-6 md:pt-6">{children}</div>
         </div>
       </div>
     </UiFeedbackProvider>

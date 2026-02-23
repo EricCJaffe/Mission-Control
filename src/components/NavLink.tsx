@@ -9,9 +9,10 @@ type NavLinkProps = {
   shortLabel?: string;
   collapsed?: boolean;
   icon?: React.ReactNode;
+  onClick?: () => void;
 };
 
-export default function NavLink({ href, label, shortLabel, collapsed, icon }: NavLinkProps) {
+export default function NavLink({ href, label, shortLabel, collapsed, icon, onClick }: NavLinkProps) {
   const pathname = usePathname();
   const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
   const display = collapsed ? (shortLabel || label.slice(0, 2).toUpperCase()) : label;
@@ -19,6 +20,7 @@ export default function NavLink({ href, label, shortLabel, collapsed, icon }: Na
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={`rounded-full px-3 py-1.5 text-sm transition ${collapsed ? "text-xs text-center" : ""} ${
         isActive
           ? "bg-blue-700 text-white shadow-sm"
