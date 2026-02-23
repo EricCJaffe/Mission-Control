@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
+import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import Table from "@tiptap/extension-table";
-import TableRow from "@tiptap/extension-table-row";
-import TableHeader from "@tiptap/extension-table-header";
-import TableCell from "@tiptap/extension-table-cell";
-import Color from "@tiptap/extension-color";
-import TextStyle from "@tiptap/extension-text-style";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { Color } from "@tiptap/extension-color";
+import { TextStyle } from "@tiptap/extension-text-style";
 import { Markdown } from "tiptap-markdown";
 
 type Props = {
@@ -100,62 +100,64 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
     }
   }, [editor, value]);
 
+  const selectionActive = Boolean(
+    editor && editor.state.selection && editor.state.selection.from !== editor.state.selection.to
+  );
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white">
-      {editor && (
-        <BubbleMenu editor={editor} tippyOptions={{ duration: 150 }}>
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs shadow-lg">
-            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleBold().run()}>
-              B
-            </button>
-            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleItalic().run()}>
-              I
-            </button>
-            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleUnderline().run()}>
-              U
-            </button>
-            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleStrike().run()}>
-              S
-            </button>
-            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleCode().run()}>
-              {"</>"}
-            </button>
-            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-              H1
-            </button>
-            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-              H2
-            </button>
-            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleBulletList().run()}>
-              ••
-            </button>
-            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-              1.
-            </button>
-            <button
-              className="rounded border px-2 py-1"
-              type="button"
-              onClick={() => {
-                const href = window.prompt("Link URL");
-                if (href) {
-                  editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
-                } else {
-                  editor.chain().focus().unsetLink().run();
-                }
-              }}
-            >
-              Link
-            </button>
-            <label className="inline-flex items-center gap-1 rounded border px-2 py-1">
-              <span className="text-[10px]">Color</span>
-              <input
-                type="color"
-                className="h-5 w-5 border-none bg-transparent p-0"
-                onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
-              />
-            </label>
-          </div>
-        </BubbleMenu>
+      {editor && selectionActive && (
+        <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 bg-white px-3 py-2 text-xs">
+          <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleBold().run()}>
+            B
+          </button>
+          <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleItalic().run()}>
+            I
+          </button>
+          <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleUnderline().run()}>
+            U
+          </button>
+          <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleStrike().run()}>
+            S
+          </button>
+          <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleCode().run()}>
+            {"</>"}
+          </button>
+          <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+            H1
+          </button>
+          <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+            H2
+          </button>
+          <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleBulletList().run()}>
+            ••
+          </button>
+          <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+            1.
+          </button>
+          <button
+            className="rounded border px-2 py-1"
+            type="button"
+            onClick={() => {
+              const href = window.prompt("Link URL");
+              if (href) {
+                editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+              } else {
+                editor.chain().focus().unsetLink().run();
+              }
+            }}
+          >
+            Link
+          </button>
+          <label className="inline-flex items-center gap-1 rounded border px-2 py-1">
+            <span className="text-[10px]">Color</span>
+            <input
+              type="color"
+              className="h-5 w-5 border-none bg-transparent p-0"
+              onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+            />
+          </label>
+        </div>
       )}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2 text-xs">
         <button className="rounded border px-2 py-1" type="button" onClick={() => editor?.chain().focus().toggleBold().run()}>
