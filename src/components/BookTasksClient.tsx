@@ -101,6 +101,7 @@ export default function BookTasksClient({
   const [newLinkLabel, setNewLinkLabel] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
   const [newNoteId, setNewNoteId] = useState("");
+  const [filter, setFilter] = useState<"all" | "todo" | "done" | "recurring" | "templates">("all");
   const subtasksForSelected = selectedTask ? subtasks.filter((item) => item.task_id === selectedTask.id) : [];
   const linksForSelected = selectedTask ? links.filter((item) => item.task_id === selectedTask.id) : [];
   const noteLinksForSelected = selectedTask ? noteLinks.filter((item) => item.task_id === selectedTask.id) : [];
@@ -111,6 +112,16 @@ export default function BookTasksClient({
   const pinned = tasks.filter((task) => String(task.priority || "") === "1");
   const overdue = tasks.filter((task) => task.due_date && task.due_date < new Date().toISOString().slice(0, 10));
   const openTasks = tasks.filter((task) => task.status !== "done");
+  const filteredTasks = tasks.filter((task) => {
+    if (filter === "todo") return task.status !== "done";
+    if (filter === "done") return task.status === "done";
+    if (filter === "recurring") return Boolean(task.recurrence_rule);
+    if (filter === "templates") return Boolean(task.is_template);
+    return true;
+  });
+  const filteredPinned = pinned.filter((task) => filteredTasks.includes(task));
+  const filteredOverdue = overdue.filter((task) => filteredTasks.includes(task));
+  const filteredOpen = openTasks.filter((task) => filteredTasks.includes(task));
 
   function quickStatus(task: Task, status: string) {
     const form = document.createElement("form");
@@ -161,11 +172,30 @@ export default function BookTasksClient({
   return (
     <>
       <div className="mt-4 grid gap-6 text-sm">
-        {pinned.length > 0 && (
+        <div className="flex flex-wrap gap-2 text-xs">
+          {[
+            { key: "all", label: "All" },
+            { key: "todo", label: "To Do" },
+            { key: "done", label: "Done" },
+            { key: "recurring", label: "Recurring" },
+            { key: "templates", label: "Templates" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`rounded-full border px-3 py-1 ${filter === tab.key ? "bg-blue-700 text-white" : "bg-white text-slate-600"}`}
+              onClick={() => setFilter(tab.key as typeof filter)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {filteredPinned.length > 0 && (
           <section className="grid gap-2">
             <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Pinned</div>
             <div className="grid gap-2">
-              {pinned.map((task) => (
+              {filteredPinned.map((task) => (
                 <div
                   key={task.id}
                   className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 shadow-sm transition hover:border-amber-300"
@@ -205,11 +235,11 @@ export default function BookTasksClient({
           </section>
         )}
 
-        {overdue.length > 0 && (
+        {filteredOverdue.length > 0 && (
           <section className="grid gap-2">
             <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Overdue</div>
             <div className="grid gap-2">
-              {overdue.map((task) => (
+              {filteredOverdue.map((task) => (
                 <div
                   key={task.id}
                   className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 shadow-sm transition hover:border-rose-300"
@@ -252,7 +282,7 @@ export default function BookTasksClient({
         <section className="grid gap-2">
           <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">All Tasks</div>
           <div className="grid gap-2">
-        {openTasks.map((task) => (
+        {filteredOpen.map((task) => (
           <div
             key={task.id}
             className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300"
@@ -290,7 +320,7 @@ export default function BookTasksClient({
             </div>
           </div>
         ))}
-          {openTasks.length === 0 && <div className="text-xs text-slate-500">No tasks yet.</div>}
+          {filteredOpen.length === 0 && <div className="text-xs text-slate-500">No tasks yet.</div>}
           </div>
         </section>
       </div>
