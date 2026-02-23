@@ -24,9 +24,17 @@ export default async function ReviewsPage() {
       </div>
 
       <div className="mt-4">
-        <Link className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" href="/reviews/new">
-          Run Monthly Survey
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" href="/reviews/new">
+            Run Monthly Survey
+          </Link>
+          <Link className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm" href="/reviews/quarterly">
+            Quarterly Template
+          </Link>
+          <Link className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm" href="/reviews/annual">
+            Annual Template
+          </Link>
+        </div>
       </div>
 
       <section className="mt-6 grid gap-3">
