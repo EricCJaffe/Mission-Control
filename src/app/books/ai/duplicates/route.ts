@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   const userPrompt = `Scan chapters for redundancy and propose streamlined edits per affected chapter. ${prompt ? `Additional instructions: ${prompt}` : ""}\nChapters:\n${JSON.stringify(chapterContext)}\nReturn JSON array of {chapter_id,instruction,proposed_markdown}.`;
 
   const output = await callOpenAI({
-    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+    model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
     system,
     user: userPrompt,
   });

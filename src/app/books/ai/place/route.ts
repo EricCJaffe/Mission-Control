@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   let chosenId = chapters?.[0]?.id || "";
   try {
     const response = await callOpenAI({
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
       system: "You are a book editor that routes concepts to the best fitting chapter.",
       user: `Concept: ${concept}\nChapters: ${JSON.stringify(context)}\nReturn only the chapter id.`,
     });

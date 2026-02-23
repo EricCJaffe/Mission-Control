@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   let reviewText = "";
   try {
     reviewText = await callOpenAI({
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
       system: "You are a senior book editor. Identify issues and propose concise improvements.",
       user: `Review this chapter for grammar, clarity, consistency, and flow. Provide 3-6 bullet points of suggested changes with optional patch text.\n\n${chapter.markdown_current || ""}`,
     });

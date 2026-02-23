@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
     try {
       const output = await callOpenAI({
-        model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+        model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
         system,
         user: userPrompt,
       });

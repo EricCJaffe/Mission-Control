@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   const userPrompt = `Reorder chapters for best narrative flow. ${prompt ? `Additional instructions: ${prompt}` : ""}\nChapters:\n${JSON.stringify(chapterContext)}\nReturn JSON with keys ordered_ids (array of chapter ids in new order), rationale (string), toc (array of {id,title,summary}).`;
 
   const output = await callOpenAI({
-    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+    model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
     system,
     user: userPrompt,
   });

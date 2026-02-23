@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   const userPrompt = `Review chapter references like "Chapter 3" and update them to match the current order. ${prompt ? `Additional instructions: ${prompt}` : ""}\nChapters:\n${JSON.stringify(chapterContext)}\nReturn JSON array of {chapter_id,instruction,proposed_markdown}. Only include chapters that need edits.`;
 
   const output = await callOpenAI({
-    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+    model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
     system,
     user: userPrompt,
   });

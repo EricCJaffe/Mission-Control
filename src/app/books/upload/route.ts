@@ -63,7 +63,7 @@ async function ensureHeadings(markdown: string) {
   let aiMarkdown = markdown;
   try {
     aiMarkdown = await callOpenAI({
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
       system: "You are a careful book editor preparing a manuscript for chapterization.",
       user: `${aiPrompt}\n\nMANUSCRIPT:\n${markdown.slice(0, 12000)}`,
     });

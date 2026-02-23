@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   let outlineText = "";
   try {
     outlineText = await callOpenAI({
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
       system: "You are a book editor generating a chapter outline.",
       user: `Concept: ${concept}\nReturn a numbered list of ${Number.isFinite(count) ? count : 10} chapter titles only.`,
     });
