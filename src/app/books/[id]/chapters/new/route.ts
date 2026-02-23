@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { stripChapterPrefix } from "@/lib/text";
 
 function slugify(value: string) {
   return value
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
 
   const form = await req.formData();
   const bookId = String(form.get("book_id") || "").trim();
-  const title = String(form.get("title") || "").trim();
+  const title = stripChapterPrefix(String(form.get("title") || "").trim());
   const summary = String(form.get("summary") || "").trim();
   const status = String(form.get("status") || "outline").trim();
 

@@ -88,6 +88,13 @@ export default async function BookDetailPage({
         .eq("status", "pending")
     : { data: [] };
 
+  const { data: bookProposals } = await supabase
+    .from("book_proposals")
+    .select("id,proposal_type,status,created_at,payload")
+    .eq("book_id", id)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
   const rawQuery = resolvedSearch?.q;
   const query = typeof rawQuery === "string" ? rawQuery.trim() : "";
   let researchQuery = supabase
@@ -120,6 +127,7 @@ export default async function BookDetailPage({
         .order("created_at", { ascending: true })
     : { data: [] };
 
+  const chapterMap = Object.fromEntries((chapters || []).map((ch) => [ch.id, ch]));
   const chapterList = (chapters || []).map((ch) => ({
     id: ch.id,
     title: ch.title,
@@ -225,9 +233,61 @@ export default async function BookDetailPage({
             </p>
             <BookProposalsClient
               proposals={proposals || []}
-              chapterMap={Object.fromEntries((chapters || []).map((ch) => [ch.id, ch]))}
+              chapterMap={chapterMap}
               bookId={book.id}
             />
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+            <h2 className="text-base font-semibold">Book-level Proposals</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Approve larger changes like reordering chapters.
+            </p>
+            <div className="mt-4 grid gap-3 text-sm">
+              {(bookProposals || []).map((proposal) => {
+                const payload = proposal.payload as any;
+                const orderedIds = Array.isArray(payload?.ordered_ids) ? payload.ordered_ids : [];
+                return (
+                  <div key={proposal.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="font-medium">{proposal.proposal_type}</div>
+                    {payload?.rationale && (
+                      <div className="mt-1 text-xs text-slate-500">{payload.rationale}</div>
+                    )}
+                    {orderedIds.length > 0 && (
+                      <div className="mt-2 text-xs text-slate-600">
+                        Proposed order:
+                        <ol className="mt-2 grid gap-1">
+                          {orderedIds.map((cid: string, idx: number) => (
+                            <li key={cid}>
+                              Chapter {idx + 1}: {chapterMap[cid]?.title || "Untitled"}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                      <form action="/books/book-proposals/apply" method="post" data-progress="true" data-toast="Applying proposal">
+                        <input type="hidden" name="proposal_id" value={proposal.id} />
+                        <input type="hidden" name="redirect" value={`/books/${book.id}?tab=outline`} />
+                        <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                          Apply
+                        </button>
+                      </form>
+                      <form action="/books/book-proposals/reject" method="post" data-toast="Proposal rejected">
+                        <input type="hidden" name="proposal_id" value={proposal.id} />
+                        <input type="hidden" name="redirect" value={`/books/${book.id}?tab=outline`} />
+                        <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
+                          Reject
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                );
+              })}
+              {(!bookProposals || bookProposals.length === 0) && (
+                <div className="text-xs text-slate-500">No book-level proposals pending.</div>
+              )}
+            </div>
           </section>
         </>
       )}

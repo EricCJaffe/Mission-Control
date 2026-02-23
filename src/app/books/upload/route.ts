@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const mammoth: any = require("mammoth");
 import { supabaseServer } from "@/lib/supabase/server";
+import { stripChapterPrefix } from "@/lib/text";
 import { callOpenAI } from "@/lib/openai";
 
 export const runtime = "nodejs";
@@ -152,17 +153,22 @@ export async function POST(req: Request) {
   });
 
   const { chapters } = await ensureHeadings(markdown);
-  const inserts = chapters.map((chapter, index) => ({
-    book_id: book.id,
-    org_id: user.id,
-    title: chapter.title || `Chapter ${index + 1}`,
-    slug: toSlug(chapter.title || `chapter-${index + 1}`) || `chapter-${index + 1}`,
+  const inserts = chapters.map((chapter, index) => {
+    const cleanedTitle = stripChapterPrefix(chapter.title || "");
+    const fallbackTitle = `Chapter ${index + 1}`;
+    const finalTitle = cleanedTitle || fallbackTitle;
+    return ({
+      book_id: book.id,
+      org_id: user.id,
+      title: finalTitle,
+      slug: toSlug(cleanedTitle || `chapter-${index + 1}`) || `chapter-${index + 1}`,
     position: index + 1,
     status: "outline",
     summary: null,
     markdown_current: chapter.content || "",
     word_count: wordCount(chapter.content || ""),
-  }));
+    });
+  });
 
   if (inserts.length > 0) {
     const { data: insertedChapters } = await supabase

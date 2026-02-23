@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { chunkMarkdown, upsertChapterChunks } from "@/lib/ai/chunking";
+import { stripChapterPrefix } from "@/lib/text";
 
 export async function POST(req: Request) {
   try {
@@ -24,7 +25,8 @@ export async function POST(req: Request) {
 
     const chapterId = String(body.chapter_id);
     const markdown = String(body.markdown ?? "");
-    const title = String(body.title ?? "");
+    const rawTitle = String(body.title ?? "");
+    const title = stripChapterPrefix(rawTitle);
     const status = String(body.status ?? "outline");
     const summary = body.summary ? String(body.summary) : null;
     const word_count = markdown.trim().split(/\s+/).filter(Boolean).length;

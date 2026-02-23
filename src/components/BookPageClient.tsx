@@ -26,6 +26,13 @@ export default function BookPageClient({
           <button
             className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
+            onClick={() => (document.getElementById("reorder-dialog") as HTMLDialogElement)?.showModal()}
+          >
+            AI Reorder Plan
+          </button>
+          <button
+            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            type="button"
             onClick={() => (document.getElementById("toc-dialog") as HTMLDialogElement)?.showModal()}
           >
             AI Table of Contents
@@ -33,9 +40,23 @@ export default function BookPageClient({
           <button
             className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
+            onClick={() => (document.getElementById("dup-dialog") as HTMLDialogElement)?.showModal()}
+          >
+            Duplicate Scan
+          </button>
+          <button
+            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            type="button"
             onClick={() => (document.getElementById("bulk-dialog") as HTMLDialogElement)?.showModal()}
           >
             AI Bulk Edit
+          </button>
+          <button
+            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            type="button"
+            onClick={() => (document.getElementById("repair-dialog") as HTMLDialogElement)?.showModal()}
+          >
+            Repair References
           </button>
           <button
             className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
@@ -67,6 +88,29 @@ export default function BookPageClient({
         </div>
       </section>
 
+      <dialog id="reorder-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+        <div className="rounded-2xl bg-white p-6">
+          <h3 className="text-lg font-semibold">AI Reorder Plan</h3>
+          <p className="mt-1 text-xs text-slate-500">Ask AI to propose a better chapter order and updated TOC.</p>
+          <form className="mt-4 grid gap-3" action="/books/ai/reorder" method="post" data-progress="true" data-toast="Reorder plan requested">
+            <input type="hidden" name="book_id" value={bookId} />
+            <textarea className="min-h-[100px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="prompt" placeholder="Optional: focus on reader flow, tighten pacing, move theology earlier..." />
+            <div className="flex justify-end gap-2">
+              <button
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                type="button"
+                onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+              >
+                Cancel
+              </button>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Generate Plan
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
       <dialog id="toc-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
         <div className="rounded-2xl bg-white p-6">
           <h3 className="text-lg font-semibold">AI Table of Contents</h3>
@@ -84,6 +128,29 @@ export default function BookPageClient({
               </button>
               <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
                 Generate
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      <dialog id="dup-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+        <div className="rounded-2xl bg-white p-6">
+          <h3 className="text-lg font-semibold">Duplicate Scan</h3>
+          <p className="mt-1 text-xs text-slate-500">Find redundant content and propose cleanup edits.</p>
+          <form className="mt-4 grid gap-3" action="/books/ai/duplicates" method="post" data-progress="true" data-toast="Duplicate scan started">
+            <input type="hidden" name="book_id" value={bookId} />
+            <textarea className="min-h-[100px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="prompt" placeholder="Optional: focus on cutting repetition and tightening flow..." />
+            <div className="flex justify-end gap-2">
+              <button
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                type="button"
+                onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+              >
+                Cancel
+              </button>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Run Scan
               </button>
             </div>
           </form>
@@ -117,6 +184,28 @@ export default function BookPageClient({
         </div>
       </dialog>
 
+      <dialog id="repair-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+        <div className="rounded-2xl bg-white p-6">
+          <h3 className="text-lg font-semibold">Repair Chapter References</h3>
+          <p className="mt-1 text-xs text-slate-500">Update “Chapter X” references to match the current order.</p>
+          <form className="mt-4 grid gap-3" action="/books/ai/repair-references" method="post" data-progress="true" data-toast="Reference repair started">
+            <input type="hidden" name="book_id" value={bookId} />
+            <textarea className="min-h-[100px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="prompt" placeholder="Optional: only update hard references, ignore soft mentions..." />
+            <div className="flex justify-end gap-2">
+              <button
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                type="button"
+                onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+              >
+                Cancel
+              </button>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Run Repair
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
       <dialog id="place-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
         <div className="rounded-2xl bg-white p-6">
           <h3 className="text-lg font-semibold">Place Concept</h3>

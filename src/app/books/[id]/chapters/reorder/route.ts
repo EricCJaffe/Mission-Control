@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { stripChapterPrefix } from "@/lib/text";
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -12,9 +13,20 @@ export async function POST(req: Request) {
 
   if (ordered.length === 0) return NextResponse.json({ ok: true });
 
-  const updates = ordered.map((id: string, idx: number) =>
-    supabase.from("chapters").update({ position: idx + 1 }).eq("id", id)
-  );
+  const { data: chapters } = await supabase
+    .from("chapters")
+    .select("id,title")
+    .in("id", ordered);
+
+  const titleMap = new Map((chapters || []).map((ch) => [ch.id, ch.title]));
+
+  const updates = ordered.map((id: string, idx: number) => {
+    const currentTitle = titleMap.get(id) || "";
+    const cleanedTitle = stripChapterPrefix(currentTitle);
+    const payload: Record<string, unknown> = { position: idx + 1 };
+    if (cleanedTitle !== currentTitle) payload.title = cleanedTitle;
+    return supabase.from("chapters").update(payload).eq("id", id);
+  });
 
   await Promise.all(updates);
 

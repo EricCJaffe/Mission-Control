@@ -69,7 +69,7 @@ export default function BookChaptersBoard({ bookId, chapters, sections }: Props)
 
   return (
     <div className="grid gap-3">
-      {ordered.map((chapter) => (
+      {ordered.map((chapter, idx) => (
         <div key={chapter.id} className="grid gap-3">
           {renderSectionsFor(chapter.position ?? 0)}
           <div
@@ -81,7 +81,9 @@ export default function BookChaptersBoard({ bookId, chapters, sections }: Props)
           >
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-base font-semibold">{chapter.title}</div>
+                <div className="text-base font-semibold">
+                  Chapter {idx + 1}: {chapter.title || "Untitled"}
+                </div>
                 <div className="text-xs text-slate-500">
                   Status: {chapter.status || "outline"} · Words: {chapter.wordCount}
                 </div>

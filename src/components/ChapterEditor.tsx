@@ -188,6 +188,11 @@ export default function ChapterEditor({
   }));
 
   const sections = useMemo(() => extractSections(markdown), [markdown]);
+  const chapterNumber = useMemo(() => {
+    const ordered = [...bookChapters].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    const index = ordered.findIndex((ch) => ch.id === chapter.id);
+    return index >= 0 ? index + 1 : null;
+  }, [bookChapters, chapter.id]);
 
   const editor = useEditor({
     extensions: [
@@ -529,7 +534,9 @@ export default function ChapterEditor({
 
         <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm font-semibold">Edit Chapter</div>
+            <div className="text-sm font-semibold">
+              Edit Chapter {chapterNumber ? `· Chapter ${chapterNumber}` : ""}
+            </div>
             <div className="flex gap-2">
               <button className={`rounded-full border px-3 py-1 text-xs ${mode === "edit" ? "bg-blue-700 text-white" : "bg-white"}`} onClick={() => setMode("edit")} type="button">
                 Edit
