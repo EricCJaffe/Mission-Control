@@ -75,10 +75,10 @@ export default async function TasksPage() {
 
   return (
     <main className="pt-4 md:pt-8">
-      <div>
+      <div className="mb-4">
         <h1 className="text-3xl font-semibold">Tasks</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Capture the next actions, then update status and priority as you go.
+          Manage your tasks and assignments.
         </p>
       </div>
 
