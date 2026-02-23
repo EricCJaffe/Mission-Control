@@ -44,6 +44,12 @@ export default function BookPageClient({
     if (toast === "duplicates_none") {
       pushToast({ title: "No duplicates found", description: "AI did not return any edits. Try a more specific prompt." });
     }
+    if (toast === "place_ready") {
+      pushToast({ title: "Concept placement ready", description: "Review the proposal in the AI Proposal Queue." });
+    }
+    if (toast === "place_failed") {
+      pushToast({ title: "Concept placement failed", description: "AI response could not be parsed. Try again." });
+    }
   }, [toast, pushToast]);
 
   return (
