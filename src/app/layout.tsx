@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { supabaseServer } from "@/lib/supabase/server";
 import AppShell from "@/components/AppShell";
+import UiFeedbackProvider from "@/components/UiFeedbackProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,9 +34,13 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-slate-900`}
       >
-        <AppShell userEmail={user?.email ?? null}>
-          {children}
-        </AppShell>
+        {user ? (
+          <AppShell userEmail={user?.email ?? null}>{children}</AppShell>
+        ) : (
+          <UiFeedbackProvider>
+            <div className="min-h-screen">{children}</div>
+          </UiFeedbackProvider>
+        )}
       </body>
     </html>
   );
