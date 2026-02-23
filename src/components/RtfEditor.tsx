@@ -12,6 +12,8 @@ import Table from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
+import Color from "@tiptap/extension-color";
+import TextStyle from "@tiptap/extension-text-style";
 import { Markdown } from "tiptap-markdown";
 
 type Props = {
@@ -62,6 +64,8 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
       TableRow,
       TableHeader,
       TableCell,
+      TextStyle,
+      Color,
       Placeholder.configure({ placeholder: placeholder || "Write here..." }),
       Markdown.configure({
         transformCopiedText: true,
@@ -116,6 +120,18 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
             <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleCode().run()}>
               {"</>"}
             </button>
+            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+              H1
+            </button>
+            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+              H2
+            </button>
+            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleBulletList().run()}>
+              ••
+            </button>
+            <button className="rounded border px-2 py-1" type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+              1.
+            </button>
             <button
               className="rounded border px-2 py-1"
               type="button"
@@ -130,6 +146,14 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
             >
               Link
             </button>
+            <label className="inline-flex items-center gap-1 rounded border px-2 py-1">
+              <span className="text-[10px]">Color</span>
+              <input
+                type="color"
+                className="h-5 w-5 border-none bg-transparent p-0"
+                onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+              />
+            </label>
           </div>
         </BubbleMenu>
       )}
