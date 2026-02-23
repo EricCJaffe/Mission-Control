@@ -108,6 +108,38 @@ export default function BookTasksClient({
     ? attachments.filter((item) => item.scope_id === selectedTask.id)
     : [];
 
+  const pinned = tasks.filter((task) => String(task.priority || "") === "1");
+  const overdue = tasks.filter((task) => task.due_date && task.due_date < new Date().toISOString().slice(0, 10));
+  const openTasks = tasks.filter((task) => task.status !== "done");
+
+  function quickStatus(task: Task, status: string) {
+    const form = document.createElement("form");
+    form.method = "post";
+    form.action = "/tasks/update";
+    form.dataset.toast = "Task updated";
+    const fields: Record<string, string> = {
+      id: task.id,
+      redirect,
+      title: task.title,
+      status,
+      priority: task.priority ? String(task.priority) : "",
+      due_date: task.due_date ? toDateInput(task.due_date) : "",
+      category: task.category || "",
+      why: task.why || "",
+      recurrence_rule: task.recurrence_rule || "",
+      recurrence_anchor: task.recurrence_anchor ? toDateInput(task.recurrence_anchor) : "",
+    };
+    Object.entries(fields).forEach(([key, value]) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = value;
+      form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
+  }
+
   function openTask(task: Task) {
     setSelectedTask(task);
     setEditTitle(task.title);
@@ -128,8 +160,99 @@ export default function BookTasksClient({
 
   return (
     <>
-      <div className="mt-4 grid gap-2 text-sm">
-        {tasks.map((task) => (
+      <div className="mt-4 grid gap-6 text-sm">
+        {pinned.length > 0 && (
+          <section className="grid gap-2">
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Pinned</div>
+            <div className="grid gap-2">
+              {pinned.map((task) => (
+                <div
+                  key={task.id}
+                  className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 shadow-sm transition hover:border-amber-300"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openTask(task)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openTask(task);
+                    }
+                  }}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold">{task.title}</div>
+                      <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5">{task.status || "open"}</span>
+                        {task.due_date && <span className="rounded-full bg-rose-100 px-2 py-0.5">Due {task.due_date}</span>}
+                        {task.category && <span className="rounded-full bg-blue-50 px-2 py-0.5">{task.category}</span>}
+                      </div>
+                    </div>
+                    <button
+                      className="rounded-full border border-slate-200 px-3 py-1 text-xs"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        quickStatus(task, task.status === "done" ? "open" : "done");
+                      }}
+                    >
+                      {task.status === "done" ? "Reopen" : "Done"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {overdue.length > 0 && (
+          <section className="grid gap-2">
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Overdue</div>
+            <div className="grid gap-2">
+              {overdue.map((task) => (
+                <div
+                  key={task.id}
+                  className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 shadow-sm transition hover:border-rose-300"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openTask(task)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openTask(task);
+                    }
+                  }}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold">{task.title}</div>
+                      <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5">{task.status || "open"}</span>
+                        {task.due_date && <span className="rounded-full bg-rose-100 px-2 py-0.5">Due {task.due_date}</span>}
+                        {task.category && <span className="rounded-full bg-blue-50 px-2 py-0.5">{task.category}</span>}
+                      </div>
+                    </div>
+                    <button
+                      className="rounded-full border border-slate-200 px-3 py-1 text-xs"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        quickStatus(task, task.status === "done" ? "open" : "done");
+                      }}
+                    >
+                      {task.status === "done" ? "Reopen" : "Done"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="grid gap-2">
+          <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">All Tasks</div>
+          <div className="grid gap-2">
+        {openTasks.map((task) => (
           <div
             key={task.id}
             className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300"
@@ -154,10 +277,22 @@ export default function BookTasksClient({
                 </div>
                 {task.why && <div className="mt-2 text-xs text-slate-500">{snippet(task.why)}</div>}
               </div>
+              <button
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs"
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  quickStatus(task, task.status === "done" ? "open" : "done");
+                }}
+              >
+                {task.status === "done" ? "Reopen" : "Done"}
+              </button>
             </div>
           </div>
         ))}
-        {tasks.length === 0 && <div className="text-xs text-slate-500">No tasks yet.</div>}
+          {openTasks.length === 0 && <div className="text-xs text-slate-500">No tasks yet.</div>}
+          </div>
+        </section>
       </div>
 
       <dialog id="book-task-dialog" className="w-[92vw] max-w-2xl rounded-2xl border border-slate-200 p-0 shadow-xl">
