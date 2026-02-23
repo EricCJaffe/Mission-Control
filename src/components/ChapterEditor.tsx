@@ -1031,6 +1031,12 @@ export default function ChapterEditor({
                 Run AI Editor Review
               </button>
             </form>
+            <form className="mt-2" action="/books/chapters/comments/ai-inline-review" method="post" data-progress="true" data-toast="Inline review queued">
+              <input type="hidden" name="chapter_id" value={chapter.id} />
+              <button className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs" type="submit">
+                AI Inline Review (Anchored)
+              </button>
+            </form>
             <div className="mt-3 grid gap-3">
               {comments.map((comment) => (
                 <div key={comment.id} className="rounded-lg border border-slate-200 bg-white px-3 py-3 text-xs">

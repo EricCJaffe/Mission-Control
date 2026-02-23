@@ -56,6 +56,9 @@ export default function BookPageClient({
     if (toast === "refs_none") {
       pushToast({ title: "No reference fixes needed", description: "AI did not return any changes." });
     }
+    if (toast === "inline_ready") {
+      pushToast({ title: "Inline review complete", description: "Review comments in each chapter editor." });
+    }
   }, [toast, pushToast]);
 
   return (
@@ -103,6 +106,13 @@ export default function BookPageClient({
             onClick={() => (document.getElementById("repair-dialog") as HTMLDialogElement)?.showModal()}
           >
             Repair References
+          </button>
+          <button
+            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            type="button"
+            onClick={() => (document.getElementById("inline-dialog") as HTMLDialogElement)?.showModal()}
+          >
+            AI Inline Review (Book)
           </button>
           <button
             className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
@@ -158,6 +168,29 @@ export default function BookPageClient({
               </button>
               <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
                 Generate Plan
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      <dialog id="inline-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+        <div className="rounded-2xl bg-white p-6">
+          <h3 className="text-lg font-semibold">AI Inline Review</h3>
+          <p className="mt-1 text-xs text-slate-500">Generate anchored inline review comments across the whole book.</p>
+          <form className="mt-4 grid gap-3" action="/books/ai/inline-review" method="post" data-progress="true" data-toast="Inline review started">
+            <input type="hidden" name="book_id" value={bookId} />
+            <textarea className="min-h-[100px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="prompt" placeholder="Optional: focus on clarity, tone, or theological consistency" />
+            <div className="flex justify-end gap-2">
+              <button
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                type="button"
+                onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+              >
+                Cancel
+              </button>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Run Inline Review
               </button>
             </div>
           </form>
