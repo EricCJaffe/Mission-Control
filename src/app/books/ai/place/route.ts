@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
     }
     const lines = currentMarkdown.split("\n");
-    const insertAt = lines.findIndex((line) => line.toLowerCase().includes("next steps"));
+    const insertAt = lines.findIndex((line: string) => line.toLowerCase().includes("next steps"));
     const insertBlock = `\n${concept}\n`;
     const nextMarkdown =
       insertAt > 0
