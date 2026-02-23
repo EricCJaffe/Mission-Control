@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   }).filter(Boolean);
 
   if (updates.length > 0) {
-    await Promise.all(updates as Promise<unknown>[]);
+    await Promise.all(updates.map((query) => query as unknown as Promise<unknown>));
   }
 
   const { data: refreshed } = await supabase
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
           })
           .filter(Boolean);
         if (updates.length > 0) {
-          await Promise.all(updates as Promise<unknown>[]);
+          await Promise.all(updates.map((query) => query as unknown as Promise<unknown>));
         }
       }
     } catch {
