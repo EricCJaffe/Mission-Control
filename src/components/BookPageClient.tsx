@@ -32,6 +32,12 @@ export default function BookPageClient({
     if (toast === "reorder_ready") {
       pushToast({ title: "Reorder proposal ready", description: "Review it below before applying." });
     }
+    if (toast === "merge_ready") {
+      pushToast({ title: "Merge proposal ready", description: "Review it below before applying." });
+    }
+    if (toast === "merge_failed") {
+      pushToast({ title: "Merge failed", description: "AI response could not be parsed. Try again." });
+    }
   }, [toast, pushToast]);
 
   return (
@@ -65,6 +71,13 @@ export default function BookPageClient({
             onClick={() => (document.getElementById("bulk-dialog") as HTMLDialogElement)?.showModal()}
           >
             AI Bulk Edit
+          </button>
+          <button
+            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            type="button"
+            onClick={() => (document.getElementById("merge-dialog") as HTMLDialogElement)?.showModal()}
+          >
+            AI Merge Chapters
           </button>
           <button
             className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
@@ -127,6 +140,55 @@ export default function BookPageClient({
               </button>
               <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
                 Generate Plan
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      <dialog id="merge-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+        <div className="rounded-2xl bg-white p-6">
+          <h3 className="text-lg font-semibold">AI Merge Chapters</h3>
+          <p className="mt-1 text-xs text-slate-500">Merge a source chapter into a target chapter. Source will be archived on apply.</p>
+          <form className="mt-4 grid gap-3" action="/books/ai/merge" method="post" data-progress="true" data-toast="Merge proposal requested">
+            <input type="hidden" name="book_id" value={bookId} />
+            <label className="text-xs text-slate-600">
+              Source chapter (to merge + archive)
+              <select name="source_id" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required>
+                <option value="">Select source</option>
+                {options.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.position ? `${opt.position}. ` : ""}{opt.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-slate-600">
+              Target chapter (will receive merged content)
+              <select name="target_id" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required>
+                <option value="">Select target</option>
+                {options.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.position ? `${opt.position}. ` : ""}{opt.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <textarea
+              className="min-h-[100px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              name="prompt"
+              placeholder="Optional: instructions for how to merge, tone, or structure"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                type="button"
+                onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+              >
+                Cancel
+              </button>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Generate Merge
               </button>
             </div>
           </form>

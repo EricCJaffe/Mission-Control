@@ -56,6 +56,25 @@ export async function POST(req: Request) {
     }
   }
 
+  if (proposal.proposal_type === "merge") {
+    const payload = proposal.payload as any;
+    const sourceId = String(payload?.source_id || "");
+    const targetId = String(payload?.target_id || "");
+    const mergedMarkdown = String(payload?.merged_markdown || "");
+
+    if (sourceId && targetId && mergedMarkdown) {
+      await supabase
+        .from("chapters")
+        .update({ markdown_current: mergedMarkdown })
+        .eq("id", targetId);
+
+      await supabase
+        .from("chapters")
+        .update({ status: "archive" })
+        .eq("id", sourceId);
+    }
+  }
+
   await supabase
     .from("book_proposals")
     .update({ status: "applied" })

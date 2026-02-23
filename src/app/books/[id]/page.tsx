@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import BookChaptersBoard from "@/components/BookChaptersBoard";
 import BookProposalsClient from "@/components/BookProposalsClient";
+import BookLevelProposalsClient from "@/components/BookLevelProposalsClient";
 import BookChat from "@/components/BookChat";
 import BookPageClient from "@/components/BookPageClient";
 import BookResearchNotesClient from "@/components/BookResearchNotesClient";
@@ -266,85 +267,11 @@ export default async function BookDetailPage({
             <p className="mt-1 text-xs text-slate-500">
               Approve larger changes like reordering chapters.
             </p>
-            <div className="mt-4 grid gap-3 text-sm">
-              {(bookProposals || []).map((proposal) => {
-                const payload = proposal.payload as any;
-                const orderedIds = Array.isArray(payload?.ordered_ids) ? payload.ordered_ids : [];
-                const tocItems = Array.isArray(payload?.toc) ? payload.toc : [];
-                const mergePlan = Array.isArray(payload?.merge_plan) ? payload.merge_plan : [];
-                return (
-                  <div key={proposal.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="font-medium">{proposal.proposal_type}</div>
-                    {payload?.rationale && (
-                      <div className="mt-1 text-xs text-slate-500">{payload.rationale}</div>
-                    )}
-                    {orderedIds.length > 0 && (
-                      <div className="mt-2 text-xs text-slate-600">
-                        Proposed order:
-                        <ol className="mt-2 grid gap-1">
-                          {orderedIds.map((cid: string, idx: number) => (
-                            <li key={cid}>
-                              Chapter {idx + 1}: {chapterMap[cid]?.title || "Untitled"}
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    )}
-                    {mergePlan.length > 0 && (
-                      <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
-                        <summary className="cursor-pointer font-medium">Merge plan</summary>
-                        <div className="mt-2 grid gap-2 text-slate-600">
-                          {mergePlan.map((merge: any, idx: number) => (
-                            <div key={`${merge.source_id}-${merge.target_id}-${idx}`}>
-                              <div className="font-medium text-slate-800">
-                                Merge: {chapterMap[merge.source_id]?.title || "Source chapter"} →{" "}
-                                {chapterMap[merge.target_id]?.title || "Target chapter"}
-                              </div>
-                              {merge.summary && <div className="mt-1">Summary: {merge.summary}</div>}
-                              {merge.integration_notes && <div className="mt-1">Notes: {merge.integration_notes}</div>}
-                            </div>
-                          ))}
-                        </div>
-                      </details>
-                    )}
-                    {tocItems.length > 0 && (
-                      <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
-                        <summary className="cursor-pointer font-medium">Proposed TOC</summary>
-                        <ol className="mt-2 grid gap-2 text-slate-600">
-                          {tocItems.map((item: any, idx: number) => (
-                            <li key={`${item.id || idx}`}>
-                              <div className="font-medium text-slate-800">
-                                {idx + 1}. {item.title || chapterMap[item.id]?.title || "Untitled"}
-                              </div>
-                              {item.summary && <div className="mt-1">{item.summary}</div>}
-                            </li>
-                          ))}
-                        </ol>
-                      </details>
-                    )}
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                      <form action="/books/book-proposals/apply" method="post" data-progress="true" data-toast="Applying proposal">
-                        <input type="hidden" name="proposal_id" value={proposal.id} />
-                        <input type="hidden" name="redirect" value={`/books/${book.id}?tab=outline`} />
-                        <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
-                          Apply
-                        </button>
-                      </form>
-                      <form action="/books/book-proposals/reject" method="post" data-toast="Proposal rejected">
-                        <input type="hidden" name="proposal_id" value={proposal.id} />
-                        <input type="hidden" name="redirect" value={`/books/${book.id}?tab=outline`} />
-                        <button className="rounded-full border border-slate-200 bg-white px-3 py-1" type="submit">
-                          Reject
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                );
-              })}
-              {(!bookProposals || bookProposals.length === 0) && (
-                <div className="text-xs text-slate-500">No book-level proposals pending.</div>
-              )}
-            </div>
+            <BookLevelProposalsClient
+              proposals={bookProposals || []}
+              chapterMap={chapterMap}
+              bookId={book.id}
+            />
           </section>
         </>
       )}
