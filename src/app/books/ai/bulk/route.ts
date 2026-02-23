@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { callOpenAI } from "@/lib/openai";
+import { getPersonaProfile } from "@/lib/ai/persona";
 
 function wordCount(markdown: string) {
   return markdown.trim().split(/\s+/).filter(Boolean).length;
@@ -27,6 +28,8 @@ export async function POST(req: Request) {
     .eq("book_id", bookId)
     .order("position", { ascending: true });
 
+  const persona = await getPersonaProfile(user.id);
+
   for (const chapter of chapters || []) {
     const input = [
       `Mode: ${mode}`,
@@ -41,7 +44,7 @@ export async function POST(req: Request) {
     try {
       updatedMarkdown = await callOpenAI({
         model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
-        system: "You are a careful book editor applying requested changes to chapters.",
+        system: `You are a careful book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`,
         user: input,
       });
     } catch {

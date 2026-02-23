@@ -32,6 +32,34 @@ export async function POST(req: Request) {
     });
   }
 
+  // Sync persona into persona_profiles so AI always has full context
+  const { data: existingPersona } = await supabase
+    .from("persona_profiles")
+    .select("id")
+    .eq("org_id", user.id)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingPersona?.id) {
+    await supabase
+      .from("persona_profiles")
+      .update({
+        title: "Codex Persona",
+        content_md: personaContent,
+        mission_alignment: "God First, Health, Family, Impact",
+        updated_at: timestamp,
+      })
+      .eq("id", existingPersona.id);
+  } else {
+    await supabase.from("persona_profiles").insert({
+      org_id: user.id,
+      title: "Codex Persona",
+      content_md: personaContent,
+      mission_alignment: "God First, Health, Family, Impact",
+    });
+  }
+
   if (soulId) {
     await supabase
       .from("notes")

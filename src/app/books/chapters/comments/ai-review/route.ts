@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { callOpenAI } from "@/lib/openai";
+import { getPersonaProfile } from "@/lib/ai/persona";
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -20,11 +21,12 @@ export async function POST(req: Request) {
 
   if (!chapter) return NextResponse.redirect(new URL(req.url).origin);
 
+  const persona = await getPersonaProfile(user.id);
   let reviewText = "";
   try {
     reviewText = await callOpenAI({
       model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
-      system: "You are a senior book editor. Identify issues and propose concise improvements.",
+      system: `You are a senior book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`,
       user: `Review this chapter for grammar, clarity, consistency, and flow. Provide 3-6 bullet points of suggested changes with optional patch text.\n\n${chapter.markdown_current || ""}`,
     });
   } catch {

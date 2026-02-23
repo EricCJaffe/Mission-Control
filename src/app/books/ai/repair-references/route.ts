@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { callOpenAI } from "@/lib/openai";
+import { getPersonaProfile } from "@/lib/ai/persona";
 
 type ReferenceFix = {
   chapter_id: string;
@@ -33,7 +34,8 @@ export async function POST(req: Request) {
     content: (ch.markdown_current || "").slice(0, 4000),
   }));
 
-  const system = "You are a precise book editor. Update in-text chapter references to match the current order. Return JSON only.";
+  const persona = await getPersonaProfile(user.id);
+  const system = `You are a precise book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`;
   const userPrompt = `Review chapter references like "Chapter 3" and update them to match the current order. ${prompt ? `Additional instructions: ${prompt}` : ""}\nChapters:\n${JSON.stringify(chapterContext)}\nReturn JSON array of {chapter_id,instruction,proposed_markdown}. Only include chapters that need edits.`;
 
   const output = await callOpenAI({

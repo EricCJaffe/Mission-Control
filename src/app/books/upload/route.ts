@@ -6,6 +6,7 @@ const mammoth: any = require("mammoth");
 import { supabaseServer } from "@/lib/supabase/server";
 import { stripChapterPrefix } from "@/lib/text";
 import { callOpenAI } from "@/lib/openai";
+import { getPersonaProfile } from "@/lib/ai/persona";
 
 export const runtime = "nodejs";
 
@@ -50,7 +51,7 @@ function splitByHeading(markdown: string) {
   return chapters.filter((ch) => ch.title || ch.content);
 }
 
-async function ensureHeadings(markdown: string) {
+async function ensureHeadings(markdown: string, persona?: { title?: string; tone?: string; mission_alignment?: string; content_md?: string }) {
   const attempt = splitByHeading(markdown);
   if (attempt.length > 0) return { markdown, chapters: attempt };
 
@@ -64,7 +65,7 @@ async function ensureHeadings(markdown: string) {
   try {
     aiMarkdown = await callOpenAI({
       model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
-      system: "You are a careful book editor preparing a manuscript for chapterization.",
+      system: `You are a careful book editor aligned to this persona.\nPersona: ${persona?.title || "Default"}\nTone: ${persona?.tone || ""}\nMission: ${persona?.mission_alignment || ""}\nPersona Notes:\n${persona?.content_md || ""}`,
       user: `${aiPrompt}\n\nMANUSCRIPT:\n${markdown.slice(0, 12000)}`,
     });
   } catch {
@@ -87,6 +88,8 @@ export async function POST(req: Request) {
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
   if (!user) return NextResponse.redirect(new URL("/login", req.url));
+
+  const persona = await getPersonaProfile(user.id);
 
   const form = await req.formData();
   const file = form.get("file");
@@ -152,7 +155,7 @@ export async function POST(req: Request) {
     size_bytes: file.size,
   });
 
-  const { chapters } = await ensureHeadings(markdown);
+  const { chapters } = await ensureHeadings(markdown, persona);
   const inserts = chapters.map((chapter, index) => {
     const cleanedTitle = stripChapterPrefix(chapter.title || "");
     const fallbackTitle = `Chapter ${index + 1}`;

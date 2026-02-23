@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { callOpenAI } from "@/lib/openai";
+import { getPersonaProfile } from "@/lib/ai/persona";
 
 function toSlug(value: string) {
   return value
@@ -24,11 +25,13 @@ export async function POST(req: Request) {
 
   if (!bookId || !concept) return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline`, req.url));
 
+  const persona = await getPersonaProfile(user.id);
+
   let outlineText = "";
   try {
     outlineText = await callOpenAI({
       model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
-      system: "You are a book editor generating a chapter outline.",
+      system: `You are a book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`,
       user: `Concept: ${concept}\nReturn a numbered list of ${Number.isFinite(count) ? count : 10} chapter titles only.`,
     });
   } catch {

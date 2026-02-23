@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { stripChapterPrefix } from "@/lib/text";
 import { callOpenAI } from "@/lib/openai";
+import { getPersonaProfile } from "@/lib/ai/persona";
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -43,7 +44,8 @@ export async function POST(req: Request) {
       summary: ch.summary,
     }));
 
-    const system = "You are a precise editor. Generate concise TOC titles and optional summaries. Return JSON only.";
+    const persona = await getPersonaProfile(user.id);
+    const system = `You are a precise editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`;
     const userPrompt = `Update TOC titles after normalization. Chapters: ${JSON.stringify(context)}. Return JSON array of {id,title,summary}.`;
 
     try {

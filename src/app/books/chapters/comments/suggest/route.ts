@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { callOpenAI } from "@/lib/openai";
+import { getPersonaProfile } from "@/lib/ai/persona";
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -32,11 +33,12 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL(req.headers.get("referer") || "/", req.url));
   }
 
+  const persona = await getPersonaProfile(user.id);
   let suggestion = "";
   try {
     suggestion = await callOpenAI({
       model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
-      system: "You are a book editor providing concise rewrite suggestions.",
+      system: `You are a book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`,
       user: [
         `Chapter: ${chapter.title}`,
         `Comment: ${comment.comment}`,

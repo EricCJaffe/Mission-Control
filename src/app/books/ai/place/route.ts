@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { callOpenAI } from "@/lib/openai";
+import { getPersonaProfile } from "@/lib/ai/persona";
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -29,11 +30,13 @@ export async function POST(req: Request) {
     excerpt: (ch.markdown_current || "").slice(0, 800),
   }));
 
+  const persona = await getPersonaProfile(user.id);
+
   let chosenId = chapters?.[0]?.id || "";
   try {
     const response = await callOpenAI({
       model: process.env.OPENAI_MODEL || "gpt-5.2-chat-latest",
-      system: "You are a book editor that routes concepts to the best fitting chapter.",
+      system: `You are a book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`,
       user: `Concept: ${concept}\nChapters: ${JSON.stringify(context)}\nReturn only the chapter id.`,
     });
     const match = response.trim();

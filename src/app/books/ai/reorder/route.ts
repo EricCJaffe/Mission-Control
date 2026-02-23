@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { callOpenAI } from "@/lib/openai";
+import { getPersonaProfile } from "@/lib/ai/persona";
 import { stripChapterPrefix } from "@/lib/text";
 
 type ReorderPlan = {
@@ -35,7 +36,8 @@ export async function POST(req: Request) {
     excerpt: (ch.markdown_current || "").slice(0, 1200),
   }));
 
-  const system = "You are a senior book editor. Propose the best chapter order and updated TOC titles. Return JSON only.";
+  const persona = await getPersonaProfile(user.id);
+  const system = `You are a senior book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`;
   const userPrompt = `Reorder chapters for best narrative flow. ${prompt ? `Additional instructions: ${prompt}` : ""}\nChapters:\n${JSON.stringify(chapterContext)}\nReturn JSON with keys ordered_ids (array of chapter ids in new order), rationale (string), toc (array of {id,title,summary}).`;
 
   const output = await callOpenAI({

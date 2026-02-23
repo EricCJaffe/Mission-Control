@@ -4,7 +4,7 @@ export async function getPersonaProfile(orgId: string) {
   const supabase = await supabaseServer();
   const { data } = await supabase
     .from("persona_profiles")
-    .select("id,title,voice_style,tone,audience,theological_guardrails,mission_alignment")
+    .select("id,title,voice_style,tone,audience,theological_guardrails,mission_alignment,content_md")
     .eq("org_id", orgId)
     .order("updated_at", { ascending: false })
     .limit(1)
@@ -20,5 +20,6 @@ export async function getPersonaProfile(orgId: string) {
     audience: "Faith-based leaders",
     theological_guardrails: "Scripture-first, mission-aligned, integrity-driven",
     mission_alignment: "God First, Health, Family, Impact",
+    content_md: "",
   };
 }
