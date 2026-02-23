@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   const persona = await getPersonaProfile(user.id);
 
   const system = `You are a rigorous book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`;
-  const userPrompt = `Scan chapters for redundancy and propose *surgical* edits only (remove repeated stats, duplicated anecdotes, or near-identical paragraphs). Do not shorten entire sections or convert prose into bullets. Preserve recurring structural blocks and signatures. ${prompt ? `Additional instructions: ${prompt}` : ""}\nRequired: Keep any existing blocks for Quote, Scripture, Next Steps, Challenge, and Questions for Reflection.\nChapters:\n${JSON.stringify(
+  const userPrompt = `Scan chapters for redundancy and propose *balanced* edits (remove repeated stats, duplicated anecdotes, or near-identical paragraphs). Do not shorten entire sections or convert prose into bullets. Preserve recurring structural blocks and signatures. ${prompt ? `Additional instructions: ${prompt}` : ""}\nRequired: Keep any existing blocks for Quote, Scripture, Next Steps, Challenge, and Questions for Reflection.\nChapters:\n${JSON.stringify(
     chapterContext
   )}\nReturn JSON array of {chapter_id,instruction,proposed_markdown}.`;
 
@@ -92,6 +92,9 @@ export async function POST(req: Request) {
 
       const missingRequired = requiredLines.some((line) => line && !proposed.includes(line));
       if (missingRequired) return null;
+
+      const lengthDelta = Math.abs(proposed.length - currentMarkdown.length) / Math.max(1, currentMarkdown.length);
+      if (lengthDelta > 0.4) return null;
 
       return {
         chapter_id: item.chapter_id,
