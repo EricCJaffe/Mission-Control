@@ -160,6 +160,7 @@ export default function ChapterEditor({
   const [editNoteContent, setEditNoteContent] = useState("");
   const [editNoteScope, setEditNoteScope] = useState<"chapter" | "book">("chapter");
   const [editNoteScopeId, setEditNoteScopeId] = useState(chapter.id);
+  const [viewNote, setViewNote] = useState<ResearchNote | null>(null);
   const [commentText, setCommentText] = useState("");
   const [commentPatch, setCommentPatch] = useState("");
   const [commentAnchor, setCommentAnchor] = useState("");
@@ -297,6 +298,11 @@ export default function ChapterEditor({
     setEditNoteScope(scope);
     setEditNoteScopeId(scope === "book" ? chapter.book_id : chapter.id);
     (document.getElementById("edit-chapter-note-dialog") as HTMLDialogElement | null)?.showModal();
+  }
+
+  function openViewNote(note: ResearchNote) {
+    setViewNote(note);
+    (document.getElementById("view-chapter-note-dialog") as HTMLDialogElement | null)?.showModal();
   }
 
   function noteSnippet(text: string) {
@@ -931,6 +937,68 @@ export default function ChapterEditor({
               </div>
             </dialog>
 
+            <dialog id="view-chapter-note-dialog" className="w-[92vw] max-w-2xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+              <div className="rounded-2xl bg-white p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="text-base font-semibold">{viewNote?.title || "Research Note"}</h4>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {viewNote?.scope_type === "book" ? "Book (General)" : "Chapter note"}
+                    </div>
+                  </div>
+                  {viewNote && (
+                    <button
+                      className="rounded-full border border-slate-200 px-3 py-1 text-xs"
+                      type="button"
+                      onClick={() => {
+                        (document.getElementById("view-chapter-note-dialog") as HTMLDialogElement | null)?.close();
+                        openEditNote(viewNote);
+                      }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 whitespace-pre-line">
+                  {viewNote?.content_md || "No content yet."}
+                </div>
+                <div className="mt-3 text-xs text-slate-500">
+                  {(viewNote?.tags || []).length ? `Tags: ${(viewNote?.tags || []).join(", ")}` : "No tags"}
+                </div>
+                <form
+                  className="mt-4 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs"
+                  action="/books/ai/place"
+                  method="post"
+                  data-progress="true"
+                  data-toast="AI placement started"
+                >
+                  <div className="text-[11px] uppercase tracking-wide text-slate-500">AI Placement Assistant</div>
+                  <input type="hidden" name="book_id" value={chapter.book_id} />
+                  <input type="hidden" name="concept" value={`${viewNote?.title || ""}\n\n${viewNote?.content_md || ""}`} />
+                  <textarea
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                    name="instruction"
+                    placeholder="Optional placement or tone notes..."
+                  />
+                  <button className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs" type="submit">
+                    Suggest Placement + Proposal
+                  </button>
+                  <div className="text-[11px] text-slate-500">
+                    Creates a proposal so you can review before applying to a chapter.
+                  </div>
+                </form>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                    type="button"
+                    onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </dialog>
+
             <div className="mt-3 grid gap-2">
               {researchNotes
                 .filter((note) =>
@@ -939,7 +1007,19 @@ export default function ChapterEditor({
                     : true
                 )
                 .map((note) => (
-                <div key={note.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm">
+                <div
+                  key={note.id}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openViewNote(note)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openViewNote(note);
+                    }
+                  }}
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="font-medium">{note.title}</div>
@@ -947,10 +1027,23 @@ export default function ChapterEditor({
                       <div className="mt-1 text-[10px] text-slate-400">Scope: {note.scope_type === "book" ? "Book" : "Chapter"}</div>
                     </div>
                     <div className="flex gap-2">
-                      <button className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]" type="button" onClick={() => openEditNote(note)}>
+                      <button
+                        className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]"
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openEditNote(note);
+                        }}
+                      >
                         Edit
                       </button>
-                      <form action="/books/research/delete" method="post" data-toast="Research note deleted">
+                      <form
+                        action="/books/research/delete"
+                        method="post"
+                        data-toast="Research note deleted"
+                        data-progress="true"
+                        onClick={(event) => event.stopPropagation()}
+                      >
                         <input type="hidden" name="note_id" value={note.id} />
                         <input type="hidden" name="redirect" value={`/books/${chapter.book_id}/chapters/${chapter.id}`} />
                         <button className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]" type="submit">

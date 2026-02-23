@@ -18,6 +18,44 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
+button,
+[role="button"] {
+  transition: transform 0.08s ease, filter 0.2s ease;
+}
+
+button:active,
+[role="button"]:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+button.mc-clicked,
+[role="button"].mc-clicked {
+  filter: brightness(0.96);
+}
+
+button.mc-loading {
+  position: relative;
+  opacity: 0.75;
+}
+
+button.mc-loading::after {
+  content: "";
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-left: 0.5rem;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 9999px;
+  animation: mc-spin 0.8s linear infinite;
+}
+
+@keyframes mc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .ProseMirror {
   min-height: 380px;
   outline: none;

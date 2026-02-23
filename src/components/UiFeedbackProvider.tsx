@@ -67,11 +67,15 @@ export default function UiFeedbackProvider({ children }: { children: React.React
       const progress = target.dataset.progress;
       const submitEvent = event as SubmitEvent;
       const submitter = submitEvent?.submitter instanceof HTMLButtonElement ? submitEvent.submitter : null;
-      if (progress) {
+      const shouldTrack =
+        progress !== "false" && target.method.toLowerCase() !== "get";
+      if (progress || shouldTrack) {
         startProgress();
         target.setAttribute("aria-busy", "true");
         if (submitter) {
           submitter.disabled = true;
+          submitter.setAttribute("aria-busy", "true");
+          submitter.classList.add("mc-loading");
           if (!submitter.dataset.originalLabel) {
             submitter.dataset.originalLabel = submitter.textContent || "";
           }
@@ -87,6 +91,29 @@ export default function UiFeedbackProvider({ children }: { children: React.React
     };
     document.addEventListener("submit", handler, true);
     return () => document.removeEventListener("submit", handler, true);
+  }, []);
+
+  useEffect(() => {
+    const clickHandler = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const button =
+        target.closest("button") ||
+        (target.getAttribute("role") === "button" ? target : null);
+      if (!(button instanceof HTMLElement)) return;
+      if (
+        button instanceof HTMLButtonElement &&
+        (button.disabled || button.getAttribute("aria-disabled") === "true")
+      ) {
+        return;
+      }
+      button.classList.add("mc-clicked");
+      window.setTimeout(() => {
+        button.classList.remove("mc-clicked");
+      }, 220);
+    };
+    document.addEventListener("click", clickHandler, true);
+    return () => document.removeEventListener("click", clickHandler, true);
   }, []);
 
   return (

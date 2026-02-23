@@ -48,6 +48,7 @@ export default function BookResearchNotesClient({
   const [editScope, setEditScope] = useState<"book" | "chapter">("book");
   const [editScopeId, setEditScopeId] = useState(bookId);
   const [viewNote, setViewNote] = useState<ResearchNote | null>(null);
+  const hasChapters = chapters.length > 0;
 
   const filtered = useMemo(() => {
     return notes.filter((note) => {
@@ -114,7 +115,13 @@ export default function BookResearchNotesClient({
       <dialog id="add-note-dialog" className="w-[92vw] max-w-2xl rounded-2xl border border-slate-200 p-0 shadow-xl">
         <div className="rounded-2xl bg-white p-6">
           <h3 className="text-lg font-semibold">Add Research Note</h3>
-          <form className="mt-4 grid gap-3" action={`/books/${bookId}/research`} method="post" data-toast="Research note added">
+          <form
+            className="mt-4 grid gap-3"
+            action={`/books/${bookId}/research`}
+            method="post"
+            data-toast="Research note added"
+            data-progress="true"
+          >
             <input type="hidden" name="redirect" value={`/books/${bookId}?tab=notes`} />
             <div className="grid gap-2 md:grid-cols-2">
               <div>
@@ -126,11 +133,13 @@ export default function BookResearchNotesClient({
                   onChange={(e) => {
                     const next = e.target.value as "book" | "chapter";
                     setAddScope(next);
-                    setAddScopeId(next === "book" ? bookId : chapters[0]?.id || bookId);
+                    setAddScopeId(next === "book" ? bookId : chapters[0]?.id || "");
                   }}
                 >
-                  <option value="book">Book</option>
-                  <option value="chapter">Chapter</option>
+                  <option value="book">Book (General)</option>
+                  <option value="chapter" disabled={!hasChapters}>
+                    Chapter
+                  </option>
                 </select>
               </div>
               <div>
@@ -140,13 +149,17 @@ export default function BookResearchNotesClient({
                   name="scope_id"
                   value={addScopeId}
                   onChange={(e) => setAddScopeId(e.target.value)}
-                  disabled={addScope !== "chapter"}
+                  disabled={addScope !== "chapter" || !hasChapters}
                 >
-                  {chapters.map((ch) => (
-                    <option key={ch.id} value={ch.id}>
-                      {ch.title}
-                    </option>
-                  ))}
+                  {hasChapters ? (
+                    chapters.map((ch) => (
+                      <option key={ch.id} value={ch.id}>
+                        {ch.title}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No chapters yet</option>
+                  )}
                 </select>
                 {addScope === "book" && <input type="hidden" name="scope_id" value={bookId} />}
               </div>
@@ -176,10 +189,17 @@ export default function BookResearchNotesClient({
               >
                 Cancel
               </button>
-              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+              <button
+                className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                type="submit"
+                disabled={addScope === "chapter" && !hasChapters}
+              >
                 Save Note
               </button>
             </div>
+            {addScope === "chapter" && !hasChapters && (
+              <div className="text-xs text-amber-600">Add a chapter first or choose Book (General).</div>
+            )}
           </form>
         </div>
       </dialog>
@@ -187,7 +207,13 @@ export default function BookResearchNotesClient({
       <dialog id="edit-note-dialog" className="w-[92vw] max-w-2xl rounded-2xl border border-slate-200 p-0 shadow-xl">
         <div className="rounded-2xl bg-white p-6">
           <h3 className="text-lg font-semibold">Edit Research Note</h3>
-          <form className="mt-4 grid gap-3" action="/books/research/update" method="post" data-toast="Research note updated">
+          <form
+            className="mt-4 grid gap-3"
+            action="/books/research/update"
+            method="post"
+            data-toast="Research note updated"
+            data-progress="true"
+          >
             <input type="hidden" name="note_id" value={editNoteId || ""} />
             <input type="hidden" name="redirect" value={`/books/${bookId}?tab=notes`} />
             <div className="grid gap-2 md:grid-cols-2">
@@ -200,11 +226,13 @@ export default function BookResearchNotesClient({
                   onChange={(e) => {
                     const next = e.target.value as "book" | "chapter";
                     setEditScope(next);
-                    setEditScopeId(next === "book" ? bookId : chapters[0]?.id || bookId);
+                    setEditScopeId(next === "book" ? bookId : chapters[0]?.id || "");
                   }}
                 >
-                  <option value="book">Book</option>
-                  <option value="chapter">Chapter</option>
+                  <option value="book">Book (General)</option>
+                  <option value="chapter" disabled={!hasChapters}>
+                    Chapter
+                  </option>
                 </select>
               </div>
               <div>
@@ -214,13 +242,17 @@ export default function BookResearchNotesClient({
                   name="scope_id"
                   value={editScopeId}
                   onChange={(e) => setEditScopeId(e.target.value)}
-                  disabled={editScope !== "chapter"}
+                  disabled={editScope !== "chapter" || !hasChapters}
                 >
-                  {chapters.map((ch) => (
-                    <option key={ch.id} value={ch.id}>
-                      {ch.title}
-                    </option>
-                  ))}
+                  {hasChapters ? (
+                    chapters.map((ch) => (
+                      <option key={ch.id} value={ch.id}>
+                        {ch.title}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No chapters yet</option>
+                  )}
                 </select>
                 {editScope === "book" && <input type="hidden" name="scope_id" value={bookId} />}
               </div>
@@ -253,6 +285,28 @@ export default function BookResearchNotesClient({
               <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
                 Update Note
               </button>
+            </div>
+          </form>
+          <form
+            className="mt-4 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs"
+            action="/books/ai/place"
+            method="post"
+            data-progress="true"
+            data-toast="AI placement started"
+          >
+            <div className="text-[11px] uppercase tracking-wide text-slate-500">AI Placement Assistant</div>
+            <input type="hidden" name="book_id" value={bookId} />
+            <input type="hidden" name="concept" value={`${editTitle}\n\n${editContent}`} />
+            <textarea
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+              name="instruction"
+              placeholder="Optional placement or tone notes..."
+            />
+            <button className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs" type="submit">
+              Suggest Placement + Proposal
+            </button>
+            <div className="text-[11px] text-slate-500">
+              Creates a proposal so you can review before applying to a chapter.
             </div>
           </form>
         </div>
@@ -345,6 +399,7 @@ export default function BookResearchNotesClient({
                   action="/books/research/delete"
                   method="post"
                   data-toast="Research note deleted"
+                  data-progress="true"
                   onClick={(event) => event.stopPropagation()}
                 >
                   <input type="hidden" name="note_id" value={note.id} />
