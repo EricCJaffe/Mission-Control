@@ -9,3 +9,8 @@
 - Feature Set 3: Calendar module (recurring events + links).
 - Feature Set 4: Monthly Review + Survey + scoring + archive.
 - Feature Set 5: Metrics dashboard (minimal, non-vanity).
+
+## Latest Changes (Rolling)
+- Inline review queue supports select/apply/reject.
+- Research notes include status (inbox/in progress/review) and badges.
+- Concept placement is insert-only and produces proposals.

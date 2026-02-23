@@ -2,6 +2,14 @@
 
 ## TODO
 - Provide a custom Soul narrative (beyond the default scaffold) and update the `soul` note.
+- Confirm research notes statuses and color badges are correct after migration.
+- Complete migration history alignment in Supabase (ensure `supabase db push` is clean).
+
+## Explicit TODOs Found In Repo
+- `README.md`
+  - If you want a custom Soul narrative (beyond the default scaffold), provide the text and update the `soul` note.
+- `src/app/api/ai/README.md`
+  - Add `OPENAI_API_KEY` (server-only) and wire real model calls for the scaffolded `/api/ai/*` module.
 
 ## Backlog Ingestion
 - Ingest `MISSION_CONTROL_STARTER_BACKLOG.md` into product planning and map to modules.

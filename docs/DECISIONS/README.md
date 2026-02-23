@@ -20,3 +20,5 @@ Use lightweight ADRs to capture high-impact decisions and their rationale.
 - `0002-notes-vault-export.md`
 - `0003-starter-backlog-scope.md`
 - `0004-alignment-first-metrics.md`
+- `0005-book-writer-ai-and-vector-chunks.md`
+- `0006-private-storage-with-user-prefixed-paths.md`

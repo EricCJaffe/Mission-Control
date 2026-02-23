@@ -1,26 +1,42 @@
 # Supabase
 
 ## Usage
-- Auth and database are handled via Supabase.
-- Server-side access uses `@supabase/ssr` in `src/lib/supabase/server.ts` and `middleware.ts`.
-- Client-side access uses `@supabase/supabase-js` in `src/lib/supabase/client.ts` and `src/lib/supabaseClient.ts`.
-
-## Schema (from `supabase/migrations/20260220175112_remote_schema.sql` and follow-on migrations)
-- `projects` (title, description, status, priority, timestamps)
-- `tasks` (title, description, status, priority, due_date, timestamps)
-- `notes` (title, content_md, content_json, tags, timestamps)
-- `dashboard_scores` (spirit, soul, body, updated_at, plus alignment/action fields from migration)
-- `profiles` (display_name, created_at)
-- `daily_priorities` (date, rank, domain, title, optional task link)
-- `daily_anchors` (date, prayer, training, family_touchpoint)
-- `calendar_events` (title, start/end, type, domain)
-- `monthly_reviews` (period start/end, alignment score/status, drift flags, survey json)
+- Supabase is used for Auth, Postgres, and Storage.
+- Server-side client: `src/lib/supabase/server.ts`
+- Browser client: `src/lib/supabase/client.ts`
+- Middleware auth/session checks: `middleware.ts`
 
 ## Auth
-- `/login` uses email/password sign-in and sign-up.
-- `/auth/callback` exchanges auth codes for sessions.
-- `/auth/signout` clears sessions.
+- Login and signup via `/login` using Supabase Auth.
+- `/auth/callback` exchanges auth code for session.
+- `/auth/signout` clears session.
 
-## RLS
-- Row-level security is assumed per-user via `user_id`.
-- New tables include owner policies in migrations.
+## Schema (from `supabase/migrations/*`)
+- Core tables: `projects`, `tasks`, `notes`, `dashboard_scores`, `profiles`
+- Dashboard/review tables: `daily_priorities`, `daily_anchors`, `calendar_events`, `monthly_reviews`
+- Goals/SOP tables: `goal_cycles`, `goals`, `goal_tasks`, `sop_docs`, `sop_checks`
+- Book writer tables: `books`, `chapters`, `chapter_sections`, `chapter_versions`, `chapter_comments`, `chapter_proposals`, `book_uploads`, `book_milestones`, `research_notes`, `chat_threads`, `chat_messages`, `chapter_chunks`, `persona_profiles`, `book_proposals`
+- Attachments table: `attachments`
+
+## RLS and Ownership Model
+- RLS enabled broadly across app tables.
+- Core/planning modules use `user_id` ownership policies.
+- Book/attachments/AI modules use `org_id` ownership policies.
+- In current schema, both ownership columns reference `auth.users(id)`.
+
+## Storage
+- Buckets created by migrations:
+  - `book_uploads` (private)
+  - `attachments` (private)
+- Storage object policies enforce first path segment equals `auth.uid()`.
+- Route handlers upload/download via Supabase Storage:
+  - `src/app/books/upload/route.ts`
+  - `src/app/attachments/upload/route.ts`
+  - `src/app/attachments/[id]/download/route.ts`
+
+## Extensions and AI Data
+- `vector` extension is enabled for `chapter_chunks.embedding vector(1536)`.
+- Status fields:
+  - `notes.status` defaults to `inbox`.
+  - `research_notes.status` defaults to `inbox`.
+- `pg_stat_statements`, `pgcrypto`, and `uuid-ossp` are enabled in baseline schema migration.
