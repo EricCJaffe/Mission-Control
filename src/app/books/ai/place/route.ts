@@ -34,18 +34,27 @@ export async function POST(req: Request) {
   const persona = await getPersonaProfile(user.id);
 
   let plan: { chapter_id: string; proposed_markdown: string; instruction?: string } | null = null;
+  const parsePlan = (text: string) => {
+    const fenced = text.match(/```json\s*([\s\S]*?)```/i) || text.match(/```([\s\S]*?)```/);
+    const raw = fenced ? fenced[1] : text;
+    const first = raw.indexOf("{");
+    const last = raw.lastIndexOf("}");
+    if (first === -1 || last === -1 || last <= first) return null;
+    try {
+      return JSON.parse(raw.slice(first, last + 1));
+    } catch {
+      return null;
+    }
+  };
   try {
     const response = await callOpenAI({
       model: process.env.OPENAI_MODEL || "gpt-5.2",
-      system: `You are a book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}`,
+      system: `You are a book editor aligned to this persona.\nPersona: ${persona.title}\nTone: ${persona.tone}\nMission: ${persona.mission_alignment}\nPersona Notes:\n${persona.content_md || ""}\nReturn STRICT JSON only.`,
       user: `Insert the concept into the most appropriate chapter. Make the smallest necessary edit: keep 95% of the existing chapter intact, do not remove signature blocks (Quote, Scripture, Next Steps, Challenge, Questions for Reflection). Reword the concept to match tone and insert near the best fitting paragraph. Return JSON with keys: chapter_id, proposed_markdown, instruction.\n${instruction ? `Additional instructions: ${instruction}` : ""}\nConcept:\n${concept}\nChapters:\n${JSON.stringify(
         context
       )}`,
     });
-    const match = response.match(/\{[\s\S]*\}/);
-    if (match) {
-      plan = JSON.parse(match[0]);
-    }
+    plan = parsePlan(response);
   } catch {
     plan = null;
   }
@@ -57,7 +66,7 @@ export async function POST(req: Request) {
   const original = (chapters || []).find((ch) => ch.id === plan?.chapter_id);
   const currentMarkdown = original?.markdown_current || "";
   const proposed = plan.proposed_markdown || "";
-  if (proposed.length < currentMarkdown.length * 0.85) {
+  if (proposed.length < currentMarkdown.length * 0.7) {
     return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
   }
 
@@ -74,15 +83,17 @@ export async function POST(req: Request) {
     .split("\n")
     .find((line: string) => line.toLowerCase().includes("questions for reflection"));
   if (questionsLine) requiredLines.push(questionsLine.trim());
-  const missingRequired = requiredLines.some((line) => line && !proposed.includes(line));
-  if (missingRequired) {
-    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
-  }
+  const proposedLower = proposed.toLowerCase();
+  const missingRequired = requiredLines.filter((line) => line && !proposedLower.includes(line.toLowerCase()));
+  const warning =
+    missingRequired.length > 0
+      ? `Warning: AI proposal may be missing signature blocks: ${missingRequired.join(" | ")}`
+      : "";
 
   await supabase.from("chapter_proposals").insert({
     chapter_id: plan.chapter_id,
     org_id: user.id,
-    instruction: plan.instruction || "Insert concept into best chapter",
+    instruction: [plan.instruction || "Insert concept into best chapter", warning].filter(Boolean).join("\n"),
     proposed_markdown: plan.proposed_markdown,
     status: "pending",
   });
