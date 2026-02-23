@@ -60,7 +60,26 @@ export async function POST(req: Request) {
   }
 
   if (!plan?.chapter_id || !plan?.proposed_markdown) {
-    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
+    const fallbackChapter = (chapters || [])[0];
+    const currentMarkdown = fallbackChapter?.markdown_current || "";
+    if (!fallbackChapter || !currentMarkdown) {
+      return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_failed`, req.url));
+    }
+    const lines = currentMarkdown.split("\n");
+    const insertAt = lines.findIndex((line) => line.toLowerCase().includes("next steps"));
+    const insertBlock = `\n${concept}\n`;
+    const nextMarkdown =
+      insertAt > 0
+        ? [...lines.slice(0, insertAt), insertBlock, ...lines.slice(insertAt)].join("\n")
+        : `${currentMarkdown.trim()}\n\n${concept}\n`;
+    await supabase.from("chapter_proposals").insert({
+      chapter_id: fallbackChapter.id,
+      org_id: user.id,
+      instruction: "Fallback placement: AI response could not be parsed. Please review insertion before applying.",
+      proposed_markdown: nextMarkdown,
+      status: "pending",
+    });
+    return NextResponse.redirect(new URL(`/books/${bookId}?tab=outline&toast=place_ready`, req.url));
   }
 
   const original = (chapters || []).find((ch) => ch.id === plan?.chapter_id);
