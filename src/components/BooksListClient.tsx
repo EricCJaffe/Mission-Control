@@ -59,6 +59,12 @@ export default function BooksListClient({
                 </div>
               </div>
               <div className="flex flex-col gap-2 text-xs">
+                <Link
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-center"
+                  href={`/books/${book.id}/ai`}
+                >
+                  AI Companion
+                </Link>
                 <button
                   className="rounded-full border border-slate-200 bg-white px-3 py-1"
                   type="button"

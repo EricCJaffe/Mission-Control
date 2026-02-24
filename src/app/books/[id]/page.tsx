@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import BookChaptersBoard from "@/components/BookChaptersBoard";
-import BookProposalsClient from "@/components/BookProposalsClient";
-import BookLevelProposalsClient from "@/components/BookLevelProposalsClient";
 import BookChat from "@/components/BookChat";
-import BookPageClient from "@/components/BookPageClient";
+import BookOutlineActionsClient from "@/components/BookOutlineActionsClient";
 import BookResearchNotesClient from "@/components/BookResearchNotesClient";
 import BookTasksClient from "@/components/BookTasksClient";
 
@@ -107,24 +105,8 @@ export default async function BookDetailPage({
     .eq("scope_id", id)
     .order("created_at", { ascending: false });
 
-  const chapterIds = (chapters || []).map((ch) => ch.id);
-  const { data: proposals } = chapterIds.length
-    ? await supabase
-        .from("chapter_proposals")
-        .select("id,chapter_id,instruction,status,created_at,proposed_markdown")
-        .in("chapter_id", chapterIds)
-        .eq("status", "pending")
-    : { data: [] };
-
-  const { data: bookProposals } = await supabase
-    .from("book_proposals")
-    .select("id,proposal_type,status,created_at,payload")
-    .eq("book_id", id)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
 
   const rawQuery = resolvedSearch?.q;
-  const toast = resolvedSearch?.toast;
   const query = typeof rawQuery === "string" ? rawQuery.trim() : "";
   let researchQuery = supabase
     .from("research_notes")
@@ -156,7 +138,6 @@ export default async function BookDetailPage({
         .order("created_at", { ascending: true })
     : { data: [] };
 
-  const chapterMap = Object.fromEntries((chapters || []).map((ch) => [ch.id, ch]));
   const chapterList = (chapters || []).map((ch) => ({
     id: ch.id,
     title: ch.title,
@@ -245,42 +226,20 @@ export default async function BookDetailPage({
         <Link className={`rounded-full border px-3 py-1 ${tab === "files" ? "bg-blue-700 text-white" : "bg-white"}`} href={`/books/${book.id}?tab=files`}>
           Files
         </Link>
+        <Link className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-700" href={`/books/${book.id}/ai`}>
+          AI Companion
+        </Link>
       </div>
 
       {tab === "outline" && (
         <>
-          <BookPageClient
+          <BookOutlineActionsClient
             bookId={book.id}
             chapterOptions={chapterList.map((ch) => ({ id: ch.id, title: ch.title, position: ch.position ?? null }))}
-            toast={toast}
           />
 
           <section className="mt-6">
             <BookChaptersBoard bookId={book.id} chapters={chapterList} sections={sections || []} />
-          </section>
-
-          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
-            <h2 className="text-base font-semibold">AI Proposal Queue</h2>
-            <p className="mt-1 text-xs text-slate-500">
-              Review and apply AI changes per chapter (with diff preview).
-            </p>
-            <BookProposalsClient
-              proposals={proposals || []}
-              chapterMap={chapterMap}
-              bookId={book.id}
-            />
-          </section>
-
-          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
-            <h2 className="text-base font-semibold">Book-level Proposals</h2>
-            <p className="mt-1 text-xs text-slate-500">
-              Approve larger changes like reordering chapters.
-            </p>
-            <BookLevelProposalsClient
-              proposals={bookProposals || []}
-              chapterMap={chapterMap}
-              bookId={book.id}
-            />
           </section>
         </>
       )}
