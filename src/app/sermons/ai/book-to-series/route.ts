@@ -10,7 +10,9 @@ export async function POST(req: Request) {
 
   const form = await req.formData();
   const seriesId = String(form.get("series_id") || "").trim();
-  const bookId = String(form.get("book_id") || "").trim();
+  const manualBookId = String(form.get("book_id") || "").trim();
+  const selectedBookId = String(form.get("book_id_select") || "").trim();
+  const bookId = manualBookId || selectedBookId;
   if (!seriesId || !bookId) return NextResponse.redirect(new URL(`/sermons/${seriesId}?tab=ai`, req.url));
 
   const { data: book } = await supabase

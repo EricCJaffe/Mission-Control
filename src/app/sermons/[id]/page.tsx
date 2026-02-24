@@ -45,6 +45,11 @@ export default async function SermonSeriesDetailPage({
     .eq("series_id", id)
     .order("position", { ascending: true });
 
+  const { data: books } = await supabase
+    .from("books")
+    .select("id,title")
+    .order("created_at", { ascending: false });
+
   const { data: assets } = await supabase
     .from("sermon_assets")
     .select("id,asset_type,status,scope_type,scope_id,content_md,created_at")
@@ -87,6 +92,7 @@ export default async function SermonSeriesDetailPage({
           ...sermon,
           word_count: wordCount(sermon.manuscript_md || sermon.outline_md || ""),
         }))}
+        books={books || []}
         assets={assets || []}
         tab={tab}
       />

@@ -36,14 +36,21 @@ type Asset = {
   created_at: string;
 };
 
+type BookOption = {
+  id: string;
+  title: string;
+};
+
 export default function SermonSeriesClient({
   series,
   sermons,
+  books,
   assets,
   tab,
 }: {
   series: Series;
   sermons: Sermon[];
+  books: BookOption[];
   assets: Asset[];
   tab: string;
 }) {
@@ -61,6 +68,8 @@ export default function SermonSeriesClient({
   const [outlineDraft, setOutlineDraft] = useState("");
   const [manuscriptDraft, setManuscriptDraft] = useState("");
   const [notesDraft, setNotesDraft] = useState("");
+  const [selectedBookId, setSelectedBookId] = useState("");
+  const [manualBookId, setManualBookId] = useState("");
 
   function openSermon(sermon: Sermon) {
     setEditingSermon(sermon);
@@ -183,8 +192,30 @@ export default function SermonSeriesClient({
             <form action="/sermons/ai/book-to-series" method="post" data-progress="true" data-toast="Series outline queued">
               <input type="hidden" name="series_id" value={series.id} />
               <label className="grid gap-1 text-xs text-slate-500">
-                Book ID (from Books page)
-                <input className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="book_id" placeholder="Paste book ID" />
+                Select Book
+                <select
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                  name="book_id_select"
+                  value={selectedBookId}
+                  onChange={(e) => setSelectedBookId(e.target.value)}
+                >
+                  <option value="">Choose a book</option>
+                  {books.map((book) => (
+                    <option key={book.id} value={book.id}>
+                      {book.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-xs text-slate-500">
+                Or paste Book ID
+                <input
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                  name="book_id"
+                  placeholder="Paste book ID"
+                  value={manualBookId}
+                  onChange={(e) => setManualBookId(e.target.value)}
+                />
               </label>
               <button className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" type="submit">
                 Convert Book → Series
