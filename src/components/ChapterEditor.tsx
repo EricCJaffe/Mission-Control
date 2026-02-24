@@ -1124,6 +1124,19 @@ export default function ChapterEditor({
                         Edit
                       </button>
                       <form
+                        action="/books/ai/place"
+                        method="post"
+                        data-progress="true"
+                        data-toast="AI placement started"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <input type="hidden" name="book_id" value={chapter.book_id} />
+                        <input type="hidden" name="concept" value={`${note.title}\n\n${note.content_md || ""}`} />
+                        <button className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]" type="submit">
+                          AI Place
+                        </button>
+                      </form>
+                      <form
                         action="/books/research/delete"
                         method="post"
                         data-toast="Research note deleted"

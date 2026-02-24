@@ -421,6 +421,13 @@ export default function BookResearchNotesClient({
                 >
                   Edit
                 </button>
+                <form action="/books/ai/place" method="post" data-progress="true" data-toast="AI placement started" onClick={(event) => event.stopPropagation()}>
+                  <input type="hidden" name="book_id" value={bookId} />
+                  <input type="hidden" name="concept" value={`${note.title}\n\n${note.content_md || ""}`} />
+                  <button className="rounded-full border border-slate-200 px-3 py-1" type="submit">
+                    AI Place
+                  </button>
+                </form>
                 <form
                   action="/books/research/delete"
                   method="post"
