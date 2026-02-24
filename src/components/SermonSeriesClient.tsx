@@ -312,7 +312,7 @@ export default function SermonSeriesClient({
                 <RtfEditor value={notesDraft} onChange={setNotesDraft} placeholder="Personal notes, illustrations..." minHeight="160px" />
               </div>
               <div className="flex justify-end gap-2">
-                <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" type="button" onClick={(event) => (event.currentTarget.closest(\"dialog\") as HTMLDialogElement)?.close()}>
+                <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" type="button" onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement | null)?.close()}>
                   Close
                 </button>
                 <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
