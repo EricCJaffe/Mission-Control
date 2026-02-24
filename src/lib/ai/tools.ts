@@ -67,7 +67,39 @@ export async function applyPatch(chapterId: string, patch: string) {
 
   if (!chapter) return { ok: false };
 
-  const merged = `${chapter.markdown_current || ""}\n\n${patch}`.trim();
+  const current = chapter.markdown_current || "";
+  let merged = `${current}\n\n${patch}`.trim();
+
+  function tryParseJson(raw: string) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  let parsed: any = null;
+  if (patch.trim().startsWith("{")) {
+    parsed = tryParseJson(patch.trim());
+  }
+  if (!parsed) {
+    const fenced = patch.match(/```json\s*([\s\S]*?)```/i);
+    if (fenced?.[1]) parsed = tryParseJson(fenced[1].trim());
+  }
+
+  if (parsed && typeof parsed === "object") {
+    if (typeof parsed.markdown === "string") {
+      merged = parsed.markdown.trim();
+    } else if (parsed.replace) {
+      const from = String(parsed.replace.from || "");
+      const to = String(parsed.replace.to || "");
+      if (from && to) {
+        merged = current.replace(from, to);
+      }
+    } else if (typeof parsed.replace_from === "string" && typeof parsed.replace_to === "string") {
+      merged = current.replace(parsed.replace_from, parsed.replace_to);
+    }
+  }
 
   const { data: latestVersion } = await supabase
     .from("chapter_versions")
