@@ -86,6 +86,9 @@ export default function BookAiCompanionClient({
     if (toast === "embeddings_ready") {
       pushToast({ title: "Embeddings rebuilt", description: "Semantic search is refreshed for this book." });
     }
+    if (toast === "assets_ready") {
+      pushToast({ title: "Assets generated", description: "Small group and social packs are ready." });
+    }
   }, [toast, pushToast]);
 
   const toolCards = [
@@ -99,6 +102,7 @@ export default function BookAiCompanionClient({
     { id: "normalize-dialog", title: "Normalize Titles", body: "Standardize chapter numbering + titles." },
     { id: "place-dialog", title: "Place Concept", body: "Insert a concept into the best chapter." },
     { id: "embeddings-dialog", title: "Rebuild Embeddings", body: "Refresh semantic search for this book." },
+    { id: "book-assets-dialog", title: "Generate Guides + Social", body: "Build leader guide, participant guide, devotionals, and social pack." },
   ];
 
   return (
@@ -398,6 +402,28 @@ export default function BookAiCompanionClient({
               </button>
               <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
                 Rebuild
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      <dialog id="book-assets-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+        <div className="rounded-2xl bg-white p-6">
+          <h3 className="text-lg font-semibold">Generate Guides + Social</h3>
+          <p className="mt-1 text-xs text-slate-500">Create small group materials and social content from the book.</p>
+          <form className="mt-4 grid gap-3" action="/books/ai/generate-assets" method="post" data-progress="true" data-toast="Book assets queued">
+            <input type="hidden" name="book_id" value={bookId} />
+            <div className="flex justify-end gap-2">
+              <button
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                type="button"
+                onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+              >
+                Cancel
+              </button>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Generate Assets
               </button>
             </div>
           </form>
