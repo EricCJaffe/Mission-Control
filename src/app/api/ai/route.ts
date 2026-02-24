@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { callOpenAI } from "@/lib/openai";
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -45,15 +46,25 @@ export async function POST(req: Request) {
     );
   }
 
-  // Scaffold: build the prompt and return a stub response for now.
+  let responseText = "";
+  try {
+    responseText = await callOpenAI({
+      model: process.env.OPENAI_MODEL || "gpt-5.2",
+      system: `You are an assistant aligned to the persona and soul context.\nPersona:\n${persona}\nSoul:\n${soul}`,
+      user: `Mode: ${mode}\nPrompt: ${prompt}`,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || "ai_error" }, { status: 500 });
+  }
+
   return NextResponse.json({
     ok: true,
     mode,
     prompt,
+    message: responseText,
     context: {
       personaLength: persona.length,
       soulLength: soul.length,
     },
-    message: "OpenAI integration scaffolded. Wire model calls here.",
   });
 }

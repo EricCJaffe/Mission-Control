@@ -79,6 +79,22 @@ export default async function BookAiCompanionPage({
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
+  const { data: chatThreads } = await supabase
+    .from("chat_threads")
+    .select("id,created_at")
+    .eq("scope_type", "book")
+    .eq("scope_id", id)
+    .order("created_at", { ascending: false });
+
+  const threadIds = (chatThreads || []).map((thread) => thread.id);
+  const { data: chatMessages } = threadIds.length
+    ? await supabase
+        .from("chat_messages")
+        .select("id,thread_id,role,content,created_at")
+        .in("thread_id", threadIds)
+        .order("created_at", { ascending: true })
+    : { data: [] };
+
   let commentQuery = supabase
     .from("chapter_comments")
     .select("id,chapter_id,comment,anchor_text,suggested_patch,status,created_at")
@@ -110,6 +126,8 @@ export default async function BookAiCompanionPage({
         bookId={book.id}
         chapterOptions={chapterList.map((ch) => ({ id: ch.id, title: ch.title, position: ch.position ?? null }))}
         books={books || []}
+        chatThreads={chatThreads || []}
+        chatMessages={chatMessages || []}
         toast={toast}
       />
 

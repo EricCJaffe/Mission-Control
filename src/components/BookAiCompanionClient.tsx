@@ -15,15 +15,32 @@ type BookOption = {
   title: string;
 };
 
+type ChatThread = {
+  id: string;
+  created_at: string;
+};
+
+type ChatMessage = {
+  id: string;
+  thread_id: string;
+  role: string;
+  content: string;
+  created_at: string;
+};
+
 export default function BookAiCompanionClient({
   bookId,
   chapterOptions,
   books,
+  chatThreads,
+  chatMessages,
   toast,
 }: {
   bookId: string;
   chapterOptions: ChapterOption[];
   books: BookOption[];
+  chatThreads: ChatThread[];
+  chatMessages: ChatMessage[];
   toast?: string | null;
 }) {
   const options = chapterOptions.length
@@ -107,7 +124,7 @@ export default function BookAiCompanionClient({
               </select>
             </div>
           </div>
-          <BookInsightsClient bookId={bookId} />
+          <BookInsightsClient bookId={bookId} threads={chatThreads} messages={chatMessages} />
         </div>
 
         <div className="grid gap-3">

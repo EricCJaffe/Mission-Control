@@ -1,15 +1,46 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { chunkMarkdown, upsertChapterChunks } from "@/lib/ai/chunking";
+import { embedTexts } from "@/lib/ai/embeddings";
 
 export async function retrieveContext(scopeType: string, scopeId: string, query?: string) {
   const supabase = await supabaseServer();
+  let semanticMatches: any[] = [];
+  if (query && process.env.OPENAI_API_KEY) {
+    try {
+      const [queryEmbedding] = await embedTexts([query]);
+      if (queryEmbedding) {
+        if (scopeType === "chapter") {
+          const { data } = await supabase.rpc("match_chapter_chunks", {
+            query_embedding: queryEmbedding,
+            match_count: 6,
+            match_threshold: 0.2,
+            in_chapter_id: scopeId,
+            in_book_id: null,
+          });
+          semanticMatches = data || [];
+        }
+        if (scopeType === "book") {
+          const { data } = await supabase.rpc("match_chapter_chunks", {
+            query_embedding: queryEmbedding,
+            match_count: 8,
+            match_threshold: 0.2,
+            in_chapter_id: null,
+            in_book_id: scopeId,
+          });
+          semanticMatches = data || [];
+        }
+      }
+    } catch {
+      semanticMatches = [];
+    }
+  }
   if (scopeType === "chapter") {
     const { data: chapter } = await supabase
       .from("chapters")
       .select("id,title,markdown_current")
       .eq("id", scopeId)
       .single();
-    return { scopeType, scopeId, query, chapter };
+    return { scopeType, scopeId, query, chapter, semanticMatches };
   }
   if (scopeType === "book") {
     const { data: chapters } = await supabase
@@ -17,9 +48,9 @@ export async function retrieveContext(scopeType: string, scopeId: string, query?
       .select("id,title,markdown_current,position")
       .eq("book_id", scopeId)
       .order("position", { ascending: true });
-    return { scopeType, scopeId, query, chapters };
+    return { scopeType, scopeId, query, chapters, semanticMatches };
   }
-  return { scopeType, scopeId, query, data: null };
+  return { scopeType, scopeId, query, semanticMatches, data: null };
 }
 
 export async function applyPatch(chapterId: string, patch: string) {

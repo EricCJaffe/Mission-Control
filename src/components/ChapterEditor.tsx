@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import { diffLines } from "diff";
 import { Mark, mergeAttributes } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -155,6 +156,10 @@ export default function ChapterEditor({
   const { startProgress, stopProgress, pushToast } = useUiFeedback();
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [sectionDraft, setSectionDraft] = useState("");
+  const [sectionInstruction, setSectionInstruction] = useState("");
+  const [sectionSuggestion, setSectionSuggestion] = useState("");
+  const [sectionError, setSectionError] = useState("");
+  const [sectionIsGenerating, setSectionIsGenerating] = useState(false);
   const [noteQuery, setNoteQuery] = useState("");
   const [noteStatusFilter, setNoteStatusFilter] = useState("all");
   const [noteTagFilter, setNoteTagFilter] = useState("");
@@ -199,6 +204,15 @@ export default function ChapterEditor({
   }));
 
   const sections = useMemo(() => extractSections(markdown), [markdown]);
+  const proposalDiff = useMemo(() => {
+    if (!aiProposal.trim()) return [];
+    const merged = [markdown.trim(), aiProposal.trim()].filter(Boolean).join("\n\n");
+    return diffLines(markdown, merged);
+  }, [aiProposal, markdown]);
+  const sectionDiff = useMemo(() => {
+    if (!sectionSuggestion.trim()) return [];
+    return diffLines(sectionDraft, sectionSuggestion);
+  }, [sectionDraft, sectionSuggestion]);
   const chapterNumber = useMemo(() => {
     const ordered = [...bookChapters].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     const index = ordered.findIndex((ch) => ch.id === chapter.id);
@@ -292,6 +306,9 @@ export default function ChapterEditor({
   function selectSection(section: Section) {
     setSelectedSection(section);
     setSectionDraft(markdown.slice(section.start, section.end));
+    setSectionInstruction("");
+    setSectionSuggestion("");
+    setSectionError("");
   }
 
   function applySection() {
@@ -300,6 +317,38 @@ export default function ChapterEditor({
     const after = markdown.slice(selectedSection.end);
     const next = `${before}${sectionDraft}\n${after}`;
     setMarkdown(next);
+  }
+
+  async function suggestSectionRewrite() {
+    if (!selectedSection || !sectionDraft.trim() || sectionIsGenerating) return;
+    setSectionError("");
+    setSectionIsGenerating(true);
+    startProgress();
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope_type: "chapter",
+          scope_id: chapter.id,
+          message: `Rewrite this section with the instruction below.\n\nInstruction:\n${sectionInstruction || "Improve clarity and flow while preserving meaning."}\n\nSection:\n${sectionDraft}`,
+          mode: "Section rewrite",
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setSectionError(err?.error || "AI request failed");
+        return;
+      }
+      const data = await res.json();
+      const content = data?.assistantMessage?.content || "";
+      setSectionSuggestion(content.trim());
+    } catch (err: any) {
+      setSectionError(err?.message || "AI request failed");
+    } finally {
+      setSectionIsGenerating(false);
+      stopProgress();
+    }
   }
 
   function openEditNote(note: ResearchNote) {
@@ -549,9 +598,56 @@ export default function ChapterEditor({
                 value={sectionDraft}
                 onChange={(e) => setSectionDraft(e.target.value)}
               />
-              <button className="mt-2 rounded-lg bg-blue-700 px-3 py-1 text-xs font-medium text-white" type="button" onClick={applySection}>
-                Apply Section
-              </button>
+              <div className="mt-2 grid gap-2">
+                <input
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                  placeholder="AI instruction (optional)"
+                  value={sectionInstruction}
+                  onChange={(e) => setSectionInstruction(e.target.value)}
+                />
+                {sectionError && <div className="text-[11px] text-red-600">AI error: {sectionError}</div>}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs"
+                    type="button"
+                    onClick={suggestSectionRewrite}
+                    disabled={sectionIsGenerating}
+                  >
+                    {sectionIsGenerating ? "Working..." : "AI Suggest Rewrite"}
+                  </button>
+                  <button className="rounded-lg bg-blue-700 px-3 py-1 text-xs font-medium text-white" type="button" onClick={applySection}>
+                    Apply Section
+                  </button>
+                </div>
+              </div>
+              {sectionSuggestion && (
+                <div className="mt-3 rounded-lg border border-slate-200 bg-white p-2 text-[11px] whitespace-pre-line">
+                  <div className="text-[10px] uppercase tracking-wide text-slate-500">AI Suggestion</div>
+                  <div className="mt-2">{sectionSuggestion}</div>
+                  <button
+                    className="mt-2 rounded-full border border-slate-200 px-2 py-1 text-[10px]"
+                    type="button"
+                    onClick={() => setSectionDraft(sectionSuggestion)}
+                  >
+                    Use Suggestion
+                  </button>
+                </div>
+              )}
+              {sectionDiff.length > 0 && (
+                <details className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-[11px]">
+                  <summary className="cursor-pointer">Preview diff</summary>
+                  <div className="mt-2 font-mono">
+                    {sectionDiff.map((part, idx) => {
+                      const color = part.added ? "text-emerald-700 bg-emerald-50" : part.removed ? "text-red-700 bg-red-50" : "text-slate-600";
+                      return (
+                        <div key={idx} className={`${color} whitespace-pre-wrap`}>
+                          {part.value}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
+              )}
             </div>
           )}
         </aside>
@@ -738,6 +834,21 @@ export default function ChapterEditor({
             <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-xs whitespace-pre-line">
               {aiProposal || "No proposal yet."}
             </div>
+            {proposalDiff.length > 0 && (
+              <details className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                <summary className="cursor-pointer">Preview diff</summary>
+                <div className="mt-2 font-mono text-[11px] leading-relaxed">
+                  {proposalDiff.map((part, idx) => {
+                    const color = part.added ? "text-emerald-700 bg-emerald-50" : part.removed ? "text-red-700 bg-red-50" : "text-slate-600";
+                    return (
+                      <div key={idx} className={`${color} whitespace-pre-wrap`}>
+                        {part.value}
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
+            )}
             <button
               className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-60"
               type="button"

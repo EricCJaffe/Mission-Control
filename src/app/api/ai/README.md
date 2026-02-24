@@ -7,7 +7,8 @@ This module contains server-only AI route handlers.
 - /api/ai/outline
 - /api/ai/retrieve
 
-These routes return stubbed responses and do not call external APIs.
+These routes now call the OpenAI API when `OPENAI_API_KEY` is configured.
 
-## TODO (OPENAI)
-Add OPENAI_API_KEY (server-only) and wire real model calls.
+## Notes
+- `OPENAI_API_KEY` must be server-only (never `NEXT_PUBLIC`).
+- `OPENAI_MODEL` and `OPENAI_EMBEDDING_MODEL` can override defaults.

@@ -147,7 +147,7 @@ export default function BookPageClient({
         <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
           <h2 className="text-base font-semibold">AI Insights (Book)</h2>
           <p className="mt-1 text-xs text-slate-500">Ask about themes, gaps, or next edits.</p>
-          <BookInsightsClient bookId={bookId} />
+          <BookInsightsClient bookId={bookId} threads={[]} messages={[]} />
         </div>
       </section>
 

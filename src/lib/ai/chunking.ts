@@ -98,6 +98,16 @@ export async function upsertChapterChunks(
 
   if (chunks.length === 0) return;
 
+  let embeddings: number[][] | null = null;
+  try {
+    if (process.env.OPENAI_API_KEY) {
+      const { embedTexts } = await import("@/lib/ai/embeddings");
+      embeddings = await embedTexts(chunks.map((chunk) => chunk.content));
+    }
+  } catch {
+    embeddings = null;
+  }
+
   await supabase.from("chapter_chunks").insert(
     chunks.map((chunk, idx) => ({
       chapter_id: chapterId,
@@ -106,7 +116,7 @@ export async function upsertChapterChunks(
       heading_path: chunk.heading_path,
       content: chunk.content,
       token_count: chunk.token_count,
-      embedding: null,
+      embedding: embeddings && embeddings[idx] ? embeddings[idx] : null,
       metadata: chunk.metadata,
     }))
   );
