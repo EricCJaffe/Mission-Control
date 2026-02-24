@@ -111,8 +111,7 @@ export default async function BookDetailPage({
   let researchQuery = supabase
     .from("research_notes")
     .select("id,title,content_md,tags,scope_type,scope_id,status")
-    .eq("scope_type", "book")
-    .eq("scope_id", id)
+    .or(`and(scope_type.eq.book,scope_id.eq.${id}),and(scope_type.is.null,scope_id.eq.${id})`)
     .order("created_at", { ascending: false });
 
   if (query) {
@@ -364,6 +363,7 @@ export default async function BookDetailPage({
                 ...note,
                 scope_type: note.scope_type || "book",
                 scope_id: note.scope_id || book.id,
+                status: note.status || "inbox",
               }))}
             />
           </section>
