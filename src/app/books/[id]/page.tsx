@@ -3,6 +3,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import BookChaptersBoard from "@/components/BookChaptersBoard";
 import BookOutlineActionsClient from "@/components/BookOutlineActionsClient";
 import BookResearchNotesClient from "@/components/BookResearchNotesClient";
+import ArtifactsListClient from "@/components/ArtifactsListClient";
 import BookTasksClient from "@/components/BookTasksClient";
 
 export const dynamic = "force-dynamic";
@@ -383,21 +384,10 @@ export default async function BookDetailPage({
         <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
           <h2 className="text-base font-semibold">Artifacts (Book)</h2>
           <p className="mt-1 text-xs text-slate-500">Generated guides, devotionals, and social packs.</p>
-          <div className="mt-3 grid gap-3 text-sm">
-            {(assets || []).map((asset) => (
-              <div key={asset.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="font-semibold">{asset.asset_type}</div>
-                  <div className="text-xs text-slate-500">Status: {asset.status || "draft"}</div>
-                </div>
-                <div className="mt-2 text-xs text-slate-500">{new Date(asset.created_at).toLocaleString()}</div>
-                <div className="mt-2 whitespace-pre-line text-sm">{asset.content_md}</div>
-              </div>
-            ))}
-            {(!assets || assets.length === 0) && (
-              <div className="text-xs text-slate-500">No artifacts yet. Run "Generate Guides + Social" from the AI tools.</div>
-            )}
-          </div>
+          <ArtifactsListClient assets={assets || []} redirect={`/books/${book.id}?tab=assets`} />
+          {(!assets || assets.length === 0) && (
+            <div className="mt-2 text-xs text-slate-500">Run "Generate Guides + Social" from the AI tools.</div>
+          )}
         </section>
       )}
 
