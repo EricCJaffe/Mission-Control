@@ -12,3 +12,5 @@
 
 ## Next Feature Sets (Draft)
 - AI helpers (monthly review summarizer, automation architect, sermon outline helper).
+  - Automation Architect is now implemented in `/ai`.
+  - Sermon Builder module (series + outline editor) is next.

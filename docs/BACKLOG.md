@@ -43,6 +43,18 @@ This doc maps `MISSION_CONTROL_STARTER_BACKLOG.md` to current modules, routes, a
 - Book AI: `/books/[id]/ai`, proposals queues, inline review, reorder, etc.
 - System AI scaffold: `/api/ai/*`
 
+## Sermon Builder (Planned)
+- Create sermon series + sermon outline editor aligned to persona voice (outline-first vs chapters).
+- Two-way conversion:
+  - Series → Book draft outline
+  - Book outline → Sermon series starter
+- Automation outputs:
+  - Small group leader guide
+  - Participant guide
+  - Daily devotional content
+  - Social media content pack
+- Link to Automation Architect outputs for workflow execution.
+
 ## Status Summary
 - Implemented: Dashboard, Tasks v2, Calendar, Reviews, Metrics, Notes, Book Writer.
 - Pending: AI helpers for monthly review summarizer, automation architect, sermon outline helper.

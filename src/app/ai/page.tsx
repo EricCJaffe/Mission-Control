@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import InlineReviewQueueClient from "@/components/InlineReviewQueueClient";
+import AutomationArchitectClient from "@/components/AutomationArchitectClient";
 
 export const dynamic = "force-dynamic";
 
@@ -186,6 +187,8 @@ export default async function AICompanionPage({
         </form>
         <InlineReviewQueueClient comments={commentQueue || []} chapterMap={chapterMap} redirect="/ai" />
       </section>
+
+      <AutomationArchitectClient />
 
       <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
         <div className="text-sm font-semibold">Books</div>
