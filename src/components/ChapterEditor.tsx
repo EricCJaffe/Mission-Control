@@ -160,6 +160,7 @@ export default function ChapterEditor({
   const [sectionSuggestion, setSectionSuggestion] = useState("");
   const [sectionError, setSectionError] = useState("");
   const [sectionIsGenerating, setSectionIsGenerating] = useState(false);
+  const [sectionIsQueuing, setSectionIsQueuing] = useState(false);
   const [noteQuery, setNoteQuery] = useState("");
   const [noteStatusFilter, setNoteStatusFilter] = useState("all");
   const [noteTagFilter, setNoteTagFilter] = useState("");
@@ -317,6 +318,38 @@ export default function ChapterEditor({
     const after = markdown.slice(selectedSection.end);
     const next = `${before}${sectionDraft}\n${after}`;
     setMarkdown(next);
+  }
+
+  async function queueSectionProposal() {
+    if (!selectedSection || !sectionSuggestion.trim() || sectionIsQueuing) return;
+    setSectionError("");
+    setSectionIsQueuing(true);
+    startProgress();
+    try {
+      const before = markdown.slice(0, selectedSection.start);
+      const after = markdown.slice(selectedSection.end);
+      const proposedMarkdown = `${before}${sectionSuggestion}\n${after}`;
+      const res = await fetch("/books/chapters/proposals/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chapter_id: chapter.id,
+          instruction: `Section rewrite: ${selectedSection.heading}${sectionInstruction ? ` · ${sectionInstruction}` : ""}`,
+          proposed_markdown: proposedMarkdown,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setSectionError(err?.error || "Failed to queue proposal");
+        return;
+      }
+      pushToast({ title: "Proposal queued", description: "Review it in the AI Proposal Queue." });
+    } catch (err: any) {
+      setSectionError(err?.message || "Failed to queue proposal");
+    } finally {
+      setSectionIsQueuing(false);
+      stopProgress();
+    }
   }
 
   async function suggestSectionRewrite() {
@@ -624,13 +657,23 @@ export default function ChapterEditor({
                 <div className="mt-3 rounded-lg border border-slate-200 bg-white p-2 text-[11px] whitespace-pre-line">
                   <div className="text-[10px] uppercase tracking-wide text-slate-500">AI Suggestion</div>
                   <div className="mt-2">{sectionSuggestion}</div>
-                  <button
-                    className="mt-2 rounded-full border border-slate-200 px-2 py-1 text-[10px]"
-                    type="button"
-                    onClick={() => setSectionDraft(sectionSuggestion)}
-                  >
-                    Use Suggestion
-                  </button>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      className="rounded-full border border-slate-200 px-2 py-1 text-[10px]"
+                      type="button"
+                      onClick={() => setSectionDraft(sectionSuggestion)}
+                    >
+                      Use Suggestion
+                    </button>
+                    <button
+                      className="rounded-full border border-slate-200 px-2 py-1 text-[10px] disabled:cursor-not-allowed disabled:opacity-60"
+                      type="button"
+                      onClick={queueSectionProposal}
+                      disabled={sectionIsQueuing}
+                    >
+                      {sectionIsQueuing ? "Queuing..." : "Queue Proposal"}
+                    </button>
+                  </div>
                 </div>
               )}
               {sectionDiff.length > 0 && (

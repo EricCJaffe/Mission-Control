@@ -83,6 +83,9 @@ export default function BookAiCompanionClient({
     if (toast === "inline_ready") {
       pushToast({ title: "Inline review complete", description: "Review comments in the queue below." });
     }
+    if (toast === "embeddings_ready") {
+      pushToast({ title: "Embeddings rebuilt", description: "Semantic search is refreshed for this book." });
+    }
   }, [toast, pushToast]);
 
   const toolCards = [
@@ -95,6 +98,7 @@ export default function BookAiCompanionClient({
     { id: "inline-dialog", title: "AI Inline Review", body: "Generate anchored inline review comments." },
     { id: "normalize-dialog", title: "Normalize Titles", body: "Standardize chapter numbering + titles." },
     { id: "place-dialog", title: "Place Concept", body: "Insert a concept into the best chapter." },
+    { id: "embeddings-dialog", title: "Rebuild Embeddings", body: "Refresh semantic search for this book." },
   ];
 
   return (
@@ -371,6 +375,29 @@ export default function BookAiCompanionClient({
               </button>
               <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
                 Find Chapter
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      <dialog id="embeddings-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
+        <div className="rounded-2xl bg-white p-6">
+          <h3 className="text-lg font-semibold">Rebuild Embeddings</h3>
+          <p className="mt-1 text-xs text-slate-500">Recalculate semantic search chunks for this book.</p>
+          <form className="mt-4 grid gap-3" action="/books/ai/rebuild-embeddings" method="post" data-progress="true" data-toast="Rebuilding embeddings">
+            <input type="hidden" name="book_id" value={bookId} />
+            <input type="hidden" name="redirect" value={`/books/${bookId}/ai`} />
+            <div className="flex justify-end gap-2">
+              <button
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                type="button"
+                onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+              >
+                Cancel
+              </button>
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                Rebuild
               </button>
             </div>
           </form>

@@ -38,4 +38,3 @@
 
 ## Book Writer (Remaining)
 - Implement chapter-level apply that can replace content (not only append) when AI proposals specify a structured patch.
-- Add AI-assisted section rewrite proposals to persist in chapter proposals (optional, vs direct apply).
