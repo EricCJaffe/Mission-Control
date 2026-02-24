@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import BookChaptersBoard from "@/components/BookChaptersBoard";
-import BookChat from "@/components/BookChat";
 import BookOutlineActionsClient from "@/components/BookOutlineActionsClient";
 import BookResearchNotesClient from "@/components/BookResearchNotesClient";
 import BookTasksClient from "@/components/BookTasksClient";
@@ -366,10 +365,6 @@ export default async function BookDetailPage({
                 status: note.status || "inbox",
               }))}
             />
-          </section>
-
-          <section className="mt-6">
-            <BookChat bookId={book.id} initialMessages={bookMessages || []} />
           </section>
         </>
       )}

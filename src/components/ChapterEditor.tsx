@@ -48,7 +48,7 @@ type ResearchNote = {
 const noteStatusStyles: Record<string, string> = {
   inbox: "bg-slate-100 text-slate-600",
   in_progress: "bg-amber-100 text-amber-700",
-  review: "bg-blue-100 text-blue-700",
+  reviewed: "bg-blue-100 text-blue-700",
 };
 
 type ChatMessage = {
@@ -156,6 +156,8 @@ export default function ChapterEditor({
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [sectionDraft, setSectionDraft] = useState("");
   const [noteQuery, setNoteQuery] = useState("");
+  const [noteStatusFilter, setNoteStatusFilter] = useState("all");
+  const [noteTagFilter, setNoteTagFilter] = useState("");
   const [noteScope, setNoteScope] = useState<"chapter" | "book">("chapter");
   const [noteScopeId, setNoteScopeId] = useState(chapter.id);
   const [noteTitle, setNoteTitle] = useState("");
@@ -785,6 +787,22 @@ export default function ChapterEditor({
                 onChange={(e) => setNoteQuery(e.target.value)}
                 placeholder="Search notes..."
               />
+              <select
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                value={noteStatusFilter}
+                onChange={(e) => setNoteStatusFilter(e.target.value)}
+              >
+                <option value="all">All</option>
+                <option value="inbox">Inbox</option>
+                <option value="in_progress">In Progress</option>
+                <option value="reviewed">Reviewed</option>
+              </select>
+              <input
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                value={noteTagFilter}
+                onChange={(e) => setNoteTagFilter(e.target.value)}
+                placeholder="Tag..."
+              />
               <button
                 className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white"
                 type="button"
@@ -859,7 +877,7 @@ export default function ChapterEditor({
                     >
                       <option value="inbox">Inbox</option>
                       <option value="in_progress">In Progress</option>
-                      <option value="review">Review</option>
+                      <option value="reviewed">Reviewed</option>
                     </select>
                   </div>
                   <input type="hidden" name="content_md" value={noteContent} />
@@ -934,7 +952,7 @@ export default function ChapterEditor({
                     >
                       <option value="inbox">Inbox</option>
                       <option value="in_progress">In Progress</option>
-                      <option value="review">Review</option>
+                      <option value="reviewed">Reviewed</option>
                     </select>
                   </div>
                   <input type="hidden" name="content_md" value={editNoteContent} />
@@ -976,19 +994,28 @@ export default function ChapterEditor({
                       {viewNote?.scope_type === "book" ? "Book (General)" : "Chapter note"}
                     </div>
                   </div>
-                  {viewNote && (
-                    <button
-                      className="rounded-full border border-slate-200 px-3 py-1 text-xs"
-                      type="button"
-                      onClick={() => {
-                        (document.getElementById("view-chapter-note-dialog") as HTMLDialogElement | null)?.close();
-                        openEditNote(viewNote);
-                      }}
-                    >
-                      Edit
-                    </button>
-                  )}
-                </div>
+            {viewNote && (
+              <button
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs"
+                type="button"
+                onClick={() => {
+                  (document.getElementById("view-chapter-note-dialog") as HTMLDialogElement | null)?.close();
+                  openEditNote(viewNote);
+                }}
+              >
+                Edit
+              </button>
+            )}
+            {viewNote && (
+              <form action="/books/ai/place" method="post" data-progress="true" data-toast="AI placement started">
+                <input type="hidden" name="book_id" value={chapter.book_id} />
+                <input type="hidden" name="concept" value={`${viewNote.title}\n\n${viewNote.content_md || ""}`} />
+                <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" type="submit">
+                  AI Place
+                </button>
+              </form>
+            )}
+          </div>
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 whitespace-pre-line">
             {viewNote?.content_md || "No content yet."}
           </div>
@@ -1038,11 +1065,24 @@ export default function ChapterEditor({
 
             <div className="mt-3 grid gap-2">
               {researchNotes
-                .filter((note) =>
-                  noteQuery
-                    ? `${note.title} ${note.content_md || ""}`.toLowerCase().includes(noteQuery.toLowerCase())
-                    : true
-                )
+                .filter((note) => {
+                  if (
+                    noteQuery &&
+                    !`${note.title} ${note.content_md || ""}`.toLowerCase().includes(noteQuery.toLowerCase())
+                  ) {
+                    return false;
+                  }
+                  if (noteStatusFilter !== "all" && (note.status || "inbox") !== noteStatusFilter) {
+                    return false;
+                  }
+                  if (noteTagFilter.trim()) {
+                    const tagMatch = (note.tags || []).some((tag) =>
+                      tag.toLowerCase().includes(noteTagFilter.toLowerCase())
+                    );
+                    if (!tagMatch) return false;
+                  }
+                  return true;
+                })
                 .map((note) => (
                 <div
                   key={note.id}

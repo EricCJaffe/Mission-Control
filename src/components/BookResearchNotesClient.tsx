@@ -18,7 +18,7 @@ type ResearchNote = {
 const statusStyles: Record<string, string> = {
   inbox: "bg-slate-100 text-slate-600",
   in_progress: "bg-amber-100 text-amber-700",
-  review: "bg-blue-100 text-blue-700",
+  reviewed: "bg-blue-100 text-blue-700",
 };
 
 function snippet(text: string, max = 200) {
@@ -41,6 +41,8 @@ export default function BookResearchNotesClient({
   notes: ResearchNote[];
 }) {
   const [filterScope, setFilterScope] = useState<"all" | "book" | "chapter">("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterTag, setFilterTag] = useState("");
   const [filterText, setFilterText] = useState("");
   const [addScopeId, setAddScopeId] = useState(bookId);
   const [addTitle, setAddTitle] = useState("");
@@ -60,11 +62,18 @@ export default function BookResearchNotesClient({
   const filtered = useMemo(() => {
     return notes.filter((note) => {
       if (filterScope !== "all" && note.scope_type !== filterScope) return false;
+      if (filterStatus !== "all" && (note.status || "inbox") !== filterStatus) return false;
+      if (filterTag.trim()) {
+        const tagMatch = (note.tags || []).some((tag) =>
+          tag.toLowerCase().includes(filterTag.toLowerCase())
+        );
+        if (!tagMatch) return false;
+      }
       if (!filterText.trim()) return true;
       const hay = `${note.title} ${(note.tags || []).join(" ")} ${note.content_md || ""}`.toLowerCase();
       return hay.includes(filterText.toLowerCase());
     });
-  }, [notes, filterScope, filterText]);
+  }, [notes, filterScope, filterStatus, filterTag, filterText]);
 
   const chapterMap = useMemo(() => {
     return new Map(chapters.map((ch) => [ch.id, ch.title]));
@@ -103,6 +112,28 @@ export default function BookResearchNotesClient({
             <option value="book">Book only</option>
             <option value="chapter">Chapter only</option>
           </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-slate-500">Status</label>
+          <select
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            <option value="all">All</option>
+            <option value="inbox">Inbox</option>
+            <option value="in_progress">In Progress</option>
+            <option value="reviewed">Reviewed</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-slate-500">Tag</label>
+          <input
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            value={filterTag}
+            onChange={(e) => setFilterTag(e.target.value)}
+            placeholder="Filter by tag..."
+          />
         </div>
         <div className="flex-1">
           <label className="text-xs text-slate-500">Search</label>
@@ -181,7 +212,7 @@ export default function BookResearchNotesClient({
               >
                 <option value="inbox">Inbox</option>
                 <option value="in_progress">In Progress</option>
-                <option value="review">Review</option>
+                <option value="reviewed">Reviewed</option>
               </select>
             </div>
             <input type="hidden" name="content_md" value={addContent} />
@@ -265,7 +296,7 @@ export default function BookResearchNotesClient({
               >
                 <option value="inbox">Inbox</option>
                 <option value="in_progress">In Progress</option>
-                <option value="review">Review</option>
+                <option value="reviewed">Reviewed</option>
               </select>
             </div>
             <input type="hidden" name="content_md" value={editContent} />
@@ -281,28 +312,6 @@ export default function BookResearchNotesClient({
               <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
                 Update Note
               </button>
-            </div>
-          </form>
-          <form
-            className="mt-4 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs"
-            action="/books/ai/place"
-            method="post"
-            data-progress="true"
-            data-toast="AI placement started"
-          >
-            <div className="text-[11px] uppercase tracking-wide text-slate-500">AI Placement Assistant</div>
-            <input type="hidden" name="book_id" value={bookId} />
-            <input type="hidden" name="concept" value={`${editTitle}\n\n${editContent}`} />
-            <textarea
-              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
-              name="instruction"
-              placeholder="Optional placement or tone notes..."
-            />
-            <button className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs" type="submit">
-              Suggest Placement + Proposal
-            </button>
-            <div className="text-[11px] text-slate-500">
-              Creates a proposal so you can review before applying to a chapter.
             </div>
           </form>
         </div>
@@ -331,6 +340,13 @@ export default function BookResearchNotesClient({
                 >
                   Edit
                 </button>
+                <form action="/books/ai/place" method="post" data-progress="true" data-toast="AI placement started">
+                  <input type="hidden" name="book_id" value={bookId} />
+                  <input type="hidden" name="concept" value={`${viewNote.title}\n\n${viewNote.content_md || ""}`} />
+                  <button className="rounded-full border border-slate-200 px-3 py-1" type="submit">
+                    AI Place
+                  </button>
+                </form>
               </div>
             )}
           </div>
