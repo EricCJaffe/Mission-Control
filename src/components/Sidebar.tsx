@@ -82,6 +82,7 @@ export default function Sidebar({
               <NavLink href="/calendar" label="Calendar" shortLabel="CL" collapsed={isCollapsed} icon="📅" onClick={handleNavigate} />
               <NavLink href="/metrics" label="Metrics" shortLabel="MX" collapsed={isCollapsed} icon="📊" onClick={handleNavigate} />
               <NavLink href="/books" label="Books" shortLabel="BK" collapsed={isCollapsed} icon="📘" onClick={handleNavigate} />
+              <NavLink href="/sermons" label="Sermons" shortLabel="SM" collapsed={isCollapsed} icon="🎙️" onClick={handleNavigate} />
             </div>
           </div>
 
