@@ -29,6 +29,16 @@ export default function ArtifactsListClient({
     (document.getElementById("asset-edit-dialog") as HTMLDialogElement | null)?.showModal();
   }
 
+  function snippet(text: string) {
+    const cleaned = text
+      .replace(/[#*_>`]/g, "")
+      .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!cleaned) return "";
+    return cleaned.length > 240 ? `${cleaned.slice(0, 240)}…` : cleaned;
+  }
+
   return (
     <div className="mt-3 grid gap-3 text-sm">
       {assets.map((asset) => (
@@ -38,14 +48,14 @@ export default function ArtifactsListClient({
             <div className="text-xs text-slate-500">Status: {asset.status || "draft"}</div>
           </div>
           <div className="mt-2 text-xs text-slate-500">{new Date(asset.created_at).toLocaleString()}</div>
-          <div className="mt-2 whitespace-pre-line text-sm">{asset.content_md}</div>
+          <div className="mt-2 text-sm text-slate-700">{snippet(asset.content_md) || "No content yet."}</div>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <button
               className="rounded-full border border-slate-200 bg-white px-3 py-1"
               type="button"
               onClick={() => openEdit(asset)}
             >
-              Edit
+              View / Edit
             </button>
             <a
               className="rounded-full border border-slate-200 bg-white px-3 py-1"
