@@ -176,6 +176,46 @@ export default async function BookDetailPage({
       </div>
 
       <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <div className="text-sm font-semibold">Book Details</div>
+        <form className="mt-3 grid gap-3 md:grid-cols-2" action="/books/update" method="post" data-toast="Book updated">
+          <input type="hidden" name="id" value={book.id} />
+          <div>
+            <label className="text-xs text-slate-500">Title</label>
+            <input
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              name="title"
+              defaultValue={book.title || ""}
+              required
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Subtitle</label>
+            <input
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              name="description"
+              defaultValue={book.description || ""}
+              placeholder="Optional subtitle"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Status</label>
+            <select className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="status" defaultValue={book.status || "planning"}>
+              <option value="planning">planning</option>
+              <option value="drafting">drafting</option>
+              <option value="review">review</option>
+              <option value="final">final</option>
+              <option value="archive">archive</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+              Save Details
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-sm font-semibold">Progress</div>
@@ -183,15 +223,8 @@ export default async function BookDetailPage({
               {totalWords.toLocaleString()} words · {targetWords ? `${progress}% of ${targetWords.toLocaleString()}` : "No target set"}
             </div>
           </div>
-          <form className="grid gap-2 md:grid-cols-3" action="/books/update" method="post" data-toast="Book updated">
+          <form className="grid gap-2 md:grid-cols-[1fr_auto]" action="/books/update" method="post" data-toast="Book updated">
             <input type="hidden" name="id" value={book.id} />
-            <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="status" defaultValue={book.status || "planning"}>
-              <option value="planning">planning</option>
-              <option value="drafting">drafting</option>
-              <option value="review">review</option>
-              <option value="final">final</option>
-              <option value="archive">archive</option>
-            </select>
             <input
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
               name="target_word_count"

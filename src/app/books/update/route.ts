@@ -9,6 +9,8 @@ export async function POST(req: Request) {
 
   const form = await req.formData();
   const id = String(form.get("id") || "");
+  const title = String(form.get("title") || "").trim();
+  const description = String(form.get("description") || "").trim();
   const status = String(form.get("status") || "").trim();
   const targetRaw = String(form.get("target_word_count") || "").trim();
   const target = targetRaw ? Number(targetRaw) : null;
@@ -18,6 +20,8 @@ export async function POST(req: Request) {
   await supabase
     .from("books")
     .update({
+      title: title || undefined,
+      description: description || undefined,
       status: status || "planning",
       target_word_count: Number.isFinite(target) ? target : null,
       updated_at: new Date().toISOString(),
