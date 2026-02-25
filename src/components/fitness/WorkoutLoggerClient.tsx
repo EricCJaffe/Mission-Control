@@ -91,6 +91,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   const [sessionNotes, setSessionNotes] = useState('');
   const [cardioData, setCardioData] = useState<Partial<CardioLog>>({ activity_type: 'run' });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [newPRs, setNewPRs] = useState<string[]>([]);
   const [showPlateCalc, setShowPlateCalc] = useState(false);
   const [hrRecovery2min, setHrRecovery2min] = useState<number | ''>('');
@@ -389,6 +390,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         : null,
     };
 
+    setError(null);
     try {
       const res = await fetch('/fitness/log/save', {
         method: 'POST',
@@ -405,9 +407,11 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           estimated_1rms: data.estimated_1rms,
         });
         setMode('complete');
+      } else {
+        setError(data.error || 'Failed to save workout');
       }
-    } catch (err) {
-      console.error('Save failed', err);
+    } catch {
+      setError('Network error — could not save workout');
     } finally {
       setSaving(false);
     }
@@ -627,6 +631,12 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   if (mode === 'cardio') {
     return (
       <div className="space-y-4">
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">
+            <p className="text-sm text-red-700">{error}</p>
+            <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
+          </div>
+        )}
         <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Cardio Session</h2>
           <div className="space-y-3">
@@ -845,6 +855,14 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
   return (
     <div className="space-y-4">
+      {/* Error banner */}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-red-700">{error}</p>
+          <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
+        </div>
+      )}
+
       {/* Exercise picker overlay */}
       {showExercisePicker && renderExercisePicker()}
 

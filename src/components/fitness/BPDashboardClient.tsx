@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { bpFlagLabel, bpFlagTailwindClass } from '@/lib/fitness/alerts';
 import type { BPFlagLevel } from '@/lib/fitness/types';
+import DateRangeFilter, { type DateRange, getDefaultRange } from './DateRangeFilter';
 
 type BPRow = {
   id: string;
@@ -29,6 +30,23 @@ export default function BPDashboardClient({ readings: initial }: Props) {
   const [saving, setSaving] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>(() => getDefaultRange('bp-range'));
+
+  async function handleDateRangeChange(range: DateRange) {
+    setDateRange(range);
+    try {
+      const params = new URLSearchParams();
+      if (range.preset !== 'all') {
+        params.set('start', new Date(range.startDate).toISOString());
+        params.set('end', new Date(range.endDate + 'T23:59:59').toISOString());
+      }
+      const res = await fetch(`/api/fitness/bp?${params}`);
+      const data = await res.json();
+      if (data.ok) setReadings(data.readings);
+    } catch {
+      setError('Failed to load readings for selected range');
+    }
+  }
 
   // Form state
   const [systolic, setSystolic] = useState('');
@@ -258,14 +276,16 @@ export default function BPDashboardClient({ readings: initial }: Props) {
         )}
       </div>
 
-      {/* Readings log */}
+      {/* Date range filter + readings log */}
+      <DateRangeFilter value={dateRange} onChange={handleDateRangeChange} storageKey="bp-range" />
+
       {readings.length > 0 && (
         <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
-            <h2 className="text-sm font-semibold text-slate-700">Reading History</h2>
+            <h2 className="text-sm font-semibold text-slate-700">Reading History ({readings.length})</h2>
           </div>
           <div className="divide-y divide-slate-100">
-            {readings.slice(0, 30).map((r) => (
+            {readings.map((r) => (
               <div key={r.id} className="px-5 py-3 flex items-center gap-3">
                 <div className="w-28 shrink-0">
                   <span className="text-lg font-bold tabular-nums text-slate-800">{r.systolic}/{r.diastolic}</span>

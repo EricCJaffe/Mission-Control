@@ -356,6 +356,7 @@ export default function FitnessDashboardClient({
           { href: '/fitness/exercises', label: 'Exercises', icon: '🏋️' },
           { href: '/fitness/templates', label: 'Templates', icon: '📝' },
           { href: '/fitness/trends', label: 'Trends', icon: '📈' },
+          { href: '/fitness/records', label: 'Personal Records', icon: '🏆' },
           { href: '/fitness/plans', label: 'Training Plan', icon: '📋' },
           { href: '/fitness/labs', label: 'Lab Results', icon: '🧪' },
           { href: '/fitness/medications', label: 'Medications', icon: '💊' },
