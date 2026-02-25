@@ -43,7 +43,7 @@ export async function POST() {
         purpose: 'HR and BP control post-CABG. Reduces cardiac workload.',
         active: true,
         known_interactions: 'Beta-blocker. Avoid decongestants. Impairs thermoregulation in heat.',
-        notes: 'Take 30-60 min after coffee for optimal absorption.',
+        side_effects_experienced: 'Take 30-60 min after coffee for optimal absorption.',
       },
       {
         user_id: userId,
