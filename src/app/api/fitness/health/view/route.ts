@@ -84,34 +84,13 @@ export async function PUT(req: Request) {
         .eq('is_current', true);
     }
 
-    // Generate embedding for new version
-    const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'text-embedding-3-small',
-        input: content,
-      }),
-    });
-
-    const embeddingData = await embeddingResponse.json();
-    const embedding = embeddingData.data?.[0]?.embedding;
-
-    if (!embedding) {
-      throw new Error('Failed to generate embedding');
-    }
-
-    // Create new version
+    // Create new version (skip embedding - vector extension not enabled)
     const { data: newDoc, error: insertError } = await supabase
       .from('health_documents')
       .insert({
         user_id: userData.user.id,
         version: nextVersion,
         content,
-        embedding,
         is_current: true,
       })
       .select()

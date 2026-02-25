@@ -35,43 +35,15 @@ export async function POST() {
       }, { status: 400 });
     }
 
-    // Generate vector embedding using OpenAI
-    let embedding: number[] | null = null;
+    // Skip embedding generation for now - vector extension might not be enabled
+    // const embedding: number[] | null = null;
 
-    if (process.env.OPENAI_API_KEY) {
-      try {
-        const embeddingModel = process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small';
-        const response = await fetch('https://api.openai.com/v1/embeddings', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: embeddingModel,
-            input: INITIAL_HEALTH_MD,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          embedding = data.data[0].embedding;
-        } else {
-          console.warn('Failed to generate embedding:', await response.text());
-        }
-      } catch (embeddingError) {
-        console.warn('Embedding generation failed:', embeddingError);
-        // Continue without embedding - it's not critical for functionality
-      }
-    }
-
-    // Insert health document
+    // Insert health document (without embedding - vector extension not enabled)
     console.log('Attempting to insert health document with:', {
       user_id: userId,
       content_length: INITIAL_HEALTH_MD.length,
       version: 1,
       is_current: true,
-      has_embedding: embedding !== null,
     });
 
     const { data: healthDoc, error: insertError } = await supabase
@@ -81,7 +53,6 @@ export async function POST() {
         content: INITIAL_HEALTH_MD,
         version: 1,
         is_current: true,
-        embedding: embedding,
       })
       .select()
       .single();
@@ -112,7 +83,6 @@ export async function POST() {
         id: healthDoc.id,
         version: healthDoc.version,
         created_at: healthDoc.created_at,
-        has_embedding: embedding !== null,
       },
     });
 
