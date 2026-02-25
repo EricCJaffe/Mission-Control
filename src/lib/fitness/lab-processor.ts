@@ -1,16 +1,18 @@
-// Lab Report Processor — Extracts test results from PDF lab reports using GPT-4o vision
+// Lab Report Processor — Extracts test results from PDF lab reports using GPT-4o
 // Generates trend analysis and health.md update proposals
 
 import { supabaseServer } from '@/lib/supabase/server';
 import { buildAISystemPrompt } from './health-context';
+import pdf from 'pdf-parse';
 
 /**
  * Process lab report PDF
- * 1. Extract PDF → send to OpenAI GPT-4o with vision
- * 2. Parse all test results (name, value, unit, range, flag)
- * 3. Match against lab_test_definitions for normalization
- * 4. Create lab_panels + lab_results records (status: needs_review)
- * 5. User confirms → generate trend analysis → propose health.md updates
+ * 1. Extract text from PDF using pdf-parse
+ * 2. Send text to OpenAI GPT-4o for parsing
+ * 3. Parse all test results (name, value, unit, range, flag)
+ * 4. Match against lab_test_definitions for normalization
+ * 5. Create lab_panels + lab_results records (status: needs_review)
+ * 6. User confirms → generate trend analysis → propose health.md updates
  */
 export async function processLabReport(params: {
   userId: string;
@@ -28,16 +30,29 @@ export async function processLabReport(params: {
       .download(filePath);
 
     if (downloadError || !fileData) {
+      console.error('Storage download error:', downloadError);
       return { success: false, error: 'Failed to download file from storage' };
     }
 
-    // Convert to base64 for OpenAI
+    // Extract text from PDF
     const arrayBuffer = await fileData.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-    const mimeType = fileData.type || 'application/pdf';
+    const pdfBuffer = Buffer.from(arrayBuffer);
 
-    // Call OpenAI GPT-4o with vision to extract lab data
-    const extractionPrompt = `You are extracting data from a lab report PDF. Extract ALL test results with the following information:
+    let pdfText: string;
+    try {
+      const pdfData = await pdf(pdfBuffer);
+      pdfText = pdfData.text;
+
+      if (!pdfText || pdfText.trim().length === 0) {
+        return { success: false, error: 'PDF appears to be empty or contains only images' };
+      }
+    } catch (pdfError) {
+      console.error('PDF parsing error:', pdfError);
+      return { success: false, error: 'Failed to extract text from PDF' };
+    }
+
+    // Call OpenAI GPT-4o to parse the lab data from text
+    const extractionPrompt = `You are extracting data from a lab report. The text has been extracted from a PDF. Extract ALL test results with the following information:
 
 1. **Panel Information**:
    - Lab name (e.g., "Quest Diagnostics", "LabCorp")
@@ -85,8 +100,12 @@ Return JSON in this exact format:
 }
 \`\`\`
 
-Be thorough. Extract EVERY test result visible on the report. If a value is not visible, omit that test.
-Return ONLY the JSON, no other text.`;
+Be thorough. Extract EVERY test result visible in the text. If a value is not visible, omit that test.
+Return ONLY the JSON, no other text.
+
+Here is the extracted text from the lab report:
+
+${pdfText}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -99,15 +118,7 @@ Return ONLY the JSON, no other text.`;
         messages: [
           {
             role: 'user',
-            content: [
-              { type: 'text', text: extractionPrompt },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mimeType};base64,${base64}`,
-                },
-              },
-            ],
+            content: extractionPrompt,
           },
         ],
         max_tokens: 4000,
