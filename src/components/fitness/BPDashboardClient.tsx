@@ -23,8 +23,64 @@ type Props = {
   readings: BPRow[];
 };
 
-export default function BPDashboardClient({ readings }: Props) {
-  const [showForm, setShowForm] = useState(readings.length === 0);
+export default function BPDashboardClient({ readings: initial }: Props) {
+  const [readings, setReadings] = useState(initial);
+  const [showForm, setShowForm] = useState(initial.length === 0);
+  const [saving, setSaving] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Form state
+  const [systolic, setSystolic] = useState('');
+  const [diastolic, setDiastolic] = useState('');
+  const [pulse, setPulse] = useState('');
+  const [position, setPosition] = useState('seated');
+  const [arm, setArm] = useState('left');
+  const [prePostMeds, setPrePostMeds] = useState('');
+  const [prePostWorkout, setPrePostWorkout] = useState('');
+  const [bpNotes, setBpNotes] = useState('');
+
+  async function handleAdd() {
+    if (!systolic || !diastolic) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/fitness/bp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systolic: parseInt(systolic),
+          diastolic: parseInt(diastolic),
+          pulse: pulse ? parseInt(pulse) : null,
+          position,
+          arm,
+          pre_or_post_meds: prePostMeds || null,
+          pre_or_post_workout: prePostWorkout || null,
+          notes: bpNotes || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setReadings(prev => [data.reading, ...prev]);
+        setSystolic(''); setDiastolic(''); setPulse(''); setBpNotes('');
+        setShowForm(false);
+      }
+    } catch (err) {
+      console.error('Failed to save BP reading', err);
+    }
+    setSaving(false);
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      const res = await fetch(`/api/fitness/bp?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.ok) {
+        setReadings(prev => prev.filter(r => r.id !== id));
+        setConfirmDeleteId(null);
+      }
+    } catch (err) {
+      console.error('Failed to delete BP reading', err);
+    }
+  }
 
   const latest = readings[0];
   const crisisReading = readings.find((r) => r.flag_level === 'crisis');
@@ -92,16 +148,16 @@ export default function BPDashboardClient({ readings }: Props) {
         </div>
 
         {showForm && (
-          <form action="/fitness/bp/new" method="post" className="space-y-3">
+          <div className="space-y-3">
             <div className="flex gap-3 items-end">
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Systolic</label>
                 <input
-                  name="systolic"
                   type="number"
-                  required
-                  min="60"
-                  max="250"
+                  value={systolic}
+                  onChange={e => setSystolic(e.target.value)}
+                  min={60}
+                  max={250}
                   className="rounded-xl border border-slate-200 px-3 py-2 text-xl font-bold w-24 text-center"
                   placeholder="120"
                 />
@@ -110,11 +166,11 @@ export default function BPDashboardClient({ readings }: Props) {
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Diastolic</label>
                 <input
-                  name="diastolic"
                   type="number"
-                  required
-                  min="40"
-                  max="150"
+                  value={diastolic}
+                  onChange={e => setDiastolic(e.target.value)}
+                  min={40}
+                  max={150}
                   className="rounded-xl border border-slate-200 px-3 py-2 text-xl font-bold w-24 text-center"
                   placeholder="80"
                 />
@@ -122,10 +178,11 @@ export default function BPDashboardClient({ readings }: Props) {
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Pulse</label>
                 <input
-                  name="pulse"
                   type="number"
-                  min="30"
-                  max="200"
+                  value={pulse}
+                  onChange={e => setPulse(e.target.value)}
+                  min={30}
+                  max={200}
                   className="rounded-xl border border-slate-200 px-3 py-2 text-lg font-bold w-20 text-center"
                   placeholder="72"
                 />
@@ -135,7 +192,7 @@ export default function BPDashboardClient({ readings }: Props) {
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Position</label>
-                <select name="position" className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full">
+                <select value={position} onChange={e => setPosition(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full">
                   <option value="seated">Seated</option>
                   <option value="standing">Standing</option>
                   <option value="lying">Lying</option>
@@ -143,14 +200,14 @@ export default function BPDashboardClient({ readings }: Props) {
               </div>
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Arm</label>
-                <select name="arm" className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full">
+                <select value={arm} onChange={e => setArm(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full">
                   <option value="left">Left</option>
                   <option value="right">Right</option>
                 </select>
               </div>
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Meds</label>
-                <select name="pre_or_post_meds" className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full">
+                <select value={prePostMeds} onChange={e => setPrePostMeds(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full">
                   <option value="">—</option>
                   <option value="pre_meds">Pre-meds</option>
                   <option value="post_meds">Post-meds</option>
@@ -158,7 +215,7 @@ export default function BPDashboardClient({ readings }: Props) {
               </div>
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Workout</label>
-                <select name="pre_or_post_workout" className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full">
+                <select value={prePostWorkout} onChange={e => setPrePostWorkout(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full">
                   <option value="">—</option>
                   <option value="pre_workout">Pre-workout</option>
                   <option value="post_workout">Post-workout</option>
@@ -168,18 +225,21 @@ export default function BPDashboardClient({ readings }: Props) {
             </div>
 
             <input
-              name="notes"
+              type="text"
+              value={bpNotes}
+              onChange={e => setBpNotes(e.target.value)}
               placeholder="Notes (optional)"
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full"
             />
 
             <button
-              type="submit"
-              className="rounded-xl bg-slate-800 text-white text-sm font-medium px-4 py-2.5 hover:bg-slate-700 min-h-[44px]"
+              onClick={handleAdd}
+              disabled={saving || !systolic || !diastolic}
+              className="rounded-xl bg-slate-800 text-white text-sm font-medium px-4 py-2.5 hover:bg-slate-700 disabled:opacity-50 min-h-[44px]"
             >
-              Save Reading
+              {saving ? 'Saving...' : 'Save Reading'}
             </button>
-          </form>
+          </div>
         )}
       </div>
 
@@ -202,6 +262,16 @@ export default function BPDashboardClient({ readings }: Props) {
                 <div className="flex-1 text-xs text-slate-400 text-right">
                   {r.pre_or_post_meds ? `${r.pre_or_post_meds.replace('_', '-')} · ` : ''}
                   {new Date(r.reading_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                </div>
+                <div className="shrink-0">
+                  {confirmDeleteId === r.id ? (
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleDelete(r.id)} className="text-xs text-red-600 font-medium">Yes</button>
+                      <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-slate-400">No</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmDeleteId(r.id)} className="text-xs text-slate-400 hover:text-red-500">Delete</button>
+                  )}
                 </div>
               </div>
             ))}

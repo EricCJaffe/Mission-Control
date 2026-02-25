@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { bpFlagTailwindClass } from '@/lib/fitness/alerts';
 import type { BPFlagLevel } from '@/lib/fitness/types';
+import DateRangeFilter, { getDefaultRange, type DateRange } from './DateRangeFilter';
 
 type BodyMetricRow = {
   metric_date: string;
@@ -72,7 +74,30 @@ function Sparkline({ values, color = '#3b82f6', height = 40 }: { values: number[
   );
 }
 
-export default function FitnessTrendsClient({ bodyMetrics, bpReadings, workoutLogs, formHistory }: Props) {
+export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadings: initialBp, workoutLogs: initialWorkouts, formHistory: initialForm }: Props) {
+  const [dateRange, setDateRange] = useState<DateRange>(() => getDefaultRange('trends'));
+  const [bodyMetrics, setBodyMetrics] = useState(initialBody);
+  const [bpReadings, setBpReadings] = useState(initialBp);
+  const [workoutLogs, setWorkoutLogs] = useState(initialWorkouts);
+  const [formHistory, setFormHistory] = useState(initialForm);
+  const [loading, setLoading] = useState(false);
+
+  const handleDateRangeChange = useCallback(async (range: DateRange) => {
+    setDateRange(range);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/fitness/trends?start=${range.startDate}&end=${range.endDate}`);
+      const data = await res.json();
+      setBodyMetrics(data.bodyMetrics);
+      setBpReadings(data.bpReadings);
+      setWorkoutLogs(data.workoutLogs);
+      setFormHistory(data.formHistory);
+    } catch (err) {
+      console.error('Failed to fetch trends', err);
+    }
+    setLoading(false);
+  }, []);
+
   const rhrValues = bodyMetrics.filter((m) => m.resting_hr != null).map((m) => m.resting_hr!);
   const hrvValues = bodyMetrics.filter((m) => m.hrv_ms != null).map((m) => m.hrv_ms!);
   const weightValues = bodyMetrics.filter((m) => m.weight_lbs != null).map((m) => m.weight_lbs!);
@@ -91,11 +116,23 @@ export default function FitnessTrendsClient({ bodyMetrics, bpReadings, workoutLo
   const latestTsb = tsbValues[tsbValues.length - 1];
   const latestForm = formHistory[formHistory.length - 1];
 
+  const rangeDays = Math.round((new Date(dateRange.endDate).getTime() - new Date(dateRange.startDate).getTime()) / 86400000);
+  const rangeLabel = rangeDays <= 7 ? '7d' : rangeDays <= 30 ? '30d' : rangeDays <= 60 ? '60d' : rangeDays <= 90 ? '90d' : rangeDays <= 180 ? '6mo' : rangeDays <= 365 ? '1yr' : 'all';
+
   return (
     <div className="space-y-6">
+      {/* Date range filter */}
+      <DateRangeFilter value={dateRange} onChange={handleDateRangeChange} storageKey="trends" />
+
+      {loading && (
+        <div className="text-center py-4">
+          <p className="text-sm text-slate-400">Loading trends...</p>
+        </div>
+      )}
+
       {/* Summary row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard label="Workouts (90d)" value={String(workoutLogs.length)} />
+        <StatCard label={`Workouts (${rangeLabel})`} value={String(workoutLogs.length)} />
         <StatCard label="Total Volume" value={`${Math.round(totalVolume / 60)}h`} />
         <StatCard label="Avg TSS" value={avgTss != null ? String(avgTss) : '—'} />
         <StatCard label="Form / TSB" value={latestTsb != null ? String(Math.round(latestTsb)) : '—'} sub={latestForm?.form_status ?? undefined} />
@@ -183,7 +220,7 @@ export default function FitnessTrendsClient({ bodyMetrics, bpReadings, workoutLo
       {workoutLogs.length > 0 && (
         <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
-            <h2 className="text-sm font-semibold text-slate-700">Workout Log (last 90 days)</h2>
+            <h2 className="text-sm font-semibold text-slate-700">Workout Log ({rangeLabel})</h2>
           </div>
           <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
             {[...workoutLogs].reverse().slice(0, 50).map((log, i) => (
