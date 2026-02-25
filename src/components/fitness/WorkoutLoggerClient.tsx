@@ -24,6 +24,18 @@ type TemplateRow = {
   estimated_duration_min: number | null;
 };
 
+type RepeatSet = {
+  exercise_id: string | null;
+  set_number: number;
+  set_type: string;
+  reps: number | null;
+  weight_lbs: number | null;
+  rpe: number | null;
+  superset_group: string | null;
+  notes: string | null;
+  exercises: { name: string; category: string } | null;
+};
+
 type Props = {
   exercises: ExerciseRow[];
   templates: TemplateRow[];
@@ -39,6 +51,11 @@ type Props = {
     hrv_ms: number | null;
     resting_hr: number | null;
     sleep_score: number | null;
+  } | null;
+  repeatData?: {
+    workout_type: string;
+    template_id: string | null;
+    sets: RepeatSet[];
   } | null;
 };
 
@@ -80,7 +97,7 @@ const SET_TYPE_COLORS: Record<SetType, string> = {
 let blockIdCounter = 0;
 function nextBlockId() { return `block_${++blockIdCounter}_${Date.now()}`; }
 
-export default function WorkoutLoggerClient({ exercises, templates, todayPlan, latestMetrics }: Props) {
+export default function WorkoutLoggerClient({ exercises, templates, todayPlan, latestMetrics, repeatData }: Props) {
   const router = useRouter();
   const [mode, setMode] = useState<WorkoutMode>('select');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateRow | null>(null);
@@ -217,6 +234,57 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         });
       }
       if (newBlocks.length > 0) setBlocks(newBlocks);
+    }
+  }
+
+  // ——— Repeat previous workout ———
+  function loadRepeat() {
+    if (!repeatData || repeatData.sets.length === 0) return;
+
+    // Group sets by exercise_id, preserving order
+    const exerciseOrder: string[] = [];
+    const setsByExercise = new Map<string, RepeatSet[]>();
+
+    for (const s of repeatData.sets) {
+      const key = s.exercise_id ?? 'unknown';
+      if (!setsByExercise.has(key)) {
+        exerciseOrder.push(key);
+        setsByExercise.set(key, []);
+      }
+      setsByExercise.get(key)!.push(s);
+    }
+
+    const newBlocks: ExerciseBlock[] = [];
+    for (const exId of exerciseOrder) {
+      const exSets = setsByExercise.get(exId) ?? [];
+      const firstSet = exSets[0];
+      const ex = exId !== 'unknown' ? exerciseMap.get(exId) : null;
+      const exName = ex?.name ?? firstSet?.exercises?.name ?? 'Unknown';
+
+      const sets: LoggedSet[] = exSets.map(s => ({
+        set_type: (s.set_type as SetType) || 'working',
+        reps: s.reps ?? '',
+        weight_lbs: s.weight_lbs ?? '',
+        rpe: '',
+        rest_seconds: null,
+        notes: '',
+      }));
+
+      newBlocks.push({
+        id: nextBlockId(),
+        exercise_id: exId,
+        exercise_name: exName,
+        sets,
+        notes: '',
+        superset_group: firstSet?.superset_group ?? null,
+      });
+    }
+
+    setBlocks(newBlocks);
+    setWorkoutType(repeatData.workout_type);
+    if (repeatData.template_id) {
+      const t = templates.find(t => t.id === repeatData.template_id);
+      if (t) setSelectedTemplate(t);
     }
   }
 
@@ -532,13 +600,23 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             </div>
           )}
 
+          {repeatData && repeatData.sets.length > 0 && (
+            <div className="mb-4 rounded-xl border border-green-100 bg-green-50 p-3">
+              <p className="text-xs font-medium text-green-700">
+                Repeating previous {repeatData.workout_type} workout ({repeatData.sets.length} sets pre-filled)
+              </p>
+            </div>
+          )}
+
           <button
             onClick={() => {
               if (workoutType === 'cardio') {
                 setMode('cardio');
               } else {
-                // Pre-populate from template or plan
-                if (selectedTemplate) {
+                // Pre-populate from repeat, template, or plan
+                if (repeatData && repeatData.sets.length > 0) {
+                  loadRepeat();
+                } else if (selectedTemplate) {
                   loadTemplate(selectedTemplate);
                 } else if (todayPlan) {
                   loadPlan();
@@ -548,7 +626,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             }}
             className="w-full rounded-xl bg-slate-800 text-white text-sm font-semibold py-3 hover:bg-slate-700 min-h-[44px]"
           >
-            Start Workout
+            {repeatData ? 'Repeat Workout' : 'Start Workout'}
           </button>
         </div>
       </div>

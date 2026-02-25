@@ -324,11 +324,11 @@ export default function FitnessDashboardClient({
         <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700">Recent Workouts</h2>
-            <Link href="/fitness/trends" className="text-xs text-slate-400 hover:text-slate-600">View trends →</Link>
+            <Link href="/fitness/history" className="text-xs text-slate-400 hover:text-slate-600">View all →</Link>
           </div>
           <div className="divide-y divide-slate-100">
             {recentLogs.map((log) => (
-              <div key={log.id} className="px-5 py-3 flex items-center gap-3">
+              <Link key={log.id} href="/fitness/history" className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50/50 transition-colors">
                 <span className="text-lg shrink-0">{WORKOUT_ICONS[log.workout_type] ?? '💪'}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-700 capitalize">{log.workout_type}</p>
@@ -341,7 +341,7 @@ export default function FitnessDashboardClient({
                 {log.compliance_color && (
                   <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${COMPLIANCE_BG[log.compliance_color] ?? ''}`} />
                 )}
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -355,6 +355,7 @@ export default function FitnessDashboardClient({
           { href: '/fitness/bp', label: 'Blood Pressure', icon: '❤️' },
           { href: '/fitness/exercises', label: 'Exercises', icon: '🏋️' },
           { href: '/fitness/templates', label: 'Templates', icon: '📝' },
+          { href: '/fitness/history', label: 'History', icon: '📜' },
           { href: '/fitness/trends', label: 'Trends', icon: '📈' },
           { href: '/fitness/records', label: 'Personal Records', icon: '🏆' },
           { href: '/fitness/plans', label: 'Training Plan', icon: '📋' },
