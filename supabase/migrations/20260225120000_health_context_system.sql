@@ -17,11 +17,25 @@ create table if not exists public.health_documents (
   updated_at timestamptz default now()
 );
 
+-- Add is_current column if it doesn't exist (handles case where table was created without it)
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+    and table_name = 'health_documents'
+    and column_name = 'is_current'
+  ) then
+    alter table public.health_documents add column is_current boolean default true;
+  end if;
+end $$;
+
 create index if not exists health_documents_user_id_idx on public.health_documents(user_id);
 create index if not exists health_documents_current_idx on public.health_documents(user_id, is_current) where is_current = true;
 
 alter table public.health_documents enable row level security;
 
+drop policy if exists "health_documents_owner" on public.health_documents;
 create policy "health_documents_owner" on public.health_documents
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -43,6 +57,7 @@ create index if not exists health_document_changes_document_id_idx on public.hea
 
 alter table public.health_document_changes enable row level security;
 
+drop policy if exists "health_document_changes_owner" on public.health_document_changes;
 create policy "health_document_changes_owner" on public.health_document_changes
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -66,6 +81,7 @@ create index if not exists health_file_uploads_status_idx on public.health_file_
 
 alter table public.health_file_uploads enable row level security;
 
+drop policy if exists "health_file_uploads_owner" on public.health_file_uploads;
 create policy "health_file_uploads_owner" on public.health_file_uploads
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -92,6 +108,7 @@ create index if not exists lab_panels_status_idx on public.lab_panels(user_id, s
 
 alter table public.lab_panels enable row level security;
 
+drop policy if exists "lab_panels_owner" on public.lab_panels;
 create policy "lab_panels_owner" on public.lab_panels
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -118,6 +135,7 @@ create index if not exists lab_results_test_name_idx on public.lab_results(user_
 
 alter table public.lab_results enable row level security;
 
+drop policy if exists "lab_results_owner" on public.lab_results;
 create policy "lab_results_owner" on public.lab_results
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -136,6 +154,7 @@ create table if not exists public.lab_test_definitions (
 -- No RLS - this is reference data readable by all
 alter table public.lab_test_definitions enable row level security;
 
+drop policy if exists "lab_test_definitions_read_all" on public.lab_test_definitions;
 create policy "lab_test_definitions_read_all" on public.lab_test_definitions
   for select using (true);
 
@@ -184,6 +203,7 @@ create index if not exists genetic_markers_gene_idx on public.genetic_markers(us
 
 alter table public.genetic_markers enable row level security;
 
+drop policy if exists "genetic_markers_owner" on public.genetic_markers;
 create policy "genetic_markers_owner" on public.genetic_markers
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -215,6 +235,7 @@ create index if not exists medications_active_idx on public.medications(user_id,
 
 alter table public.medications enable row level security;
 
+drop policy if exists "medications_owner" on public.medications;
 create policy "medications_owner" on public.medications
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -238,6 +259,7 @@ create index if not exists medication_changes_medication_id_idx on public.medica
 
 alter table public.medication_changes enable row level security;
 
+drop policy if exists "medication_changes_owner" on public.medication_changes;
 create policy "medication_changes_owner" on public.medication_changes
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -266,5 +288,6 @@ create index if not exists appointments_status_idx on public.appointments(user_i
 
 alter table public.appointments enable row level security;
 
+drop policy if exists "appointments_owner" on public.appointments;
 create policy "appointments_owner" on public.appointments
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
