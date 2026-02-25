@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import RestTimer from './RestTimer';
 import PlateCalculator from './PlateCalculator';
-import type { SetType, CardioLog } from '@/lib/fitness/types';
+import type { SetType, CardioLog, WorkoutStructureItem } from '@/lib/fitness/types';
 
 type ExerciseRow = {
   id: string;
@@ -42,29 +42,30 @@ type Props = {
   } | null;
 };
 
+// ——— Internal types ———
+
 type LoggedSet = {
-  exercise_id: string;
-  exercise_name: string;
-  set_number: number;
   set_type: SetType;
   reps: number | '';
   weight_lbs: number | '';
   rpe: number | '';
   rest_seconds: number | null;
-  superset_group: string | null;
-  superset_round: number | null;
   notes: string;
+};
+
+type ExerciseBlock = {
+  id: string; // unique key for React
+  exercise_id: string;
+  exercise_name: string;
+  sets: LoggedSet[];
+  notes: string;
+  superset_group: string | null; // links blocks in the same superset
 };
 
 type WorkoutMode = 'select' | 'logging' | 'cardio' | 'complete';
 
 const SET_TYPE_LABELS: Record<SetType, string> = {
-  warmup: 'Warm',
-  working: 'Work',
-  cooldown: 'Cool',
-  drop: 'Drop',
-  failure: 'Fail',
-  amrap: 'AMRAP',
+  warmup: 'Warm', working: 'Work', cooldown: 'Cool', drop: 'Drop', failure: 'Fail', amrap: 'AMRAP',
 };
 
 const SET_TYPE_COLORS: Record<SetType, string> = {
@@ -76,13 +77,15 @@ const SET_TYPE_COLORS: Record<SetType, string> = {
   amrap: 'bg-orange-100 text-orange-700',
 };
 
+let blockIdCounter = 0;
+function nextBlockId() { return `block_${++blockIdCounter}_${Date.now()}`; }
+
 export default function WorkoutLoggerClient({ exercises, templates, todayPlan, latestMetrics }: Props) {
   const router = useRouter();
   const [mode, setMode] = useState<WorkoutMode>('select');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateRow | null>(null);
   const [workoutType, setWorkoutType] = useState<string>(todayPlan?.workout_type ?? 'strength');
-  const [sets, setSets] = useState<LoggedSet[]>([]);
-  const [currentExerciseId, setCurrentExerciseId] = useState<string>('');
+  const [blocks, setBlocks] = useState<ExerciseBlock[]>([]);
   const [duration, setDuration] = useState<number | ''>('');
   const [rpeSession, setRpeSession] = useState<number | ''>('');
   const [sessionNotes, setSessionNotes] = useState('');
@@ -100,45 +103,272 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     estimated_1rms?: Array<{ exercise: string; weight: number; reps: number; estimated_1rm: number }>;
   } | null>(null);
 
+  // Exercise picker state
+  const [showExercisePicker, setShowExercisePicker] = useState(false);
+  const [swapTarget, setSwapTarget] = useState<string | null>(null); // blockId to swap
+  const [exerciseSearch, setExerciseSearch] = useState('');
+
+  // Superset builder state
+  const [showSupersetBuilder, setShowSupersetBuilder] = useState(false);
+  const [supersetSelections, setSupersetSelections] = useState<string[]>([]);
+
   const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
-  const addSet = useCallback(() => {
-    if (!currentExerciseId) return;
-    const exercise = exerciseMap.get(currentExerciseId);
-    if (!exercise) return;
+  // ——— Template pre-fill ———
+  function loadTemplate(template: TemplateRow) {
+    const structure = Array.isArray(template.structure) ? template.structure as WorkoutStructureItem[] : [];
+    if (structure.length === 0) return;
 
-    const existingSets = sets.filter((s) => s.exercise_id === currentExerciseId);
-    const setNum = existingSets.length + 1;
-    const setType: SetType = setNum === 1 ? 'warmup' : 'working';
+    const newBlocks: ExerciseBlock[] = [];
 
-    // Pre-fill weight from last set of this exercise
-    const lastSet = existingSets[existingSets.length - 1];
+    for (const item of structure) {
+      if (item.type === 'superset') {
+        const groupId = `ss_${nextBlockId()}`;
+        for (const ssExercise of item.exercises) {
+          const ex = exerciseMap.get(ssExercise.exercise_id);
+          const sets: LoggedSet[] = [];
+          for (let r = 0; r < item.rounds; r++) {
+            sets.push({
+              set_type: 'working',
+              reps: ssExercise.target_reps || '',
+              weight_lbs: ssExercise.target_weight || '',
+              rpe: '',
+              rest_seconds: r < item.rounds - 1 ? item.rest_between_exercises : null,
+              notes: '',
+            });
+          }
+          newBlocks.push({
+            id: nextBlockId(),
+            exercise_id: ssExercise.exercise_id,
+            exercise_name: ex?.name || ssExercise.exercise_id,
+            sets,
+            notes: '',
+            superset_group: groupId,
+          });
+        }
+      } else {
+        // Standalone exercise
+        const ex = exerciseMap.get(item.exercise_id);
+        const sets: LoggedSet[] = item.sets.map((st) => ({
+          set_type: st.type,
+          reps: st.target_reps || '',
+          weight_lbs: st.target_weight || '',
+          rpe: '',
+          rest_seconds: null,
+          notes: '',
+        }));
+        // If no sets defined, add 3 working sets as default
+        if (sets.length === 0) {
+          for (let i = 0; i < 3; i++) {
+            sets.push({ set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '' });
+          }
+        }
+        newBlocks.push({
+          id: nextBlockId(),
+          exercise_id: item.exercise_id,
+          exercise_name: ex?.name || item.exercise_id,
+          sets,
+          notes: item.notes || '',
+          superset_group: null,
+        });
+      }
+    }
 
-    setSets((prev) => [
-      ...prev,
-      {
-        exercise_id: currentExerciseId,
-        exercise_name: exercise.name,
-        set_number: setNum,
-        set_type: setType,
-        reps: lastSet?.reps ?? '',
-        weight_lbs: lastSet?.weight_lbs ?? '',
-        rpe: '',
-        rest_seconds: null,
-        superset_group: null,
-        superset_round: null,
-        notes: '',
-      },
-    ]);
-  }, [currentExerciseId, sets, exerciseMap]);
+    setBlocks(newBlocks);
+  }
 
-  const updateSet = useCallback((idx: number, field: keyof LoggedSet, value: unknown) => {
-    setSets((prev) => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
-  }, []);
+  function loadPlan() {
+    // If the plan links to a template, load that template
+    if (todayPlan?.template_id) {
+      const t = templates.find(t => t.id === todayPlan.template_id);
+      if (t) {
+        setSelectedTemplate(t);
+        loadTemplate(t);
+        return;
+      }
+    }
+    // Otherwise try to use prescribed data
+    const prescribed = todayPlan?.prescribed;
+    if (prescribed && typeof prescribed === 'object' && Array.isArray((prescribed as { exercises?: unknown[] }).exercises)) {
+      const exList = (prescribed as { exercises: Array<{ exercise_id: string; sets?: number; reps?: number; weight?: number }> }).exercises;
+      const newBlocks: ExerciseBlock[] = [];
+      for (const pe of exList) {
+        const ex = exerciseMap.get(pe.exercise_id);
+        const numSets = pe.sets || 3;
+        const sets: LoggedSet[] = [];
+        for (let i = 0; i < numSets; i++) {
+          sets.push({
+            set_type: i === 0 ? 'warmup' : 'working',
+            reps: pe.reps || '',
+            weight_lbs: pe.weight || '',
+            rpe: '',
+            rest_seconds: null,
+            notes: '',
+          });
+        }
+        newBlocks.push({
+          id: nextBlockId(),
+          exercise_id: pe.exercise_id,
+          exercise_name: ex?.name || pe.exercise_id,
+          sets,
+          notes: '',
+          superset_group: null,
+        });
+      }
+      if (newBlocks.length > 0) setBlocks(newBlocks);
+    }
+  }
 
-  const removeSet = useCallback((idx: number) => {
-    setSets((prev) => prev.filter((_, i) => i !== idx));
-  }, []);
+  // ——— Block operations ———
+
+  function addExercise(exerciseId: string) {
+    const ex = exerciseMap.get(exerciseId);
+    if (!ex) return;
+    const newBlock: ExerciseBlock = {
+      id: nextBlockId(),
+      exercise_id: exerciseId,
+      exercise_name: ex.name,
+      sets: [
+        { set_type: 'warmup', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '' },
+        { set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '' },
+        { set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '' },
+      ],
+      notes: '',
+      superset_group: null,
+    };
+    setBlocks(prev => [...prev, newBlock]);
+    setShowExercisePicker(false);
+    setExerciseSearch('');
+  }
+
+  function swapExercise(blockId: string, newExerciseId: string) {
+    const ex = exerciseMap.get(newExerciseId);
+    if (!ex) return;
+    setBlocks(prev => prev.map(b =>
+      b.id === blockId ? { ...b, exercise_id: newExerciseId, exercise_name: ex.name } : b
+    ));
+    setSwapTarget(null);
+    setShowExercisePicker(false);
+    setExerciseSearch('');
+  }
+
+  function removeBlock(blockId: string) {
+    setBlocks(prev => {
+      const block = prev.find(b => b.id === blockId);
+      if (block?.superset_group) {
+        // Check if removing leaves only 1 exercise in superset — dissolve the group
+        const remaining = prev.filter(b => b.id !== blockId && b.superset_group === block.superset_group);
+        if (remaining.length <= 1) {
+          return prev.filter(b => b.id !== blockId).map(b =>
+            b.superset_group === block.superset_group ? { ...b, superset_group: null } : b
+          );
+        }
+      }
+      return prev.filter(b => b.id !== blockId);
+    });
+  }
+
+  function moveBlock(blockId: string, direction: 'up' | 'down') {
+    setBlocks(prev => {
+      const idx = prev.findIndex(b => b.id === blockId);
+      if (idx < 0) return prev;
+      const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (newIdx < 0 || newIdx >= prev.length) return prev;
+      const copy = [...prev];
+      [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
+      return copy;
+    });
+  }
+
+  function addSetToBlock(blockId: string) {
+    setBlocks(prev => prev.map(b => {
+      if (b.id !== blockId) return b;
+      const lastSet = b.sets[b.sets.length - 1];
+      return {
+        ...b,
+        sets: [...b.sets, {
+          set_type: 'working',
+          reps: lastSet?.reps ?? '',
+          weight_lbs: lastSet?.weight_lbs ?? '',
+          rpe: '',
+          rest_seconds: null,
+          notes: '',
+        }],
+      };
+    }));
+  }
+
+  function removeSetFromBlock(blockId: string, setIdx: number) {
+    setBlocks(prev => prev.map(b => {
+      if (b.id !== blockId) return b;
+      return { ...b, sets: b.sets.filter((_, i) => i !== setIdx) };
+    }));
+  }
+
+  function updateSetInBlock(blockId: string, setIdx: number, field: keyof LoggedSet, value: unknown) {
+    setBlocks(prev => prev.map(b => {
+      if (b.id !== blockId) return b;
+      return { ...b, sets: b.sets.map((s, i) => i === setIdx ? { ...s, [field]: value } : s) };
+    }));
+  }
+
+  function updateBlockNotes(blockId: string, notes: string) {
+    setBlocks(prev => prev.map(b => b.id === blockId ? { ...b, notes } : b));
+  }
+
+  // ——— Superset operations ———
+
+  function createSuperset() {
+    if (supersetSelections.length < 2) return;
+    const groupId = `ss_${nextBlockId()}`;
+    setBlocks(prev => prev.map(b =>
+      supersetSelections.includes(b.id) ? { ...b, superset_group: groupId } : b
+    ));
+    setSupersetSelections([]);
+    setShowSupersetBuilder(false);
+  }
+
+  function dissolveSuperset(groupId: string) {
+    setBlocks(prev => prev.map(b =>
+      b.superset_group === groupId ? { ...b, superset_group: null } : b
+    ));
+  }
+
+  // ——— Flatten blocks back into sets for saving ———
+  function flattenBlocksToSets() {
+    const allSets: Array<{
+      exercise_id: string | null;
+      set_number: number;
+      set_type: SetType;
+      reps: number | null;
+      weight_lbs: number | null;
+      rpe: number | null;
+      rest_seconds: number | null;
+      superset_group: string | null;
+      superset_round: number | null;
+      is_pr: boolean;
+      notes: string | null;
+    }> = [];
+
+    for (const block of blocks) {
+      block.sets.forEach((s, i) => {
+        allSets.push({
+          exercise_id: block.exercise_id || null,
+          set_number: i + 1,
+          set_type: s.set_type,
+          reps: s.reps !== '' ? Number(s.reps) : null,
+          weight_lbs: s.weight_lbs !== '' ? Number(s.weight_lbs) : null,
+          rpe: s.rpe !== '' ? Number(s.rpe) : null,
+          rest_seconds: s.rest_seconds,
+          superset_group: block.superset_group,
+          superset_round: block.superset_group ? i + 1 : null,
+          is_pr: false,
+          notes: s.notes || null,
+        });
+      });
+    }
+    return allSets;
+  }
 
   const saveWorkout = async () => {
     if (saving) return;
@@ -153,19 +383,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       notes: sessionNotes || null,
       avg_hr: avgHr !== '' ? Number(avgHr) : null,
       max_hr: maxHr !== '' ? Number(maxHr) : null,
-      sets: sets.map((s) => ({
-        exercise_id: s.exercise_id || null,
-        set_number: s.set_number,
-        set_type: s.set_type,
-        reps: s.reps !== '' ? Number(s.reps) : null,
-        weight_lbs: s.weight_lbs !== '' ? Number(s.weight_lbs) : null,
-        rpe: s.rpe !== '' ? Number(s.rpe) : null,
-        rest_seconds: s.rest_seconds,
-        superset_group: s.superset_group,
-        superset_round: s.superset_round,
-        is_pr: false,
-        notes: s.notes || null,
-      })),
+      sets: flattenBlocksToSets(),
       cardio: (workoutType === 'cardio' || workoutType === 'hybrid')
         ? { ...cardioData, hr_recovery_2min: hrRecovery2min !== '' ? Number(hrRecovery2min) : undefined }
         : null,
@@ -195,13 +413,71 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     }
   };
 
+  const totalSets = blocks.reduce((s, b) => s + b.sets.length, 0);
+
+  // ——— Exercise picker (shared by add + swap) ———
+  const filteredExercises = exercises.filter(e => {
+    if (!exerciseSearch) return true;
+    const q = exerciseSearch.toLowerCase();
+    return e.name.toLowerCase().includes(q) || e.category.toLowerCase().includes(q);
+  });
+
+  function renderExercisePicker() {
+    return (
+      <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-700">
+            {swapTarget ? 'Swap Exercise' : 'Add Exercise'}
+          </h3>
+          <button onClick={() => { setShowExercisePicker(false); setSwapTarget(null); setExerciseSearch(''); }}
+            className="text-xs text-slate-400 hover:text-slate-600">Cancel</button>
+        </div>
+        <input
+          type="text"
+          value={exerciseSearch}
+          onChange={e => setExerciseSearch(e.target.value)}
+          placeholder="Search exercises..."
+          className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full"
+          autoFocus
+        />
+        <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+          {(['push', 'pull', 'legs', 'core', 'cardio', 'mobility'] as const).map(cat => {
+            const catExercises = filteredExercises.filter(e => e.category === cat);
+            if (catExercises.length === 0) return null;
+            return (
+              <div key={cat}>
+                <div className="px-3 py-1.5 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider sticky top-0">
+                  {cat}
+                </div>
+                {catExercises.map(e => (
+                  <button
+                    key={e.id}
+                    onClick={() => swapTarget ? swapExercise(swapTarget, e.id) : addExercise(e.id)}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 flex items-center gap-2 min-h-[40px]"
+                  >
+                    <span className="flex-1">{e.name}</span>
+                    {e.equipment && <span className="text-xs text-slate-400">{e.equipment}</span>}
+                    {e.is_compound && <span className="text-xs text-blue-500">C</span>}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+          {filteredExercises.length === 0 && (
+            <p className="px-3 py-4 text-sm text-slate-400 text-center">No exercises match your search.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ——— SCREEN: Select mode ———
   if (mode === 'select') {
     return (
       <div className="space-y-4">
         {latestMetrics?.body_battery != null && latestMetrics.body_battery < 25 && (
           <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4">
-            <p className="text-sm font-semibold text-orange-800">⚠️ Low Body Battery ({latestMetrics.body_battery}/100)</p>
+            <p className="text-sm font-semibold text-orange-800">Low Body Battery ({latestMetrics.body_battery}/100)</p>
             <p className="text-xs text-orange-700 mt-0.5">Consider a recovery walk or rest day instead of intense training.</p>
           </div>
         )}
@@ -248,12 +524,24 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
           {todayPlan && (
             <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
-              <p className="text-xs font-medium text-blue-700">Today's Plan: {todayPlan.day_label ?? todayPlan.workout_type}</p>
+              <p className="text-xs font-medium text-blue-700">Today&apos;s Plan: {todayPlan.day_label ?? todayPlan.workout_type}</p>
             </div>
           )}
 
           <button
-            onClick={() => setMode(workoutType === 'cardio' ? 'cardio' : 'logging')}
+            onClick={() => {
+              if (workoutType === 'cardio') {
+                setMode('cardio');
+              } else {
+                // Pre-populate from template or plan
+                if (selectedTemplate) {
+                  loadTemplate(selectedTemplate);
+                } else if (todayPlan) {
+                  loadPlan();
+                }
+                setMode('logging');
+              }
+            }}
             className="w-full rounded-xl bg-slate-800 text-white text-sm font-semibold py-3 hover:bg-slate-700 min-h-[44px]"
           >
             Start Workout
@@ -268,7 +556,6 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     return (
       <div className="space-y-4">
         <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center shadow-sm">
-          <p className="text-4xl mb-3">✅</p>
           <h2 className="text-xl font-bold text-green-800 mb-2">Workout Saved!</h2>
           {newPRs.length > 0 && (
             <div className="mt-3 mb-4">
@@ -280,7 +567,6 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           )}
         </div>
 
-        {/* Post-workout stats */}
         {completionData && (
           <div className="grid grid-cols-2 gap-3">
             {completionData.strain_score != null && (
@@ -300,7 +586,6 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           </div>
         )}
 
-        {/* Estimated 1RMs */}
         {completionData?.estimated_1rms && completionData.estimated_1rms.length > 0 && (
           <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Estimated 1RMs</h3>
@@ -315,7 +600,6 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           </div>
         )}
 
-        {/* Recovery prediction */}
         {completionData?.recovery && (
           <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-sm">
             <h3 className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">Recovery Estimate</h3>
@@ -345,16 +629,12 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       <div className="space-y-4">
         <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Cardio Session</h2>
-
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Activity</label>
-                <select
-                  value={cardioData.activity_type}
-                  onChange={(e) => setCardioData((d) => ({ ...d, activity_type: e.target.value }))}
-                  className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
-                >
+                <select value={cardioData.activity_type} onChange={(e) => setCardioData((d) => ({ ...d, activity_type: e.target.value }))}
+                  className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full">
                   {['run', 'walk', 'bike', 'treadmill', 'elliptical', 'swim'].map((a) => (
                     <option key={a} value={a} className="capitalize">{a}</option>
                   ))}
@@ -362,16 +642,10 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
               </div>
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Duration (min)</label>
-                <input
-                  type="number"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value ? Number(e.target.value) : '')}
-                  className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
-                  placeholder="45"
-                />
+                <input type="number" value={duration} onChange={(e) => setDuration(e.target.value ? Number(e.target.value) : '')}
+                  className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="45" />
               </div>
             </div>
-
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Avg HR</label>
@@ -389,7 +663,6 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                   className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="3.1" />
               </div>
             </div>
-
             <div>
               <label className="text-xs text-slate-500 block mb-2">Time in Zones (minutes)</label>
               <div className="grid grid-cols-4 gap-2">
@@ -399,20 +672,14 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                   return (
                     <div key={z}>
                       <label className={`text-xs font-medium block mb-1 px-2 py-0.5 rounded ${colors[i]}`}>Z{i + 1}</label>
-                      <input
-                        type="number"
-                        step="0.5"
-                        value={(cardioData[key] as number | undefined) ?? ''}
+                      <input type="number" step="0.5" value={(cardioData[key] as number | undefined) ?? ''}
                         onChange={(e) => setCardioData((d) => ({ ...d, [key]: e.target.value ? Number(e.target.value) : undefined }))}
-                        className="rounded-xl border border-slate-200 px-2 py-2 text-sm w-full text-center"
-                        placeholder="0"
-                      />
+                        className="rounded-xl border border-slate-200 px-2 py-2 text-sm w-full text-center" placeholder="0" />
                     </div>
                   );
                 })}
               </div>
             </div>
-
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Z2 Drift (min)</label>
@@ -430,27 +697,17 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                   className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="40" />
               </div>
             </div>
-
             <div>
               <label className="text-xs text-slate-500 block mb-1">Session Notes</label>
-              <textarea
-                value={sessionNotes}
-                onChange={(e) => setSessionNotes(e.target.value)}
-                rows={2}
-                className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full"
-                placeholder="How did it feel? Weather? Route?"
-              />
+              <textarea value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} rows={2}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full" placeholder="How did it feel? Weather? Route?" />
             </div>
-
             <div>
               <label className="text-xs text-slate-500 block mb-1">Session RPE (1-10)</label>
               <div className="flex gap-1.5">
                 {[...Array(10)].map((_, i) => (
-                  <button
-                    key={i + 1}
-                    onClick={() => setRpeSession(i + 1)}
-                    className={`h-9 w-9 rounded-lg text-xs font-medium ${rpeSession === i + 1 ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}
-                  >
+                  <button key={i + 1} onClick={() => setRpeSession(i + 1)}
+                    className={`h-9 w-9 rounded-lg text-xs font-medium ${rpeSession === i + 1 ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}>
                     {i + 1}
                   </button>
                 ))}
@@ -458,12 +715,8 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             </div>
           </div>
         </div>
-
-        <button
-          onClick={saveWorkout}
-          disabled={saving}
-          className="w-full rounded-xl bg-green-700 text-white text-sm font-semibold py-3 hover:bg-green-800 min-h-[44px] disabled:opacity-50"
-        >
+        <button onClick={saveWorkout} disabled={saving}
+          className="w-full rounded-xl bg-green-700 text-white text-sm font-semibold py-3 hover:bg-green-800 min-h-[44px] disabled:opacity-50">
           {saving ? 'Saving...' : 'Complete Workout'}
         </button>
       </div>
@@ -471,211 +724,244 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   }
 
   // ——— SCREEN: Strength logging ———
-  const exercisesByGroup = sets.reduce<Record<string, LoggedSet[]>>((acc, s) => {
-    const key = `${s.exercise_id}:${s.exercise_name}`;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(s);
-    return acc;
-  }, {});
+
+  // Group blocks by superset for rendering
+  const orderedItems: Array<{ type: 'standalone'; block: ExerciseBlock } | { type: 'superset'; groupId: string; blocks: ExerciseBlock[] }> = [];
+  const seenGroups = new Set<string>();
+
+  for (const block of blocks) {
+    if (block.superset_group) {
+      if (!seenGroups.has(block.superset_group)) {
+        seenGroups.add(block.superset_group);
+        orderedItems.push({
+          type: 'superset',
+          groupId: block.superset_group,
+          blocks: blocks.filter(b => b.superset_group === block.superset_group),
+        });
+      }
+    } else {
+      orderedItems.push({ type: 'standalone', block });
+    }
+  }
+
+  function renderSetRow(block: ExerciseBlock, s: LoggedSet, setIdx: number) {
+    return (
+      <div key={setIdx} className="px-3 py-2">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span className="text-xs text-slate-400 w-5 text-center">#{setIdx + 1}</span>
+          <div className="flex gap-1 flex-wrap">
+            {(Object.keys(SET_TYPE_LABELS) as SetType[]).map((t) => (
+              <button key={t} onClick={() => updateSetInBlock(block.id, setIdx, 'set_type', t)}
+                className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium min-h-[24px] ${
+                  s.set_type === t ? SET_TYPE_COLORS[t] : 'bg-slate-100 text-slate-400'
+                }`}>
+                {SET_TYPE_LABELS[t]}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => removeSetFromBlock(block.id, setIdx)}
+            className="ml-auto text-slate-300 hover:text-red-400 text-sm leading-none min-h-[24px] min-w-[24px]">
+            ×
+          </button>
+        </div>
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <label className="text-[10px] text-slate-400 block mb-0.5">Weight</label>
+            <input type="number" step="2.5" value={s.weight_lbs}
+              onChange={(e) => updateSetInBlock(block.id, setIdx, 'weight_lbs', e.target.value ? Number(e.target.value) : '')}
+              className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm text-center font-medium" placeholder="lbs" />
+          </div>
+          <div className="flex-1">
+            <label className="text-[10px] text-slate-400 block mb-0.5">Reps</label>
+            <input type="number" value={s.reps}
+              onChange={(e) => updateSetInBlock(block.id, setIdx, 'reps', e.target.value ? Number(e.target.value) : '')}
+              className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm text-center font-medium" placeholder="reps" />
+          </div>
+          <div className="w-14">
+            <label className="text-[10px] text-slate-400 block mb-0.5">RPE</label>
+            <input type="number" min={1} max={10} step={0.5} value={s.rpe}
+              onChange={(e) => updateSetInBlock(block.id, setIdx, 'rpe', e.target.value ? Number(e.target.value) : '')}
+              className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm text-center" placeholder="—" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderExerciseBlock(block: ExerciseBlock, showReorder = true) {
+    const blockIdx = blocks.findIndex(b => b.id === block.id);
+    return (
+      <div key={block.id} className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
+        {/* Exercise header */}
+        <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center gap-2">
+          <p className="text-sm font-semibold text-slate-800 flex-1">{block.exercise_name}</p>
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={() => { setSwapTarget(block.id); setShowExercisePicker(true); }}
+              className="text-[10px] text-slate-400 hover:text-blue-500 px-1.5 py-1 rounded min-h-[28px]" title="Swap exercise">
+              Swap
+            </button>
+            {showReorder && (
+              <>
+                <button onClick={() => moveBlock(block.id, 'up')} disabled={blockIdx === 0}
+                  className="text-slate-300 hover:text-slate-600 disabled:opacity-30 text-xs px-1 min-h-[28px]" title="Move up">
+                  ↑
+                </button>
+                <button onClick={() => moveBlock(block.id, 'down')} disabled={blockIdx === blocks.length - 1}
+                  className="text-slate-300 hover:text-slate-600 disabled:opacity-30 text-xs px-1 min-h-[28px]" title="Move down">
+                  ↓
+                </button>
+              </>
+            )}
+            <button onClick={() => removeBlock(block.id)}
+              className="text-slate-300 hover:text-red-400 text-sm px-1 min-h-[28px]" title="Remove exercise">
+              ×
+            </button>
+          </div>
+        </div>
+
+        {/* Sets */}
+        <div className="divide-y divide-slate-100">
+          {block.sets.map((s, setIdx) => renderSetRow(block, s, setIdx))}
+        </div>
+
+        {/* Add set + notes */}
+        <div className="px-4 py-2 border-t border-slate-100 flex items-center gap-2">
+          <button onClick={() => addSetToBlock(block.id)}
+            className="text-xs text-blue-600 hover:text-blue-800 font-medium min-h-[32px]">
+            + Add Set
+          </button>
+          <div className="flex-1" />
+          <input
+            type="text"
+            value={block.notes}
+            onChange={e => updateBlockNotes(block.id, e.target.value)}
+            placeholder="Exercise notes..."
+            className="text-xs border-none bg-transparent text-slate-400 placeholder:text-slate-300 text-right w-40 focus:outline-none"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {/* Exercise selector */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
-        <div className="flex gap-2">
-          <select
-            value={currentExerciseId}
-            onChange={(e) => setCurrentExerciseId(e.target.value)}
-            className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-          >
-            <option value="">— Select exercise —</option>
-            {(['push', 'pull', 'legs', 'core', 'cardio', 'mobility'] as const).map((cat) => {
-              const catExercises = exercises.filter((e) => e.category === cat);
-              if (catExercises.length === 0) return null;
-              return (
-                <optgroup key={cat} label={cat.charAt(0).toUpperCase() + cat.slice(1)}>
-                  {catExercises.map((e) => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
-                  ))}
-                </optgroup>
-              );
-            })}
-          </select>
-          <button
-            onClick={addSet}
-            disabled={!currentExerciseId}
-            className="rounded-xl bg-slate-800 text-white text-sm font-medium px-4 py-2.5 hover:bg-slate-700 disabled:opacity-40 min-h-[44px] min-w-[44px]"
-          >
-            + Set
+      {/* Exercise picker overlay */}
+      {showExercisePicker && renderExercisePicker()}
+
+      {/* Superset builder */}
+      {showSupersetBuilder && (
+        <div className="rounded-2xl border border-purple-200 bg-purple-50/50 p-4 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-700">Create Superset</h3>
+            <button onClick={() => { setShowSupersetBuilder(false); setSupersetSelections([]); }}
+              className="text-xs text-slate-400 hover:text-slate-600">Cancel</button>
+          </div>
+          <p className="text-xs text-slate-500">Select 2-3 exercises to group as a superset:</p>
+          <div className="space-y-1">
+            {blocks.filter(b => !b.superset_group).map(b => (
+              <label key={b.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer px-2 py-1.5 rounded-lg hover:bg-purple-100">
+                <input type="checkbox" checked={supersetSelections.includes(b.id)}
+                  onChange={e => {
+                    if (e.target.checked) setSupersetSelections(prev => [...prev, b.id]);
+                    else setSupersetSelections(prev => prev.filter(id => id !== b.id));
+                  }}
+                  className="rounded border-slate-300" />
+                {b.exercise_name}
+              </label>
+            ))}
+          </div>
+          <button onClick={createSuperset} disabled={supersetSelections.length < 2}
+            className="text-xs font-medium text-purple-600 hover:text-purple-800 disabled:opacity-40 min-h-[32px]">
+            Group as Superset ({supersetSelections.length} selected)
           </button>
         </div>
-      </div>
+      )}
 
-      {/* Logged sets by exercise */}
-      {Object.entries(exercisesByGroup).map(([key, exerciseSets]) => {
-        const [, name] = key.split(':');
-        return (
-          <div key={key} className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100">
-              <p className="text-sm font-semibold text-slate-800">{name}</p>
+      {/* Exercise blocks */}
+      {orderedItems.map((item) => {
+        if (item.type === 'superset') {
+          return (
+            <div key={item.groupId} className="rounded-2xl border-2 border-purple-200 bg-purple-50/30 p-2 space-y-2">
+              <div className="flex items-center justify-between px-2 py-1">
+                <span className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Superset</span>
+                <button onClick={() => dissolveSuperset(item.groupId)}
+                  className="text-[10px] text-purple-400 hover:text-purple-600">Ungroup</button>
+              </div>
+              {item.blocks.map(b => renderExerciseBlock(b, false))}
             </div>
-            <div className="divide-y divide-slate-100">
-              {exerciseSets.map((s, localIdx) => {
-                const globalIdx = sets.indexOf(s);
-                return (
-                  <div key={globalIdx} className="px-4 py-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs text-slate-400 w-6">#{s.set_number}</span>
-                      <div className="flex gap-1">
-                        {(Object.keys(SET_TYPE_LABELS) as SetType[]).map((t) => (
-                          <button
-                            key={t}
-                            onClick={() => updateSet(globalIdx, 'set_type', t)}
-                            className={`rounded-lg px-2 py-1 text-xs font-medium min-h-[32px] ${
-                              s.set_type === t ? SET_TYPE_COLORS[t] : 'bg-slate-100 text-slate-500'
-                            }`}
-                          >
-                            {SET_TYPE_LABELS[t]}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        onClick={() => removeSet(globalIdx)}
-                        className="ml-auto text-slate-300 hover:text-red-400 text-lg leading-none min-h-[32px] min-w-[32px]"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <div className="flex gap-2 items-end">
-                      <div className="flex-1">
-                        <label className="text-xs text-slate-400 block mb-0.5">Weight (lbs)</label>
-                        <input
-                          type="number"
-                          step="2.5"
-                          value={s.weight_lbs}
-                          onChange={(e) => updateSet(globalIdx, 'weight_lbs', e.target.value ? Number(e.target.value) : '')}
-                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-center font-medium"
-                          placeholder="135"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-xs text-slate-400 block mb-0.5">Reps</label>
-                        <input
-                          type="number"
-                          value={s.reps}
-                          onChange={(e) => updateSet(globalIdx, 'reps', e.target.value ? Number(e.target.value) : '')}
-                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-center font-medium"
-                          placeholder="5"
-                        />
-                      </div>
-                      <div className="w-16">
-                        <label className="text-xs text-slate-400 block mb-0.5">RPE</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="10"
-                          step="0.5"
-                          value={s.rpe}
-                          onChange={(e) => updateSet(globalIdx, 'rpe', e.target.value ? Number(e.target.value) : '')}
-                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-center"
-                          placeholder="7"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
+          );
+        }
+        return renderExerciseBlock(item.block);
       })}
+
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <button onClick={() => { setSwapTarget(null); setShowExercisePicker(true); }}
+          className="flex-1 rounded-xl border border-dashed border-slate-300 text-sm text-slate-400 py-3 hover:border-slate-400 hover:text-slate-500 min-h-[44px]">
+          + Add Exercise
+        </button>
+        {blocks.filter(b => !b.superset_group).length >= 2 && (
+          <button onClick={() => setShowSupersetBuilder(true)}
+            className="rounded-xl border border-dashed border-purple-300 text-sm text-purple-400 px-4 py-3 hover:border-purple-400 hover:text-purple-500 min-h-[44px]">
+            Superset
+          </button>
+        )}
+      </div>
 
       {/* Rest timer */}
       <RestTimer defaultSeconds={90} />
 
       {/* Plate calculator toggle */}
-      <button
-        onClick={() => setShowPlateCalc((v) => !v)}
-        className="w-full text-left rounded-2xl border border-white/80 bg-white/70 px-4 py-3 text-sm font-medium text-slate-700 shadow-sm hover:bg-white/90"
-      >
+      <button onClick={() => setShowPlateCalc((v) => !v)}
+        className="w-full text-left rounded-2xl border border-white/80 bg-white/70 px-4 py-3 text-sm font-medium text-slate-700 shadow-sm hover:bg-white/90">
         {showPlateCalc ? '▼' : '▶'} Plate Calculator
       </button>
       {showPlateCalc && <PlateCalculator />}
 
       {/* Session wrap-up */}
       <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm space-y-3">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Session Summary</h3>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-slate-500 block mb-1">Duration (min)</label>
-            <input
-              type="number"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value ? Number(e.target.value) : '')}
-              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
-              placeholder="60"
-            />
+            <input type="number" value={duration} onChange={(e) => setDuration(e.target.value ? Number(e.target.value) : '')}
+              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="60" />
           </div>
           <div>
             <label className="text-xs text-slate-500 block mb-1">Session RPE</label>
             <div className="flex gap-1">
-              {[5,6,7,8,9,10].map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRpeSession(r)}
-                  className={`flex-1 rounded-lg py-2 text-xs font-medium min-h-[40px] ${rpeSession === r ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}
-                >
+              {[5, 6, 7, 8, 9, 10].map((r) => (
+                <button key={r} onClick={() => setRpeSession(r)}
+                  className={`flex-1 rounded-lg py-2 text-xs font-medium min-h-[40px] ${rpeSession === r ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}>
                   {r}
                 </button>
               ))}
             </div>
           </div>
         </div>
-
-        {/* HR from watch/strap — links strength workout to HR data */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-slate-500 block mb-1">Avg HR (bpm)</label>
-            <input
-              type="number"
-              value={avgHr}
-              onChange={(e) => setAvgHr(e.target.value ? Number(e.target.value) : '')}
-              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
-              placeholder="From watch"
-            />
+            <input type="number" value={avgHr} onChange={(e) => setAvgHr(e.target.value ? Number(e.target.value) : '')}
+              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="From watch" />
           </div>
           <div>
             <label className="text-xs text-slate-500 block mb-1">Max HR (bpm)</label>
-            <input
-              type="number"
-              value={maxHr}
-              onChange={(e) => setMaxHr(e.target.value ? Number(e.target.value) : '')}
-              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
-              placeholder="From watch"
-            />
+            <input type="number" value={maxHr} onChange={(e) => setMaxHr(e.target.value ? Number(e.target.value) : '')}
+              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="From watch" />
           </div>
         </div>
-
-        <textarea
-          value={sessionNotes}
-          onChange={(e) => setSessionNotes(e.target.value)}
-          rows={2}
-          placeholder="Session notes..."
-          className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full"
-        />
+        <textarea value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} rows={2}
+          placeholder="Session notes..." className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full" />
       </div>
 
-      <button
-        onClick={saveWorkout}
-        disabled={saving || sets.length === 0}
-        className="w-full rounded-xl bg-green-700 text-white text-sm font-semibold py-3 hover:bg-green-800 min-h-[44px] disabled:opacity-50"
-      >
-        {saving ? 'Saving...' : `Complete Workout (${sets.length} sets)`}
+      <button onClick={saveWorkout} disabled={saving || totalSets === 0}
+        className="w-full rounded-xl bg-green-700 text-white text-sm font-semibold py-3 hover:bg-green-800 min-h-[44px] disabled:opacity-50">
+        {saving ? 'Saving...' : `Complete Workout (${blocks.length} exercises, ${totalSets} sets)`}
       </button>
 
-      <button
-        onClick={() => router.back()}
-        className="w-full rounded-xl border border-slate-200 text-slate-600 text-sm py-2.5 hover:bg-slate-50"
-      >
+      <button onClick={() => router.back()}
+        className="w-full rounded-xl border border-slate-200 text-slate-600 text-sm py-2.5 hover:bg-slate-50">
         Cancel
       </button>
     </div>
