@@ -20,6 +20,8 @@ export default async function FitnessPage() {
     { data: latestForm },
     { data: unacknowledgedInsights },
     { data: weekPlanned },
+    { data: readiness },
+    { data: strain },
   ] = await Promise.all([
     supabase
       .from('planned_workouts')
@@ -69,6 +71,18 @@ export default async function FitnessPage() {
       .gte('scheduled_date', weekStart)
       .lte('scheduled_date', today)
       .order('scheduled_date', { ascending: true }),
+    supabase
+      .from('daily_readiness')
+      .select('readiness_score, readiness_color, readiness_label, recommendation')
+      .eq('user_id', user.id)
+      .eq('calc_date', today)
+      .maybeSingle(),
+    supabase
+      .from('daily_strain')
+      .select('strain_score, strain_level')
+      .eq('user_id', user.id)
+      .eq('calc_date', today)
+      .maybeSingle(),
   ]);
 
   // Get workout logs for this week to cross-reference with planned
@@ -95,6 +109,8 @@ export default async function FitnessPage() {
         alerts={unacknowledgedInsights ?? []}
         weekPlanned={weekPlanned ?? []}
         weekLogs={weekLogs ?? []}
+        readiness={readiness}
+        strain={strain}
       />
     </main>
   );

@@ -3,6 +3,10 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { calcTss } from '@/lib/fitness/tss';
 import { calcCompliance } from '@/lib/fitness/compliance';
 import { classifyBP } from '@/lib/fitness/alerts';
+import { calculateCardiacEfficiency, cardiacCost } from '@/lib/fitness/cardiac-efficiency';
+import { bestEstimated1RM } from '@/lib/fitness/estimated1rm';
+import { predictRecovery } from '@/lib/fitness/recovery';
+import { calculateWorkoutStrain } from '@/lib/fitness/strain';
 import type { SetLog, CardioLog } from '@/lib/fitness/types';
 
 export async function POST(req: Request) {
@@ -14,14 +18,18 @@ export async function POST(req: Request) {
   let body: {
     planned_workout_id?: string | null;
     template_id?: string | null;
+    garmin_activity_id?: string | null;
     workout_type: string;
     duration_minutes: number | null;
     rpe_session: number | null;
+    avg_hr?: number | null;
+    max_hr?: number | null;
     notes: string | null;
     sets: SetLog[];
     cardio?: CardioLog | null;
     planned_duration_min?: number | null;
     planned_tss?: number | null;
+    source?: string;
   };
 
   try {
@@ -49,13 +57,32 @@ export async function POST(req: Request) {
     actual_tss: tss,
   });
 
-  // Insert workout log
+  // Calculate workout strain
+  const strainScore = calculateWorkoutStrain({
+    type: workoutData.workout_type as 'strength' | 'cardio' | 'hiit' | 'hybrid',
+    duration_min: workoutData.duration_minutes ?? 0,
+    avg_hr: cardio?.avg_hr ?? workoutData.avg_hr ?? null,
+    max_hr: cardio?.max_hr ?? workoutData.max_hr ?? null,
+    time_in_zone_min: cardio ? {
+      z1: Number(cardio.time_in_zone1_min) || 0,
+      z2: Number(cardio.time_in_zone2_min) || 0,
+      z3: Number(cardio.time_in_zone3_min) || 0,
+      z4: Number(cardio.time_in_zone4_min) || 0,
+    } : null,
+    avg_power_watts: cardio?.avg_power_watts ?? null,
+    tss,
+    session_rpe: workoutData.rpe_session,
+    total_volume_lbs: null,
+  });
+
+  // Insert workout log (now includes HR, source, strain)
   const { data: log, error: logError } = await supabase
     .from('workout_logs')
     .insert({
       user_id: user.id,
       planned_workout_id: workoutData.planned_workout_id ?? null,
       template_id: workoutData.template_id ?? null,
+      garmin_activity_id: workoutData.garmin_activity_id ?? null,
       workout_type: workoutData.workout_type,
       duration_minutes: workoutData.duration_minutes,
       rpe_session: workoutData.rpe_session,
@@ -64,6 +91,10 @@ export async function POST(req: Request) {
       intensity_factor: cardio?.avg_hr ? Math.round((cardio.avg_hr / 140) * 1000) / 1000 : null,
       compliance_pct: compliance.pct,
       compliance_color: compliance.color,
+      avg_hr: workoutData.avg_hr ?? null,
+      max_hr: workoutData.max_hr ?? null,
+      source: workoutData.source ?? 'manual',
+      strain_score: strainScore,
     })
     .select('id')
     .single();
@@ -134,8 +165,69 @@ export async function POST(req: Request) {
     }
   }
 
-  // Insert cardio log
+  // Estimated 1RM detection for strength exercises
+  const estimated1rms: { exercise_name: string; e1rm: number }[] = [];
+  if (sets && sets.length > 0) {
+    // Group sets by exercise for 1RM calculation
+    const exerciseSets = new Map<string, { reps: number | null; weight_lbs: number | null; set_type: string }[]>();
+    for (const s of sets) {
+      if (!s.exercise_id) continue;
+      const group = exerciseSets.get(s.exercise_id) ?? [];
+      group.push({ reps: s.reps, weight_lbs: s.weight_lbs, set_type: s.set_type });
+      exerciseSets.set(s.exercise_id, group);
+    }
+
+    for (const [exerciseId, exerciseSetsArr] of exerciseSets) {
+      const best = bestEstimated1RM(exerciseSetsArr);
+      if (best) {
+        // Check if this is a new estimated 1RM PR
+        const { data: existingE1rm } = await supabase
+          .from('personal_records')
+          .select('value')
+          .eq('user_id', user.id)
+          .eq('exercise_id', exerciseId)
+          .eq('record_type', 'estimated_1rm')
+          .order('value', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!existingE1rm || best.e1rm > existingE1rm.value) {
+          const { data: ex } = await supabase
+            .from('exercises')
+            .select('name')
+            .eq('id', exerciseId)
+            .maybeSingle();
+
+          await supabase.from('personal_records').insert({
+            user_id: user.id,
+            exercise_id: exerciseId,
+            record_type: 'estimated_1rm',
+            value: best.e1rm,
+            unit: 'lbs',
+            achieved_date: new Date().toISOString().slice(0, 10),
+            workout_log_id: log.id,
+            notes: `Based on ${best.based_on_weight}lbs × ${best.based_on_reps} reps`,
+          });
+
+          if (ex?.name) estimated1rms.push({ exercise_name: ex.name, e1rm: best.e1rm });
+        }
+      }
+    }
+  }
+
+  // Insert cardio log with cardiac efficiency
+  let cardiacEfficiencyValue: number | null = null;
   if (cardio) {
+    // Calculate cardiac efficiency
+    const efficiency = calculateCardiacEfficiency({
+      activity_type: cardio.activity_type,
+      avg_hr: cardio.avg_hr,
+      avg_pace_per_mile: cardio.avg_pace_per_mile,
+      avg_power_watts: cardio.avg_power_watts,
+      duration_min: workoutData.duration_minutes ?? 0,
+    });
+    cardiacEfficiencyValue = efficiency.efficiency;
+
     await supabase.from('cardio_logs').insert({
       workout_log_id: log.id,
       activity_type: cardio.activity_type,
@@ -150,11 +242,15 @@ export async function POST(req: Request) {
       avg_pace_per_mile: cardio.avg_pace_per_mile,
       calories: cardio.calories,
       hr_recovery_1min: cardio.hr_recovery_1min,
+      hr_recovery_2min: cardio.hr_recovery_2min,
       z2_drift_duration_min: cardio.z2_drift_duration_min,
       cardiac_drift_pct: cardio.cardiac_drift_pct,
       avg_power_watts: cardio.avg_power_watts,
       max_power_watts: cardio.max_power_watts,
       normalized_power: cardio.normalized_power,
+      cardiac_efficiency: efficiency.efficiency,
+      cardiac_cost: efficiency.cost,
+      efficiency_type: efficiency.type,
       weather_data: cardio.weather_data,
     });
 
@@ -168,7 +264,77 @@ export async function POST(req: Request) {
         priority: 'critical',
       });
     }
+
+    // Check for cardiac efficiency PR (best watts/bpm or speed/bpm)
+    if (efficiency.efficiency && efficiency.type) {
+      const prType = efficiency.type === 'cycling' ? 'best_pace' : 'best_pace'; // reuse type
+      const { data: existingEfficiency } = await supabase
+        .from('personal_records')
+        .select('value')
+        .eq('user_id', user.id)
+        .eq('record_type', prType)
+        .is('exercise_id', null)
+        .order('value', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Higher efficiency is better
+      if (!existingEfficiency || efficiency.efficiency > existingEfficiency.value) {
+        await supabase.from('personal_records').insert({
+          user_id: user.id,
+          exercise_id: null,
+          record_type: prType,
+          value: efficiency.efficiency,
+          unit: efficiency.type === 'cycling' ? 'W/bpm' : '(m/min)/bpm',
+          achieved_date: new Date().toISOString().slice(0, 10),
+          workout_log_id: log.id,
+          notes: `Cardiac efficiency: ${efficiency.efficiency} ${efficiency.type === 'cycling' ? 'W/bpm' : '(m/min)/bpm'}`,
+        });
+      }
+    }
   }
 
-  return NextResponse.json({ ok: true, workout_id: log.id, new_prs: newPRs });
+  // Mark planned workout as completed if linked
+  if (workoutData.planned_workout_id) {
+    await supabase.from('planned_workouts')
+      .update({ status: 'completed' })
+      .eq('id', workoutData.planned_workout_id);
+  }
+
+  // Trigger strain recalculation (fire and forget)
+  fetch(new URL('/api/fitness/strain', req.url).toString(), {
+    method: 'POST',
+    headers: { cookie: req.headers.get('cookie') ?? '' },
+  }).catch(() => { /* non-critical */ });
+
+  // Recovery prediction
+  let recovery = null;
+  if (strainScore > 0) {
+    const { data: readinessData } = await supabase
+      .from('daily_readiness')
+      .select('readiness_score')
+      .eq('user_id', user.id)
+      .order('calc_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    recovery = predictRecovery({
+      session_strain: strainScore,
+      current_readiness: readinessData?.readiness_score ?? 60,
+    });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    workout_id: log.id,
+    new_prs: newPRs,
+    estimated_1rms: estimated1rms,
+    strain_score: strainScore,
+    cardiac_efficiency: cardiacEfficiencyValue,
+    recovery: recovery ? {
+      estimated_hours: recovery.estimated_recovery_hours,
+      ready_by: recovery.ready_by.toISOString(),
+      message: recovery.message,
+    } : null,
+  });
 }

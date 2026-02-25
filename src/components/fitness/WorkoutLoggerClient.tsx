@@ -90,6 +90,15 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   const [saving, setSaving] = useState(false);
   const [newPRs, setNewPRs] = useState<string[]>([]);
   const [showPlateCalc, setShowPlateCalc] = useState(false);
+  const [hrRecovery2min, setHrRecovery2min] = useState<number | ''>('');
+  const [avgHr, setAvgHr] = useState<number | ''>('');
+  const [maxHr, setMaxHr] = useState<number | ''>('');
+  const [completionData, setCompletionData] = useState<{
+    strain_score?: number;
+    cardiac_efficiency?: { efficiency_value: number; efficiency_type: string } | null;
+    recovery?: { hours_to_ready: number; next_hard_date: string; suggested_next: string } | null;
+    estimated_1rms?: Array<{ exercise: string; weight: number; reps: number; estimated_1rm: number }>;
+  } | null>(null);
 
   const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
@@ -142,6 +151,8 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       duration_minutes: duration !== '' ? Number(duration) : null,
       rpe_session: rpeSession !== '' ? Number(rpeSession) : null,
       notes: sessionNotes || null,
+      avg_hr: avgHr !== '' ? Number(avgHr) : null,
+      max_hr: maxHr !== '' ? Number(maxHr) : null,
       sets: sets.map((s) => ({
         exercise_id: s.exercise_id || null,
         set_number: s.set_number,
@@ -155,7 +166,9 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         is_pr: false,
         notes: s.notes || null,
       })),
-      cardio: (workoutType === 'cardio' || workoutType === 'hybrid') ? cardioData : null,
+      cardio: (workoutType === 'cardio' || workoutType === 'hybrid')
+        ? { ...cardioData, hr_recovery_2min: hrRecovery2min !== '' ? Number(hrRecovery2min) : undefined }
+        : null,
     };
 
     try {
@@ -167,6 +180,12 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       const data = await res.json();
       if (data.ok) {
         if (data.new_prs?.length > 0) setNewPRs(data.new_prs);
+        setCompletionData({
+          strain_score: data.strain_score,
+          cardiac_efficiency: data.cardiac_efficiency,
+          recovery: data.recovery,
+          estimated_1rms: data.estimated_1rms,
+        });
         setMode('complete');
       }
     } catch (err) {
@@ -253,19 +272,69 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           <h2 className="text-xl font-bold text-green-800 mb-2">Workout Saved!</h2>
           {newPRs.length > 0 && (
             <div className="mt-3 mb-4">
-              <p className="text-sm font-semibold text-green-700 mb-1">🏆 New Personal Records!</p>
+              <p className="text-sm font-semibold text-green-700 mb-1">New Personal Records!</p>
               {newPRs.map((pr) => (
                 <p key={pr} className="text-sm text-green-700">{pr}</p>
               ))}
             </div>
           )}
-          <button
-            onClick={() => router.push('/fitness')}
-            className="mt-4 rounded-xl bg-slate-800 text-white text-sm font-medium px-6 py-2.5 hover:bg-slate-700 min-h-[44px]"
-          >
-            Back to Dashboard
-          </button>
         </div>
+
+        {/* Post-workout stats */}
+        {completionData && (
+          <div className="grid grid-cols-2 gap-3">
+            {completionData.strain_score != null && (
+              <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm text-center">
+                <p className="text-xs text-slate-500">Workout Strain</p>
+                <p className="text-2xl font-bold">{completionData.strain_score.toFixed(1)}</p>
+                <p className="text-xs text-slate-400">/ 21</p>
+              </div>
+            )}
+            {completionData.cardiac_efficiency && (
+              <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm text-center">
+                <p className="text-xs text-slate-500">Cardiac Efficiency</p>
+                <p className="text-2xl font-bold">{completionData.cardiac_efficiency.efficiency_value.toFixed(3)}</p>
+                <p className="text-xs text-slate-400">{completionData.cardiac_efficiency.efficiency_type}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Estimated 1RMs */}
+        {completionData?.estimated_1rms && completionData.estimated_1rms.length > 0 && (
+          <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Estimated 1RMs</h3>
+            <div className="space-y-1.5">
+              {completionData.estimated_1rms.map((e, i) => (
+                <div key={i} className="flex justify-between text-sm">
+                  <span className="text-slate-700">{e.exercise}</span>
+                  <span className="font-mono font-medium">{Math.round(e.estimated_1rm)} lbs</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recovery prediction */}
+        {completionData?.recovery && (
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-sm">
+            <h3 className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">Recovery Estimate</h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-800">{Math.round(completionData.recovery.hours_to_ready)}h to full recovery</p>
+                <p className="text-xs text-blue-600 mt-0.5">Next hard session: {completionData.recovery.next_hard_date}</p>
+              </div>
+              <p className="text-xs text-blue-500 capitalize">{completionData.recovery.suggested_next}</p>
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={() => router.push('/fitness')}
+          className="w-full rounded-xl bg-slate-800 text-white text-sm font-medium px-6 py-2.5 hover:bg-slate-700 min-h-[44px]"
+        >
+          Back to Dashboard
+        </button>
       </div>
     );
   }
@@ -344,16 +413,21 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="text-xs text-slate-500 block mb-1">Z2 Drift Duration (min)</label>
+                <label className="text-xs text-slate-500 block mb-1">Z2 Drift (min)</label>
                 <input type="number" step="0.5" value={cardioData.z2_drift_duration_min ?? ''} onChange={(e) => setCardioData((d) => ({ ...d, z2_drift_duration_min: e.target.value ? Number(e.target.value) : undefined }))}
                   className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="8.5" />
               </div>
               <div>
-                <label className="text-xs text-slate-500 block mb-1">HR Recovery (1min, bpm)</label>
+                <label className="text-xs text-slate-500 block mb-1">HR Rec 1min</label>
                 <input type="number" value={cardioData.hr_recovery_1min ?? ''} onChange={(e) => setCardioData((d) => ({ ...d, hr_recovery_1min: e.target.value ? Number(e.target.value) : undefined }))}
                   className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="25" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">HR Rec 2min</label>
+                <input type="number" value={hrRecovery2min} onChange={(e) => setHrRecovery2min(e.target.value ? Number(e.target.value) : '')}
+                  className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="40" />
               </div>
             </div>
 
@@ -554,6 +628,30 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* HR from watch/strap — links strength workout to HR data */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Avg HR (bpm)</label>
+            <input
+              type="number"
+              value={avgHr}
+              onChange={(e) => setAvgHr(e.target.value ? Number(e.target.value) : '')}
+              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+              placeholder="From watch"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Max HR (bpm)</label>
+            <input
+              type="number"
+              value={maxHr}
+              onChange={(e) => setMaxHr(e.target.value ? Number(e.target.value) : '')}
+              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+              placeholder="From watch"
+            />
           </div>
         </div>
 

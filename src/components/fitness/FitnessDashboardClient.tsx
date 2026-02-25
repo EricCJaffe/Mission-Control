@@ -67,6 +67,16 @@ type Props = {
     duration_minutes: number | null;
     compliance_color: string | null;
   }>;
+  readiness: {
+    readiness_score: number;
+    readiness_color: string;
+    readiness_label: string;
+    recommendation: string | null;
+  } | null;
+  strain: {
+    strain_score: number;
+    strain_level: string;
+  } | null;
 };
 
 const WORKOUT_ICONS: Record<string, string> = {
@@ -102,6 +112,24 @@ function bodyBatteryColor(bb: number) {
   return 'text-red-600';
 }
 
+const readinessColorClasses: Record<string, string> = {
+  green: 'border-emerald-200 bg-emerald-50',
+  yellow: 'border-amber-200 bg-amber-50',
+  red: 'border-red-200 bg-red-50',
+};
+
+const readinessCircleBg: Record<string, string> = {
+  green: 'bg-emerald-500',
+  yellow: 'bg-amber-500',
+  red: 'bg-red-500',
+};
+
+const readinessTextColor: Record<string, string> = {
+  green: 'text-emerald-700',
+  yellow: 'text-amber-700',
+  red: 'text-red-700',
+};
+
 export default function FitnessDashboardClient({
   today,
   todayPlan,
@@ -112,6 +140,8 @@ export default function FitnessDashboardClient({
   alerts,
   weekPlanned,
   weekLogs,
+  readiness,
+  strain,
 }: Props) {
   // Map week logs by date for quick lookup
   const logsByDate = new Map(weekLogs.map((l) => [l.workout_date.slice(0, 10), l]));
@@ -138,6 +168,40 @@ export default function FitnessDashboardClient({
               </p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Readiness + Strain row */}
+      {(readiness || strain) && (
+        <div className="grid grid-cols-2 gap-3">
+          {readiness && (
+            <Link href="/fitness/morning" className={`rounded-2xl border p-4 shadow-sm hover:shadow transition-shadow ${readinessColorClasses[readiness.readiness_color] ?? 'border-slate-200 bg-white/70'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-full text-white text-lg font-bold ${readinessCircleBg[readiness.readiness_color] ?? 'bg-slate-400'}`}>
+                  {readiness.readiness_score}
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Readiness</p>
+                  <p className={`text-sm font-semibold ${readinessTextColor[readiness.readiness_color] ?? 'text-slate-700'}`}>
+                    {readiness.readiness_label}
+                  </p>
+                </div>
+              </div>
+            </Link>
+          )}
+          {strain && (
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-white text-lg font-bold">
+                  {strain.strain_score}
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Strain</p>
+                  <p className="text-sm font-semibold text-slate-700 capitalize">{strain.strain_level}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -284,14 +348,17 @@ export default function FitnessDashboardClient({
       )}
 
       {/* Quick links */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {[
+          { href: '/fitness/morning', label: 'Morning Brief', icon: '🌅' },
           { href: '/fitness/metrics', label: 'Body Metrics', icon: '⚖️' },
           { href: '/fitness/bp', label: 'Blood Pressure', icon: '❤️' },
           { href: '/fitness/exercises', label: 'Exercises', icon: '🏋️' },
           { href: '/fitness/templates', label: 'Templates', icon: '📝' },
           { href: '/fitness/trends', label: 'Trends', icon: '📈' },
           { href: '/fitness/plans', label: 'Training Plan', icon: '📋' },
+          { href: '/fitness/labs', label: 'Lab Results', icon: '🧪' },
+          { href: '/fitness/settings', label: 'Settings', icon: '⚙️' },
           { href: '/fitness/equipment', label: 'Equipment', icon: '👟' },
         ].map((link) => (
           <Link

@@ -16,6 +16,9 @@ export async function POST(req: Request) {
     return parseFloat(String(v));
   };
 
+  const sleepHours = num('sleep_duration_hours');
+  const meds = String(form.get('meds_taken_at') || '').trim();
+
   const payload = {
     user_id: user.id,
     metric_date,
@@ -26,6 +29,9 @@ export async function POST(req: Request) {
     hrv_ms: num('hrv_ms'),
     body_battery: num('body_battery'),
     sleep_score: num('sleep_score'),
+    sleep_duration_min: sleepHours != null ? Math.round(sleepHours * 60) : null,
+    stress_avg: num('stress_avg'),
+    meds_taken_at: meds || null,
     notes: String(form.get('notes') || '') || null,
     weight_source: 'manual',
   };

@@ -128,6 +128,36 @@ export default async function BodyMetricsPage() {
                 className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
               />
             </div>
+            <div>
+              <label className="text-xs text-slate-500 block mb-1">Sleep Duration (hours)</label>
+              <input
+                name="sleep_duration_hours"
+                type="number"
+                step="0.25"
+                defaultValue={todayMetrics?.sleep_duration_min ? (todayMetrics.sleep_duration_min / 60).toFixed(2) : ''}
+                placeholder="7.5"
+                className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 block mb-1">Stress Avg (Garmin)</label>
+              <input
+                name="stress_avg"
+                type="number"
+                defaultValue={todayMetrics?.stress_avg ?? ''}
+                placeholder="28"
+                className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 block mb-1">Meds Taken At</label>
+              <input
+                name="meds_taken_at"
+                type="time"
+                defaultValue={todayMetrics?.meds_taken_at ? todayMetrics.meds_taken_at.slice(0, 5) : ''}
+                className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+              />
+            </div>
           </fieldset>
         </div>
 
