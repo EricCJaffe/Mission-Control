@@ -1,5 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
-import LabResultsClient from '@/components/fitness/LabResultsClient';
+import Link from 'next/link';
+import LabPanelsClient from '@/components/fitness/LabPanelsClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,20 +10,23 @@ export default async function LabResultsPage() {
   const user = userData.user;
   if (!user) return null;
 
-  const { data: labResults } = await supabase
-    .from('lab_results')
-    .select('id, lab_date, lab_type, provider, file_name, ai_analysis, ai_flags, parsed_results, notes, created_at')
+  const { data: panels } = await supabase
+    .from('lab_panels')
+    .select('id, panel_date, lab_name, ordering_provider, source_type, ai_extracted, ai_summary, fasting, notes, created_at')
     .eq('user_id', user.id)
-    .order('lab_date', { ascending: false })
+    .order('panel_date', { ascending: false })
     .limit(50);
 
   return (
     <main className="pt-4 md:pt-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Lab Results</h1>
-        <p className="mt-1 text-sm text-slate-500">Upload bloodwork and imaging results. AI analyzes them in context of your cardiac health.</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold">Lab Results</h1>
+          <p className="mt-1 text-sm text-slate-500">Upload bloodwork and imaging results. AI extracts values and tracks trends.</p>
+        </div>
+        <Link href="/fitness" className="text-xs text-slate-400 hover:text-slate-600">← Dashboard</Link>
       </div>
-      <LabResultsClient results={labResults ?? []} />
+      <LabPanelsClient panels={panels ?? []} />
     </main>
   );
 }

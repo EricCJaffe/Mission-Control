@@ -391,19 +391,95 @@ export type AthleteProfile = {
   rhr_goal: number | null;
 };
 
+export type LabPanel = {
+  id: string;
+  user_id: string;
+  panel_date: string;
+  lab_name: string | null;
+  ordering_provider: string | null;
+  source_type: 'pdf_upload' | 'photo_upload' | 'manual_entry';
+  source_file_url: string | null;
+  ai_extracted: boolean;
+  ai_extraction_confidence: number | null;
+  ai_summary: string | null;
+  fasting: boolean | null;
+  notes: string | null;
+  results?: LabResult[];
+};
+
+export type LabResultFlag = 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
+
 export type LabResult = {
   id: string;
   user_id: string;
-  lab_date: string;
-  lab_type: LabType;
-  provider: string | null;
-  file_url: string | null;
-  file_name: string | null;
-  raw_text: string | null;
-  parsed_results: Record<string, unknown> | null;
-  ai_analysis: string | null;
-  ai_flags: { flag: string; severity: 'info' | 'warning' | 'critical' }[] | null;
-  notes: string | null;
+  panel_id: string;
+  test_name: string;
+  test_category: string | null;
+  value: number | null;
+  value_text: string | null;
+  unit: string | null;
+  reference_low: number | null;
+  reference_high: number | null;
+  reference_range_text: string | null;
+  flag: LabResultFlag;
+  flag_auto: boolean;
+  ai_interpretation: string | null;
+  ai_trend_note: string | null;
+};
+
+export type AppointmentStatus = 'upcoming' | 'prep_ready' | 'completed';
+
+export type SuggestedQuestion = {
+  category: 'medication' | 'training' | 'vitals' | 'labs' | 'general';
+  question: string;
+  context: string;
+  data_point?: string;
+  priority: 'high' | 'medium' | 'low';
+};
+
+export type ChangeSinceLastVisit = {
+  metric: string;
+  previous_value: string;
+  current_value: string;
+  trend: 'improved' | 'worsened' | 'stable';
+  note: string;
+};
+
+export type Appointment = {
+  id: string;
+  user_id: string;
+  appointment_date: string;
+  doctor_name: string | null;
+  doctor_specialty: string;
+  prep_generated_at: string | null;
+  suggested_questions: SuggestedQuestion[] | null;
+  changes_summary: ChangeSinceLastVisit[] | null;
+  flags: string[] | null;
+  user_notes: string | null;
+  user_questions: string[] | null;
+  appointment_notes: string | null;
+  medication_changes: Record<string, unknown>[] | null;
+  next_appointment_date: string | null;
+  status: AppointmentStatus;
+};
+
+export type MedicationType = 'prescription' | 'otc' | 'supplement';
+
+export type Medication = {
+  id: string;
+  user_id: string;
+  name: string;
+  type: MedicationType;
+  dosage: string | null;
+  frequency: string | null;
+  timing: string | null;
+  prescribing_doctor: string | null;
+  purpose: string | null;
+  known_interactions: string | null;
+  side_effects_experienced: string | null;
+  active: boolean;
+  start_date: string | null;
+  end_date: string | null;
 };
 
 export type MorningBriefing = {

@@ -12,6 +12,9 @@ import type {
   AthleteProfile,
   SleepDebt,
   ReadinessResult,
+  SuggestedQuestion,
+  ChangeSinceLastVisit,
+  Medication,
 } from './types';
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
@@ -459,5 +462,144 @@ Return ONLY the JSON.`;
       ai_analysis: result,
       ai_flags: [{ flag: 'Could not parse results automatically', severity: 'info' }],
     };
+  }
+}
+
+/**
+ * Generate appointment prep — suggested questions, changes summary, flags.
+ */
+export async function generateAppointmentPrep(params: {
+  doctor_specialty: string;
+  last_appointment_date: string | null;
+  rhr_trend: { start: number; end: number } | null;
+  hrv_trend: { start: number; end: number } | null;
+  bp_avg: { systolic: number; diastolic: number } | null;
+  bp_elevated_days: number;
+  weight_trend: { start: number; end: number } | null;
+  training_compliance_pct: number | null;
+  cardiac_efficiency_trend: { start: number; end: number; type: string } | null;
+  notable_events: string[];
+  medications: Medication[];
+  recent_lab_flags: string[];
+}): Promise<{
+  suggested_questions: SuggestedQuestion[];
+  changes_summary: ChangeSinceLastVisit[];
+  flags: string[];
+}> {
+  const system = buildSystemPrompt();
+  const user = `Generate appointment preparation for a ${params.doctor_specialty} visit.
+
+PATIENT CONTEXT:
+- 55yo male, CABG surgery 2022
+- Current medications: ${params.medications.map(m => `${m.name} ${m.dosage ?? ''} (${m.purpose ?? m.type})`).join(', ') || 'Carvedilol, Losartan'}
+- Active training: Zone 2 cardio + HIIT + strength
+
+${params.last_appointment_date ? `LAST APPOINTMENT: ${params.last_appointment_date}` : 'No previous appointment recorded'}
+
+RECENT DATA:
+- RHR trend: ${params.rhr_trend ? `${params.rhr_trend.start} → ${params.rhr_trend.end} bpm` : 'insufficient data'}
+- HRV trend: ${params.hrv_trend ? `${params.hrv_trend.start} → ${params.hrv_trend.end} ms` : 'insufficient data'}
+- BP average: ${params.bp_avg ? `${params.bp_avg.systolic}/${params.bp_avg.diastolic}` : 'no readings'}
+- BP elevated days (last 30): ${params.bp_elevated_days}
+- Weight trend: ${params.weight_trend ? `${params.weight_trend.start} → ${params.weight_trend.end} lbs` : 'insufficient data'}
+- Training compliance: ${params.training_compliance_pct != null ? `${params.training_compliance_pct}%` : 'unknown'}
+- Cardiac efficiency: ${params.cardiac_efficiency_trend ? `${params.cardiac_efficiency_trend.start.toFixed(3)} → ${params.cardiac_efficiency_trend.end.toFixed(3)} (${params.cardiac_efficiency_trend.type})` : 'insufficient data'}
+${params.notable_events.length > 0 ? `- Notable events: ${params.notable_events.join('; ')}` : ''}
+${params.recent_lab_flags.length > 0 ? `- Lab flags: ${params.recent_lab_flags.join('; ')}` : ''}
+
+Return JSON:
+{
+  "suggested_questions": [
+    {
+      "category": "medication|training|vitals|labs|general",
+      "question": "The question to ask the doctor",
+      "context": "Why the AI is suggesting this question based on the data",
+      "data_point": "The specific metric that triggered it",
+      "priority": "high|medium|low"
+    }
+  ],
+  "changes_summary": [
+    {
+      "metric": "Metric name",
+      "previous_value": "Value at last appointment",
+      "current_value": "Current value",
+      "trend": "improved|worsened|stable",
+      "note": "Brief context"
+    }
+  ],
+  "flags": ["Array of concerns to mention proactively"]
+}
+
+Generate 5-8 prioritized questions, 4-6 changes, and any relevant flags.
+Return ONLY the JSON.`;
+
+  const result = await callOpenAI({ model: DEFAULT_MODEL, system, user });
+
+  try {
+    return JSON.parse(result);
+  } catch {
+    return {
+      suggested_questions: [],
+      changes_summary: [],
+      flags: [result],
+    };
+  }
+}
+
+/**
+ * Extract structured lab results from raw text (PDF content or manual entry).
+ */
+export async function extractLabResults(params: {
+  raw_text: string;
+  panel_date: string;
+  previous_results?: Array<{ test_name: string; value: number; panel_date: string }>;
+}): Promise<Array<{
+  test_name: string;
+  test_category: string;
+  value: number | null;
+  value_text: string | null;
+  unit: string;
+  reference_low: number | null;
+  reference_high: number | null;
+  reference_range_text: string;
+  flag: 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
+  ai_interpretation: string;
+  ai_trend_note: string | null;
+}>> {
+  const system = `You are a lab result parser for a cardiac patient (post-CABG, on Carvedilol + Losartan).
+Extract every individual test value from the provided text into structured data.
+For each test, determine if it's within reference range and flag accordingly.
+If previous values exist, note trends.`;
+
+  const user = `Parse these lab results from ${params.panel_date}:
+
+${params.raw_text}
+
+${params.previous_results && params.previous_results.length > 0
+    ? `PREVIOUS VALUES:\n${params.previous_results.map(r => `${r.test_name}: ${r.value} (${r.panel_date})`).join('\n')}`
+    : ''}
+
+Return a JSON array of test results:
+[{
+  "test_name": "Test Name",
+  "test_category": "lipid_panel|metabolic|cbc|thyroid|cardiac|other",
+  "value": 123,
+  "value_text": null,
+  "unit": "mg/dL",
+  "reference_low": 70,
+  "reference_high": 100,
+  "reference_range_text": "70-100 mg/dL",
+  "flag": "normal|low|high|critical_low|critical_high",
+  "ai_interpretation": "Brief context for this result for a cardiac patient on beta-blockers",
+  "ai_trend_note": "Compared to previous: trend note" or null
+}]
+Return ONLY the JSON array.`;
+
+  const result = await callOpenAI({ model: DEFAULT_MODEL, system, user });
+
+  try {
+    return JSON.parse(result);
+  } catch {
+    return [];
   }
 }

@@ -520,36 +520,123 @@ create policy "daily_strain_owner" on public.daily_strain
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ============================================================
--- LAB RESULTS (bloodwork, imaging, pathology — AI-analyzed)
+-- LAB PANELS (a single blood draw / test visit)
 -- ============================================================
-create table if not exists public.lab_results (
+create table if not exists public.lab_panels (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  lab_date date not null,
-  lab_type text not null check (lab_type in (
-    'bloodwork','lipid_panel','cbc','cmp','thyroid','a1c',
-    'cardiac_markers','imaging','stress_test','ecg','echo','other'
-  )),
-  provider text,
-  file_url text,
-  file_name text,
-  raw_text text,
-  parsed_results jsonb,
-  ai_analysis text,
-  ai_flags jsonb,
+  panel_date date not null,
+  lab_name text,
+  ordering_provider text,
+  source_type text default 'manual_entry',
+  source_file_url text,
+  ai_extracted boolean default false,
+  ai_extraction_confidence numeric,
+  ai_summary text,
+  fasting boolean,
   notes text,
-  embedding vector(1536),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
+create index if not exists lab_panels_user_id_idx on public.lab_panels(user_id);
+create index if not exists lab_panels_date_idx on public.lab_panels(panel_date);
+
+alter table public.lab_panels enable row level security;
+
+create policy "lab_panels_owner" on public.lab_panels
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ============================================================
+-- LAB RESULTS (individual test values, many per panel)
+-- ============================================================
+create table if not exists public.lab_results (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  panel_id uuid references public.lab_panels(id) on delete cascade,
+  test_name text not null,
+  test_category text,
+  value numeric,
+  value_text text,
+  unit text,
+  reference_low numeric,
+  reference_high numeric,
+  reference_range_text text,
+  flag text default 'normal' check (flag in ('normal','low','high','critical_low','critical_high')),
+  flag_auto boolean default true,
+  ai_interpretation text,
+  ai_trend_note text,
+  created_at timestamptz default now()
+);
+
 create index if not exists lab_results_user_id_idx on public.lab_results(user_id);
-create index if not exists lab_results_date_idx on public.lab_results(lab_date);
-create index if not exists lab_results_type_idx on public.lab_results(lab_type);
+create index if not exists lab_results_panel_idx on public.lab_results(panel_id);
+create index if not exists lab_results_test_idx on public.lab_results(test_name);
 
 alter table public.lab_results enable row level security;
 
 create policy "lab_results_owner" on public.lab_results
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ============================================================
+-- APPOINTMENTS (doctor visits with prep + post-visit notes)
+-- ============================================================
+create table if not exists public.appointments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  appointment_date date not null,
+  doctor_name text,
+  doctor_specialty text default 'cardiologist',
+  prep_generated_at timestamptz,
+  suggested_questions jsonb,
+  changes_summary jsonb,
+  flags jsonb,
+  user_notes text,
+  user_questions jsonb,
+  appointment_notes text,
+  medication_changes jsonb,
+  next_appointment_date date,
+  status text default 'upcoming' check (status in ('upcoming','prep_ready','completed')),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index if not exists appointments_user_id_idx on public.appointments(user_id);
+create index if not exists appointments_date_idx on public.appointments(appointment_date);
+
+alter table public.appointments enable row level security;
+
+create policy "appointments_owner" on public.appointments
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ============================================================
+-- MEDICATIONS (prescriptions, OTC, supplements)
+-- ============================================================
+create table if not exists public.medications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  type text not null check (type in ('prescription','otc','supplement')),
+  dosage text,
+  frequency text,
+  timing text,
+  prescribing_doctor text,
+  purpose text,
+  known_interactions text,
+  side_effects_experienced text,
+  active boolean default true,
+  start_date date,
+  end_date date,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index if not exists medications_user_id_idx on public.medications(user_id);
+create index if not exists medications_active_idx on public.medications(active);
+
+alter table public.medications enable row level security;
+
+create policy "medications_owner" on public.medications
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ============================================================

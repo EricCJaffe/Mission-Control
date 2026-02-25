@@ -358,6 +358,8 @@ export default function FitnessDashboardClient({
           { href: '/fitness/trends', label: 'Trends', icon: '📈' },
           { href: '/fitness/plans', label: 'Training Plan', icon: '📋' },
           { href: '/fitness/labs', label: 'Lab Results', icon: '🧪' },
+          { href: '/fitness/medications', label: 'Medications', icon: '💊' },
+          { href: '/fitness/appointments', label: 'Appointments', icon: '📅' },
           { href: '/fitness/settings', label: 'Settings', icon: '⚙️' },
           { href: '/fitness/equipment', label: 'Equipment', icon: '👟' },
         ].map((link) => (
