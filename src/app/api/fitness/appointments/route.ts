@@ -143,6 +143,7 @@ export async function PUT(req: Request) {
 
     try {
       const prep = await generateAppointmentPrep({
+        user_id: user.id, // NEW: passes user ID for health context loading
         doctor_specialty: updates.doctor_specialty || 'cardiologist',
         last_appointment_date: lastAppt?.appointment_date ?? null,
         rhr_trend: rhrTrend && rhrTrend.start > 0 && rhrTrend.end > 0 ? rhrTrend : null,

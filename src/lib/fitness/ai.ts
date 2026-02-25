@@ -482,6 +482,7 @@ Return ONLY the JSON.`;
  * Generate appointment prep — suggested questions, changes summary, flags.
  */
 export async function generateAppointmentPrep(params: {
+  user_id: string; // NEW: required for health context
   doctor_specialty: string;
   last_appointment_date: string | null;
   rhr_trend: { start: number; end: number } | null;
@@ -499,7 +500,8 @@ export async function generateAppointmentPrep(params: {
   changes_summary: ChangeSinceLastVisit[];
   flags: string[];
 }> {
-  const system = buildSystemPrompt();
+  // Use comprehensive health context system
+  const system = await buildAISystemPrompt(params.user_id, 'appointment_prep');
   const user = `Generate appointment preparation for a ${params.doctor_specialty} visit.
 
 PATIENT CONTEXT:
