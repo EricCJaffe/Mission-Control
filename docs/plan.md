@@ -516,20 +516,46 @@ New types: `ReadinessInputs`, `ReadinessResult`, `ReadinessFactor`, `StrainInput
 | `/api/fitness/athlete-profile` | GET/PUT | Manage athlete settings | **Done** |
 | `/api/fitness/labs` | GET/POST | Upload and AI-analyze lab results | **Done** |
 
+#### New Pages & Components (Phase 6b)
+| Page / Component | Purpose | Status |
+|---|---|---|
+| `/fitness/morning` + `MorningBriefingClient.tsx` | Morning Briefing — readiness gauge, overnight stats, today's plan, AI coach, factor breakdown, BP alert | **Done** |
+| `/fitness/labs` + `LabResultsClient.tsx` | Lab Results — upload form (date, type, provider, raw text), detail view with parsed results + AI flags + analysis | **Done** |
+| `/fitness/settings` + `AthleteProfileClient.tsx` | Athlete Profile — cardiac settings, cycling FTP, baselines & goals, sleep & medication schedule | **Done** |
+| `FitnessDashboardClient.tsx` enhanced | Added readiness + strain widgets after alerts, new quick links (Morning Brief, Labs, Settings) | **Done** |
+| `WorkoutLoggerClient.tsx` enhanced | Post-workout screen shows strain, cardiac efficiency, est. 1RMs, recovery prediction; avg/max HR inputs for strength; HR recovery 2-min for cardio | **Done** |
+| Body metrics form enhanced | Added sleep duration (hours), stress avg, medication timing (`meds_taken_at`) fields + route handler | **Done** |
+
+#### New Lib: Garmin Sync (`garmin-sync.ts`)
+| Function | Purpose | Status |
+|---|---|---|
+| `mapGarminActivityType()` | Maps Garmin activity types to our types (run, bike, strength, HIIT, etc.) | **Done** |
+| `matchActivityToPlannedWorkout()` | Match by date + type with compatible fallback | **Done** |
+| `garminActivityToCardioLog()` | Convert Garmin metrics to cardio_log format | **Done** |
+| `extractStrengthHR()` | Pull HR stats from Garmin Strength mode activity | **Done** |
+| `buildDeduplicationCheck()` | Prevent duplicate imports via `garmin_activity_id` | **Done** |
+
+#### Enhanced Workout Save Route (`/fitness/log/save`)
+| Feature | Status |
+|---|---|
+| Cardiac efficiency calculation (running + cycling) | **Done** |
+| Estimated 1RM detection (Epley + Brzycki, PR detection) | **Done** |
+| Workout strain scoring (log-scale) | **Done** |
+| Planned workout status update (`completed`) | **Done** |
+| Recovery prediction in response | **Done** |
+| Response includes: `strain_score`, `cardiac_efficiency`, `estimated_1rms`, `recovery` | **Done** |
+
 ### What's NOT Yet Built (requires DB or external integrations)
 
 | Feature | Blocker | Next Step |
 |---|---|---|
-| **Garmin OAuth + sync** | Need Garmin Health API credentials, npm package | Build `garmin-sync.ts` lib + `/api/fitness/garmin/sync` route |
-| **Garmin activity matching** | Depends on sync working | Match incoming activities to `planned_workouts` by date+type |
-| **HR overlay for strength** | Need Garmin Strength mode data flowing | Extract from Garmin activity → `workout_logs.avg_hr`/`max_hr` |
-| **Morning Briefing page** | UI component, depends on readiness API | Build `/fitness/morning` page with ReadinessGauge component |
-| **Readiness/Strain gauge components** | UI components | Build `ReadinessGauge.tsx`, `StrainGauge.tsx`, `BalanceGauge.tsx` |
-| **Lab results upload page** | UI + Supabase Storage for file uploads | Build `/fitness/labs` page |
+| **Garmin OAuth + sync** | Need Garmin Health API credentials, npm package | Build Garmin Connect client + `/api/fitness/garmin/sync` route |
+| **Garmin data flowing** | Depends on OAuth working | Will auto-populate body_metrics, cardio_logs, workout_logs |
 | **Cardiac efficiency trend charts** | UI + enough data accumulated | Add to trends/analytics page |
 | **1RM progression charts** | UI + data | Add to strength trends |
 | **Cardiologist report generator** | Separate feature scope | Build PDF/markdown report from accumulated data |
 | **Session photos** | Supabase Storage setup | Photo upload + vectorized notes |
+| **Lab file uploads (PDF/image)** | Supabase Storage setup | Currently text-only input; add file upload later |
 | **Seasonal zone recalibration** | Need cycling data first | AI suggestion after 2-3 months cycling data |
 
 ### Item Checklist (from user requirements)
@@ -557,11 +583,33 @@ New types: `ReadinessInputs`, `ReadinessResult`, `ReadinessFactor`, `StrainInput
 
 | # | Metric | Status |
 |---|---|---|
-| 1 | Composite Readiness Score (0-100) | **Done** — `readiness.ts` + API |
-| 2 | Daily Strain Score (0-21) | **Done** — `strain.ts` + API |
+| 1 | Composite Readiness Score (0-100) | **Done** — `readiness.ts` + API + dashboard widget + morning briefing |
+| 2 | Daily Strain Score (0-21) | **Done** — `strain.ts` + API + dashboard widget + post-workout display |
 | 3 | Strain-Recovery Balance | **Done** — calculation in `weekly-budget.ts` |
 | 4 | Sleep Debt Tracker | **Done** — `sleep-debt.ts` + SQL view |
-| 5 | Cardiac Efficiency Index | **Done** — `cardiac-efficiency.ts` |
-| 6 | Recovery Timeline Predictor | **Done** — `recovery.ts` |
-| 7 | Morning Briefing | **Done** — API route, UI page pending |
+| 5 | Cardiac Efficiency Index | **Done** — `cardiac-efficiency.ts` + auto-calc on save + post-workout display |
+| 6 | Recovery Timeline Predictor | **Done** — `recovery.ts` + post-workout display |
+| 7 | Morning Briefing | **Done** — API route + `/fitness/morning` page + full UI |
 | 8 | Weekly Stress Budget | **Done** — `weekly-budget.ts` |
+
+### SQL Migration — Must Be Run Manually
+
+The migration file `supabase/migrations/20260225100000_fitness_module.sql` contains ALL schema
+changes and has **not been applied** to the database yet. It must be run via:
+
+```bash
+supabase db push
+```
+
+This single migration creates:
+- **16 tables**: exercises, workout_templates, training_plans, equipment, planned_workouts,
+  workout_logs, set_logs, cardio_logs, body_metrics, bp_readings, fitness_form, ai_insights,
+  personal_records, athlete_profile, daily_readiness, daily_strain, lab_results
+- **Column additions**: workout_logs (avg_hr, max_hr, garmin_data, source, strain_score),
+  cardio_logs (cardiac_efficiency, cardiac_cost, efficiency_type, hr_recovery_2min),
+  planned_workouts (status), body_metrics (meds_taken_at, sleep_stages)
+- **1 SQL view**: sleep_debt_view
+- **RLS policies** on all tables
+- **Indexes** on all key columns
+
+No separate migration needed — everything is in the single file since it hasn't been applied yet.
