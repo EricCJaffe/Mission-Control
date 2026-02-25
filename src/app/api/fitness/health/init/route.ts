@@ -66,6 +66,14 @@ export async function POST() {
     }
 
     // Insert health document
+    console.log('Attempting to insert health document with:', {
+      user_id: userId,
+      content_length: INITIAL_HEALTH_MD.length,
+      version: 1,
+      is_current: true,
+      has_embedding: embedding !== null,
+    });
+
     const { data: healthDoc, error: insertError } = await supabase
       .from('health_documents')
       .insert({
@@ -80,8 +88,11 @@ export async function POST() {
 
     if (insertError) {
       console.error('Failed to insert health document:', insertError);
+      console.error('Insert error details:', JSON.stringify(insertError, null, 2));
       return NextResponse.json({ error: 'Failed to create health document', details: insertError.message }, { status: 500 });
     }
+
+    console.log('Health document inserted successfully:', healthDoc.id);
 
     // Create initial change record
     await supabase
@@ -107,9 +118,11 @@ export async function POST() {
 
   } catch (error) {
     console.error('Error initializing health document:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     return NextResponse.json({
       error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.stack : String(error)
     }, { status: 500 });
   }
 }
