@@ -17,6 +17,22 @@
 - Goals/SOP tables: `goal_cycles`, `goals`, `goal_tasks`, `sop_docs`, `sop_checks`
 - Book writer tables: `books`, `chapters`, `chapter_sections`, `chapter_versions`, `chapter_comments`, `chapter_proposals`, `book_uploads`, `book_milestones`, `research_notes`, `chat_threads`, `chat_messages`, `chapter_chunks`, `persona_profiles`, `book_proposals`
 - Attachments table: `attachments`
+- Fitness tables (defined in migration, NOT YET APPLIED):
+  - `exercises` (exercise library with global templates)
+  - `workout_templates` (reusable workout structures)
+  - `training_plans` (periodized training blocks)
+  - `equipment` (gear tracking with mileage)
+  - `workout_logs` (completed workouts)
+  - `workout_sets` (individual sets in workouts)
+  - `workout_metrics` (TSS, strain, readiness per workout)
+  - `body_metrics` (weight, sleep, stress, HRV, RHR)
+  - `blood_pressure` (BP readings with AHA classification)
+  - `personal_records` (exercise PRs with weight/reps/date)
+  - `athlete_profile` (zones, FTP, medication, cardiac baselines)
+  - `lab_results` (lab panels with AI analysis)
+  - `medical_appointments` (doctor visits)
+  - `medications` (medication tracking)
+  - `compliance_log` (adherence tracking)
 
 ## RLS and Ownership Model
 - RLS enabled broadly across app tables.

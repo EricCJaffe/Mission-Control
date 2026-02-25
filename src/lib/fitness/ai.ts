@@ -1,9 +1,11 @@
 // ============================================================
 // Fitness AI Service Layer
 // Wraps callOpenAI with fitness-specific prompts and context
+// NOW INTEGRATED WITH HEALTH CONTEXT SYSTEM (health.md)
 // ============================================================
 
 import { callOpenAI } from '@/lib/openai';
+import { buildAISystemPrompt, type FunctionType } from './health-context';
 import type {
   WorkoutTemplate,
   BodyMetrics,
@@ -18,6 +20,15 @@ import type {
 } from './types';
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+
+// USER ID CONTEXT (set by calling code)
+let currentUserId: string | null = null;
+export function setAIUserId(userId: string) {
+  currentUserId = userId;
+}
+export function getAIUserId(): string | null {
+  return currentUserId;
+}
 
 const DEFAULT_MAX_HR = 155;
 
@@ -344,6 +355,7 @@ Return ONLY the JSON.`;
  * The first screen the user sees each day.
  */
 export async function generateMorningBriefing(params: {
+  user_id: string; // NEW: required for health context
   readiness_score: number;
   readiness_label: string;
   readiness_factors: Array<{ name: string; score: number; detail: string }>;
@@ -364,7 +376,8 @@ export async function generateMorningBriefing(params: {
   days_since_bp_reading: number | null;
   recent_bp: { systolic: number; diastolic: number } | null;
 }): Promise<{ recommendation: string; alerts: string[]; motivation: string }> {
-  const system = buildSystemPrompt();
+  // Use comprehensive health context system
+  const system = await buildAISystemPrompt(params.user_id, 'morning_briefing');
   const user = `Generate a morning training briefing. Be concise — max 4 short lines total.
 
 READINESS: ${params.readiness_score}/100 (${params.readiness_label})

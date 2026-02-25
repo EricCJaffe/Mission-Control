@@ -22,3 +22,4 @@ Use lightweight ADRs to capture high-impact decisions and their rationale.
 - `0004-alignment-first-metrics.md`
 - `0005-book-writer-ai-and-vector-chunks.md`
 - `0006-private-storage-with-user-prefixed-paths.md`
+- `0007-fitness-module-cardiac-aware-architecture.md`

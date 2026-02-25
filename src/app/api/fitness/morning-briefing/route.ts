@@ -116,8 +116,9 @@ export async function GET() {
   const plannedCount = weekPlanned?.length ?? 0;
   const completedCount = weekLogs.length;
 
-  // Generate AI briefing
+  // Generate AI briefing (now with health context system)
   const briefing = await generateMorningBriefing({
+    user_id: user.id, // NEW: passes user ID for health context loading
     readiness_score: readiness.score,
     readiness_label: readiness.label,
     readiness_factors: readiness.factors,

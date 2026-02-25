@@ -11,14 +11,21 @@
   - Required for OpenAI-backed features in:
   - `src/lib/openai.ts`
   - Book AI routes (`/books/ai/*`, `/books/chapters/comments/*`, `/books/upload` heading-generation fallback)
+  - Sermon AI routes (`/sermons/ai/*`)
+  - Fitness AI routes (`/api/fitness/ai/*`, `/api/fitness/morning-briefing`, `/api/fitness/labs`)
   - `/api/ai/chat` and `/api/ai/outline`
   - If missing, `/api/ai` returns `501` scaffold response and OpenAI-backed handlers can fail/fallback.
 - `OPENAI_MODEL`
-  - Optional model override; defaults to `gpt-5.2` in book AI routes.
+  - Optional model override; defaults to `gpt-5.2` in book/sermon AI routes, `gpt-4o-mini` in fitness AI.
+- `OPENAI_EMBEDDING_MODEL`
+  - Optional embedding model override; defaults to `text-embedding-3-small` in `src/lib/ai/embeddings.ts`.
+- `OPENWEATHER_API_KEY`
+  - Required for weather integration in fitness module (`/api/fitness/weather`).
+  - Used by `src/lib/weather.ts` to fetch current weather and forecasts.
 - `ADMIN_EMAIL`
   - Optional UI gate for Knowledge export button in `src/app/knowledge/page.tsx`.
 - `SUPABASE_SERVICE_ROLE_KEY`
-  - Required by `scripts/import_book_from_rtf.mjs` (admin script path only).
+  - Required by `scripts/import_book_from_rtf.mjs` and `scripts/run-fitness-migration.mjs` (admin scripts only).
 
 ## Secrets
 - Keep secrets in `.env.local` (not committed).

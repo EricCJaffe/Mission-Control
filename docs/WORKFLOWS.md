@@ -21,7 +21,8 @@
 
 ## Supabase Schema Workflow
 - Migrations are stored in `supabase/migrations/`.
-- No project-local scripted migration command is defined in `package.json`; apply via your Supabase CLI workflow.
+- Apply migrations via Supabase CLI: `supabase db push`
+- Fitness module migration helper: `npm run db:migrate:fitness` (applies fitness tables via Node script)
 - If migration history mismatches occur, use:
   - `supabase migration list`
   - `supabase migration repair --status applied <ids...>`
