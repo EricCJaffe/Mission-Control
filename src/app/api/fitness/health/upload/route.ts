@@ -75,10 +75,10 @@ export async function POST(req: Request) {
         user_id: userId,
         file_type: fileType,
         file_name: file.name,
-        file_path: storagePath,
+        file_url: storagePath,
         file_size_bytes: file.size,
         mime_type: file.type,
-        processing_status: 'pending',
+        ai_processing_status: 'pending',
       })
       .select()
       .single();
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       // Update status to processing
       await supabase
         .from('health_file_uploads')
-        .update({ processing_status: 'processing' })
+        .update({ ai_processing_status: 'processing' })
         .eq('id', fileRecord.id);
 
       if (fileType === 'lab_report') {
@@ -124,7 +124,7 @@ export async function POST(req: Request) {
         processingResult = { success: true };
         await supabase
           .from('health_file_uploads')
-          .update({ processing_status: 'completed' })
+          .update({ ai_processing_status: 'completed' })
           .eq('id', fileRecord.id);
       }
 
@@ -133,7 +133,7 @@ export async function POST(req: Request) {
         await supabase
           .from('health_file_uploads')
           .update({
-            processing_status: fileType === 'lab_report' || fileType === 'methylation_report'
+            ai_processing_status: fileType === 'lab_report' || fileType === 'methylation_report'
               ? 'needs_review'
               : 'completed'
           })
@@ -142,8 +142,8 @@ export async function POST(req: Request) {
         await supabase
           .from('health_file_uploads')
           .update({
-            processing_status: 'failed',
-            processing_error: processingResult.error || 'Processing failed'
+            ai_processing_status: 'failed',
+            ai_processing_notes: processingResult.error || 'Processing failed'
           })
           .eq('id', fileRecord.id);
       }
@@ -153,8 +153,8 @@ export async function POST(req: Request) {
       await supabase
         .from('health_file_uploads')
         .update({
-          processing_status: 'failed',
-          processing_error: processingError instanceof Error ? processingError.message : 'Unknown error'
+          ai_processing_status: 'failed',
+          ai_processing_notes: processingError instanceof Error ? processingError.message : 'Unknown error'
         })
         .eq('id', fileRecord.id);
     }
