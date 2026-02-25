@@ -25,6 +25,7 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Add form state
   const [name, setName] = useState('');
@@ -40,7 +41,7 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
 
   async function handleAdd() {
     if (!name.trim()) return;
-    setSaving(true);
+    setSaving(true); setError(null);
     try {
       const res = await fetch('/api/fitness/exercises', {
         method: 'POST',
@@ -52,10 +53,8 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
         setExercises(prev => [...prev, data.exercise]);
         setName(''); setEquipment(''); setIsCompound(false);
         setShowAdd(false);
-      }
-    } catch (err) {
-      console.error('Failed to add exercise', err);
-    }
+      } else { setError(data.error || 'Failed to add exercise'); }
+    } catch { setError('Network error — could not save'); }
     setSaving(false);
   }
 
@@ -69,7 +68,7 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
 
   async function handleUpdate() {
     if (!editingId || !editName.trim()) return;
-    setSaving(true);
+    setSaving(true); setError(null);
     try {
       const res = await fetch('/api/fitness/exercises', {
         method: 'PUT',
@@ -80,24 +79,21 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
       if (data.ok) {
         setExercises(prev => prev.map(e => e.id === editingId ? data.exercise : e));
         setEditingId(null);
-      }
-    } catch (err) {
-      console.error('Failed to update exercise', err);
-    }
+      } else { setError(data.error || 'Failed to update exercise'); }
+    } catch { setError('Network error — could not update'); }
     setSaving(false);
   }
 
   async function handleDelete(id: string) {
+    setError(null);
     try {
       const res = await fetch(`/api/fitness/exercises?id=${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.ok) {
         setExercises(prev => prev.filter(e => e.id !== id));
         setConfirmDeleteId(null);
-      }
-    } catch (err) {
-      console.error('Failed to delete exercise', err);
-    }
+      } else { setError(data.error || 'Failed to delete exercise'); }
+    } catch { setError('Network error — could not delete'); }
   }
 
   const grouped = new Map<string, ExerciseRow[]>();
@@ -107,6 +103,13 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-red-700">{error}</p>
+          <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
+        </div>
+      )}
+
       {/* Add button / form */}
       {showAdd ? (
         <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">

@@ -18,6 +18,7 @@ export default function MedicationsClient({ medications: initial }: Props) {
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Form state
@@ -51,7 +52,7 @@ export default function MedicationsClient({ medications: initial }: Props) {
 
   async function handleSave() {
     if (!name) return;
-    setSaving(true);
+    setSaving(true); setError(null);
 
     const payload = {
       name, type, dosage: dosage || null, frequency: frequency || null,
@@ -59,45 +60,55 @@ export default function MedicationsClient({ medications: initial }: Props) {
       known_interactions: interactions || null, prescribing_doctor: doctor || null,
     };
 
-    if (editId) {
-      const res = await fetch('/api/fitness/medications', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editId, ...payload }),
-      });
-      const data = await res.json();
-      if (data.ok) setMedications(prev => prev.map(m => m.id === editId ? data.medication : m));
-    } else {
-      const res = await fetch('/api/fitness/medications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.ok) setMedications(prev => [data.medication, ...prev]);
-    }
-
-    resetForm();
+    try {
+      if (editId) {
+        const res = await fetch('/api/fitness/medications', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editId, ...payload }),
+        });
+        const data = await res.json();
+        if (data.ok) setMedications(prev => prev.map(m => m.id === editId ? data.medication : m));
+        else setError(data.error || 'Failed to update medication');
+      } else {
+        const res = await fetch('/api/fitness/medications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.ok) setMedications(prev => [data.medication, ...prev]);
+        else setError(data.error || 'Failed to add medication');
+      }
+      resetForm();
+    } catch { setError('Network error — could not save'); }
     setSaving(false);
   }
 
   async function handleToggleActive(med: Medication) {
-    const res = await fetch('/api/fitness/medications', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: med.id, active: !med.active }),
-    });
-    const data = await res.json();
-    if (data.ok) setMedications(prev => prev.map(m => m.id === med.id ? data.medication : m));
+    setError(null);
+    try {
+      const res = await fetch('/api/fitness/medications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: med.id, active: !med.active }),
+      });
+      const data = await res.json();
+      if (data.ok) setMedications(prev => prev.map(m => m.id === med.id ? data.medication : m));
+      else setError(data.error || 'Failed to update medication');
+    } catch { setError('Network error — could not update'); }
   }
 
   async function handleDelete(id: string) {
-    const res = await fetch(`/api/fitness/medications?id=${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.ok) {
-      setMedications(prev => prev.filter(m => m.id !== id));
-      setConfirmDeleteId(null);
-    }
+    setError(null);
+    try {
+      const res = await fetch(`/api/fitness/medications?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.ok) {
+        setMedications(prev => prev.filter(m => m.id !== id));
+        setConfirmDeleteId(null);
+      } else { setError(data.error || 'Failed to delete medication'); }
+    } catch { setError('Network error — could not delete'); }
   }
 
   const activeMeds = medications.filter(m => m.active);
@@ -105,6 +116,13 @@ export default function MedicationsClient({ medications: initial }: Props) {
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-red-700">{error}</p>
+          <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
+        </div>
+      )}
+
       {/* Add/edit form */}
       {showAdd ? (
         <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">

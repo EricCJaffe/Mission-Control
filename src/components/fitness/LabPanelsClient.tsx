@@ -49,6 +49,7 @@ export default function LabPanelsClient({ panels: initial }: { panels: PanelSumm
   const [saving, setSaving] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Add form
   const [panelDate, setPanelDate] = useState('');
@@ -60,7 +61,7 @@ export default function LabPanelsClient({ panels: initial }: { panels: PanelSumm
 
   async function handleAdd() {
     if (!panelDate || !rawText) return;
-    setSaving(true);
+    setSaving(true); setError(null);
     try {
       const res = await fetch('/api/fitness/labs', {
         method: 'POST',
@@ -80,40 +81,48 @@ export default function LabPanelsClient({ panels: initial }: { panels: PanelSumm
         setSelectedPanel(data.panel);
         setShowAdd(false);
         setPanelDate(''); setLabName(''); setProvider(''); setRawText(''); setFasting(false); setNotes('');
-      }
-    } catch (err) {
-      console.error('Failed to add lab panel', err);
-    }
+      } else { setError(data.error || 'Failed to upload lab panel'); }
+    } catch { setError('Network error — could not upload lab panel'); }
     setSaving(false);
   }
 
   async function handleViewPanel(panelId: string) {
-    setLoadingDetail(true);
+    setLoadingDetail(true); setError(null);
     try {
       const res = await fetch(`/api/fitness/labs?panel_id=${panelId}`);
       const data = await res.json();
       if (data.panel) setSelectedPanel(data.panel);
-    } catch (err) {
-      console.error('Failed to load panel', err);
-    }
+      else setError('Failed to load panel details');
+    } catch { setError('Network error — could not load panel'); }
     setLoadingDetail(false);
   }
 
   async function handleDeletePanel(id: string) {
-    const res = await fetch(`/api/fitness/labs?panel_id=${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.ok) {
-      setPanels(prev => prev.filter(p => p.id !== id));
-      if (selectedPanel?.id === id) setSelectedPanel(null);
-      setConfirmDeleteId(null);
-    }
+    setError(null);
+    try {
+      const res = await fetch(`/api/fitness/labs?panel_id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.ok) {
+        setPanels(prev => prev.filter(p => p.id !== id));
+        if (selectedPanel?.id === id) setSelectedPanel(null);
+        setConfirmDeleteId(null);
+      } else { setError(data.error || 'Failed to delete panel'); }
+    } catch { setError('Network error — could not delete panel'); }
   }
+
+  const errorBanner = error ? (
+    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">
+      <p className="text-sm text-red-700">{error}</p>
+      <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
+    </div>
+  ) : null;
 
   // Detail view
   if (selectedPanel) {
     const abnormal = selectedPanel.results?.filter(r => r.flag !== 'normal') ?? [];
     return (
       <div className="space-y-4">
+        {errorBanner}
         <button onClick={() => setSelectedPanel(null)} className="text-xs text-slate-400 hover:text-slate-600">← Back to panels</button>
 
         <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
@@ -217,6 +226,8 @@ export default function LabPanelsClient({ panels: initial }: { panels: PanelSumm
 
   return (
     <div className="space-y-4">
+      {errorBanner}
+
       {/* Add panel form */}
       {showAdd ? (
         <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">

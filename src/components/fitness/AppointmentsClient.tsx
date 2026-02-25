@@ -21,6 +21,7 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Add form
   const [date, setDate] = useState('');
@@ -32,62 +33,70 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
 
   async function handleAdd() {
     if (!date) return;
-    setSaving(true);
-    const res = await fetch('/api/fitness/appointments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        appointment_date: date,
-        doctor_name: doctorName || null,
-        doctor_specialty: specialty,
-        user_notes: notes || null,
-      }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      setAppointments(prev => [data.appointment, ...prev]);
-      setShowAdd(false);
-      setDate('');
-      setDoctorName('');
-      setNotes('');
-    }
+    setSaving(true); setError(null);
+    try {
+      const res = await fetch('/api/fitness/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointment_date: date,
+          doctor_name: doctorName || null,
+          doctor_specialty: specialty,
+          user_notes: notes || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setAppointments(prev => [data.appointment, ...prev]);
+        setShowAdd(false);
+        setDate(''); setDoctorName(''); setNotes('');
+      } else { setError(data.error || 'Failed to create appointment'); }
+    } catch { setError('Network error — could not save'); }
     setSaving(false);
   }
 
   async function handleGeneratePrep(id: string) {
-    setGenerating(true);
-    const res = await fetch('/api/fitness/appointments', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, generate_prep: true }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      setAppointments(prev => prev.map(a => a.id === id ? data.appointment : a));
-      setSelectedId(id);
-    }
+    setGenerating(true); setError(null);
+    try {
+      const res = await fetch('/api/fitness/appointments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, generate_prep: true }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setAppointments(prev => prev.map(a => a.id === id ? data.appointment : a));
+        setSelectedId(id);
+      } else { setError(data.error || 'Failed to generate prep'); }
+    } catch { setError('Network error — could not generate prep'); }
     setGenerating(false);
   }
 
   async function handleComplete(id: string, apptNotes: string) {
-    const res = await fetch('/api/fitness/appointments', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status: 'completed', appointment_notes: apptNotes }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      setAppointments(prev => prev.map(a => a.id === id ? data.appointment : a));
-    }
+    setError(null);
+    try {
+      const res = await fetch('/api/fitness/appointments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'completed', appointment_notes: apptNotes }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setAppointments(prev => prev.map(a => a.id === id ? data.appointment : a));
+      } else { setError(data.error || 'Failed to update appointment'); }
+    } catch { setError('Network error — could not update'); }
   }
 
   async function handleDelete(id: string) {
-    const res = await fetch(`/api/fitness/appointments?id=${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.ok) {
-      setAppointments(prev => prev.filter(a => a.id !== id));
-      if (selectedId === id) setSelectedId(null);
-    }
+    setError(null);
+    try {
+      const res = await fetch(`/api/fitness/appointments?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.ok) {
+        setAppointments(prev => prev.filter(a => a.id !== id));
+        if (selectedId === id) setSelectedId(null);
+      } else { setError(data.error || 'Failed to delete appointment'); }
+    } catch { setError('Network error — could not delete'); }
   }
 
   // Detail view
@@ -106,6 +115,13 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-red-700">{error}</p>
+          <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
+        </div>
+      )}
+
       {/* Add appointment */}
       {showAdd ? (
         <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">

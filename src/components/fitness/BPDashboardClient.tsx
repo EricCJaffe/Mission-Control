@@ -28,6 +28,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
   const [showForm, setShowForm] = useState(initial.length === 0);
   const [saving, setSaving] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Form state
   const [systolic, setSystolic] = useState('');
@@ -42,6 +43,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
   async function handleAdd() {
     if (!systolic || !diastolic) return;
     setSaving(true);
+    setError(null);
     try {
       const res = await fetch('/api/fitness/bp', {
         method: 'POST',
@@ -62,23 +64,28 @@ export default function BPDashboardClient({ readings: initial }: Props) {
         setReadings(prev => [data.reading, ...prev]);
         setSystolic(''); setDiastolic(''); setPulse(''); setBpNotes('');
         setShowForm(false);
+      } else {
+        setError(data.error || 'Failed to save reading');
       }
-    } catch (err) {
-      console.error('Failed to save BP reading', err);
+    } catch {
+      setError('Network error — could not save reading');
     }
     setSaving(false);
   }
 
   async function handleDelete(id: string) {
+    setError(null);
     try {
       const res = await fetch(`/api/fitness/bp?id=${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.ok) {
         setReadings(prev => prev.filter(r => r.id !== id));
         setConfirmDeleteId(null);
+      } else {
+        setError(data.error || 'Failed to delete reading');
       }
-    } catch (err) {
-      console.error('Failed to delete BP reading', err);
+    } catch {
+      setError('Network error — could not delete reading');
     }
   }
 
@@ -96,6 +103,14 @@ export default function BPDashboardClient({ readings: initial }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Error banner */}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-red-700">{error}</p>
+          <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
+        </div>
+      )}
+
       {/* Crisis alert */}
       {crisisReading && (
         <div className="rounded-2xl border-2 border-red-500 bg-red-50 p-4">

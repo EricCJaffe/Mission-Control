@@ -22,6 +22,7 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Add form
   const [name, setName] = useState('');
@@ -55,9 +56,7 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
         setName(''); setBrand(''); setModel(''); setMaxMiles(''); setPurchaseDate('');
         setShowAdd(false);
       }
-    } catch (err) {
-      console.error('Failed to add equipment', err);
-    }
+    } catch { setError('Network error — could not save'); }
     setSaving(false);
   }
 
@@ -90,9 +89,7 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
         setItems(prev => prev.map(i => i.id === editingId ? data.item : i));
         setEditingId(null);
       }
-    } catch (err) {
-      console.error('Failed to update equipment', err);
-    }
+    } catch { setError('Network error — could not update'); }
     setSaving(false);
   }
 
@@ -104,9 +101,7 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
         setItems(prev => prev.filter(i => i.id !== id));
         setConfirmDeleteId(null);
       }
-    } catch (err) {
-      console.error('Failed to delete equipment', err);
-    }
+    } catch { setError('Network error — could not delete'); }
   }
 
   async function handleRetire(item: EquipmentItem) {
@@ -121,13 +116,18 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
       if (data.ok) {
         setItems(prev => prev.map(i => i.id === item.id ? data.item : i));
       }
-    } catch (err) {
-      console.error('Failed to update equipment status', err);
-    }
+    } catch { setError('Network error — could not update status'); }
   }
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-red-700">{error}</p>
+          <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
+        </div>
+      )}
+
       {/* Add form */}
       {showAdd ? (
         <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">
