@@ -176,6 +176,143 @@ export function checkWeightChange(todayLbs: number, yesterdayLbs: number): Alert
 }
 
 /**
+ * Check sleep quality and correlate with next-day performance.
+ * Garmin Fenix 8 tracks sleep stages — poor sleep should preemptively suggest lighter workouts.
+ */
+export function checkSleepQuality(params: {
+  sleep_score: number;
+  sleep_duration_min: number;
+  sleep_target_min: number;
+  rolling_7day_debt_min?: number;
+}): Alert | null {
+  const { sleep_score, sleep_duration_min, sleep_target_min, rolling_7day_debt_min } = params;
+
+  // Critical: very poor sleep
+  if (sleep_score < 40 || sleep_duration_min < sleep_target_min * 0.6) {
+    return {
+      title: 'Poor Sleep — Reduce Today\'s Load',
+      message: `Sleep score ${sleep_score}/100 (${(sleep_duration_min / 60).toFixed(1)}h). After poor sleep, drop intensity by 15-20% and avoid HIIT. Your body needs more recovery.`,
+      priority: 'warning',
+      insight_type: 'readiness',
+    };
+  }
+
+  // Accumulated sleep debt
+  if (rolling_7day_debt_min != null && rolling_7day_debt_min < -180) {
+    const hours = Math.abs(rolling_7day_debt_min / 60).toFixed(1);
+    return {
+      title: 'Significant Sleep Debt',
+      message: `You're ${hours}h behind on sleep this week. Accumulated sleep debt compounds fatigue — prioritize sleep and consider a lighter training day.`,
+      priority: 'warning',
+      insight_type: 'recommendation',
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Check BP in context of training load.
+ * Elevated BP + high training load = reduce intensity.
+ */
+export function checkBPTrainingCorrelation(params: {
+  latest_systolic: number;
+  latest_diastolic: number;
+  pre_or_post_workout?: string | null;
+  tsb?: number | null;
+  weekly_tss?: number;
+}): Alert | null {
+  const { latest_systolic, latest_diastolic, pre_or_post_workout, tsb, weekly_tss } = params;
+
+  // Post-workout BP should decrease — if elevated, flag concern
+  if (pre_or_post_workout === 'post_workout' && latest_systolic >= 140) {
+    return {
+      title: 'Post-Workout BP Elevated',
+      message: `BP ${latest_systolic}/${latest_diastolic} after workout is higher than expected. Post-exercise BP should drop. If this persists, discuss with your cardiologist.`,
+      priority: 'warning',
+      insight_type: 'alert',
+    };
+  }
+
+  // High BP combined with overreaching
+  if (latest_systolic >= 135 && tsb != null && tsb < -10) {
+    return {
+      title: 'BP + Fatigue Concern',
+      message: `BP is elevated (${latest_systolic}/${latest_diastolic}) while you're overreaching (TSB ${Math.round(tsb)}). Reduce training load and monitor BP closely.`,
+      priority: 'warning',
+      insight_type: 'recommendation',
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Check medication timing relative to workout.
+ * Carvedilol's HR suppression peaks 1-2 hours after dosing.
+ */
+export function checkMedicationTiming(params: {
+  meds_taken_at: string;
+  workout_start_time: string;
+}): Alert | null {
+  try {
+    const medsTime = parseTimeToMinutes(params.meds_taken_at);
+    const workoutTime = parseTimeToMinutes(params.workout_start_time);
+    const gapMinutes = workoutTime - medsTime;
+
+    if (gapMinutes >= 0 && gapMinutes <= 90) {
+      return {
+        title: 'Medication Timing Note',
+        message: `Workout starts ${gapMinutes} min after Carvedilol. HR is most suppressed 60-120 min post-dose. Your HR may read artificially low — rely more on RPE for intensity today.`,
+        priority: 'info',
+        insight_type: 'recommendation',
+      };
+    }
+  } catch {
+    // Can't parse times — skip this check
+  }
+  return null;
+}
+
+function parseTimeToMinutes(timeStr: string): number {
+  const parts = timeStr.split(':');
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
+
+/**
+ * Check HR recovery trend (cool-down metric).
+ * Improving HR recovery = strongest indicator of cardiac fitness.
+ */
+export function checkHrRecovery(params: {
+  current_recovery_1min: number;
+  avg_recovery_1min: number;
+}): Alert | null {
+  const { current_recovery_1min, avg_recovery_1min } = params;
+
+  // Good sign: recovery improving
+  if (current_recovery_1min > avg_recovery_1min + 5) {
+    return {
+      title: 'HR Recovery Improving',
+      message: `HR dropped ${current_recovery_1min} bpm in 1 min post-workout (avg ${avg_recovery_1min}). This is a strong sign of improving cardiac fitness.`,
+      priority: 'positive',
+      insight_type: 'recommendation',
+    };
+  }
+
+  // Concerning: recovery declining
+  if (current_recovery_1min < avg_recovery_1min - 8 && current_recovery_1min < 20) {
+    return {
+      title: 'HR Recovery Slower Than Usual',
+      message: `HR only dropped ${current_recovery_1min} bpm in 1 min (avg ${avg_recovery_1min}). Slow recovery can indicate fatigue or overtraining.`,
+      priority: 'warning',
+      insight_type: 'alert',
+    };
+  }
+
+  return null;
+}
+
+/**
  * Run all metric checks and return any triggered alerts.
  */
 export function runAllAlerts(metrics: {
@@ -188,6 +325,17 @@ export function runAllAlerts(metrics: {
   max_hr_today?: number | null;
   weight_today?: number | null;
   weight_yesterday?: number | null;
+  bp_systolic?: number | null;
+  bp_diastolic?: number | null;
+  bp_pre_or_post_workout?: string | null;
+  sleep_score?: number | null;
+  sleep_duration_min?: number | null;
+  sleep_target_min?: number;
+  sleep_debt_7day_min?: number | null;
+  meds_taken_at?: string | null;
+  workout_start_time?: string | null;
+  hr_recovery_1min?: number | null;
+  avg_recovery_1min?: number | null;
 }): Alert[] {
   const alerts: Alert[] = [];
 
@@ -218,6 +366,49 @@ export function runAllAlerts(metrics: {
 
   if (metrics.weight_today != null && metrics.weight_yesterday != null) {
     const a = checkWeightChange(metrics.weight_today, metrics.weight_yesterday);
+    if (a) alerts.push(a);
+  }
+
+  // New checks: sleep quality
+  if (metrics.sleep_score != null && metrics.sleep_duration_min != null) {
+    const a = checkSleepQuality({
+      sleep_score: metrics.sleep_score,
+      sleep_duration_min: metrics.sleep_duration_min,
+      sleep_target_min: metrics.sleep_target_min ?? 450,
+      rolling_7day_debt_min: metrics.sleep_debt_7day_min ?? undefined,
+    });
+    if (a) alerts.push(a);
+  }
+
+  // New checks: BP + training correlation
+  if (metrics.bp_systolic != null && metrics.bp_diastolic != null) {
+    const bpAlert = checkBP(metrics.bp_systolic, metrics.bp_diastolic);
+    if (bpAlert) alerts.push(bpAlert);
+
+    const corrAlert = checkBPTrainingCorrelation({
+      latest_systolic: metrics.bp_systolic,
+      latest_diastolic: metrics.bp_diastolic,
+      pre_or_post_workout: metrics.bp_pre_or_post_workout,
+      tsb: metrics.tsb,
+    });
+    if (corrAlert) alerts.push(corrAlert);
+  }
+
+  // New checks: medication timing
+  if (metrics.meds_taken_at && metrics.workout_start_time) {
+    const a = checkMedicationTiming({
+      meds_taken_at: metrics.meds_taken_at,
+      workout_start_time: metrics.workout_start_time,
+    });
+    if (a) alerts.push(a);
+  }
+
+  // New checks: HR recovery
+  if (metrics.hr_recovery_1min != null && metrics.avg_recovery_1min != null) {
+    const a = checkHrRecovery({
+      current_recovery_1min: metrics.hr_recovery_1min,
+      avg_recovery_1min: metrics.avg_recovery_1min,
+    });
     if (a) alerts.push(a);
   }
 

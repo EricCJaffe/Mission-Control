@@ -4,43 +4,116 @@
 // ============================================================
 
 import { callOpenAI } from '@/lib/openai';
-import type { WorkoutTemplate, BodyMetrics, FitnessForm } from './types';
+import type {
+  WorkoutTemplate,
+  BodyMetrics,
+  FitnessForm,
+  BPReading,
+  AthleteProfile,
+  SleepDebt,
+  ReadinessResult,
+} from './types';
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
 
-const MAX_HR = 155;
+const DEFAULT_MAX_HR = 155;
+
+/** Extended context for AI system prompt */
+export type AIContext = Partial<BodyMetrics & FitnessForm> & {
+  profile?: Partial<AthleteProfile>;
+  bp_readings?: Partial<BPReading>[];
+  sleep_debt?: SleepDebt;
+  readiness?: ReadinessResult;
+  meds_taken_at?: string | null;
+};
 
 /** Build the standard athlete system prompt with current metrics. */
-function buildSystemPrompt(metrics?: Partial<BodyMetrics & FitnessForm>): string {
-  return `You are an AI fitness coach integrated into a personal training dashboard for a cardiac patient.
+export function buildSystemPrompt(ctx?: AIContext): string {
+  const maxHr = ctx?.profile?.max_hr_ceiling ?? DEFAULT_MAX_HR;
+  const lthr = ctx?.profile?.lactate_threshold_hr ?? 140;
+  const zones = ctx?.profile?.hr_zones;
+  const z1 = zones?.z1 ?? [100, 115];
+  const z2 = zones?.z2 ?? [115, 133];
+  const z3 = zones?.z3 ?? [133, 145];
+  const z4 = zones?.z4 ?? [145, maxHr];
+
+  let prompt = `You are an AI fitness coach integrated into a personal training dashboard for a cardiac patient.
 
 ATHLETE PROFILE:
 - Age: 55, approx. weight: 184 lbs
 - Medical: CABG surgery (2022), on Carvedilol (beta-blocker) and Losartan (ACE inhibitor)
-- Working max HR: ${MAX_HR} bpm — HARD CEILING, never program above this
+- Working max HR: ${maxHr} bpm — HARD CEILING, never program above this
 - HR Zones (beta-blocker adjusted):
-  Z1 Recovery:    100–115 bpm
-  Z2 Aerobic Base: 115–133 bpm
-  Z3 Tempo:        133–145 bpm
-  Z4 HIIT:         145–155 bpm
-- Lactate threshold HR estimate: 140 bpm
+  Z1 Recovery:     ${z1[0]}–${z1[1]} bpm
+  Z2 Aerobic Base: ${z2[0]}–${z2[1]} bpm
+  Z3 Tempo:        ${z3[0]}–${z3[1]} bpm
+  Z4 HIIT:         ${z4[0]}–${z4[1]} bpm
+- Lactate threshold HR estimate: ${lthr} bpm
+- Beta-blocker multiplier: ${ctx?.profile?.beta_blocker_multiplier ?? 1.15}x (same HR = more effort)
 - Training: Push/Pull strength split Mon/Wed/Fri, Z2 cardio Tue/Thu/Sat, HIIT on Wed
 
 CURRENT STATUS:
-- Resting HR: ${metrics?.resting_hr ?? 'unknown'} bpm (target: <70)
-- HRV: ${metrics?.hrv_ms ?? 'unknown'} ms
-- Body Battery: ${metrics?.body_battery ?? 'unknown'}/100
-- Form/TSB: ${metrics?.form_tsb != null ? Math.round(metrics.form_tsb) : 'unknown'} (${metrics?.form_status ?? 'unknown'})
-- Sleep score: ${metrics?.sleep_score ?? 'unknown'}/100
+- Resting HR: ${ctx?.resting_hr ?? 'unknown'} bpm (target: <70)
+- HRV: ${ctx?.hrv_ms ?? 'unknown'} ms
+- Body Battery: ${ctx?.body_battery ?? 'unknown'}/100
+- Form/TSB: ${ctx?.form_tsb != null ? Math.round(ctx.form_tsb) : 'unknown'} (${ctx?.form_status ?? 'unknown'})
+- Sleep score: ${ctx?.sleep_score ?? 'unknown'}/100
+- Training readiness: ${ctx?.training_readiness ?? 'unknown'}/100`;
+
+  // Readiness score context
+  if (ctx?.readiness) {
+    prompt += `\n- Readiness score: ${ctx.readiness.score}/100 (${ctx.readiness.label})`;
+  }
+
+  // Sleep debt context
+  if (ctx?.sleep_debt) {
+    const balance = ctx.sleep_debt.rolling_7day_balance_min;
+    const hours = Math.abs(balance / 60).toFixed(1);
+    prompt += `\n- Sleep debt: ${balance >= 0 ? '+' : '-'}${hours}h this week (${ctx.sleep_debt.status})`;
+  }
+
+  // Medication timing context
+  if (ctx?.meds_taken_at) {
+    prompt += `\n- Carvedilol taken at: ${ctx.meds_taken_at} (HR suppression peaks 1-2h after dosing)`;
+  }
+
+  // Blood pressure context
+  if (ctx?.bp_readings && ctx.bp_readings.length > 0) {
+    const latest = ctx.bp_readings[0];
+    prompt += `\n\nBLOOD PRESSURE:`;
+    prompt += `\n- Latest: ${latest.systolic}/${latest.diastolic} mmHg`;
+    if (latest.pulse) prompt += ` (pulse ${latest.pulse})`;
+    if (latest.pre_or_post_meds) prompt += ` — ${latest.pre_or_post_meds.replace('_', ' ')}`;
+    if (ctx.bp_readings.length >= 3) {
+      const avg_sys = Math.round(ctx.bp_readings.reduce((s, r) => s + (r.systolic ?? 0), 0) / ctx.bp_readings.length);
+      const avg_dia = Math.round(ctx.bp_readings.reduce((s, r) => s + (r.diastolic ?? 0), 0) / ctx.bp_readings.length);
+      prompt += `\n- Recent average (${ctx.bp_readings.length} readings): ${avg_sys}/${avg_dia}`;
+    }
+    prompt += `\n- Correlate BP with training load: elevated BP + high TSS → reduce intensity`;
+    prompt += `\n- Post-workout BP should decrease from baseline (if it rises, flag concern)`;
+  }
+
+  // FTP context for cycling
+  if (ctx?.profile?.ftp_watts) {
+    prompt += `\n\nCYCLING:
+- FTP: ${ctx.profile.ftp_watts}W
+- Power zones are more accurate than HR for cycling (no cardiac lag)`;
+  }
+
+  prompt += `
 
 SAFETY RULES (non-negotiable):
-1. NEVER prescribe or exceed ${MAX_HR} bpm
+1. NEVER prescribe or exceed ${maxHr} bpm
 2. Body battery < 25 → recovery only (Z1 walk or rest), no intensity
 3. TSB < -10 → reduce planned volume by 20-30%
 4. TSB < -25 → mandatory rest, flag critical overreaching
-5. Always include 5-10 min Z1 warm-up before any Z2 or higher intensity
-6. Always include 5 min cool-down
-7. Flag any concerning metric trends immediately`;
+5. Always include 5-10 min Z1 warm-up before any Z2 or higher intensity (cardiac surgery patients need longer warm-ups)
+6. Always include 5 min cool-down; prompt for 2-min post-workout HR recovery reading
+7. Flag any concerning metric trends immediately
+8. If sleep debt > 2h or readiness < 40, recommend recovery-only or rest
+9. Beta-blocker timing matters: HR is most suppressed 1-2h post-dose — if workout is in that window, RPE may be more reliable than HR`;
+
+  return prompt;
 }
 
 /**
@@ -49,7 +122,7 @@ SAFETY RULES (non-negotiable):
 export async function generateProgressiveWorkout(params: {
   template: WorkoutTemplate;
   recentLogs: Array<{ exercise_name: string; sets: Array<{ weight_lbs: number; reps: number; set_type: string }> }>;
-  metrics?: Partial<BodyMetrics & FitnessForm>;
+  metrics?: AIContext;
 }): Promise<WorkoutTemplate> {
   const { template, recentLogs, metrics } = params;
 
@@ -84,7 +157,7 @@ Return ONLY the JSON structure, no commentary.`;
 export async function generateNaturalLanguageWorkout(params: {
   prompt: string;
   exerciseLibrary: Array<{ id: string; name: string; category: string; muscle_groups: string[] }>;
-  metrics?: Partial<BodyMetrics & FitnessForm>;
+  metrics?: AIContext;
 }): Promise<Partial<WorkoutTemplate>> {
   const { prompt, exerciseLibrary, metrics } = params;
 
@@ -166,12 +239,37 @@ export async function generateWeeklyInsights(params: {
   current_weight?: number | null;
   tsb_end_of_week?: number | null;
   prs_this_week?: string[];
+  bp_readings?: Array<{ systolic: number; diastolic: number; reading_date: string; pre_or_post_meds?: string | null }>;
+  avg_readiness?: number | null;
+  sleep_debt_7day_min?: number | null;
+  cardiac_efficiency_trend?: { start: number; end: number; type: string } | null;
 }): Promise<Array<{ title: string; content: string; priority: string; insight_type: string }>> {
   const system = buildSystemPrompt();
+
+  let bpContext = '';
+  if (params.bp_readings && params.bp_readings.length > 0) {
+    const avgSys = Math.round(params.bp_readings.reduce((s, r) => s + r.systolic, 0) / params.bp_readings.length);
+    const avgDia = Math.round(params.bp_readings.reduce((s, r) => s + r.diastolic, 0) / params.bp_readings.length);
+    bpContext = `\n\nBLOOD PRESSURE THIS WEEK:
+- ${params.bp_readings.length} readings, avg ${avgSys}/${avgDia}
+- Correlate with training load and medication timing`;
+  }
+
+  let readinessContext = '';
+  if (params.avg_readiness != null) readinessContext += `\n- Average readiness: ${params.avg_readiness}/100`;
+  if (params.sleep_debt_7day_min != null) {
+    const hours = (Math.abs(params.sleep_debt_7day_min) / 60).toFixed(1);
+    readinessContext += `\n- Sleep debt: ${params.sleep_debt_7day_min >= 0 ? '+' : '-'}${hours}h`;
+  }
+  if (params.cardiac_efficiency_trend) {
+    const pctChange = ((params.cardiac_efficiency_trend.end - params.cardiac_efficiency_trend.start) / params.cardiac_efficiency_trend.start * 100).toFixed(1);
+    readinessContext += `\n- Cardiac efficiency (${params.cardiac_efficiency_trend.type}): ${pctChange}% change this week`;
+  }
+
   const user = `Generate weekly training insights for the week of ${params.week_start} to ${params.week_end}.
 
 DATA:
-${JSON.stringify(params, null, 2)}
+${JSON.stringify({ ...params, bp_readings: undefined, cardiac_efficiency_trend: undefined }, null, 2)}${bpContext}${readinessContext}
 
 Return a JSON array of 2-4 insights. Each insight:
 {
@@ -181,7 +279,7 @@ Return a JSON array of 2-4 insights. Each insight:
   "insight_type": "weekly_summary|trend|recommendation|milestone|alert"
 }
 
-Focus on: compliance, cardiac metrics trends, readiness for next week, any safety concerns.
+Focus on: compliance, cardiac metrics trends, BP trends, readiness for next week, cardiac efficiency, any safety concerns.
 Return ONLY the JSON array.`;
 
   const result = await callOpenAI({ model: DEFAULT_MODEL, system, user });
@@ -204,7 +302,7 @@ Return ONLY the JSON array.`;
 export async function generateReadinessCheck(params: {
   planned_workout_type: string;
   planned_workout_name: string;
-  metrics: Partial<BodyMetrics & FitnessForm>;
+  metrics: AIContext;
   weather?: { heat_index_f?: number; conditions?: string } | null;
 }): Promise<{ recommendation: string; should_modify: boolean; suggested_adjustment: string | null }> {
   const system = buildSystemPrompt(params.metrics);
@@ -215,6 +313,10 @@ Current conditions:
 - HRV: ${params.metrics.hrv_ms ?? 'unknown'} ms
 - TSB (Form): ${params.metrics.form_tsb != null ? Math.round(params.metrics.form_tsb) : 'unknown'}
 - Sleep score: ${params.metrics.sleep_score ?? 'unknown'}
+- Training readiness: ${params.metrics.training_readiness ?? 'unknown'}
+${params.metrics.readiness ? `- Readiness score: ${params.metrics.readiness.score}/100 (${params.metrics.readiness.label})` : ''}
+${params.metrics.sleep_debt ? `- Sleep debt (7-day): ${params.metrics.sleep_debt.rolling_7day_balance_min} min (${params.metrics.sleep_debt.status})` : ''}
+${params.metrics.meds_taken_at ? `- Meds taken at: ${params.metrics.meds_taken_at}` : ''}
 ${params.weather ? `- Weather: ${params.weather.conditions}, heat index ${params.weather.heat_index_f}°F` : ''}
 
 Return JSON:
@@ -231,5 +333,131 @@ Return ONLY the JSON.`;
     return JSON.parse(result);
   } catch {
     return { recommendation: result, should_modify: false, suggested_adjustment: null };
+  }
+}
+
+/**
+ * Generate Morning Briefing — daily personalized summary.
+ * The first screen the user sees each day.
+ */
+export async function generateMorningBriefing(params: {
+  readiness_score: number;
+  readiness_label: string;
+  readiness_factors: Array<{ name: string; score: number; detail: string }>;
+  resting_hr: number | null;
+  rhr_baseline: number | null;
+  hrv_ms: number | null;
+  hrv_baseline: number | null;
+  sleep_score: number | null;
+  sleep_duration_min: number | null;
+  sleep_debt_7day_min: number | null;
+  body_battery: number | null;
+  today_plan: { name: string; type: string; target_hr_range?: string } | null;
+  weather: { temp_f: number; conditions: string; heat_index_f: number } | null;
+  weekly_compliance: string;
+  weekly_strain_budget_pct: number;
+  streak_days: number;
+  recent_prs: string[];
+  days_since_bp_reading: number | null;
+  recent_bp: { systolic: number; diastolic: number } | null;
+}): Promise<{ recommendation: string; alerts: string[]; motivation: string }> {
+  const system = buildSystemPrompt();
+  const user = `Generate a morning training briefing. Be concise — max 4 short lines total.
+
+READINESS: ${params.readiness_score}/100 (${params.readiness_label})
+Factors: ${params.readiness_factors.map(f => `${f.name}: ${f.score} — ${f.detail}`).join('; ')}
+
+OVERNIGHT:
+- RHR: ${params.resting_hr ?? '?'} bpm${params.rhr_baseline ? ` (baseline ${params.rhr_baseline})` : ''}
+- HRV: ${params.hrv_ms ?? '?'} ms${params.hrv_baseline ? ` (baseline ${params.hrv_baseline})` : ''}
+- Sleep: ${params.sleep_score ?? '?'}/100, ${params.sleep_duration_min ? (params.sleep_duration_min / 60).toFixed(1) + 'h' : '?'}
+- Sleep debt: ${params.sleep_debt_7day_min != null ? (params.sleep_debt_7day_min >= 0 ? '+' : '') + Math.round(params.sleep_debt_7day_min) + ' min' : '?'}
+- Body Battery: ${params.body_battery ?? '?'}
+
+TODAY'S PLAN: ${params.today_plan ? `${params.today_plan.name} (${params.today_plan.type})` : 'Rest day'}
+${params.weather ? `WEATHER: ${params.weather.temp_f}°F, ${params.weather.conditions}, heat index ${params.weather.heat_index_f}°F` : ''}
+
+WEEKLY: ${params.weekly_compliance}, strain budget ${params.weekly_strain_budget_pct}% used, streak ${params.streak_days} days
+${params.recent_prs.length > 0 ? `RECENT PRs: ${params.recent_prs.join(', ')}` : ''}
+${params.days_since_bp_reading != null && params.days_since_bp_reading >= 3 ? `⚠️ No BP reading in ${params.days_since_bp_reading} days` : ''}
+${params.recent_bp ? `LATEST BP: ${params.recent_bp.systolic}/${params.recent_bp.diastolic}` : ''}
+
+Return JSON:
+{
+  "recommendation": "1-2 sentence workout recommendation (confirm plan or suggest modification)",
+  "alerts": ["array of short alert strings, empty if none"],
+  "motivation": "one motivational/progress note referencing a recent trend or milestone"
+}
+Return ONLY the JSON.`;
+
+  const result = await callOpenAI({ model: DEFAULT_MODEL, system, user });
+
+  try {
+    return JSON.parse(result);
+  } catch {
+    return { recommendation: result, alerts: [], motivation: '' };
+  }
+}
+
+/**
+ * Analyze lab results using AI.
+ * Extracts structured data from raw text, flags abnormal values,
+ * and correlates with fitness/cardiac data.
+ */
+export async function analyzeLabResults(params: {
+  raw_text: string;
+  lab_type: string;
+  lab_date: string;
+  previous_results?: Array<{ lab_date: string; parsed_results: Record<string, unknown> }>;
+  current_medications?: string[];
+  recent_bp_avg?: { systolic: number; diastolic: number };
+  current_weight?: number;
+  current_rhr?: number;
+}): Promise<{
+  parsed_results: Record<string, { value: number | string; unit: string; reference_range: string; flag: 'normal' | 'low' | 'high' | 'critical' }>;
+  ai_analysis: string;
+  ai_flags: { flag: string; severity: 'info' | 'warning' | 'critical' }[];
+}> {
+  const system = `You are a medical data analyst helping a cardiac patient (post-CABG, on Carvedilol + Losartan) understand their lab results.
+You are NOT providing medical advice — you're organizing and contextualizing data for discussion with their cardiologist.
+
+IMPORTANT:
+- Extract all numerical values into structured format
+- Flag anything outside reference ranges
+- Note trends if previous results are provided
+- Correlate with cardiac medications (Carvedilol can affect liver enzymes, blood glucose; Losartan affects kidney function)
+- Always note: "Discuss all findings with your cardiologist"`;
+
+  const user = `Analyze these ${params.lab_type} results from ${params.lab_date}.
+
+RAW TEXT:
+${params.raw_text}
+
+${params.previous_results ? `PREVIOUS RESULTS:\n${JSON.stringify(params.previous_results, null, 2)}` : ''}
+${params.current_medications ? `MEDICATIONS: ${params.current_medications.join(', ')}` : 'MEDICATIONS: Carvedilol 12.5mg 2x daily, Losartan'}
+${params.recent_bp_avg ? `RECENT BP AVG: ${params.recent_bp_avg.systolic}/${params.recent_bp_avg.diastolic}` : ''}
+${params.current_weight ? `WEIGHT: ${params.current_weight} lbs` : ''}
+${params.current_rhr ? `RESTING HR: ${params.current_rhr} bpm` : ''}
+
+Return JSON:
+{
+  "parsed_results": {
+    "test_name": { "value": 123, "unit": "mg/dL", "reference_range": "70-100", "flag": "normal|low|high|critical" }
+  },
+  "ai_analysis": "2-4 paragraph markdown analysis correlating results with cardiac health, medications, and fitness data. Always end with 'Discuss these results with your cardiologist.'",
+  "ai_flags": [{ "flag": "description of flagged item", "severity": "info|warning|critical" }]
+}
+Return ONLY the JSON.`;
+
+  const result = await callOpenAI({ model: DEFAULT_MODEL, system, user });
+
+  try {
+    return JSON.parse(result);
+  } catch {
+    return {
+      parsed_results: {},
+      ai_analysis: result,
+      ai_flags: [{ flag: 'Could not parse results automatically', severity: 'info' }],
+    };
   }
 }

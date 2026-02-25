@@ -455,3 +455,113 @@ Everything else is **new files only** — zero risk to existing functionality.
 | Phase 5 | ~8-10 (plans, records, equipment, plate calc) | 1-2 (extend workout logger) |
 
 **Total: ~55-65 new files, 3-4 existing files modified**
+
+---
+
+## Phase 6: Advanced Metrics, Scoring, Lab Results & Garmin Sync
+
+### Status: Schema + Types + Libs + API Routes WIRED UP (awaiting DB migration)
+
+This phase extends the fitness module with Whoop-style composite scoring, cardiac-specific
+metrics, lab result analysis, calendar integration, and Garmin activity matching.
+
+### What's Been Built
+
+#### Schema Additions (migration modified, not yet run)
+| Table/Change | Purpose | Status |
+|---|---|---|
+| `athlete_profile` | Centralized user settings — FTP, zones, meds, targets, baselines | **Done** |
+| `daily_readiness` | Composite 0-100 readiness score with factor breakdown | **Done** |
+| `daily_strain` | 0-21 logarithmic strain score per day | **Done** |
+| `lab_results` | Lab uploads with AI analysis, parsed results, flags | **Done** |
+| `sleep_debt_view` | Rolling 7/14-day sleep balance (SQL view) | **Done** |
+| `workout_logs` +columns | `avg_hr`, `max_hr`, `garmin_data`, `source`, `strain_score` | **Done** |
+| `cardio_logs` +columns | `cardiac_efficiency`, `cardiac_cost`, `efficiency_type`, `hr_recovery_2min` | **Done** |
+| `planned_workouts` +column | `status` (pending/completed/skipped/substituted) | **Done** |
+| `body_metrics` +columns | `meds_taken_at`, `sleep_stages` | **Done** |
+
+#### Type Definitions (`src/lib/fitness/types.ts`)
+New types: `ReadinessInputs`, `ReadinessResult`, `ReadinessFactor`, `StrainInputs`,
+`StrainResult`, `BalanceResult`, `SleepDebt`, `CardiacEfficiencyResult`,
+`RecoveryPrediction`, `WeeklyBudget`, `Estimated1RM`, `PowerZones`, `AthleteProfile`,
+`LabResult`, `MorningBriefing`, `PlanPhase`, `WorkoutSource`, plus updated `WorkoutLog`,
+`CardioLog`, `BodyMetrics`, `PlannedWorkout` with new columns.
+
+#### Core Lib Functions (all pure TypeScript, no DB dependency)
+| File | Functions | Status |
+|---|---|---|
+| `readiness.ts` | `calculateReadinessScore()` — weighted composite from 7 factors | **Done** |
+| `strain.ts` | `calculateDailyStrain()`, `calculateWorkoutStrain()` — log-scale 0-21 | **Done** |
+| `cardiac-efficiency.ts` | `runningEfficiency()`, `cyclingEfficiency()`, `cardiacCost()`, `calculateCardiacEfficiency()` | **Done** |
+| `estimated1rm.ts` | `epley1RM()`, `brzycki1RM()`, `estimated1RM()`, `bestEstimated1RM()`, `buildEstimated1RMRecords()` | **Done** |
+| `power-zones.ts` | `calculatePowerZones()`, `getPowerZone()`, `cyclingTSS()`, `estimateFTPFrom20Min()` | **Done** |
+| `sleep-debt.ts` | `calculateSleepDebt()`, `formatSleepDebt()` | **Done** |
+| `tdee.ts` | `calculateBMR()`, `estimateTDEE()`, `estimateWeeklyTDEE()` | **Done** |
+| `recovery.ts` | `predictRecovery()` — post-workout recovery timeline | **Done** |
+| `weekly-budget.ts` | `calculateWeeklyBudget()`, `updateBudgetPace()`, `formatBudget()` | **Done** |
+
+#### Enhanced Existing Services
+| File | Changes | Status |
+|---|---|---|
+| `ai.ts` | `buildSystemPrompt()` now accepts BP, meds timing, sleep debt, readiness, FTP context. New functions: `generateMorningBriefing()`, `analyzeLabResults()` | **Done** |
+| `alerts.ts` | New checks: `checkSleepQuality()`, `checkBPTrainingCorrelation()`, `checkMedicationTiming()`, `checkHrRecovery()`. Enhanced `runAllAlerts()` with all new checks. | **Done** |
+
+#### API Routes
+| Route | Method | Purpose | Status |
+|---|---|---|---|
+| `/api/fitness/readiness` | GET | Calculate + cache daily readiness score | **Done** |
+| `/api/fitness/strain` | GET/POST | Daily strain score, recalculate after workout | **Done** |
+| `/api/fitness/calendar` | GET | iCal export of planned workouts (.ics) | **Done** |
+| `/api/fitness/morning-briefing` | GET | Morning briefing with AI recommendations | **Done** |
+| `/api/fitness/athlete-profile` | GET/PUT | Manage athlete settings | **Done** |
+| `/api/fitness/labs` | GET/POST | Upload and AI-analyze lab results | **Done** |
+
+### What's NOT Yet Built (requires DB or external integrations)
+
+| Feature | Blocker | Next Step |
+|---|---|---|
+| **Garmin OAuth + sync** | Need Garmin Health API credentials, npm package | Build `garmin-sync.ts` lib + `/api/fitness/garmin/sync` route |
+| **Garmin activity matching** | Depends on sync working | Match incoming activities to `planned_workouts` by date+type |
+| **HR overlay for strength** | Need Garmin Strength mode data flowing | Extract from Garmin activity → `workout_logs.avg_hr`/`max_hr` |
+| **Morning Briefing page** | UI component, depends on readiness API | Build `/fitness/morning` page with ReadinessGauge component |
+| **Readiness/Strain gauge components** | UI components | Build `ReadinessGauge.tsx`, `StrainGauge.tsx`, `BalanceGauge.tsx` |
+| **Lab results upload page** | UI + Supabase Storage for file uploads | Build `/fitness/labs` page |
+| **Cardiac efficiency trend charts** | UI + enough data accumulated | Add to trends/analytics page |
+| **1RM progression charts** | UI + data | Add to strength trends |
+| **Cardiologist report generator** | Separate feature scope | Build PDF/markdown report from accumulated data |
+| **Session photos** | Supabase Storage setup | Photo upload + vectorized notes |
+| **Seasonal zone recalibration** | Need cycling data first | AI suggestion after 2-3 months cycling data |
+
+### Item Checklist (from user requirements)
+
+| # | Feature | Status |
+|---|---|---|
+| 1 | BP context in AI analysis | **Done** — enriched `buildSystemPrompt` |
+| 2 | Cardiologist report scheduling | Deferred — Phase 7 |
+| 3 | Seasonal zone recalibration | Deferred — needs cycling data |
+| 4 | RPE-HR calibration | **Done** — data captured in set_logs + cardio_logs, calibration in AI context |
+| 5 | Sleep quality → performance | **Done** — `checkSleepQuality()` alert + readiness factor |
+| 6 | Medication timing | **Done** — schema column + `checkMedicationTiming()` alert + AI context |
+| 7 | Progressive overload / est. 1RM | **Done** — `estimated1rm.ts` with Epley+Brzycki |
+| 8 | Warm-up protocol enforcement | **Done** — strengthened in AI safety rules |
+| 9 | Cool-down HR tracking | **Done** — `hr_recovery_2min` column + `checkHrRecovery()` alert |
+| 10 | Session photos/notes | Deferred — needs Storage |
+| 11 | Calendar export | **Done** — `/api/fitness/calendar` iCal endpoint |
+| 12 | TDEE estimation | **Done** — `tdee.ts` with Mifflin-St Jeor |
+| 13 | Superset rest optimization | Partially done — `rest_seconds` tracked, AI analysis pending |
+| 14 | Cycling power zones | **Done** — `power-zones.ts` + FTP in athlete_profile |
+| 15 | Garmin workout sync | Schema ready, API not yet built |
+| 16 | Lab results with AI | **Done** — schema + AI analysis + API routes |
+
+### Advanced Metrics (from companion spec)
+
+| # | Metric | Status |
+|---|---|---|
+| 1 | Composite Readiness Score (0-100) | **Done** — `readiness.ts` + API |
+| 2 | Daily Strain Score (0-21) | **Done** — `strain.ts` + API |
+| 3 | Strain-Recovery Balance | **Done** — calculation in `weekly-budget.ts` |
+| 4 | Sleep Debt Tracker | **Done** — `sleep-debt.ts` + SQL view |
+| 5 | Cardiac Efficiency Index | **Done** — `cardiac-efficiency.ts` |
+| 6 | Recovery Timeline Predictor | **Done** — `recovery.ts` |
+| 7 | Morning Briefing | **Done** — API route, UI page pending |
+| 8 | Weekly Stress Budget | **Done** — `weekly-budget.ts` |
