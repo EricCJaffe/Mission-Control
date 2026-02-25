@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import RestTimer from './RestTimer';
 import PlateCalculator from './PlateCalculator';
@@ -120,6 +120,28 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     recovery?: { hours_to_ready: number; next_hard_date: string; suggested_next: string } | null;
     estimated_1rms?: Array<{ exercise: string; weight: number; reps: number; estimated_1rm: number }>;
   } | null>(null);
+
+  // Elapsed timer
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const timerStartRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (mode === 'logging' || mode === 'cardio') {
+      if (!timerStartRef.current) timerStartRef.current = Date.now();
+      const interval = setInterval(() => {
+        setElapsedSeconds(Math.floor((Date.now() - (timerStartRef.current ?? Date.now())) / 1000));
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [mode]);
+
+  function formatElapsed(secs: number) {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
 
   // Exercise picker state
   const [showExercisePicker, setShowExercisePicker] = useState(false);
@@ -447,7 +469,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       planned_workout_id: todayPlan?.id ?? null,
       template_id: selectedTemplate?.id ?? null,
       workout_type: workoutType,
-      duration_minutes: duration !== '' ? Number(duration) : null,
+      duration_minutes: duration !== '' ? Number(duration) : (elapsedSeconds > 60 ? Math.round(elapsedSeconds / 60) : null),
       rpe_session: rpeSession !== '' ? Number(rpeSession) : null,
       notes: sessionNotes || null,
       avg_hr: avgHr !== '' ? Number(avgHr) : null,
@@ -715,6 +737,14 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
           </div>
         )}
+        {/* Elapsed timer */}
+        <div className="rounded-2xl border border-white/80 bg-white/70 px-4 py-2.5 shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-xs text-slate-500">Cardio in progress</span>
+          </div>
+          <span className="text-lg font-bold tabular-nums text-slate-800">{formatElapsed(elapsedSeconds)}</span>
+        </div>
         <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Cardio Session</h2>
           <div className="space-y-3">
@@ -940,6 +970,15 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
         </div>
       )}
+
+      {/* Elapsed timer */}
+      <div className="rounded-2xl border border-white/80 bg-white/70 px-4 py-2.5 shadow-sm flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-xs text-slate-500">Workout in progress</span>
+        </div>
+        <span className="text-lg font-bold tabular-nums text-slate-800">{formatElapsed(elapsedSeconds)}</span>
+      </div>
 
       {/* Exercise picker overlay */}
       {showExercisePicker && renderExercisePicker()}

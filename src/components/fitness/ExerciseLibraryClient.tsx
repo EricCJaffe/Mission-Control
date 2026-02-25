@@ -26,6 +26,28 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
+  const [seedDone, setSeedDone] = useState(false);
+
+  const hasGlobalExercises = exercises.some(e => !e.user_id);
+
+  async function handleSeed() {
+    setSeeding(true); setError(null);
+    try {
+      const res = await fetch('/fitness/exercises/seed', { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        setSeedDone(true);
+        // Reload page to show seeded exercises
+        window.location.reload();
+      } else {
+        setError(data.error || 'Failed to seed exercises');
+      }
+    } catch {
+      setError('Network error — could not seed exercises');
+    }
+    setSeeding(false);
+  }
 
   // Add form state
   const [name, setName] = useState('');
@@ -214,9 +236,20 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
         );
       })}
 
-      {exercises.length === 0 && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-8 text-center shadow-sm">
-          <p className="text-slate-500 text-sm">No exercises in the library yet. Add your first custom exercise above.</p>
+      {!hasGlobalExercises && !seedDone && (
+        <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-5 text-center shadow-sm space-y-3">
+          <p className="text-sm font-medium text-blue-800">No default exercises found</p>
+          <p className="text-xs text-blue-600">Seed the library with 52 exercises across push, pull, legs, core, cardio, and mobility.</p>
+          <button onClick={handleSeed} disabled={seeding}
+            className="rounded-xl bg-blue-600 text-white text-sm font-medium px-6 py-2.5 hover:bg-blue-700 disabled:opacity-50 min-h-[44px]">
+            {seeding ? 'Seeding...' : 'Seed Default Library'}
+          </button>
+        </div>
+      )}
+
+      {exercises.length === 0 && hasGlobalExercises === false && seedDone && (
+        <div className="rounded-2xl border border-green-100 bg-green-50 p-5 text-center shadow-sm">
+          <p className="text-sm text-green-700">Exercises seeded! Reloading...</p>
         </div>
       )}
     </div>
