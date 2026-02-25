@@ -82,9 +82,17 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+
+        // Redirect to lab review page if uploading lab reports
+        if (fileType === 'lab_report') {
+          setTimeout(() => {
+            window.location.href = '/fitness/health/labs';
+          }, 2000);
+        } else {
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
       } else {
         setError(`All uploads failed. Check console for details.`);
       }
@@ -158,8 +166,8 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
           />
           <p className="mt-2 text-sm text-gray-500">
-            {fileType === 'lab_report' && 'Upload up to 5 lab reports at once. AI will extract all test results.'}
-            {fileType === 'methylation_report' && 'Upload your genetic/methylation test report for SNP analysis.'}
+            {fileType === 'lab_report' && 'Upload up to 5 lab reports at once. AI will auto-extract panel metadata (lab, date, provider) and all test results. You\'ll review and confirm the extracted data.'}
+            {fileType === 'methylation_report' && 'Upload your genetic/methylation test report for SNP analysis (MTHFR, COMT, VDR, etc.).'}
             {fileType === 'doctor_notes' && 'Upload notes from doctor visits for reference.'}
             {fileType === 'imaging' && 'Upload imaging reports (echo, CT, MRI, etc.).'}
             {fileType === 'other' && 'Upload any other health-related documents.'}
@@ -237,20 +245,21 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
         <h3 className="font-semibold text-gray-900 mb-2">How File Processing Works</h3>
         <ul className="text-sm text-gray-700 space-y-2">
           <li>
-            <strong className="text-gray-800">Lab Reports:</strong> AI extracts all test results, flags abnormal values,
-            generates trend analysis, and proposes health.md updates
+            <strong className="text-gray-800">Lab Reports:</strong> AI auto-extracts panel metadata (lab name, date, provider, fasting status)
+            and all test results with no manual entry required. You review and confirm extracted data at{' '}
+            <a href="/fitness/health/labs" className="text-blue-600 hover:underline">Lab Review</a>
           </li>
           <li>
-            <strong className="text-gray-800">Methylation Reports:</strong> AI extracts SNP data (MTHFR, COMT, VDR, etc.),
-            generates supplement implications, and updates health.md genetic section
+            <strong className="text-gray-800">Methylation Reports:</strong> Use the same upload button - just select "Methylation/Genetic Report"
+            from the dropdown. AI extracts SNP data (MTHFR, COMT, VDR, etc.) and generates supplement implications
           </li>
           <li>
             <strong className="text-gray-800">Processing Time:</strong> Lab reports take 30-60 seconds each. Batch uploads
             have 2-second gaps (OpenAI rate limiting)
           </li>
           <li>
-            <strong className="text-gray-800">Review Required:</strong> You'll review and confirm all extracted data before
-            it's finalized
+            <strong className="text-gray-800">Review Required:</strong> You'll review and confirm all AI-extracted data before
+            it's finalized. Lab reports redirect to review page automatically
           </li>
         </ul>
       </div>
