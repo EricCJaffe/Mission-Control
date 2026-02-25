@@ -3,7 +3,7 @@
 
 import { supabaseServer } from '@/lib/supabase/server';
 import { buildAISystemPrompt } from './health-context';
-import pdf from 'pdf-parse';
+import * as pdfParse from 'pdf-parse';
 
 /**
  * Process lab report PDF
@@ -40,7 +40,7 @@ export async function processLabReport(params: {
 
     let pdfText: string;
     try {
-      const pdfData = await pdf(pdfBuffer);
+      const pdfData = await pdfParse.default(pdfBuffer);
       pdfText = pdfData.text;
 
       if (!pdfText || pdfText.trim().length === 0) {
