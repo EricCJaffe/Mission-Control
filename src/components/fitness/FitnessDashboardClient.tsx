@@ -286,7 +286,10 @@ export default function FitnessDashboardClient({
       {/* Quick links */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
+          { href: '/fitness/metrics', label: 'Body Metrics', icon: '⚖️' },
           { href: '/fitness/bp', label: 'Blood Pressure', icon: '❤️' },
+          { href: '/fitness/exercises', label: 'Exercises', icon: '🏋️' },
+          { href: '/fitness/templates', label: 'Templates', icon: '📝' },
           { href: '/fitness/trends', label: 'Trends', icon: '📈' },
           { href: '/fitness/plans', label: 'Training Plan', icon: '📋' },
           { href: '/fitness/equipment', label: 'Equipment', icon: '👟' },

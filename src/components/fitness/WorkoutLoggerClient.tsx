@@ -4,11 +4,29 @@ import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import RestTimer from './RestTimer';
 import PlateCalculator from './PlateCalculator';
-import type { Exercise, WorkoutTemplate, SetType, CardioLog } from '@/lib/fitness/types';
+import type { SetType, CardioLog } from '@/lib/fitness/types';
+
+type ExerciseRow = {
+  id: string;
+  name: string;
+  category: string;
+  equipment: string | null;
+  muscle_groups: string[];
+  is_compound: boolean;
+};
+
+type TemplateRow = {
+  id: string;
+  name: string;
+  type: string | null;
+  split_type: string | null;
+  structure: unknown;
+  estimated_duration_min: number | null;
+};
 
 type Props = {
-  exercises: Exercise[];
-  templates: WorkoutTemplate[];
+  exercises: ExerciseRow[];
+  templates: TemplateRow[];
   todayPlan: {
     id: string;
     day_label?: string | null;
@@ -61,7 +79,7 @@ const SET_TYPE_COLORS: Record<SetType, string> = {
 export default function WorkoutLoggerClient({ exercises, templates, todayPlan, latestMetrics }: Props) {
   const router = useRouter();
   const [mode, setMode] = useState<WorkoutMode>('select');
-  const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateRow | null>(null);
   const [workoutType, setWorkoutType] = useState<string>(todayPlan?.workout_type ?? 'strength');
   const [sets, setSets] = useState<LoggedSet[]>([]);
   const [currentExerciseId, setCurrentExerciseId] = useState<string>('');

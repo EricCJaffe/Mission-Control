@@ -2,10 +2,25 @@
 
 import { useState } from 'react';
 import { bpFlagLabel, bpFlagTailwindClass } from '@/lib/fitness/alerts';
-import type { BPReading, BPFlagLevel } from '@/lib/fitness/types';
+import type { BPFlagLevel } from '@/lib/fitness/types';
+
+type BPRow = {
+  id: string;
+  reading_date: string;
+  systolic: number;
+  diastolic: number;
+  pulse: number | null;
+  flag_level: BPFlagLevel;
+  position: string;
+  arm: string;
+  time_of_day: string | null;
+  pre_or_post_meds: string | null;
+  pre_or_post_workout: string | null;
+  notes: string | null;
+};
 
 type Props = {
-  readings: BPReading[];
+  readings: BPRow[];
 };
 
 export default function BPDashboardClient({ readings }: Props) {
