@@ -21,11 +21,11 @@ Before diving into phases, here's how the fitness module maps to existing conven
 
 ---
 
-## Phase 1: Foundation — Database, Routing Scaffold, Basic Logging
+## Phase 1: Foundation — Database, Routing Scaffold, Basic Logging ✅ COMPLETE
 
-### Step 1.1: Database Migration — Core Fitness Tables
+### Step 1.1: Database Migration — Core Fitness Tables ✅
 
-**File:** `supabase/migrations/20260225100000_fitness_module.sql`
+**File:** `supabase/migrations/20260225100000_fitness_module.sql` (created, **not yet applied** — needs `supabase db push`)
 
 Create all 12 tables from the spec in a single migration:
 - `exercises` — exercise library with categories, muscle groups, embeddings
@@ -53,9 +53,9 @@ Create all indexes from spec §4.
 - Add `equipment_id UUID REFERENCES equipment(id)` to `workout_logs` for equipment tracking
 - Use `gen_random_uuid()` for IDs (matches existing pattern, not `extensions.uuid_generate_v4()` — the spec uses `gen_random_uuid()` which is fine since `pgcrypto` is enabled)
 
-### Step 1.2: Seed Exercise Library
+### Step 1.2: Seed Exercise Library ✅
 
-**File:** `supabase/migrations/20260225100500_seed_exercises.sql`
+**File:** `supabase/migrations/20260225100500_seed_exercises.sql` + `src/app/fitness/exercises/seed/route.ts` (POST endpoint)
 
 Seed ~40-50 common exercises covering:
 - **Push:** Bench press (flat/incline/decline), dumbbell press, OHP, lateral raises, cable fly, tricep pushdown, dips, skull crushers
@@ -69,7 +69,7 @@ All seeded with `is_template = true` and appropriate `muscle_groups` arrays. `us
 
 **Alternative approach (simpler):** Create an API route `POST /fitness/exercises/seed` that inserts the exercise library for the current user on first use. This avoids needing a specific user ID in migrations.
 
-### Step 1.3: Routing Scaffold & Navigation
+### Step 1.3: Routing Scaffold & Navigation ✅
 
 **Files to create:**
 - `src/app/fitness/page.tsx` — Main fitness dashboard (server component)
@@ -86,7 +86,7 @@ All seeded with `is_template = true` and appropriate `muscle_groups` arrays. `us
 - `src/components/Sidebar.tsx` — Add `<NavLink href="/fitness" label="Fitness" shortLabel="FT" icon="💪" />` in CORE section (after Metrics)
 - `middleware.ts` — Add `pathname.startsWith('/fitness')` to `isProtected` and `'/fitness/:path*'` to matcher
 
-### Step 1.4: Fitness Dashboard (Main Page)
+### Step 1.4: Fitness Dashboard (Main Page) ✅
 
 **File:** `src/app/fitness/page.tsx` (server) + `src/components/FitnessDashboardClient.tsx` (client)
 
@@ -98,7 +98,7 @@ Layout (responsive):
 
 Server component fetches: today's planned workout, this week's workout logs, latest body metrics, latest BP reading, latest fitness form entry.
 
-### Step 1.5: Strength Workout Logging (Mobile-First)
+### Step 1.5: Strength Workout Logging (Mobile-First) ✅
 
 **Files:**
 - `src/app/fitness/log/page.tsx` — Entry point (select template or start blank)
@@ -124,7 +124,7 @@ Server component fetches: today's planned workout, this week's workout logs, lat
 - Auto-detects personal records (compare against `personal_records` table)
 - Returns JSON `{ ok: true, workout_id, prs: [...] }` (client shows PR celebration)
 
-### Step 1.6: Manual Cardio Logging
+### Step 1.6: Manual Cardio Logging ✅
 
 **Extend `WorkoutLoggerClient.tsx`:**
 - When workout type is "cardio" or "hybrid", show cardio fields
@@ -132,7 +132,7 @@ Server component fetches: today's planned workout, this week's workout logs, lat
 - Time-in-zone inputs (Z1/Z2/Z3/Z4 minutes) — manual for now, auto from Garmin later
 - Key cardiac metrics: HR recovery (1min), Z2 drift duration, cardiac drift %
 
-### Step 1.7: Body Metrics & Blood Pressure Entry
+### Step 1.7: Body Metrics & Blood Pressure Entry ✅
 
 **Files:**
 - `src/app/fitness/bp/page.tsx` — BP dashboard with entry form + trend chart
@@ -151,7 +151,7 @@ Server component fetches: today's planned workout, this week's workout logs, lat
 - Quick-entry: weight (lbs), optional body fat %, muscle mass
 - Trend chart with 7-day rolling average line
 
-### Step 1.8: Workout Templates Manager
+### Step 1.8: Workout Templates Manager ✅
 
 **Files:**
 - `src/app/fitness/templates/page.tsx` — List/create templates
@@ -166,7 +166,7 @@ Server component fetches: today's planned workout, this week's workout logs, lat
 - Save as reusable template (name, type, split_type)
 - Import initial push/pull templates (user will provide their routines)
 
-### Step 1.9: Exercise Library
+### Step 1.9: Exercise Library ✅
 
 **Files:**
 - `src/app/fitness/exercises/page.tsx` — Browse/search/add exercises
@@ -175,9 +175,9 @@ Server component fetches: today's planned workout, this week's workout logs, lat
 
 ---
 
-## Phase 2: Device Integration — Garmin & Weather
+## Phase 2: Device Integration — Garmin & Weather ⚠️ PARTIAL (Weather done, Garmin sync lib done, OAuth pending)
 
-### Step 2.1: Garmin Connect Integration (Option B — TypeScript API Client)
+### Step 2.1: Garmin Connect Integration (Option B — TypeScript API Client) ⚠️ PARTIAL
 
 **Approach:** Build a TypeScript Garmin Connect client that authenticates via Garmin SSO (same approach as `python-garminconnect` but in TS). This runs as a Next.js API route (not Edge Function) since we need full Node.js capabilities.
 
@@ -199,7 +199,7 @@ Server component fetches: today's planned workout, this week's workout logs, lat
 
 **Prerequisite from user:** Garmin Connect email and password stored as environment variables (`GARMIN_EMAIL`, `GARMIN_PASSWORD`).
 
-### Step 2.2: Weather Integration
+### Step 2.2: Weather Integration ✅
 
 **Files:**
 - `src/lib/weather.ts` — OpenWeatherMap client (current + forecast)
@@ -216,9 +216,9 @@ Server component fetches: today's planned workout, this week's workout logs, lat
 
 ---
 
-## Phase 3: Intelligence Layer — TSS, PMC, AI
+## Phase 3: Intelligence Layer — TSS, PMC, AI ✅ COMPLETE
 
-### Step 3.1: TSS Calculation Engine
+### Step 3.1: TSS Calculation Engine ✅
 
 **File:** `src/lib/fitness/tss.ts`
 
@@ -229,7 +229,7 @@ Implement three TSS calculation methods:
 
 Auto-calculate TSS on workout save and update `workout_logs.tss`.
 
-### Step 3.2: PMC (Performance Management Chart) Calculator
+### Step 3.2: PMC (Performance Management Chart) Calculator ✅
 
 **File:** `src/lib/fitness/pmc.ts`
 
@@ -238,7 +238,7 @@ Auto-calculate TSS on workout save and update `workout_logs.tss`.
 - Form status guardrails: Fresh (>15), Optimal (0-15), Fatigued (-10 to 0), Overreaching (<-10), Critical (<-25)
 - Ramp rate calculation (7d and 28d CTL change)
 
-### Step 3.3: Compliance Calculation
+### Step 3.3: Compliance Calculation ✅
 
 **File:** `src/lib/fitness/compliance.ts`
 
@@ -250,7 +250,7 @@ Compare actual workout vs. planned:
 
 Calculate on workout save, store in `workout_logs.compliance_pct` and `compliance_color`.
 
-### Step 3.4: AI Workout Builder
+### Step 3.4: AI Workout Builder ✅
 
 **Files:**
 - `src/lib/fitness/ai.ts` — Fitness AI service layer (wraps `callOpenAI`)
@@ -268,7 +268,7 @@ Calculate on workout save, store in `workout_logs.compliance_pct` and `complianc
 
 **Weekly Insights:** Sunday evening generation — training volume vs plan, metric changes, PRs, readiness assessment, recommendations.
 
-### Step 3.5: Safety Alerts Engine
+### Step 3.5: Safety Alerts Engine ✅
 
 **File:** `src/lib/fitness/alerts.ts`
 
@@ -286,9 +286,9 @@ Store alerts as `ai_insights` with appropriate `priority` level.
 
 ---
 
-## Phase 4: Trends, Charts, PDF Export
+## Phase 4: Trends, Charts, PDF Export ⚠️ PARTIAL (Trends page done, PDF export not yet built)
 
-### Step 4.1: Trends & Analytics Dashboard
+### Step 4.1: Trends & Analytics Dashboard ✅
 
 **Files:**
 - `src/app/fitness/trends/page.tsx` — Server component, fetches historical data
@@ -318,7 +318,7 @@ Secondary (later):
 
 **Charting library decision:** Add `recharts` (React-native, lightweight, Tailwind-friendly). It's the most common choice for Next.js projects and doesn't require heavy setup.
 
-### Step 4.2: PDF Export Framework
+### Step 4.2: PDF Export Framework ❌ NOT STARTED
 
 **Files:**
 - `src/lib/fitness/pdf.ts` — PDF generation utilities
@@ -332,7 +332,7 @@ Secondary (later):
 - Workout Detail: single workout with all sets/reps/HR data
 - Monthly Assessment: AI-generated monthly report
 
-### Step 4.3: Cardiologist Report PDF
+### Step 4.3: Cardiologist Report PDF ❌ NOT STARTED
 
 **File:** `src/app/fitness/export/cardiologist/route.ts`
 
@@ -347,9 +347,9 @@ Professional formatting with:
 
 ---
 
-## Phase 5: Training Plans, PRs, Equipment, Polish
+## Phase 5: Training Plans, PRs, Equipment, Polish ✅ MOSTLY COMPLETE
 
-### Step 5.1: Training Plan Engine
+### Step 5.1: Training Plan Engine ✅
 
 **Files:**
 - `src/app/fitness/plans/page.tsx` — Plan viewer/manager
@@ -363,7 +363,7 @@ Professional formatting with:
 - AI generates April 12-week plan based on March data (3 mesocycles × 4 weeks, 3 build + 1 deload)
 - Weekly view shows planned vs actual with compliance coloring
 
-### Step 5.2: Personal Records System
+### Step 5.2: Personal Records System ✅
 
 **File:** `src/lib/fitness/records.ts`
 
@@ -372,7 +372,7 @@ Professional formatting with:
 - Celebration UI: confetti/callout when new PR is set (client-side animation)
 - PR history timeline view
 
-### Step 5.3: Equipment Tracking
+### Step 5.3: Equipment Tracking ✅
 
 **Files:**
 - `src/app/fitness/equipment/page.tsx` — Equipment list/manager
@@ -385,13 +385,13 @@ Professional formatting with:
 - AI alerts when approaching replacement threshold
 - Status management: active / retired / maintenance
 
-### Step 5.4: Plate Calculator
+### Step 5.4: Plate Calculator ✅
 
 **File:** `src/components/PlateCalculator.tsx` (client component, used inside WorkoutLoggerClient)
 
 Given target weight, show plates needed per side assuming standard 45 lb bar and standard plate set (45, 35, 25, 10, 5, 2.5 lb plates).
 
-### Step 5.5: Mobile Polish
+### Step 5.5: Mobile Polish ✅ (44px tap targets, rest timer visibility, responsive)
 
 - Verify all tap targets ≥ 44px
 - Test swipe navigation between exercises during logging

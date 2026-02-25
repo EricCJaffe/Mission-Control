@@ -19,3 +19,6 @@ Reference:
 - `docs/OWNERSHIP.md`
 - `docs/persona.md`
 - `docs/soul.md`
+
+Fitness Module:
+- `docs/plan.md` — Fitness implementation plan with per-step status markers

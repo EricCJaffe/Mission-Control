@@ -43,18 +43,20 @@ This doc maps `MISSION_CONTROL_STARTER_BACKLOG.md` to current modules, routes, a
 - Book AI: `/books/[id]/ai`, proposals queues, inline review, reorder, etc.
 - System AI scaffold: `/api/ai/*`
 
-## Sermon Builder (Planned)
-- Create sermon series + sermon outline editor aligned to persona voice (outline-first vs chapters).
-- Two-way conversion:
-  - Series → Book draft outline
-  - Book outline → Sermon series starter
-- Automation outputs:
-  - Small group leader guide
-  - Participant guide
-  - Daily devotional content
-  - Social media content pack
-- Link to Automation Architect outputs for workflow execution.
+## Sermon Builder ✅
+- Sermon series + outline editor: `src/app/sermons/`
+- Series → Book conversion: `src/app/sermons/ai/series-to-book/`
+- Automation outputs: planned (small group guide, participant guide, devotionals, social media)
+
+## Fitness Module ✅ (Code complete, DB migration pending)
+- 16 pages under `src/app/fitness/*`: dashboard, log, exercises, templates, plans, bp, metrics, trends, equipment, records, history, morning, labs, settings, appointments, medications
+- 18+ API routes under `src/app/api/fitness/*`
+- 16 library modules under `src/lib/fitness/*`: TSS, PMC, readiness, strain, cardiac efficiency, est. 1RM, power zones, sleep debt, TDEE, recovery, weekly budget, compliance, alerts, AI, Garmin sync, types
+- 18 client components under `src/components/fitness/*`
+- Database migration: `supabase/migrations/20260225100000_fitness_module.sql` (**not yet applied**)
+- Exercise seed: migration + POST API endpoint
+- Key features: workout logging (strength/cardio/hybrid), rest timer, plate calculator, elapsed workout timer, superset grouping, RPE tracking, auto PR detection, readiness scoring, strain scoring, morning briefing, lab results with AI, athlete profile
 
 ## Status Summary
-- Implemented: Dashboard, Tasks v2, Calendar, Reviews, Metrics, Notes, Book Writer.
-- Pending: AI helpers for monthly review summarizer, automation architect, sermon outline helper.
+- Implemented: Dashboard, Tasks v2, Calendar, Reviews, Metrics, Notes, Book Writer, Sermon Builder, **Fitness Module** (code complete).
+- Pending: Apply fitness DB migration (`supabase db push`), Garmin OAuth, PDF exports, AI monthly review summarizer.
