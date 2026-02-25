@@ -75,7 +75,7 @@ export async function POST(req: Request) {
         user_id: userId,
         file_type: fileType,
         file_name: file.name,
-        file_url: storagePath,
+        file_path: storagePath,
         file_size_bytes: file.size,
         mime_type: file.type,
         ai_processing_status: 'pending',
