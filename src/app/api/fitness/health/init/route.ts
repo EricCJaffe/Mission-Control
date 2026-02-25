@@ -89,11 +89,9 @@ export async function POST() {
       .insert({
         user_id: userId,
         document_id: healthDoc.id,
-        previous_version: null,
-        new_version: 1,
+        change_type: 'manual_edit',
         change_summary: 'Initial health profile created',
-        trigger_type: 'manual',
-        trigger_details: { action: 'initialization', source: 'api' },
+        changed_by: 'user',
       });
 
     return NextResponse.json({
