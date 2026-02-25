@@ -116,8 +116,13 @@ Return ONLY the JSON, no other text.`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      return { success: false, error: `OpenAI API error: ${response.status}` };
+      console.error('OpenAI API error:', response.status, errorText);
+      console.error('Full error details:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+      });
+      return { success: false, error: `OpenAI API error: ${response.status} - ${errorText.substring(0, 200)}` };
     }
 
     const aiResponse = await response.json();
