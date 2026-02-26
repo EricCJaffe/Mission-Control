@@ -42,6 +42,9 @@ export async function POST(req: NextRequest) {
       errors: [] as string[],
     };
 
+    // Group files by date to merge data
+    const dataByDate = new Map();
+
     for (const file of files) {
       try {
         console.log(`Processing FIT file: ${file.name}`);
@@ -51,7 +54,7 @@ export async function POST(req: NextRequest) {
         const buffer = Buffer.from(arrayBuffer);
 
         // Parse FIT file
-        const parsedData = parser.parseBuffer(buffer);
+        const parsedData = await parser.parseBuffer(buffer);
 
         if (!parsedData) {
           results.failed++;
@@ -61,59 +64,95 @@ export async function POST(req: NextRequest) {
 
         console.log(`Parsed ${file.name} for date ${parsedData.date}`);
 
-        // Import to database
-        const hasData =
-          parsedData.restingHeartRate ||
-          parsedData.hrvMs ||
-          parsedData.bodyBattery ||
-          parsedData.stressLevel ||
-          parsedData.calories ||
-          parsedData.steps ||
-          parsedData.sleepScore ||
-          parsedData.weight;
-
-        if (hasData) {
-          // Upsert into body_metrics table
-          const { error: upsertError } = await supabase.from('body_metrics').upsert(
-            {
-              user_id: user.id,
-              metric_date: parsedData.date,
-              resting_hr: parsedData.restingHeartRate || null,
-              hrv_ms: parsedData.hrvMs || null,
-              body_battery: parsedData.bodyBattery || null,
-              stress_level: parsedData.stressLevel || null,
-              calories_burned: parsedData.calories || null,
-              steps: parsedData.steps || null,
-              sleep_score: parsedData.sleepScore || null,
-              sleep_duration_hours: parsedData.sleepDurationHours || null,
-              weight_kg: parsedData.weight || null,
-              body_fat_percent: parsedData.bodyFatPercent || null,
-              notes: `Imported from FIT file: ${file.name}`,
-              garmin_data: parsedData.rawData || null,
+        // Merge data for same date
+        const existing = dataByDate.get(parsedData.date);
+        if (existing) {
+          dataByDate.set(parsedData.date, {
+            ...existing,
+            ...Object.fromEntries(
+              Object.entries(parsedData).filter(([k, v]) => v != null && k !== 'rawData')
+            ),
+            // Merge raw data
+            rawData: {
+              ...existing.rawData,
+              ...parsedData.rawData,
             },
-            {
-              onConflict: 'user_id,metric_date',
-            }
-          );
-
-          if (upsertError) {
-            console.error(`Error upserting metrics for ${file.name}:`, upsertError);
-            results.failed++;
-            results.errors.push(`${file.name}: Database error - ${upsertError.message}`);
-          } else {
-            results.processed++;
-            results.metrics_imported++;
-            console.log(`Successfully imported metrics from ${file.name}`);
-          }
+            files: [...(existing.files || []), file.name],
+          });
         } else {
-          results.processed++;
-          console.log(`No usable data in ${file.name}`);
+          dataByDate.set(parsedData.date, {
+            ...parsedData,
+            files: [file.name],
+          });
         }
+
+        results.processed++;
       } catch (error) {
         console.error(`Error processing ${file.name}:`, error);
         results.failed++;
         results.errors.push(
           `${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    }
+
+    // Import merged data to database
+    for (const [date, data] of dataByDate.entries()) {
+      try {
+        const hasData =
+          data.restingHeartRate ||
+          data.hrvMs ||
+          data.bodyBattery ||
+          data.stressLevel ||
+          data.calories ||
+          data.sleepScore ||
+          data.weight;
+
+        if (!hasData) {
+          console.log(`No usable data for ${date}, skipping`);
+          continue;
+        }
+
+        // Prepare notes with RMR if available
+        let notes = `Imported from: ${data.files.join(', ')}`;
+        if (data.calories) {
+          notes += `\nRMR: ${data.calories} cal/day`;
+        }
+
+        // Upsert into body_metrics table with correct column names
+        const { error: upsertError } = await supabase.from('body_metrics').upsert(
+          {
+            user_id: user.id,
+            metric_date: date,
+            resting_hr: data.restingHeartRate || null,
+            hrv_ms: data.hrvMs || null,
+            body_battery: data.bodyBattery || null,
+            stress_avg: data.stressLevel || null,
+            sleep_score: data.sleepScore || null,
+            sleep_duration_min: data.sleepDurationHours
+              ? Math.round(data.sleepDurationHours * 60)
+              : null,
+            weight_lbs: data.weight ? Math.round(data.weight * 2.20462) : null, // Convert kg to lbs
+            body_fat_pct: data.bodyFatPercent || null,
+            notes: notes,
+            garmin_data: data.rawData || null,
+          },
+          {
+            onConflict: 'user_id,metric_date',
+          }
+        );
+
+        if (upsertError) {
+          console.error(`Error upserting metrics for ${date}:`, upsertError);
+          results.errors.push(`${date}: Database error - ${upsertError.message}`);
+        } else {
+          results.metrics_imported++;
+          console.log(`Successfully imported metrics for ${date}`);
+        }
+      } catch (error) {
+        console.error(`Error importing ${date}:`, error);
+        results.errors.push(
+          `${date}: ${error instanceof Error ? error.message : 'Unknown error'}`
         );
       }
     }

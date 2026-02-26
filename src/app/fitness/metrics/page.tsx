@@ -23,16 +23,46 @@ export default async function BodyMetricsPage() {
     .select('metric_date, weight_lbs, resting_hr, hrv_ms, body_battery, sleep_score, body_fat_pct')
     .eq('user_id', user.id)
     .order('metric_date', { ascending: false })
-    .limit(14);
+    .limit(30);
 
   return (
     <main className="pt-4 md:pt-8">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold">Body Metrics</h1>
-          <p className="mt-1 text-sm text-slate-500">Daily tracking — weight, cardiac, sleep, readiness.</p>
+      <div className="mb-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold">Body Metrics</h1>
+            <p className="mt-1 text-sm text-slate-500">Daily tracking — weight, cardiac, sleep, readiness.</p>
+          </div>
+          <Link href="/fitness" className="text-xs text-slate-400 hover:text-slate-600">← Dashboard</Link>
         </div>
-        <Link href="/fitness" className="text-xs text-slate-400 hover:text-slate-600">← Dashboard</Link>
+
+        {/* Quick Navigation */}
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            href="/fitness/metrics/history"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            📊 View Full History
+          </Link>
+          <Link
+            href="/fitness/metrics/trends"
+            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+          >
+            📈 Trends & Charts
+          </Link>
+          <Link
+            href="/fitness/metrics/analytics"
+            className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
+          >
+            🤖 AI Analytics
+          </Link>
+          <Link
+            href="/fitness/settings/garmin/import"
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            📁 Import Garmin Data
+          </Link>
+        </div>
       </div>
 
       {/* Entry form — upserts for today's date */}
@@ -182,8 +212,14 @@ export default async function BodyMetricsPage() {
       {/* Recent history */}
       {recentMetrics && recentMetrics.length > 0 && (
         <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100">
-            <h2 className="text-sm font-semibold text-slate-700">Recent History (14 days)</h2>
+          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-700">Recent History (30 days)</h2>
+            <Link
+              href="/fitness/metrics/history"
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+            >
+              View All →
+            </Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
