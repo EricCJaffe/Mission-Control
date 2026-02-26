@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { processLabReport } from '@/lib/fitness/lab-processor';
+import { processLabReportUnpdf } from '@/lib/fitness/lab-processor-unpdf';
 import { processMethylationReport } from '@/lib/fitness/methylation-processor';
 
 /**
@@ -76,9 +76,7 @@ export async function POST(req: Request) {
         file_type: fileType,
         file_name: file.name,
         file_path: storagePath,
-        file_size_bytes: file.size,
-        mime_type: file.type,
-        ai_processing_status: 'pending',
+        processing_status: 'pending',
       })
       .select()
       .single();
@@ -102,12 +100,11 @@ export async function POST(req: Request) {
       // Update status to processing
       await supabase
         .from('health_file_uploads')
-        .update({ ai_processing_status: 'processing' })
+        .update({ processing_status: 'processing' })
         .eq('id', fileRecord.id);
 
       if (fileType === 'lab_report') {
-        // Process lab report (extract test results)
-        processingResult = await processLabReport({
+        processingResult = await processLabReportUnpdf({
           userId,
           fileId: fileRecord.id,
           filePath: storagePath,
@@ -124,7 +121,7 @@ export async function POST(req: Request) {
         processingResult = { success: true };
         await supabase
           .from('health_file_uploads')
-          .update({ ai_processing_status: 'completed' })
+          .update({ processing_status: 'completed' })
           .eq('id', fileRecord.id);
       }
 
@@ -133,17 +130,18 @@ export async function POST(req: Request) {
         await supabase
           .from('health_file_uploads')
           .update({
-            ai_processing_status: fileType === 'lab_report' || fileType === 'methylation_report'
+            processing_status: fileType === 'lab_report' || fileType === 'methylation_report'
               ? 'needs_review'
-              : 'completed'
+              : 'completed',
+            processed_at: new Date().toISOString()
           })
           .eq('id', fileRecord.id);
       } else {
         await supabase
           .from('health_file_uploads')
           .update({
-            ai_processing_status: 'failed',
-            ai_processing_notes: processingResult.error || 'Processing failed'
+            processing_status: 'failed',
+            error_message: processingResult.error || 'Processing failed'
           })
           .eq('id', fileRecord.id);
       }
@@ -153,8 +151,8 @@ export async function POST(req: Request) {
       await supabase
         .from('health_file_uploads')
         .update({
-          ai_processing_status: 'failed',
-          ai_processing_notes: processingError instanceof Error ? processingError.message : 'Unknown error'
+          processing_status: 'failed',
+          error_message: processingError instanceof Error ? processingError.message : 'Unknown error'
         })
         .eq('id', fileRecord.id);
     }

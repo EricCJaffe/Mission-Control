@@ -60,3 +60,20 @@
   - Use `supabase migration repair` to mark historical migrations as `applied` or `reverted` as appropriate.
   - Re-run `supabase db pull` to capture remote schema snapshot.
   - Re-run `supabase db push` to confirm clean state.
+
+## 6) OpenAI API failures or rate limits
+- Symptom:
+  - AI features fail with 500 errors (book AI, sermon AI, fitness AI, morning briefing, lab analysis).
+  - Error logs show "OpenAI API error" or rate limit messages.
+  - Features timeout or return empty responses.
+- Checks:
+  - Verify `OPENAI_API_KEY` is set correctly in environment.
+  - Check OpenAI dashboard for API usage/quota limits.
+  - Review server logs for specific OpenAI error codes (429 = rate limit, 401 = invalid key).
+  - Test a simple AI route like `/api/fitness/morning-briefing` to isolate the issue.
+- Fix:
+  - If missing key: Add `OPENAI_API_KEY` to environment and restart.
+  - If rate limited: Wait for quota reset or upgrade OpenAI plan.
+  - If invalid key: Generate new key from OpenAI dashboard.
+  - If model not available: Check `OPENAI_MODEL` override and ensure model name is valid (defaults: `gpt-5.2` for books/sermons, `gpt-4o-mini` for fitness).
+  - Consider adding retry logic or fallback models for production resilience.

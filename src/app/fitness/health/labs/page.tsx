@@ -32,7 +32,15 @@ export default async function HealthLabReviewPage() {
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">Lab Results Review</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-2xl font-bold">Lab Results Review</h1>
+          <a
+            href="/fitness/health/labs/dashboard"
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm"
+          >
+            📊 View Dashboard
+          </a>
+        </div>
         <p className="text-gray-600">
           Review AI-extracted lab data before finalizing. System auto-extracts panel metadata and test results from PDFs.
         </p>

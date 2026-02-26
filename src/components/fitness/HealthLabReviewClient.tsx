@@ -104,12 +104,12 @@ export default function HealthLabReviewClient({
       setSuccess('Panel confirmed! Analysis generated.');
       setPendingPanels(prev => prev.filter(p => p.id !== selectedPanel.id));
       setConfirmedPanels(prev => [data.panel, ...prev]);
+      setSelectedPanel(data.panel); // Update with confirmed panel (includes ai_summary)
 
+      // Keep panel open to view AI summary, don't auto-close
       setTimeout(() => {
-        setSelectedPanel(null);
-        setResults([]);
         setSuccess(null);
-      }, 2000);
+      }, 3000);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -234,6 +234,20 @@ export default function HealthLabReviewClient({
             </div>
           </div>
         </div>
+
+        {/* AI Summary (if confirmed) */}
+        {selectedPanel.ai_summary && selectedPanel.status === 'confirmed' && (
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
+            <h3 className="text-lg font-semibold text-blue-900 mb-3">
+              🤖 AI Comprehensive Analysis
+            </h3>
+            <div className="prose prose-sm max-w-none">
+              <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+                {selectedPanel.ai_summary}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Flagged Results */}
         {flaggedResults.length > 0 && (

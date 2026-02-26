@@ -84,6 +84,11 @@ TacPastor’s Mission Control is a personal-first system for projects, tasks, go
   - `/api/ai/outline`
   - `/api/ai/patch`
   - `/api/ai/retrieve`
+- Sermon AI routes:
+  - `/sermons/ai/outline-series` — Generate sermon outlines for a series
+  - `/sermons/ai/series-to-book` — Convert sermon series to book format
+  - `/sermons/ai/book-to-series` — Convert book to sermon series
+  - `/sermons/ai/generate-assets` — Generate sermon assets (graphics, slides, etc.)
 
 ## Auth and Membership
 - Auth is Supabase Auth (email/password, callback exchange, signout route).

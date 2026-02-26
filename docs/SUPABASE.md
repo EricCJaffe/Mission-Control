@@ -16,6 +16,7 @@
 - Dashboard/review tables: `daily_priorities`, `daily_anchors`, `calendar_events`, `monthly_reviews`
 - Goals/SOP tables: `goal_cycles`, `goals`, `goal_tasks`, `sop_docs`, `sop_checks`
 - Book writer tables: `books`, `chapters`, `chapter_sections`, `chapter_versions`, `chapter_comments`, `chapter_proposals`, `book_uploads`, `book_milestones`, `research_notes`, `chat_threads`, `chat_messages`, `chapter_chunks`, `persona_profiles`, `book_proposals`
+- Sermon builder tables: `sermon_series`, `sermons`, `sermon_assets`
 - Attachments table: `attachments`
 - Fitness tables (defined in migration, NOT YET APPLIED):
   - `exercises` (exercise library with global templates)

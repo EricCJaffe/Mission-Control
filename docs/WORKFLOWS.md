@@ -18,6 +18,9 @@
   - `node scripts/import_book_from_rtf.mjs <path-to-rtf> [email]`
   - Requires env vars: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
   - Uses macOS `textutil` command (script dependency)
+- Backup all books to markdown files:
+  - `npm run backup:books`
+  - Exports all books with chapters to backup files
 
 ## Supabase Schema Workflow
 - Migrations are stored in `supabase/migrations/`.

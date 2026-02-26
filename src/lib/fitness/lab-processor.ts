@@ -37,18 +37,24 @@ export async function processLabReport(params: {
     const arrayBuffer = await fileData.arrayBuffer();
     const pdfBuffer = Buffer.from(arrayBuffer);
 
+    console.log(`📄 Processing PDF (${pdfBuffer.length} bytes)`);
+
     let pdfText: string;
     try {
       // Dynamic import for pdf-parse (CommonJS module)
-      const pdfParse = (await import('pdf-parse')).default;
+      const pdfParseModule = await import('pdf-parse');
+      const pdfParse = pdfParseModule.default || pdfParseModule;
       const pdfData = await pdfParse(pdfBuffer);
       pdfText = pdfData.text;
 
+      console.log(`✅ PDF text extracted (${pdfText.length} characters, ${pdfData.numpages} pages)`);
+
       if (!pdfText || pdfText.trim().length === 0) {
+        console.error('❌ PDF appears to be empty or scanned image');
         return { success: false, error: 'PDF appears to be empty or contains only images' };
       }
     } catch (pdfError) {
-      console.error('PDF parsing error:', pdfError);
+      console.error('❌ PDF parsing error:', pdfError);
       return { success: false, error: 'Failed to extract text from PDF' };
     }
 
@@ -128,7 +134,7 @@ ${pdfText}`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
+      console.error('❌ OpenAI API error:', response.status, errorText);
       console.error('Full error details:', {
         status: response.status,
         statusText: response.statusText,
@@ -136,6 +142,8 @@ ${pdfText}`;
       });
       return { success: false, error: `OpenAI API error: ${response.status} - ${errorText.substring(0, 200)}` };
     }
+
+    console.log('✅ OpenAI API response received');
 
     const aiResponse = await response.json();
     const extractedText = aiResponse.choices[0]?.message?.content;
@@ -171,6 +179,8 @@ ${pdfText}`;
       return { success: false, error: 'Failed to parse AI response as JSON' };
     }
 
+    console.log(`📊 Creating lab panel: ${extractedData.panel.lab_name} (${extractedData.results.length} results)`);
+
     // Create lab_panels record
     const { data: panelRecord, error: panelError } = await supabase
       .from('lab_panels')
@@ -187,9 +197,11 @@ ${pdfText}`;
       .single();
 
     if (panelError) {
-      console.error('Failed to create lab panel:', panelError);
+      console.error('❌ Failed to create lab panel:', panelError);
       return { success: false, error: 'Failed to create lab panel record' };
     }
+
+    console.log(`✅ Lab panel created: ${panelRecord.id}`);
 
     // Load lab_test_definitions for normalization
     const { data: testDefinitions } = await supabase
@@ -231,9 +243,11 @@ ${pdfText}`;
       .insert(resultsToInsert);
 
     if (resultsError) {
-      console.error('Failed to create lab results:', resultsError);
+      console.error('❌ Failed to create lab results:', resultsError);
       return { success: false, error: 'Failed to create lab results records' };
     }
+
+    console.log(`✅ Lab processing complete: ${resultsToInsert.length} results saved`);
 
     return { success: true };
 
@@ -255,7 +269,24 @@ export async function generateLabAnalysis(params: {
   panelId: string;
 }): Promise<{
   summary: string;
-  trends: Array<{ test_name: string; trend: string; note: string }>;
+  flagged_results?: Array<{
+    test_name: string;
+    value: string;
+    reference_range: string;
+    flag: string;
+    interpretation: string;
+    possible_causes: string[];
+    recommendations: string;
+    clinical_significance: string;
+  }>;
+  trends: Array<{
+    test_name: string;
+    trend: string;
+    current_value?: string;
+    previous_value?: string;
+    change_pct?: string;
+    note: string;
+  }>;
   health_doc_updates: Array<{ section: string; update: string; reason: string }>;
 }> {
   const { userId, panelId } = params;
@@ -319,7 +350,7 @@ export async function generateLabAnalysis(params: {
   // Build AI prompt with health context
   const systemPrompt = await buildAISystemPrompt(userId, 'lab_analysis');
 
-  const userPrompt = `Analyze this lab panel:
+  const userPrompt = `Analyze this lab panel comprehensively:
 
 **Panel Date**: ${panel.panel_date}
 **Lab**: ${panel.lab_name}
@@ -334,15 +365,30 @@ ${Array.from(historicalResults.entries())
   .map(([test, history]) => `${test}: ${history.map(h => `${h.value} (${h.date})`).join(', ')}`)
   .join('\n') || 'No historical data available'}
 
-Return JSON:
+Provide a COMPREHENSIVE analysis. Return JSON:
 \`\`\`json
 {
-  "summary": "Plain-language 3-4 sentence summary suitable for patient and doctor",
+  "summary": "Detailed 4-6 paragraph analysis covering: (1) Overall health status, (2) Key findings and what they mean, (3) Trends over time, (4) Clinical significance, (5) Recommended actions or monitoring. Use plain language suitable for patient understanding while being medically accurate.",
+  "flagged_results": [
+    {
+      "test_name": "BNP",
+      "value": "325 pg/mL",
+      "reference_range": "<100 pg/mL",
+      "flag": "high",
+      "interpretation": "What this means clinically",
+      "possible_causes": ["Cause 1", "Cause 2"],
+      "recommendations": "What to do - follow-up tests, lifestyle changes, medication review, etc.",
+      "clinical_significance": "Why this matters for health"
+    }
+  ],
   "trends": [
     {
       "test_name": "LDL Cholesterol",
       "trend": "improving" | "worsening" | "stable" | "insufficient_data",
-      "note": "Explanation with numbers and context"
+      "current_value": "95 mg/dL",
+      "previous_value": "110 mg/dL",
+      "change_pct": "-13.6%",
+      "note": "Detailed explanation with numbers, context, and clinical significance"
     }
   ],
   "health_doc_updates": [
@@ -355,7 +401,7 @@ Return JSON:
 }
 \`\`\`
 
-Return ONLY the JSON.`;
+Be thorough. For flagged results, explain clinical significance, possible causes, and actionable recommendations. Return ONLY the JSON.`;
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
