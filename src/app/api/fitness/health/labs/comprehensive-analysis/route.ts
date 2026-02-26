@@ -107,7 +107,7 @@ export async function POST(req: Request) {
     }
 
     // Build AI prompt
-    const systemPrompt = await buildAISystemPrompt(userData.user.id, 'comprehensive_lab_analysis');
+    const systemPrompt = await buildAISystemPrompt(userData.user.id, 'lab_analysis');
 
     // Format data for AI
     let dataForAI = `# Comprehensive Lab Analysis\n\n`;
