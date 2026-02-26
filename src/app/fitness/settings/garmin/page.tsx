@@ -7,6 +7,9 @@ export default function GarminAuthPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaTicket, setMfaTicket] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,15 +19,25 @@ export default function GarminAuthPage() {
     setError(null);
 
     try {
+      const body: Record<string, string> = { email, password };
+      if (mfaRequired && mfaCode) {
+        body.mfaCode = mfaCode;
+      }
+
       const res = await fetch('/api/fitness/garmin/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
 
-      if (data.success) {
+      if (data.mfaRequired) {
+        // MFA is required - show MFA code field
+        setMfaRequired(true);
+        setMfaTicket(data.mfaTicket);
+        setError(null);
+      } else if (data.success) {
         router.push('/fitness/settings');
       } else {
         setError(data.error || 'Authentication failed');
@@ -65,7 +78,7 @@ export default function GarminAuthPage() {
                 className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
                 placeholder="your@email.com"
                 required
-                disabled={loading}
+                disabled={loading || mfaRequired}
               />
             </div>
 
@@ -80,17 +93,44 @@ export default function GarminAuthPage() {
                 className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
                 placeholder="••••••••"
                 required
-                disabled={loading}
+                disabled={loading || mfaRequired}
               />
             </div>
+
+            {mfaRequired && (
+              <div className="pt-2 pb-2 border-t border-slate-200">
+                <div className="mb-3 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800 font-medium">
+                    🔐 MFA Required
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Enter the 6-digit code from your authenticator app
+                  </p>
+                </div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  MFA Code
+                </label>
+                <input
+                  type="text"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-center text-lg tracking-widest font-mono"
+                  placeholder="000000"
+                  maxLength={6}
+                  required
+                  autoFocus
+                  disabled={loading}
+                />
+              </div>
+            )}
 
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (mfaRequired && mfaCode.length !== 6)}
                 className="w-full min-h-[44px] rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50"
               >
-                {loading ? 'Connecting...' : 'Connect Garmin'}
+                {loading ? 'Connecting...' : mfaRequired ? 'Verify MFA Code' : 'Connect Garmin'}
               </button>
             </div>
           </div>

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { email, password } = await req.json();
+    const { email, password, mfaCode } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -22,9 +22,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // Authenticate with Garmin
-    const client = new GarminClient(email, password);
-    await client.login();
+    // Authenticate with Garmin (with optional MFA code)
+    const client = new GarminClient(email, password, mfaCode);
+    const loginResult = await client.login();
+
+    // Check if MFA is required
+    if (loginResult && 'mfaRequired' in loginResult) {
+      return NextResponse.json({
+        mfaRequired: true,
+        mfaTicket: loginResult.mfaTicket,
+        message: 'MFA code required. Please enter your 6-digit code.',
+      });
+    }
 
     const tokens = client.getTokens();
     if (!tokens) {
@@ -58,7 +67,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Garmin Connected successfully',
+      message: 'Garmin connected successfully',
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Authentication failed';

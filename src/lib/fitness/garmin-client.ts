@@ -77,6 +77,14 @@ export type HRZoneData = {
 };
 
 /**
+ * MFA challenge response from Garmin.
+ */
+export type MFAChallenge = {
+  mfaRequired: true;
+  mfaTicket: string;
+};
+
+/**
  * Garmin Connect API client with OAuth authentication.
  */
 export class GarminClient {
@@ -85,10 +93,12 @@ export class GarminClient {
   private displayName: string | null = null;
   private email: string;
   private password: string;
+  private mfaCode: string | null = null;
 
-  constructor(email: string, password: string) {
+  constructor(email: string, password: string, mfaCode?: string) {
     this.email = email;
     this.password = password;
+    this.mfaCode = mfaCode || null;
     this.cookieJar = new CookieJar();
   }
 
@@ -108,8 +118,9 @@ export class GarminClient {
 
   /**
    * Authenticate with Garmin SSO and obtain OAuth tokens.
+   * Throws MFAChallenge if MFA code is required.
    */
-  async login(): Promise<void> {
+  async login(): Promise<void | MFAChallenge> {
     try {
       // Step 1: GET login page to get CSRF token
       const loginPageRes = await request(`${SSO_URL}/sso/signin`, {
@@ -142,57 +153,103 @@ export class GarminClient {
 
       const signinData = await signinRes.body.json() as any;
 
+      // Check for MFA challenge
+      if (signinData.mfaRequired || (signinData.serviceTicketId && signinData.serviceTicketId.includes('MFA'))) {
+        // MFA is required
+        if (!this.mfaCode) {
+          // Return MFA challenge - caller needs to provide MFA code
+          const mfaTicket = signinData.ticket || signinData.serviceTicketId || 'mfa-required';
+          return {
+            mfaRequired: true,
+            mfaTicket,
+          };
+        }
+
+        // MFA code provided, submit it
+        const mfaRes = await request(`${SSO_URL}/sso/verifyMFA/loginEnterMfaCode`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+            'Cookie': await this.getCookieHeader(SSO_URL),
+          },
+          body: JSON.stringify({
+            mfa_code: this.mfaCode,
+            embed: true,
+            _csrf: csrfToken,
+          }),
+        });
+
+        const mfaData = await mfaRes.body.json() as any;
+
+        if (!mfaData.serviceTicket || mfaData.serviceTicketId === 'INVALID_MFA_CODE') {
+          throw new Error('Invalid MFA code');
+        }
+
+        // MFA successful, continue with service ticket
+        const serviceTicket = mfaData.serviceTicket.ticket;
+        return this.completeLogin(serviceTicket, signinRes);
+      }
+
+      // No MFA - standard flow
       if (!signinData.serviceTicket || signinData.serviceTicketId === 'INVALID_CREDENTIALS') {
         throw new Error('Invalid Garmin credentials');
       }
 
       const serviceTicket = signinData.serviceTicket.ticket;
+      return this.completeLogin(serviceTicket, signinRes);
 
-      // Store cookies
-      const cookies = signinRes.headers['set-cookie'];
-      if (cookies) {
-        const cookieArray = Array.isArray(cookies) ? cookies : [cookies];
-        for (const cookie of cookieArray) {
-          await this.cookieJar.setCookie(cookie, SSO_URL);
-        }
-      }
-
-      // Step 3: Exchange service ticket for Connect session
-      const ticketRes = await request(`${MODERN_URL}/?ticket=${serviceTicket}`, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        },
-      });
-
-      const ticketCookies = ticketRes.headers['set-cookie'];
-      if (ticketCookies) {
-        const cookieArray = Array.isArray(ticketCookies) ? ticketCookies : [ticketCookies];
-        for (const cookie of cookieArray) {
-          await this.cookieJar.setCookie(cookie, CONNECT_URL);
-        }
-      }
-
-      // Step 4: Get user profile to extract displayName
-      const profileRes = await this.authenticatedRequest('/userprofile-service/socialProfile');
-      const profileData = await profileRes.body.json() as any;
-      this.displayName = profileData.displayName || profileData.userName || this.email.split('@')[0];
-
-      // Store basic token structure
-      this.tokens = {
-        oauth1_token: serviceTicket,
-        oauth1_token_secret: '',
-        oauth2_token: null,
-        oauth2_refresh_token: null,
-        oauth2_expires_at: null,
-        session_cookie: await this.getCookieHeader(CONNECT_URL),
-      };
-
-      console.log(`✓ Garmin authenticated as ${this.displayName}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Garmin authentication failed: ${message}`);
     }
+  }
+
+  /**
+   * Complete login after obtaining service ticket (separated for MFA flow).
+   */
+  private async completeLogin(serviceTicket: string, signinRes: Awaited<ReturnType<typeof request>>): Promise<void> {
+    // Store cookies
+    const cookies = signinRes.headers['set-cookie'];
+    if (cookies) {
+      const cookieArray = Array.isArray(cookies) ? cookies : [cookies];
+      for (const cookie of cookieArray) {
+        await this.cookieJar.setCookie(cookie, SSO_URL);
+      }
+    }
+
+    // Step 3: Exchange service ticket for Connect session
+    const ticketRes = await request(`${MODERN_URL}/?ticket=${serviceTicket}`, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      },
+    });
+
+    const ticketCookies = ticketRes.headers['set-cookie'];
+    if (ticketCookies) {
+      const cookieArray = Array.isArray(ticketCookies) ? ticketCookies : [ticketCookies];
+      for (const cookie of cookieArray) {
+        await this.cookieJar.setCookie(cookie, CONNECT_URL);
+      }
+    }
+
+    // Step 4: Get user profile to extract displayName
+    const profileRes = await this.authenticatedRequest('/userprofile-service/socialProfile');
+    const profileData = await profileRes.body.json() as any;
+    this.displayName = profileData.displayName || profileData.userName || this.email.split('@')[0];
+
+    // Store basic token structure
+    this.tokens = {
+      oauth1_token: serviceTicket,
+      oauth1_token_secret: '',
+      oauth2_token: null,
+      oauth2_refresh_token: null,
+      oauth2_expires_at: null,
+      session_cookie: await this.getCookieHeader(CONNECT_URL),
+    };
+
+    console.log(`✓ Garmin authenticated as ${this.displayName}`);
   }
 
   /**
