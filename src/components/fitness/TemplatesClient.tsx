@@ -198,7 +198,13 @@ export default function TemplatesClient({ templates: initial }: { templates: Tem
                 </div>
                 {t.notes && <p className="text-xs text-slate-500 mt-2">{t.notes}</p>}
                 <div className="mt-3 pt-2 border-t border-slate-100 flex gap-3 justify-end">
-                  <button onClick={() => startEdit(t)} className="text-xs text-slate-400 hover:text-blue-500">Edit</button>
+                  <a
+                    href={`/fitness/templates/${t.id}/edit`}
+                    className="text-xs text-blue-500 hover:text-blue-700 font-medium"
+                  >
+                    Edit Structure
+                  </a>
+                  <button onClick={() => startEdit(t)} className="text-xs text-slate-400 hover:text-blue-500">Edit Info</button>
                   {confirmDeleteId === t.id ? (
                     <div className="flex items-center gap-1">
                       <span className="text-xs text-red-600">Delete?</span>
