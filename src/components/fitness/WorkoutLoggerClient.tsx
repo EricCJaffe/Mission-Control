@@ -2,6 +2,23 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import RestTimer from './RestTimer';
 import PlateCalculator from './PlateCalculator';
 import type { SetType, CardioLog, WorkoutStructureItem } from '@/lib/fitness/types';
@@ -57,6 +74,7 @@ type Props = {
     template_id: string | null;
     sets: RepeatSet[];
   } | null;
+  templateId?: string | null;
 };
 
 // ——— Internal types ———
@@ -97,7 +115,45 @@ const SET_TYPE_COLORS: Record<SetType, string> = {
 let blockIdCounter = 0;
 function nextBlockId() { return `block_${++blockIdCounter}_${Date.now()}`; }
 
-export default function WorkoutLoggerClient({ exercises, templates, todayPlan, latestMetrics, repeatData }: Props) {
+// Sortable wrapper for exercise items (standalone or superset)
+function SortableExerciseItem({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute left-1 top-3 z-10 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 px-1"
+        title="Drag to reorder"
+      >
+        ⋮⋮
+      </button>
+      {children}
+    </div>
+  );
+}
+
+export default function WorkoutLoggerClient({ exercises, templates, todayPlan, latestMetrics, repeatData, templateId }: Props) {
   const router = useRouter();
   const [mode, setMode] = useState<WorkoutMode>('select');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateRow | null>(null);
@@ -124,6 +180,25 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   // Elapsed timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerStartRef = useRef<number | null>(null);
+
+  // Drag-and-drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Auto-load template from URL
+  useEffect(() => {
+    if (templateId && templates.length > 0) {
+      const template = templates.find(t => t.id === templateId);
+      if (template) {
+        setSelectedTemplate(template);
+        setWorkoutType(template.type ?? 'strength');
+      }
+    }
+  }, [templateId, templates]);
 
   useEffect(() => {
     if (mode === 'logging' || mode === 'cardio') {
@@ -341,6 +416,52 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     setSwapTarget(null);
     setShowExercisePicker(false);
     setExerciseSearch('');
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setBlocks((currentBlocks) => {
+        // Build orderedItems to understand the current structure
+        const items: Array<{ id: string; blockIds: string[] }> = [];
+        const seenGroups = new Set<string>();
+
+        for (const block of currentBlocks) {
+          if (block.superset_group) {
+            if (!seenGroups.has(block.superset_group)) {
+              seenGroups.add(block.superset_group);
+              items.push({
+                id: block.superset_group,
+                blockIds: currentBlocks.filter(b => b.superset_group === block.superset_group).map(b => b.id),
+              });
+            }
+          } else {
+            items.push({ id: block.id, blockIds: [block.id] });
+          }
+        }
+
+        // Find old and new positions in items array
+        const oldIndex = items.findIndex(item => item.id === active.id);
+        const newIndex = items.findIndex(item => item.id === over.id);
+
+        if (oldIndex < 0 || newIndex < 0) return currentBlocks;
+
+        // Reorder items
+        const reorderedItems = arrayMove(items, oldIndex, newIndex);
+
+        // Flatten back to blocks
+        const newBlocks: ExerciseBlock[] = [];
+        for (const item of reorderedItems) {
+          for (const blockId of item.blockIds) {
+            const block = currentBlocks.find(b => b.id === blockId);
+            if (block) newBlocks.push(block);
+          }
+        }
+
+        return newBlocks;
+      });
+    }
   }
 
   function removeBlock(blockId: string) {
@@ -1013,21 +1134,43 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       )}
 
       {/* Exercise blocks */}
-      {orderedItems.map((item) => {
-        if (item.type === 'superset') {
-          return (
-            <div key={item.groupId} className="rounded-2xl border-2 border-purple-200 bg-purple-50/30 p-2 space-y-2">
-              <div className="flex items-center justify-between px-2 py-1">
-                <span className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Superset</span>
-                <button onClick={() => dissolveSuperset(item.groupId)}
-                  className="text-[10px] text-purple-400 hover:text-purple-600">Ungroup</button>
-              </div>
-              {item.blocks.map(b => renderExerciseBlock(b, false))}
-            </div>
-          );
-        }
-        return renderExerciseBlock(item.block);
-      })}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={orderedItems.map(item => item.type === 'superset' ? item.groupId : item.block.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-4">
+            {orderedItems.map((item) => {
+              const itemId = item.type === 'superset' ? item.groupId : item.block.id;
+
+              if (item.type === 'superset') {
+                return (
+                  <SortableExerciseItem key={item.groupId} id={itemId}>
+                    <div className="rounded-2xl border-2 border-purple-200 bg-purple-50/30 p-2 space-y-2">
+                      <div className="flex items-center justify-between px-2 py-1">
+                        <span className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Superset</span>
+                        <button onClick={() => dissolveSuperset(item.groupId)}
+                          className="text-[10px] text-purple-400 hover:text-purple-600">Ungroup</button>
+                      </div>
+                      {item.blocks.map(b => renderExerciseBlock(b, false))}
+                    </div>
+                  </SortableExerciseItem>
+                );
+              }
+
+              return (
+                <SortableExerciseItem key={item.block.id} id={itemId}>
+                  {renderExerciseBlock(item.block)}
+                </SortableExerciseItem>
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Action buttons */}
       <div className="flex gap-2">

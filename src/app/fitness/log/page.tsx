@@ -4,7 +4,7 @@ import WorkoutLoggerClient from '@/components/fitness/WorkoutLoggerClient';
 export const dynamic = 'force-dynamic';
 
 type PageProps = {
-  searchParams: Promise<{ repeat?: string }>;
+  searchParams: Promise<{ repeat?: string; template?: string }>;
 };
 
 export default async function LogWorkoutPage({ searchParams }: PageProps) {
@@ -105,6 +105,7 @@ export default async function LogWorkoutPage({ searchParams }: PageProps) {
         todayPlan={todayPlan}
         latestMetrics={latestMetrics}
         repeatData={repeatData}
+        templateId={params.template || null}
       />
     </main>
   );

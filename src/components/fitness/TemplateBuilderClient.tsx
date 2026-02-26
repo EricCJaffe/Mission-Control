@@ -498,7 +498,20 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
                     const exercise = exercises.find(e => e.id === ex.exercise_id);
                     return (
                       <div key={i} className="mb-2 p-3 bg-purple-50 rounded-lg">
-                        <div className="font-medium text-sm mb-2">{exercise?.name}</div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="font-medium text-sm">{exercise?.name}</div>
+                          {editingSuperset.exercises.length > 1 && (
+                            <button
+                              onClick={() => {
+                                const newExercises = editingSuperset.exercises.filter((_, idx) => idx !== i);
+                                setEditingSuperset({ ...editingSuperset, exercises: newExercises });
+                              }}
+                              className="text-xs text-red-500 hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
                         <div className="grid grid-cols-2 gap-2">
                           <input
                             type="number"
@@ -526,6 +539,29 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
                       </div>
                     );
                   })}
+
+                  {/* Add Exercise to Superset */}
+                  <div className="mt-3">
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          const newExercises = [...editingSuperset.exercises, {
+                            exercise_id: e.target.value,
+                            target_reps: 10,
+                            target_weight: undefined,
+                          }];
+                          setEditingSuperset({ ...editingSuperset, exercises: newExercises });
+                          e.target.value = '';
+                        }
+                      }}
+                      className="w-full rounded-lg border border-purple-300 px-3 py-2 text-sm"
+                    >
+                      <option value="">+ Add Exercise to Superset</option>
+                      {exercises.map(ex => (
+                        <option key={ex.id} value={ex.id}>{ex.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-4">
