@@ -42,8 +42,7 @@ export async function processLabReport(params: {
     let pdfText: string;
     try {
       // Dynamic import for pdf-parse (CommonJS module)
-      const pdfParseModule = await import('pdf-parse');
-      const pdfParse = pdfParseModule.default || pdfParseModule;
+      const pdfParse = (await import('pdf-parse')).default as any;
       const pdfData = await pdfParse(pdfBuffer);
       pdfText = pdfData.text;
 
