@@ -24,19 +24,17 @@ npx tsc --noEmit   # TypeScript check (no test suite configured)
 - Tap targets: minimum 44px (`min-h-[44px]`)
 - Migrations: `supabase/migrations/YYYYMMDDHHmmss_name.sql`
 
-## Critical: Database Migration NOT YET APPLIED
+## Database Status
 
-The fitness module migration has been written but **not applied to the database**:
+✅ **All migrations applied** — Fitness module is fully operational.
 
-```bash
-supabase db push   # Run this to apply all pending migrations
-```
-
-Files:
+Migrations applied:
 - `supabase/migrations/20260225100000_fitness_module.sql` — 16 tables, RLS, indexes
 - `supabase/migrations/20260225100500_seed_exercises.sql` — 52 default exercises
+- `supabase/migrations/20260225120000_health_context_system.sql` — Health tracking tables
+- `supabase/migrations/20260226000000_garmin_integration.sql` — Garmin sync support
 
-Until this runs, all fitness features will fail with database errors.
+All fitness features are working and tested.
 
 ## Project Structure
 
@@ -82,20 +80,19 @@ src/
 
 ## Fitness Module Status
 
-### Done (code complete)
-- Phase 1: Foundation (dashboard, logger, BP, templates, exercises, metrics) ✅
-- Phase 2: Weather integration ✅, Garmin sync lib ✅
-- Phase 3: TSS, PMC, compliance, AI builder, safety alerts ✅
-- Phase 4: Trends page ✅
-- Phase 5: Training plans, PRs, equipment, plate calculator ✅
-- Phase 6: Readiness, strain, cardiac efficiency, est. 1RM, power zones, sleep debt, TDEE, recovery, morning briefing, labs, athlete profile ✅
+### ✅ Completed & Deployed
+- Phase 1: Foundation (dashboard, logger, BP, templates, exercises, metrics)
+- Phase 2: Weather integration, Garmin FIT file import, Garmin sync library
+- Phase 3: TSS, PMC, compliance, AI builder, safety alerts
+- Phase 4: Trends page with Recharts visualizations
+- Phase 5: Training plans, PRs, equipment, plate calculator
+- Phase 6: Readiness, strain, cardiac efficiency, est. 1RM, power zones, sleep debt, TDEE, recovery, morning briefing, labs, athlete profile
+- Additional: Lab results dashboard with AI comprehensive analysis, template drag-and-drop editor, Garmin auth pages
 
-### Not Yet Done
-- **Apply database migration** (blocker for everything)
-- Garmin OAuth client (needs credentials + npm package)
+### 🚧 In Progress / Next Steps
 - PDF export framework (needs `@react-pdf/renderer`)
-- Cardiologist report PDF
-- Recharts integration for trend charts
+- Cardiologist report PDF generation
+- Garmin OAuth full automation (manual FIT import works)
 - AI plan generation (auto-generate plans from historical data)
 
 ## Environment Variables Needed
