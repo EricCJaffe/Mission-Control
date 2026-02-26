@@ -66,34 +66,9 @@ export async function GET(req: NextRequest) {
     };
 
     // Call OpenAI for analysis
-    const prompt = `You are a health analytics expert. Analyze this body metrics data and provide insights:
+    const systemPrompt = `You are a health analytics expert. Analyze body metrics data and provide insights.
 
-## Data Summary
-- Date Range: ${summary.dateRange.start} to ${summary.dateRange.end}
-- Total Days: ${summary.totalDays}
-
-## Metrics Data
-${JSON.stringify(summary.metrics, null, 2)}
-
-## Analysis Required
-
-1. **Sleep/HRV Correlation**
-   - Analyze the relationship between sleep quality/duration and HRV
-   - Identify patterns where poor sleep affects HRV
-   - Provide specific recommendations
-
-2. **Recovery Trends**
-   - Analyze body battery, stress levels, and RHR trends
-   - Identify periods of good recovery vs poor recovery
-   - Detect any concerning patterns
-
-3. **Early Warning Signs**
-   - Identify any declining trends in key metrics (RHR rising, HRV falling, poor sleep)
-   - Flag potential health concerns that need attention
-   - Provide actionable warnings
-
-## Response Format
-Provide a JSON response with this structure:
+Response Format: Return ONLY a valid JSON object with this structure:
 {
   "sleepHRVCorrelation": {
     "correlation": "strong|moderate|weak|none",
@@ -120,7 +95,28 @@ Provide a JSON response with this structure:
 
 Be specific with dates and numbers. Focus on actionable insights.`;
 
-    const aiResponse = await callOpenAI(prompt);
+    const userPrompt = `Analyze this body metrics data:
+
+## Data Summary
+- Date Range: ${summary.dateRange.start} to ${summary.dateRange.end}
+- Total Days: ${summary.totalDays}
+
+## Metrics Data
+${JSON.stringify(summary.metrics, null, 2)}
+
+## Analysis Required
+
+1. **Sleep/HRV Correlation**: Analyze the relationship between sleep quality/duration and HRV. Identify patterns where poor sleep affects HRV.
+
+2. **Recovery Trends**: Analyze body battery, stress levels, and RHR trends. Identify periods of good vs poor recovery.
+
+3. **Early Warning Signs**: Identify any declining trends in key metrics (RHR rising, HRV falling, poor sleep). Flag potential health concerns.`;
+
+    const aiResponse = await callOpenAI({
+      model: 'gpt-4o-mini',
+      system: systemPrompt,
+      user: userPrompt,
+    });
 
     // Parse JSON response
     let analysis;

@@ -60,9 +60,9 @@ export class FitFileParser {
   /**
    * Parse a FIT file from a buffer
    */
-  parseBuffer(buffer: Buffer): ParsedFitData | null {
+  parseBuffer(buffer: Buffer): Promise<ParsedFitData | null> {
     return new Promise((resolve, reject) => {
-      this.parser.parse(buffer, (error: Error | null, data: any) => {
+      this.parser.parse(buffer as any, (error: string | undefined, data: any) => {
         if (error) {
           console.error('Error parsing FIT file:', error);
           reject(error);
