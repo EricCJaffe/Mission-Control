@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 type Profile = {
   max_hr_ceiling: number;
@@ -18,9 +19,17 @@ type Profile = {
   rhr_goal: number | null;
 };
 
+type GarminStatus = {
+  connected: boolean;
+  email: string | null;
+  lastSync: string | null;
+};
+
 export default function AthleteProfileClient({ profile }: { profile: Profile | null }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [garminStatus, setGarminStatus] = useState<GarminStatus | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const [maxHr, setMaxHr] = useState(profile?.max_hr_ceiling ?? 155);
   const [lthr, setLthr] = useState(profile?.lactate_threshold_hr ?? 140);
@@ -36,6 +45,38 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
       ? JSON.stringify(profile.meds_schedule, null, 2)
       : '{\n  "morning": "6:00 AM",\n  "evening": "6:00 PM"\n}'
   );
+
+  useEffect(() => {
+    fetchGarminStatus();
+  }, []);
+
+  async function fetchGarminStatus() {
+    try {
+      const res = await fetch('/api/fitness/garmin/status');
+      const data = await res.json();
+      setGarminStatus(data);
+    } catch (error) {
+      console.error('Failed to fetch Garmin status:', error);
+    }
+  }
+
+  async function handleSyncNow() {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/fitness/garmin/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: 7 }),
+      });
+      const data = await res.json();
+      alert(data.message || data.error);
+      await fetchGarminStatus();
+    } catch (error) {
+      alert('Network error - please try again');
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -110,6 +151,42 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
           <label className="block text-xs font-medium text-slate-600 mb-1">Medication Schedule (JSON)</label>
           <textarea value={medsSchedule} onChange={e => setMedsSchedule(e.target.value)} rows={3} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono" />
         </div>
+      </section>
+
+      {/* Garmin Connect */}
+      <section className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Garmin Connect</h2>
+        {garminStatus?.connected ? (
+          <>
+            <div className="text-sm text-slate-600">
+              <p><strong>Status:</strong> Connected</p>
+              <p><strong>Email:</strong> {garminStatus.email}</p>
+              {garminStatus.lastSync && (
+                <p className="text-xs text-slate-500 mt-1">
+                  Last sync: {new Date(garminStatus.lastSync).toLocaleString()}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={handleSyncNow}
+              disabled={syncing}
+              className="w-full min-h-[44px] rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 disabled:opacity-50"
+            >
+              {syncing ? 'Syncing...' : 'Sync Now'}
+            </button>
+          </>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Connect your Garmin account to automatically sync daily metrics (RHR, HRV, body battery, sleep) and workout activities.
+            </p>
+            <Link href="/fitness/settings/garmin">
+              <button className="w-full min-h-[44px] rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700">
+                Connect Garmin
+              </button>
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* Save */}

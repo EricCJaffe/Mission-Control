@@ -43,6 +43,8 @@
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
     "tiptap-markdown": "^0.9.0",
+    "tough-cookie": "^6.0.0",
+    "undici": "^7.22.0",
     "unpdf": "^1.4.0"
   },
   "devDependencies": {
@@ -51,6 +53,7 @@
     "@types/pg": "^8",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/tough-cookie": "^4.0.5",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
