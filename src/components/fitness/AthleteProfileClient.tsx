@@ -185,6 +185,22 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
                 Connect Garmin
               </button>
             </Link>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white/70 px-2 text-slate-500">or</span>
+              </div>
+            </div>
+            <Link href="/fitness/settings/garmin/import">
+              <button className="w-full min-h-[44px] rounded-xl border-2 border-blue-600 bg-white text-blue-600 font-semibold hover:bg-blue-50">
+                Import FIT Files
+              </button>
+            </Link>
+            <p className="text-xs text-slate-500">
+              Manually upload FIT files exported from Garmin Connect
+            </p>
           </div>
         )}
       </section>

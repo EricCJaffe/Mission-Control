@@ -122,26 +122,43 @@ export class GarminClient {
    */
   async login(): Promise<void | MFAChallenge> {
     try {
-      // Step 1: GET login page to get CSRF token
-      const loginPageRes = await request(`${SSO_URL}/sso/signin`, {
+      // Step 1: GET login page to initialize session
+      const loginPageRes = await request(`${SSO_URL}/sso/signin?service=https://connect.garmin.com/modern/`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
       });
 
       const loginPageHtml = await loginPageRes.body.text();
-      const csrfMatch = loginPageHtml.match(/"_csrf"\s*:\s*"([^"]+)"/);
-      const csrfToken = csrfMatch ? csrfMatch[1] : '';
 
-      // Step 2: POST credentials to SSO
-      const signinRes = await request(`${SSO_URL}/sso/signin`, {
+      // Extract CSRF token from hidden input or script
+      let csrfToken = '';
+      const csrfInputMatch = loginPageHtml.match(/name="_csrf"\s+value="([^"]+)"/);
+      const csrfScriptMatch = loginPageHtml.match(/"_csrf"\s*:\s*"([^"]+)"/);
+      csrfToken = csrfInputMatch ? csrfInputMatch[1] : (csrfScriptMatch ? csrfScriptMatch[1] : '');
+
+      console.log('CSRF token found:', csrfToken ? 'yes' : 'no');
+
+      // Store cookies from login page
+      const initCookies = loginPageRes.headers['set-cookie'];
+      if (initCookies) {
+        const cookieArray = Array.isArray(initCookies) ? initCookies : [initCookies];
+        for (const cookie of cookieArray) {
+          await this.cookieJar.setCookie(cookie, SSO_URL);
+        }
+      }
+
+      // Step 2: POST credentials to SSO with proper headers
+      const signinRes = await request(`${SSO_URL}/sso/signin?service=https://connect.garmin.com/modern/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/javascript, */*; q=0.01',
           'Origin': SSO_URL,
-          'Referer': `${SSO_URL}/sso/signin`,
+          'Referer': `${SSO_URL}/sso/signin?service=https://connect.garmin.com/modern/`,
+          'Cookie': await this.getCookieHeader(SSO_URL),
         },
         body: JSON.stringify({
           username: this.email,
@@ -151,10 +168,41 @@ export class GarminClient {
         }),
       });
 
-      const signinData = await signinRes.body.json() as any;
+      const responseText = await signinRes.body.text();
 
-      // Check for MFA challenge
-      if (signinData.mfaRequired || (signinData.serviceTicketId && signinData.serviceTicketId.includes('MFA'))) {
+      // Debug: Log response type and first 500 chars
+      console.log('Response status:', signinRes.statusCode);
+      console.log('Response content-type:', signinRes.headers['content-type']);
+      console.log('Response preview:', responseText.substring(0, 500));
+
+      // Try to parse as JSON, but handle HTML responses
+      let signinData: any;
+      try {
+        signinData = JSON.parse(responseText);
+        console.log('Garmin signin response:', JSON.stringify(signinData, null, 2));
+      } catch (e) {
+        // Response is HTML - check if it contains ticket
+        console.log('Response is HTML, checking for ticket...');
+        const ticketMatch = responseText.match(/ticket=([^"&]+)/);
+        if (ticketMatch) {
+          console.log('Found ticket in HTML:', ticketMatch[1]);
+          const serviceTicket = ticketMatch[1];
+          return this.completeLogin(serviceTicket, signinRes);
+        }
+        throw new Error('Garmin returned HTML instead of JSON - authentication may have failed');
+      }
+
+      // Check for MFA challenge - Garmin may return various indicators
+      const isMFARequired =
+        signinData.mfaRequired === true ||
+        signinData.serviceTicketId === 'MFA_REQUIRED' ||
+        signinData.serviceTicketId === 'ACCOUNT_LOCKED' ||
+        (signinData.serviceTicketId && String(signinData.serviceTicketId).includes('MFA')) ||
+        signinData.errors?.some((e: any) => e.code === 'MFA_REQUIRED');
+
+      if (isMFARequired) {
+        console.log('MFA detected! serviceTicketId:', signinData.serviceTicketId);
+
         // MFA is required
         if (!this.mfaCode) {
           // Return MFA challenge - caller needs to provide MFA code
