@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import type { WorkoutType } from '@/lib/fitness/types';
+import type { ReactNode } from 'react';
+import { Dumbbell, PersonStanding, Zap, Flame } from 'lucide-react';
 
 type TemplateRow = {
   id: string;
@@ -15,7 +17,7 @@ type TemplateRow = {
   created_at: string;
 };
 
-const TYPE_ICONS: Record<string, string> = { strength: '🏋️', cardio: '🏃', hiit: '⚡', hybrid: '🔥' };
+const TYPE_ICONS: Record<string, ReactNode> = { strength: <Dumbbell size={20} />, cardio: <PersonStanding size={20} />, hiit: <Zap size={20} />, hybrid: <Flame size={20} /> };
 const TYPES: WorkoutType[] = ['strength', 'cardio', 'hiit', 'hybrid'];
 
 export default function TemplatesClient({ templates: initial }: { templates: TemplateRow[] }) {
@@ -105,7 +107,7 @@ export default function TemplatesClient({ templates: initial }: { templates: Tem
 
       {/* Add form */}
       {showAdd ? (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">Create Template</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <input value={name} onChange={e => setName(e.target.value)} placeholder="Template name"
@@ -178,10 +180,10 @@ export default function TemplatesClient({ templates: initial }: { templates: Tem
             }
 
             return (
-              <div key={t.id} className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+              <div key={t.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">{TYPE_ICONS[t.type ?? ''] ?? '💪'}</span>
+                    <span>{TYPE_ICONS[t.type ?? ''] ?? <Dumbbell size={20} />}</span>
                     <div>
                       <p className="font-semibold text-slate-800">{t.name}</p>
                       <p className="text-xs text-slate-500">

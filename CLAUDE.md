@@ -20,7 +20,8 @@ npx tsc --noEmit   # TypeScript check (no test suite configured)
 - Route handlers use `src/app/[module]/[action]/route.ts` for mutations
 - API routes use `src/app/api/[module]/route.ts` for JSON endpoints
 - All tables use `user_id` with RLS policies (`auth.uid() = user_id`)
-- Styling: Tailwind v4 only, card pattern = `rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm`
+- Styling: Tailwind v4 only, card pattern = `rounded-2xl border border-slate-100 bg-white p-5 shadow-sm`
+- Icons: Lucide React (`lucide-react`) — no emoji icons in UI
 - Tap targets: minimum 44px (`min-h-[44px]`)
 - Migrations: `supabase/migrations/YYYYMMDDHHmmss_name.sql`
 
@@ -88,10 +89,17 @@ src/
 - Phase 5: Training plans, PRs, equipment, plate calculator
 - Phase 6: Readiness, strain, cardiac efficiency, est. 1RM, power zones, sleep debt, TDEE, recovery, morning briefing, labs, athlete profile
 - Additional: Lab results dashboard with AI comprehensive analysis, template drag-and-drop editor, Garmin auth pages
+- UI Modernization: Lucide React icons (replaced all emoji), solid white card style, updated Sidebar
+- Dashboard Enhancement: Hero cards with SVG score ring, pill tabs, enhanced metric grid
+- Health Intelligence: health.md initialized, buildAISystemPrompt() with 19 function types, medication auto-seeding
+- Cardiologist Report: PDF generation with @react-pdf/renderer (2-page report with questions, vitals, meds, notes)
+- Appointment Prep: AI-generated questions, changes summary, flags — full pipeline working
+- FIT Parser Fixes: Corrected stress/body battery extraction, added fallback field sweep
+- Column Name Resilience: medications & health-context handle both name/type and medication_name/medication_type schemas
 
 ### 🚧 In Progress / Next Steps
-- PDF export framework (needs `@react-pdf/renderer`)
-- Cardiologist report PDF generation
+- Methylation report display (uploads work, need display/routing to show extracted SNPs)
+- Workout log button visibility (logger fully built, needs prominent CTA on dashboard)
 - Garmin OAuth full automation (manual FIT import works)
 - AI plan generation (auto-generate plans from historical data)
 

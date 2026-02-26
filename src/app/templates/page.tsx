@@ -21,7 +21,7 @@ export default async function TemplatesPage() {
         <p className="mt-1 text-sm text-slate-500">Reusable task and review templates.</p>
       </div>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Task Templates</h2>
         <div className="mt-4 grid gap-3">
           {(taskTemplates || []).map((task) => (
@@ -53,7 +53,7 @@ export default async function TemplatesPage() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Review Templates</h2>
         <div className="mt-4 grid gap-2 text-sm">
           <a className="rounded-xl border border-slate-200 bg-white px-3 py-2" href="/reviews/quarterly">

@@ -76,7 +76,7 @@ export default function HealthInitClient({ healthDocExists, medsCount, healthDoc
   return (
     <div className="space-y-6">
       {/* Health Document Card */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold mb-1">Health Profile (health.md)</h2>
@@ -137,7 +137,7 @@ export default function HealthInitClient({ healthDocExists, medsCount, healthDoc
       </div>
 
       {/* Medications Card */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold mb-1">Medications & Supplements</h2>

@@ -109,7 +109,7 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
   return (
     <div className="mx-auto max-w-xl space-y-4">
       {/* Cardiac Settings */}
-      <section className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm space-y-3">
+      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Cardiac Settings</h2>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Max HR Ceiling" value={maxHr} onChange={v => setMaxHr(Number(v) || 155)} type="number" unit="bpm" />
@@ -122,7 +122,7 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
       </section>
 
       {/* Cycling */}
-      <section className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm space-y-3">
+      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Cycling</h2>
         <Field label="FTP (Functional Threshold Power)" value={ftp} onChange={setFtp} type="number" unit="watts" placeholder="e.g., 200" />
         {profile?.power_zones && (
@@ -133,7 +133,7 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
       </section>
 
       {/* Baselines & Goals */}
-      <section className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm space-y-3">
+      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Baselines & Goals</h2>
         <div className="grid grid-cols-2 gap-3">
           <Field label="RHR Baseline" value={rhrBaseline} onChange={setRhrBaseline} type="number" unit="bpm" placeholder="e.g., 72" />
@@ -144,7 +144,7 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
       </section>
 
       {/* Sleep & Medication */}
-      <section className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm space-y-3">
+      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Sleep & Medication</h2>
         <Field label="Sleep Target" value={sleepTarget} onChange={v => setSleepTarget(Number(v) || 7.5)} type="number" step="0.5" unit="hours" />
         <div>
@@ -154,7 +154,7 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
       </section>
 
       {/* Garmin Connect */}
-      <section className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm space-y-3">
+      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Garmin Connect</h2>
         {garminStatus?.connected ? (
           <>
@@ -190,7 +190,7 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
                 <div className="w-full border-t border-slate-200"></div>
               </div>
               <div className="relative flex justify-center text-xs">
-                <span className="bg-white/70 px-2 text-slate-500">or</span>
+                <span className="bg-white px-2 text-slate-500">or</span>
               </div>
             </div>
             <Link href="/fitness/settings/garmin/import">

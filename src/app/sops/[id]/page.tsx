@@ -42,7 +42,7 @@ export default async function SopDetailPage({ params }: { params: Promise<{ id: 
       <h1 className="text-3xl font-semibold">{sop.title}</h1>
       <p className="mt-1 text-sm text-slate-500">Status: {sop.status}</p>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">SOP Content</h2>
         <form className="mt-3 grid gap-3" action="/sops/update" method="post">
           <input type="hidden" name="id" value={sop.id} />
@@ -59,7 +59,7 @@ export default async function SopDetailPage({ params }: { params: Promise<{ id: 
         </form>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Checklist</h2>
         <form className="mt-3 grid gap-3 md:grid-cols-3" action="/sops/steps" method="post">
           <input type="hidden" name="sop_id" value={sop.id} />

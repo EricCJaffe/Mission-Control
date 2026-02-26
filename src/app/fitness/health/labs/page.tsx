@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import HealthLabReviewClient from '@/components/fitness/HealthLabReviewClient';
+import { BarChart3 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +39,7 @@ export default async function HealthLabReviewPage() {
             href="/fitness/health/labs/dashboard"
             className="px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm"
           >
-            📊 View Dashboard
+            <span className="inline-flex items-center gap-1.5"><BarChart3 size={16} /> View Dashboard</span>
           </a>
         </div>
         <p className="text-gray-600">

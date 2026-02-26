@@ -77,7 +77,7 @@ export default function BookChaptersBoard({ bookId, chapters, sections }: Props)
             onDragStart={(e) => onDragStart(e, chapter.id)}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => onDrop(e, chapter.id)}
-            className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm"
+            className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
           >
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>

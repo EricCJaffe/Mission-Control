@@ -12,6 +12,16 @@
 
 ## Latest Changes (Rolling)
 
+### Feb 26, 2026 — Vitality Evolution + Cardiologist Report (Major)
+- **UI Modernization**: Lucide React icons replaced all emoji across 70+ files, card style migrated to solid white + border-slate-100
+- **Dashboard Enhancement**: Hero cards with SVG readiness score ring, pill tab navigation, enhanced 2x3 metric grid
+- **Health Intelligence**: health.md initialized, buildAISystemPrompt() fixed (correct DB column names for body_metrics, bp_readings, medications)
+- **Medications**: Auto-seed from health.md data on page load, column name resilience for both DB schema variants
+- **FIT Parser Fixes**: Corrected stress extraction (stress_level_value not field_two), body battery filter allows 0, fallback field sweep for top-level objects, hasData guard uses != null, DB upsert uses ?? null
+- **Cardiologist Report PDF**: 2-page PDF with @react-pdf/renderer — flags, vitals, changes table, prioritized questions, prescriptions, supplements, handwritten notes areas
+- **Appointment Prep**: Full AI pipeline — generates 5-8 questions, changes summary, flags via buildAISystemPrompt('appointment_prep'). Tested with Dr. Chandler March 13 appointment.
+- **Infrastructure**: /health redirects to /fitness/health/init, error handling improved across appointment prep flow
+
 ### Feb 25, 2026 — Fitness Module (Major)
 - **Workout Logger**: Block-based architecture, strength + cardio + hybrid, superset/circuit grouping, 6 set types, RPE per set, rest timer, plate calculator, elapsed workout timer, auto-fill duration
 - **Fitness Dashboard**: Readiness + strain widgets, safety alerts, quick links, today's plan

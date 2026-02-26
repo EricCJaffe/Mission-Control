@@ -104,6 +104,10 @@ create table if not exists public.lab_panels (
 
 create index if not exists lab_panels_user_id_idx on public.lab_panels(user_id);
 create index if not exists lab_panels_date_idx on public.lab_panels(user_id, panel_date desc);
+
+alter table public.lab_panels
+add column if not exists status text;
+
 create index if not exists lab_panels_status_idx on public.lab_panels(user_id, status);
 
 alter table public.lab_panels enable row level security;
@@ -131,6 +135,10 @@ create table if not exists public.lab_results (
 
 create index if not exists lab_results_user_id_idx on public.lab_results(user_id);
 create index if not exists lab_results_panel_id_idx on public.lab_results(panel_id);
+
+
+alter table public.lab_results
+add column if not exists normalized_test_name text;
 create index if not exists lab_results_test_name_idx on public.lab_results(user_id, normalized_test_name);
 
 alter table public.lab_results enable row level security;

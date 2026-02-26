@@ -75,7 +75,7 @@ export default async function AICompanionPage({
       </div>
 
       <section className="mt-6 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="text-sm font-semibold">Book-level Proposals</div>
           <div className="mt-3 grid gap-2 text-xs">
             {(bookProposals || []).map((proposal) => (
@@ -117,7 +117,7 @@ export default async function AICompanionPage({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="text-sm font-semibold">Chapter Proposals</div>
           <div className="mt-3 grid gap-2 text-xs">
             {(chapterProposals || []).map((proposal) => (
@@ -163,7 +163,7 @@ export default async function AICompanionPage({
         </div>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="text-sm font-semibold">Inline Review Queue</div>
         <p className="mt-1 text-xs text-slate-500">Anchored editor comments waiting for review.</p>
         <form className="mt-3 flex flex-wrap gap-2 text-xs" method="get" action="/ai">
@@ -190,7 +190,7 @@ export default async function AICompanionPage({
 
       <AutomationArchitectClient />
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="text-sm font-semibold">Books</div>
         <div className="mt-3 grid gap-2 text-sm">
           {(books || []).map((book) => (

@@ -66,77 +66,77 @@ export default function BookPageClient({
       <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(220px,280px)_1fr]">
         <div className="grid gap-3">
           <button
-            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
             onClick={() => (document.getElementById("reorder-dialog") as HTMLDialogElement)?.showModal()}
           >
             AI Reorder Plan
           </button>
           <button
-            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
             onClick={() => (document.getElementById("toc-dialog") as HTMLDialogElement)?.showModal()}
           >
             AI Table of Contents
           </button>
           <button
-            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
             onClick={() => (document.getElementById("dup-dialog") as HTMLDialogElement)?.showModal()}
           >
             Duplicate Scan
           </button>
           <button
-            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
             onClick={() => (document.getElementById("bulk-dialog") as HTMLDialogElement)?.showModal()}
           >
             AI Bulk Edit
           </button>
           <button
-            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
             onClick={() => (document.getElementById("merge-dialog") as HTMLDialogElement)?.showModal()}
           >
             AI Merge Chapters
           </button>
           <button
-            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
             onClick={() => (document.getElementById("repair-dialog") as HTMLDialogElement)?.showModal()}
           >
             Repair References
           </button>
           <button
-            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
             onClick={() => (document.getElementById("inline-dialog") as HTMLDialogElement)?.showModal()}
           >
             AI Inline Review (Book)
           </button>
           <button
-            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
             onClick={() => (document.getElementById("normalize-dialog") as HTMLDialogElement)?.showModal()}
           >
             Normalize Titles
           </button>
           <button
-            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
             onClick={() => (document.getElementById("place-dialog") as HTMLDialogElement)?.showModal()}
           >
             Place Concept
           </button>
           <button
-            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
             onClick={() => (document.getElementById("chapter-dialog") as HTMLDialogElement)?.showModal()}
           >
             Add Chapter
           </button>
           <button
-            className="rounded-xl border border-white/80 bg-white/70 px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:border-slate-300"
             type="button"
             onClick={() => (document.getElementById("section-dialog") as HTMLDialogElement)?.showModal()}
           >
@@ -144,7 +144,7 @@ export default function BookPageClient({
           </button>
         </div>
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">AI Insights (Book)</h2>
           <p className="mt-1 text-xs text-slate-500">Ask about themes, gaps, or next edits.</p>
           <BookInsightsClient bookId={bookId} threads={[]} messages={[]} />

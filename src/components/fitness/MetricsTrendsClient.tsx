@@ -105,7 +105,7 @@ export default function MetricsTrendsClient({ metrics }: Props) {
   return (
     <div className="space-y-6">
       {/* Date Range Selector */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-2">
           {(['7d', '30d', '90d', '1y', 'all'] as DateRange[]).map((range) => (
             <button
@@ -135,7 +135,7 @@ export default function MetricsTrendsClient({ metrics }: Props) {
           ].map(({ label, trend, unit, inverse }) => (
             <div
               key={label}
-              className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm"
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
             >
               <div className="text-sm text-slate-600">{label} Trend</div>
               {trend ? (
@@ -170,7 +170,7 @@ export default function MetricsTrendsClient({ metrics }: Props) {
       {chartData.length > 0 ? (
         <div className="space-y-6">
           {/* Heart Metrics Chart */}
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold">Heart Metrics</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
@@ -203,7 +203,7 @@ export default function MetricsTrendsClient({ metrics }: Props) {
           </div>
 
           {/* Recovery Metrics Chart */}
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold">Recovery Metrics</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
@@ -236,7 +236,7 @@ export default function MetricsTrendsClient({ metrics }: Props) {
           </div>
 
           {/* Sleep Chart */}
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold">Sleep Metrics</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
@@ -269,7 +269,7 @@ export default function MetricsTrendsClient({ metrics }: Props) {
           </div>
 
           {/* Body Composition Chart */}
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold">Body Composition</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
@@ -302,7 +302,7 @@ export default function MetricsTrendsClient({ metrics }: Props) {
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-12 text-center shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
           <p className="text-slate-500">No data available for the selected time range.</p>
           <Link
             href="/fitness/settings/garmin/import"

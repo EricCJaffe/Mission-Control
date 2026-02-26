@@ -150,7 +150,7 @@ export default async function DashboardHome() {
         </div>
       </div>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-xs uppercase tracking-[0.3em] text-blue-800">
@@ -202,7 +202,7 @@ export default async function DashboardHome() {
         </form>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-xs uppercase tracking-[0.3em] text-blue-800">
@@ -261,7 +261,7 @@ export default async function DashboardHome() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-xs uppercase tracking-[0.3em] text-blue-800">
@@ -282,7 +282,7 @@ export default async function DashboardHome() {
       </section>
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm md:col-span-1">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:col-span-1">
           <h2 className="text-sm uppercase tracking-widest text-slate-500">Priority Matrix</h2>
           <ul className="mt-4 grid gap-2 text-sm">
             <li className="rounded-xl border border-slate-200 bg-white px-3 py-2">1. God First</li>
@@ -292,7 +292,7 @@ export default async function DashboardHome() {
           </ul>
         </div>
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm md:col-span-2">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="text-sm uppercase tracking-widest text-slate-500">Today</h2>
             <div className="text-xs text-slate-500">{today.toDateString()}</div>
@@ -436,7 +436,7 @@ export default async function DashboardHome() {
         <form className="grid gap-4 md:grid-cols-3" action="/dashboard/update" method="post">
           <input type="hidden" name="score_id" value={scoreRow?.id || ""} />
 
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Spirit</h2>
             <p className="mt-1 text-sm text-slate-500">Mission/vision/values alignment.</p>
             <div className="mt-4 grid gap-3">
@@ -464,7 +464,7 @@ export default async function DashboardHome() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Soul</h2>
             <p className="mt-1 text-sm text-slate-500">Relationships, emotions, inner life.</p>
             <div className="mt-4 grid gap-3">
@@ -492,7 +492,7 @@ export default async function DashboardHome() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Body</h2>
             <p className="mt-1 text-sm text-slate-500">Health, energy, action capacity.</p>
             <div className="mt-4 grid gap-3">

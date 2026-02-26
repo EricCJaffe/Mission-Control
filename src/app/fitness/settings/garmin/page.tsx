@@ -66,7 +66,7 @@ export default function GarminAuthPage() {
         )}
 
         <form onSubmit={handleAuth} className="space-y-4">
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm space-y-4">
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Garmin Email

@@ -697,7 +697,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           </div>
         )}
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Start Workout</h2>
 
           <div className="mb-4">
@@ -795,14 +795,14 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         {completionData && (
           <div className="grid grid-cols-2 gap-3">
             {completionData.strain_score != null && (
-              <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm text-center">
+              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
                 <p className="text-xs text-slate-500">Workout Strain</p>
                 <p className="text-2xl font-bold">{completionData.strain_score.toFixed(1)}</p>
                 <p className="text-xs text-slate-400">/ 21</p>
               </div>
             )}
             {completionData.cardiac_efficiency && (
-              <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm text-center">
+              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
                 <p className="text-xs text-slate-500">Cardiac Efficiency</p>
                 <p className="text-2xl font-bold">{completionData.cardiac_efficiency.efficiency_value.toFixed(3)}</p>
                 <p className="text-xs text-slate-400">{completionData.cardiac_efficiency.efficiency_type}</p>
@@ -812,7 +812,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         )}
 
         {completionData?.estimated_1rms && completionData.estimated_1rms.length > 0 && (
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Estimated 1RMs</h3>
             <div className="space-y-1.5">
               {completionData.estimated_1rms.map((e, i) => (
@@ -859,14 +859,14 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           </div>
         )}
         {/* Elapsed timer */}
-        <div className="rounded-2xl border border-white/80 bg-white/70 px-4 py-2.5 shadow-sm flex items-center justify-between">
+        <div className="rounded-2xl border border-slate-100 bg-white px-4 py-2.5 shadow-sm flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
             <span className="text-xs text-slate-500">Cardio in progress</span>
           </div>
           <span className="text-lg font-bold tabular-nums text-slate-800">{formatElapsed(elapsedSeconds)}</span>
         </div>
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Cardio Session</h2>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -1030,7 +1030,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   function renderExerciseBlock(block: ExerciseBlock, showReorder = true) {
     const blockIdx = blocks.findIndex(b => b.id === block.id);
     return (
-      <div key={block.id} className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
+      <div key={block.id} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
         {/* Exercise header */}
         <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center gap-2">
           <p className="text-sm font-semibold text-slate-800 flex-1">{block.exercise_name}</p>
@@ -1093,7 +1093,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       )}
 
       {/* Elapsed timer */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 px-4 py-2.5 shadow-sm flex items-center justify-between">
+      <div className="rounded-2xl border border-slate-100 bg-white px-4 py-2.5 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
           <span className="text-xs text-slate-500">Workout in progress</span>
@@ -1191,13 +1191,13 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
       {/* Plate calculator toggle */}
       <button onClick={() => setShowPlateCalc((v) => !v)}
-        className="w-full text-left rounded-2xl border border-white/80 bg-white/70 px-4 py-3 text-sm font-medium text-slate-700 shadow-sm hover:bg-white/90">
+        className="w-full text-left rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm hover:bg-white/90">
         {showPlateCalc ? '▼' : '▶'} Plate Calculator
       </button>
       {showPlateCalc && <PlateCalculator />}
 
       {/* Session wrap-up */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm space-y-3">
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Session Summary</h3>
         <div className="grid grid-cols-2 gap-3">
           <div>

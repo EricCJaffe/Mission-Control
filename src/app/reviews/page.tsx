@@ -39,7 +39,7 @@ export default async function ReviewsPage() {
 
       <section className="mt-6 grid gap-3">
         {(reviews || []).map((review) => (
-          <Link key={review.id} href={`/reviews/${review.id}`} className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm transition hover:border-slate-300">
+          <Link key={review.id} href={`/reviews/${review.id}`} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-slate-300">
             <div className="text-sm uppercase tracking-widest text-slate-500">Monthly Review</div>
             <div className="text-base font-semibold">
               {review.period_start} → {review.period_end}

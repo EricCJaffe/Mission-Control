@@ -81,7 +81,7 @@ export default async function KnowledgePage() {
         <input type="hidden" name="persona_id" value={persona?.id || ""} />
         <input type="hidden" name="soul_id" value={soul?.id || ""} />
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <label className="text-xs uppercase tracking-wide text-slate-500">Persona</label>
           <textarea
             className="mt-2 min-h-[260px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm"
@@ -90,7 +90,7 @@ export default async function KnowledgePage() {
           />
         </div>
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <label className="text-xs uppercase tracking-wide text-slate-500">Soul</label>
           <textarea
             className="mt-2 min-h-[260px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm"
@@ -112,7 +112,7 @@ export default async function KnowledgePage() {
             </button>
           </form>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-white/70 px-4 py-2 text-xs text-slate-500">
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs text-slate-500">
             Export is admin-only.
           </div>
         )}

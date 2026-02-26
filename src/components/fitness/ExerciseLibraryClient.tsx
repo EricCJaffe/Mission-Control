@@ -134,7 +134,7 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
 
       {/* Add button / form */}
       {showAdd ? (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">Add Custom Exercise</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <input value={name} onChange={e => setName(e.target.value)} placeholder="Exercise name"
@@ -178,7 +178,7 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
         return (
           <div key={cat}>
             <h2 className="text-sm font-semibold text-slate-600 mb-2">{CAT_LABELS[cat]} ({catExercises.length})</h2>
-            <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden divide-y divide-slate-100">
+            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden divide-y divide-slate-100">
               {catExercises.map(e => (
                 <div key={e.id}>
                   {editingId === e.id ? (

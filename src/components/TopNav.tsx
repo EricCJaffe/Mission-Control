@@ -6,7 +6,7 @@ type TopNavProps = {
 
 export default function TopNav({ userEmail }: TopNavProps) {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/70 bg-white/70 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-slate-100 bg-white backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-2xl bg-blue-700 text-white flex items-center justify-center font-semibold">

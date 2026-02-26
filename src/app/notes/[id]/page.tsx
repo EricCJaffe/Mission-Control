@@ -63,7 +63,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
         </form>
       </div>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-semibold">Attachments</h2>
         <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data" data-progress="true" data-toast="Attachment uploading">
           <input type="hidden" name="scope_type" value="note" />
@@ -100,7 +100,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
 
       <form className="mt-6 grid gap-4" action="/notes/update" method="post" data-toast="Note saved">
         <input type="hidden" name="id" value={note.id} />
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <label className="text-xs uppercase tracking-wide text-slate-500">Title</label>
           <input
             className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
@@ -110,7 +110,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
           />
         </div>
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <label className="text-xs uppercase tracking-wide text-slate-500">Status</label>
           <select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" name="status" defaultValue={note.status || "inbox"}>
             <option value="inbox">Inbox</option>
@@ -119,7 +119,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
           </select>
         </div>
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <label className="text-xs uppercase tracking-wide text-slate-500">Tags</label>
           <input
             className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
@@ -129,7 +129,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
           />
         </div>
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <label className="text-xs uppercase tracking-wide text-slate-500">Markdown</label>
           <textarea
             className="mt-2 min-h-[320px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm"

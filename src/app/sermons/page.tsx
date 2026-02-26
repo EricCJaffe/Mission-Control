@@ -25,7 +25,7 @@ export default async function SermonSeriesPage() {
         </div>
       </div>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Create Series</h2>
         <form className="mt-3 grid gap-3 md:grid-cols-2" action="/sermons/new" method="post" data-toast="Series created">
           <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Series title" required />
@@ -49,7 +49,7 @@ export default async function SermonSeriesPage() {
 
       <section className="mt-6 grid gap-3">
         {(series || []).map((item) => (
-          <Link key={item.id} href={`/sermons/${item.id}`} className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <Link key={item.id} href={`/sermons/${item.id}`} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <div className="text-base font-semibold">{item.title}</div>
             {item.subtitle && <div className="text-sm text-slate-600">{item.subtitle}</div>}
             <div className="mt-1 text-xs text-slate-500">

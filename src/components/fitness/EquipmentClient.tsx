@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import type { ReactNode } from 'react';
+import { Footprints, Bike, Dumbbell, Wrench, Settings, AlertCircle } from 'lucide-react';
 
 type EquipmentItem = {
   id: string;
@@ -14,7 +16,7 @@ type EquipmentItem = {
   status: 'active' | 'retired' | 'maintenance';
 };
 
-const ICONS: Record<string, string> = { shoes: '👟', bike: '🚴', trainer: '🏋️', other: '🔧' };
+const ICONS: Record<string, ReactNode> = { shoes: <Footprints size={24} />, bike: <Bike size={24} />, trainer: <Dumbbell size={24} />, other: <Wrench size={24} /> };
 
 export default function EquipmentClient({ items: initial }: { items: EquipmentItem[] }) {
   const [items, setItems] = useState(initial);
@@ -130,7 +132,7 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
 
       {/* Add form */}
       {showAdd ? (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">Add Equipment</h2>
           <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Brooks Ghost 15"
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full" />
@@ -170,7 +172,7 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
 
       {/* Equipment list */}
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
           <p className="text-slate-500 text-sm">No equipment tracked yet. Add your shoes and bikes to track mileage and get replacement alerts.</p>
         </div>
       ) : (
@@ -219,10 +221,10 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
             }
 
             return (
-              <div key={item.id} className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+              <div key={item.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{ICONS[item.type] ?? '⚙️'}</span>
+                    <span className="text-slate-600">{ICONS[item.type] ?? <Settings size={24} />}</span>
                     <div>
                       <p className="font-semibold text-slate-800">{item.name}</p>
                       {(item.brand || item.model) && (
@@ -244,7 +246,7 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
                     <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
                       <span>{item.total_distance_miles.toFixed(0)} mi</span>
                       <span className={nearingLimit ? 'text-orange-600 font-medium' : ''}>
-                        {item.max_distance_miles} mi limit{nearingLimit ? ' ⚠️' : ''}
+                        {item.max_distance_miles} mi limit{nearingLimit ? <AlertCircle size={14} className="inline ml-1" /> : ''}
                       </span>
                     </div>
                     <div className="h-1.5 rounded-full bg-slate-200">

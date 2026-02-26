@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { SetType } from '@/lib/fitness/types';
+import type { ReactNode } from 'react';
+import { Dumbbell, PersonStanding, Zap, RefreshCw } from 'lucide-react';
 
 type WorkoutRow = {
   id: string;
@@ -60,8 +62,8 @@ type Props = {
   workouts: WorkoutRow[];
 };
 
-const WORKOUT_ICONS: Record<string, string> = {
-  strength: '🏋️', cardio: '🏃', hiit: '⚡', hybrid: '🔄',
+const WORKOUT_ICONS: Record<string, ReactNode> = {
+  strength: <Dumbbell size={20} />, cardio: <PersonStanding size={20} />, hiit: <Zap size={20} />, hybrid: <RefreshCw size={20} />,
 };
 
 const COMPLIANCE_BG: Record<string, string> = {
@@ -317,7 +319,7 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
           return (
             <div key={monthKey}>
               <h2 className="text-sm font-semibold text-slate-500 mb-2">{monthLabel} ({monthWorkouts.length})</h2>
-              <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden divide-y divide-slate-100">
+              <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden divide-y divide-slate-100">
                 {monthWorkouts.map(w => {
                   const isExpanded = expandedId === w.id;
                   const detail = detailCache[w.id];
@@ -331,7 +333,7 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
                         onClick={() => toggleDetail(w.id)}
                         className="w-full text-left px-5 py-3 flex items-center gap-3 hover:bg-slate-50/50 transition-colors"
                       >
-                        <span className="text-lg shrink-0">{WORKOUT_ICONS[w.workout_type] ?? '💪'}</span>
+                        <span className="shrink-0">{WORKOUT_ICONS[w.workout_type] ?? <Dumbbell size={20} />}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-medium text-slate-700 capitalize">{w.workout_type}</p>
@@ -378,7 +380,7 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
 
                           {/* Notes */}
                           {w.notes && (
-                            <div className="rounded-lg bg-white/70 p-3 border border-slate-100">
+                            <div className="rounded-lg bg-white p-3 border border-slate-100">
                               <p className="text-xs text-slate-400 mb-0.5">Notes</p>
                               <p className="text-sm text-slate-700">{w.notes}</p>
                             </div>
@@ -428,7 +430,7 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
           );
         })
       ) : (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
           <p className="text-slate-500 text-sm">
             {workouts.length === 0
               ? 'No workouts logged yet. Start your first workout from the dashboard!'

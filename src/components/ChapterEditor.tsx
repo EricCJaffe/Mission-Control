@@ -589,7 +589,7 @@ export default function ChapterEditor({
       </div>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-[240px_1fr_320px]">
-        <aside className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <aside className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-xs uppercase tracking-widest text-slate-500">Book Outline</div>
           <div className="mt-3 grid gap-2 text-xs">
             {bookChapters.map((bookChapter) => (
@@ -695,7 +695,7 @@ export default function ChapterEditor({
           )}
         </aside>
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-semibold">
               Edit Chapter {chapterNumber ? `· Chapter ${chapterNumber}` : ""}
@@ -796,7 +796,7 @@ export default function ChapterEditor({
 
         </div>
 
-        <aside className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <aside className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <section className="rounded-xl border border-slate-200 bg-white p-4">
             <h3 className="text-sm font-semibold">Todos (Chapter)</h3>
             <form className="mt-3 grid gap-2" action="/tasks/new" method="post" data-toast="Todo added">

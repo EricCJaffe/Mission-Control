@@ -131,19 +131,19 @@ export default async function BookAiCompanionPage({
         toast={toast}
       />
 
-      <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-8 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">AI Proposal Queue</h2>
         <p className="mt-1 text-xs text-slate-500">Review and apply AI changes per chapter (with diff preview).</p>
         <BookProposalsClient proposals={proposals || []} chapterMap={chapterMap} bookId={book.id} />
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Book-level Proposals</h2>
         <p className="mt-1 text-xs text-slate-500">Approve larger changes like reordering chapters.</p>
         <BookLevelProposalsClient proposals={bookProposals || []} chapterMap={chapterMap} bookId={book.id} />
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="text-sm font-semibold">Inline Review Queue</div>
         <p className="mt-1 text-xs text-slate-500">Anchored editor comments waiting for review.</p>
         <InlineReviewQueueClient comments={commentQueue || []} chapterMap={chapterMap} redirect={`/books/${book.id}/ai`} />

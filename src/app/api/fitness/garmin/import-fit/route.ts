@@ -64,6 +64,31 @@ export async function POST(req: NextRequest) {
 
         console.log(`Parsed ${file.name} for date ${parsedData.date}`);
 
+        // Debug: log what was extracted and raw structure
+        console.log(`[FIT Debug] ${file.name} extracted:`, {
+          date: parsedData.date,
+          restingHeartRate: parsedData.restingHeartRate,
+          hrvMs: parsedData.hrvMs,
+          bodyBattery: parsedData.bodyBattery,
+          stressLevel: parsedData.stressLevel,
+          calories: parsedData.calories,
+          steps: parsedData.steps,
+          sleepScore: parsedData.sleepScore,
+          sleepDurationHours: parsedData.sleepDurationHours,
+          weight: parsedData.weight,
+        });
+        const raw = parsedData.rawData || {};
+        for (const key of Object.keys(raw)) {
+          if (Array.isArray(raw[key])) {
+            console.log(`[FIT Debug]   ${key}: ${raw[key].length} entries`);
+            if (raw[key].length > 0) {
+              console.log(`[FIT Debug]   ${key}[0] keys:`, Object.keys(raw[key][0]));
+            }
+          } else if (raw[key] && typeof raw[key] === 'object') {
+            console.log(`[FIT Debug]   ${key}: object with keys`, Object.keys(raw[key]));
+          }
+        }
+
         // Merge data for same date
         const existing = dataByDate.get(parsedData.date);
         if (existing) {
@@ -100,13 +125,13 @@ export async function POST(req: NextRequest) {
     for (const [date, data] of dataByDate.entries()) {
       try {
         const hasData =
-          data.restingHeartRate ||
-          data.hrvMs ||
-          data.bodyBattery ||
-          data.stressLevel ||
-          data.calories ||
-          data.sleepScore ||
-          data.weight;
+          data.restingHeartRate != null ||
+          data.hrvMs != null ||
+          data.bodyBattery != null ||
+          data.stressLevel != null ||
+          data.calories != null ||
+          data.sleepScore != null ||
+          data.weight != null;
 
         if (!hasData) {
           console.log(`No usable data for ${date}, skipping`);
@@ -124,18 +149,18 @@ export async function POST(req: NextRequest) {
           {
             user_id: user.id,
             metric_date: date,
-            resting_hr: data.restingHeartRate || null,
-            hrv_ms: data.hrvMs || null,
-            body_battery: data.bodyBattery || null,
-            stress_avg: data.stressLevel || null,
-            sleep_score: data.sleepScore || null,
-            sleep_duration_min: data.sleepDurationHours
+            resting_hr: data.restingHeartRate ?? null,
+            hrv_ms: data.hrvMs ?? null,
+            body_battery: data.bodyBattery ?? null,
+            stress_avg: data.stressLevel ?? null,
+            sleep_score: data.sleepScore ?? null,
+            sleep_duration_min: data.sleepDurationHours != null
               ? Math.round(data.sleepDurationHours * 60)
               : null,
-            weight_lbs: data.weight ? Math.round(data.weight * 2.20462) : null, // Convert kg to lbs
-            body_fat_pct: data.bodyFatPercent || null,
+            weight_lbs: data.weight != null ? Math.round(data.weight * 2.20462) : null,
+            body_fat_pct: data.bodyFatPercent ?? null,
             notes: notes,
-            garmin_data: data.rawData || null,
+            garmin_data: data.rawData ?? null,
           },
           {
             onConflict: 'user_id,metric_date',
@@ -159,9 +184,27 @@ export async function POST(req: NextRequest) {
 
     console.log('FIT import completed:', results);
 
+    // Build a summary of what was extracted per date for the UI
+    const importedData: Record<string, Record<string, any>> = {};
+    for (const [date, data] of dataByDate.entries()) {
+      importedData[date] = {
+        restingHeartRate: data.restingHeartRate ?? null,
+        hrvMs: data.hrvMs ?? null,
+        bodyBattery: data.bodyBattery ?? null,
+        stressLevel: data.stressLevel ?? null,
+        calories: data.calories ?? null,
+        steps: data.steps ?? null,
+        sleepScore: data.sleepScore ?? null,
+        sleepDurationHours: data.sleepDurationHours ?? null,
+        weight: data.weight ?? null,
+        bodyFatPercent: data.bodyFatPercent ?? null,
+      };
+    }
+
     return NextResponse.json({
       success: true,
       ...results,
+      imported_data: importedData,
     });
   } catch (error) {
     console.error('FIT import error:', error);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AlertCircle } from 'lucide-react';
 
 interface MarchAppointmentSetupClientProps {
   appointmentExists: boolean;
@@ -87,7 +88,7 @@ export default function MarchAppointmentSetupClient({
   return (
     <div className="space-y-6">
       {/* Prerequisites Check */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-4">Prerequisites</h2>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -124,7 +125,7 @@ export default function MarchAppointmentSetupClient({
         {(!healthDocExists || medsCount === 0) && (
           <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
             <p className="text-sm text-yellow-800">
-              ⚠️ Complete prerequisites before generating appointment prep.
+              <span className="inline-flex items-center gap-1.5"><AlertCircle size={16} /> Complete prerequisites before generating appointment prep.</span>
             </p>
           </div>
         )}
@@ -132,7 +133,7 @@ export default function MarchAppointmentSetupClient({
 
       {/* Create Appointment */}
       {!appointmentExists ? (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-2">Step 1: Create Appointment</h2>
           <p className="text-sm text-gray-600 mb-4">
             Create the March 13, 2026 cardiologist appointment in your system.
@@ -159,7 +160,7 @@ export default function MarchAppointmentSetupClient({
 
       {/* Generate Prep */}
       {appointmentExists && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-2">
             Step 2: Generate Appointment Prep
           </h2>

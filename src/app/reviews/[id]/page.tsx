@@ -7,7 +7,7 @@ type Survey = Record<string, string | undefined>;
 
 function section(label: string, fields: Array<{ key: keyof Survey; label: string }>, survey: Survey) {
   return (
-    <section className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+    <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <h2 className="text-base font-semibold">{label}</h2>
       <div className="mt-4 grid gap-3 text-sm">
         {fields.map((field) => (
@@ -103,7 +103,7 @@ export default async function ReviewDetailPage({
       )}
 
       {autoActions.length > 0 && (
-        <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">Auto-actions triggered</h2>
           <ul className="mt-3 grid gap-2 text-sm text-slate-700">
             {autoActions.map((item) => (

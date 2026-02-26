@@ -45,7 +45,7 @@ export default async function ProjectsPage() {
 
       <div className="mt-6 grid gap-3">
         {(projects || []).map((p) => (
-          <div key={p.id} className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <div key={p.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="font-semibold">{p.title}</div>
               <div className="text-xs rounded-full border border-slate-200 bg-white px-2 py-1">

@@ -181,7 +181,7 @@ export default async function BookDetailPage({
         </div>
       </div>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="text-sm font-semibold">Book Details</div>
         <form className="mt-3 grid gap-3 md:grid-cols-2" action="/books/update" method="post" data-toast="Book updated">
           <input type="hidden" name="id" value={book.id} />
@@ -221,7 +221,7 @@ export default async function BookDetailPage({
         </form>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-sm font-semibold">Progress</div>
@@ -287,7 +287,7 @@ export default async function BookDetailPage({
       )}
 
       {tab === "tasks" && (
-        <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <section className="mt-8 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">Book Tasks</h2>
           <form className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_auto]" action="/tasks/new" method="post" data-toast="Task added">
             <input type="hidden" name="book_id" value={book.id} />
@@ -327,7 +327,7 @@ export default async function BookDetailPage({
       )}
 
       {tab === "timeline" && (
-        <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <section className="mt-8 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">Timeline</h2>
           <form className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_auto]" action={`/books/${book.id}/milestones/new`} method="post" data-toast="Milestone added">
             <input type="hidden" name="book_id" value={book.id} />
@@ -364,7 +364,7 @@ export default async function BookDetailPage({
 
       {tab === "notes" && (
         <>
-          <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+          <section className="mt-8 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <h2 className="text-base font-semibold">Research Notes (Book)</h2>
             <BookResearchNotesClient
               bookId={book.id}
@@ -381,7 +381,7 @@ export default async function BookDetailPage({
       )}
 
       {tab === "assets" && (
-        <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <section className="mt-8 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">Artifacts (Book)</h2>
           <p className="mt-1 text-xs text-slate-500">Generated guides, devotionals, and social packs.</p>
           <ArtifactsListClient assets={assets || []} redirect={`/books/${book.id}?tab=assets`} />
@@ -392,7 +392,7 @@ export default async function BookDetailPage({
       )}
 
       {tab === "files" && (
-        <section className="mt-8 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <section className="mt-8 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">Uploaded Files</h2>
           <form className="mt-3 grid gap-3 md:grid-cols-[1fr_auto]" action="/attachments/upload" method="post" encType="multipart/form-data" data-progress="true" data-toast="Attachment uploading">
             <input type="hidden" name="scope_type" value="book" />

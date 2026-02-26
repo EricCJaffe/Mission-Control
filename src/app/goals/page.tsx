@@ -43,7 +43,7 @@ export default async function GoalsPage() {
         </p>
       </div>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Create 12-Week Cycle</h2>
         <form className="mt-3 grid gap-3 md:grid-cols-2" action="/goals/cycles" method="post" data-toast="Cycle saved">
           <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Cycle title" required />
@@ -58,7 +58,7 @@ export default async function GoalsPage() {
         </form>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Add Goal</h2>
         <form className="mt-3 grid gap-3 md:grid-cols-2" action="/goals/new" method="post" data-toast="Goal added">
           <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Goal title" required />
@@ -85,7 +85,7 @@ export default async function GoalsPage() {
 
       <section className="mt-6 grid gap-4">
         {(cycles || []).map((cycle) => (
-          <div key={cycle.id} className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <div key={cycle.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <div className="text-sm uppercase tracking-widest text-slate-500">Cycle</div>
             <div className="text-lg font-semibold">{cycle.title}</div>
             <div className="mt-1 text-xs text-slate-500">
@@ -123,7 +123,7 @@ export default async function GoalsPage() {
           </div>
         ))}
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-sm uppercase tracking-widest text-slate-500">Unassigned Goals</div>
           <div className="mt-3 grid gap-2">
             {(goals || []).filter((goal) => !goal.cycle_id).map((goal) => (

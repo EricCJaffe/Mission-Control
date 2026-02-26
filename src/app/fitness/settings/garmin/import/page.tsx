@@ -21,6 +21,7 @@ export default function GarminImportPage() {
     failed?: number;
     metrics_imported?: number;
     errors?: string[];
+    imported_data?: Record<string, Record<string, any>>;
   } | null>(null);
 
   async function handleImport(e: FormEvent) {
@@ -83,7 +84,7 @@ export default function GarminImportPage() {
         </button>
       </div>
 
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-8 shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
         <h1 className="mb-2 text-2xl font-bold">Import Garmin FIT Files</h1>
         <p className="mb-6 text-sm text-gray-600">
           Upload FIT files from your Garmin Connect export to import wellness data, activities,
@@ -155,10 +156,37 @@ export default function GarminImportPage() {
               <div className="space-y-1 text-sm">
                 <p>Total files: {result.total}</p>
                 <p>Successfully processed: {result.processed}</p>
-                {result.failed && result.failed > 0 && <p>Failed: {result.failed}</p>}
-                {result.metrics_imported && result.metrics_imported > 0 && (
+                {result.failed != null && result.failed > 0 && <p>Failed: {result.failed}</p>}
+                {result.metrics_imported != null && result.metrics_imported > 0 && (
                   <p className="font-medium">Metrics imported: {result.metrics_imported}</p>
                 )}
+
+                {result.imported_data && Object.keys(result.imported_data).length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="font-medium text-green-800">Extracted values:</p>
+                    {Object.entries(result.imported_data).map(([date, values]) => (
+                      <div key={date} className="rounded-md bg-green-100/60 p-3 text-xs">
+                        <p className="mb-1 font-semibold">{date}</p>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                          {values.restingHeartRate != null && <p>RHR: {values.restingHeartRate} bpm</p>}
+                          {values.hrvMs != null && <p>HRV: {values.hrvMs} ms</p>}
+                          {values.bodyBattery != null && <p>Body Battery: {values.bodyBattery}</p>}
+                          {values.stressLevel != null && <p>Stress: {values.stressLevel}</p>}
+                          {values.calories != null && <p>Calories/RMR: {values.calories}</p>}
+                          {values.steps != null && <p>Steps: {values.steps}</p>}
+                          {values.sleepScore != null && <p>Sleep Score: {values.sleepScore}</p>}
+                          {values.sleepDurationHours != null && <p>Sleep: {values.sleepDurationHours.toFixed(1)}h</p>}
+                          {values.weight != null && <p>Weight: {values.weight} kg</p>}
+                          {values.bodyFatPercent != null && <p>Body Fat: {values.bodyFatPercent}%</p>}
+                        </div>
+                        {Object.values(values).every((v) => v == null) && (
+                          <p className="text-amber-700">No metrics extracted — check server logs for [FIT Debug] output</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <p className="mt-3 text-xs text-green-700">
                   Redirecting to metrics page in 3 seconds...
                 </p>

@@ -64,11 +64,17 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
         body: JSON.stringify({ id, generate_prep: true }),
       });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok && data.appointment) {
         setAppointments(prev => prev.map(a => a.id === id ? data.appointment : a));
         setSelectedId(id);
-      } else { setError(data.error || 'Failed to generate prep'); }
-    } catch { setError('Network error — could not generate prep'); }
+        // Scroll to top to see results
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        setError(data.error || 'Failed to generate prep — check server logs');
+      }
+    } catch (err) {
+      setError(`Network error: ${err instanceof Error ? err.message : 'could not generate prep'}`);
+    }
     setGenerating(false);
   }
 
@@ -124,7 +130,7 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
 
       {/* Add appointment */}
       {showAdd ? (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">Schedule Appointment</h2>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -172,7 +178,7 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
 
       {/* Appointment list */}
       {appointments.length === 0 ? (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
           <p className="text-slate-500 text-sm">No appointments yet. Schedule your first appointment to start tracking.</p>
         </div>
       ) : (
@@ -183,7 +189,7 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
               <button
                 key={appt.id}
                 onClick={() => setSelectedId(appt.id)}
-                className="w-full text-left rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm hover:bg-white/90 transition-colors"
+                className="w-full text-left rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:bg-white/90 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -235,7 +241,7 @@ function AppointmentDetail({ appointment, onBack, onGeneratePrep, onComplete, on
     <div className="space-y-4">
       <button onClick={onBack} className="text-xs text-slate-400 hover:text-slate-600">← Back to appointments</button>
 
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold text-slate-800">{appointment.doctor_name || appointment.doctor_specialty}</h2>
@@ -254,17 +260,37 @@ function AppointmentDetail({ appointment, onBack, onGeneratePrep, onComplete, on
         </div>
       </div>
 
-      {/* Generate Prep button */}
-      {appointment.status !== 'completed' && (
-        <button onClick={onGeneratePrep} disabled={generating}
-          className="w-full rounded-xl bg-blue-600 text-white text-sm font-semibold py-3 hover:bg-blue-700 disabled:opacity-50 min-h-[44px]">
-          {generating ? 'Generating Prep...' : appointment.status === 'prep_ready' ? 'Regenerate Prep' : 'Generate Appointment Prep'}
-        </button>
+      {/* Generate Prep + Download PDF */}
+      <div className="flex gap-2">
+        {appointment.status !== 'completed' && (
+          <button onClick={onGeneratePrep} disabled={generating}
+            className="flex-1 rounded-xl bg-blue-600 text-white text-sm font-semibold py-3 hover:bg-blue-700 disabled:opacity-50 min-h-[44px]">
+            {generating ? 'Generating Prep...' : appointment.status === 'prep_ready' ? 'Regenerate Prep' : 'Generate Appointment Prep'}
+          </button>
+        )}
+        {appointment.status === 'prep_ready' && (
+          <a
+            href={`/api/fitness/appointments/report?id=${appointment.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-xl bg-slate-800 text-white text-sm font-semibold py-3 px-5 hover:bg-slate-700 min-h-[44px] flex items-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            PDF Report
+          </a>
+        )}
+      </div>
+
+      {/* Prep status */}
+      {appointment.prep_generated_at && !questions?.length && !flags?.length && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-800">Prep was generated but returned no data. This usually means the AI call failed. Check server logs for <code>[AppointmentPrep]</code> errors, or try regenerating.</p>
+        </div>
       )}
 
       {/* Suggested Questions */}
       {questions && questions.length > 0 && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h3 className="text-sm font-semibold text-slate-700 mb-3">Questions to Ask</h3>
           <div className="space-y-3">
             {questions.map((q, i) => (
@@ -286,7 +312,7 @@ function AppointmentDetail({ appointment, onBack, onGeneratePrep, onComplete, on
 
       {/* Changes Since Last Visit */}
       {changes && changes.length > 0 && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h3 className="text-sm font-semibold text-slate-700 mb-3">Changes Since Last Visit</h3>
           <div className="space-y-2">
             {changes.map((c, i) => (
@@ -317,7 +343,7 @@ function AppointmentDetail({ appointment, onBack, onGeneratePrep, onComplete, on
       )}
 
       {/* Post-Appointment Notes */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm space-y-2">
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-2">
         <h3 className="text-sm font-semibold text-slate-700">
           {appointment.status === 'completed' ? 'Appointment Notes' : 'Post-Appointment Notes'}
         </h3>
@@ -334,7 +360,7 @@ function AppointmentDetail({ appointment, onBack, onGeneratePrep, onComplete, on
 
       {/* User notes */}
       {appointment.user_notes && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Your Notes</h3>
           <p className="text-sm text-slate-700">{appointment.user_notes}</p>
         </div>

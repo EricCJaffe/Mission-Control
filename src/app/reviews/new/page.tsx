@@ -27,7 +27,7 @@ export default async function ReviewSurveyPage() {
       <form className="mt-6 grid gap-6" action="/reviews/submit" method="post" data-progress="true" data-toast="Review submitted">
         <input type="hidden" name="period_start" value={periodStart} />
 
-        <section className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">God First</h2>
           <div className="mt-4 grid gap-3">
             <label className="text-sm">1) Consistency in prayer/Scripture (1-10)</label>
@@ -41,7 +41,7 @@ export default async function ReviewSurveyPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">Health</h2>
           <div className="mt-4 grid gap-3">
             <label className="text-sm">5) Training consistency (days/week)</label>
@@ -55,7 +55,7 @@ export default async function ReviewSurveyPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">Family</h2>
           <div className="mt-4 grid gap-3">
             <label className="text-sm">9) Mary Jo felt prioritized? (yes/no)</label>
@@ -74,7 +74,7 @@ export default async function ReviewSurveyPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">Impact</h2>
           <div className="mt-4 grid gap-3">
             <label className="text-sm">13) Work advanced Kingdom impact (1-10)</label>
@@ -88,7 +88,7 @@ export default async function ReviewSurveyPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">Stewardship + Focus</h2>
           <div className="mt-4 grid gap-3">
             <label className="text-sm">17) Generous with time/treasure/talent (1-10)</label>
@@ -109,7 +109,7 @@ export default async function ReviewSurveyPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold">Summary Prompts</h2>
           <div className="mt-4 grid gap-3">
             <label className="text-sm">24) What was God teaching you?</label>

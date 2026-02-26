@@ -146,7 +146,7 @@ export default function CalendarClient({
       </div>
 
       <form
-        className="grid gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm md:grid-cols-2"
+        className="grid gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:grid-cols-2"
         action="/dashboard/events"
         method="post"
         data-progress="true"
@@ -215,7 +215,7 @@ export default function CalendarClient({
       <section className="grid gap-3">
         <div className="text-sm font-semibold">Day Schedule</div>
         {dayEvents.map((event) => (
-          <div key={event.id} className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <div key={event.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <div className="font-semibold">{event.title}</div>

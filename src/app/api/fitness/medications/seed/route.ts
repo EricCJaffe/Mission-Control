@@ -145,30 +145,53 @@ export async function POST() {
       },
     ];
 
-    // Insert all medications
-    const { data: insertedMeds, error: insertError } = await supabase
+    // Insert all medications — try medication_name/medication_type columns first
+    let insertedMeds;
+    let insertError;
+
+    ({ data: insertedMeds, error: insertError } = await supabase
       .from('medications')
       .insert(medications)
-      .select();
+      .select());
 
-    if (insertError) {
+    // If column names don't match, retry with name/type (pre-migration schema)
+    if (insertError && (insertError.message.includes('medication_name') || insertError.message.includes('medication_type') || insertError.code === '42703')) {
+      console.log('Retrying seed with name/type columns (pre-migration schema)');
+      const fallbackRows = medications.map(({ medication_name, medication_type, ...rest }) => ({
+        ...rest,
+        name: medication_name,
+        type: medication_type,
+      }));
+      ({ data: insertedMeds, error: insertError } = await supabase
+        .from('medications')
+        .insert(fallbackRows)
+        .select());
+    }
+
+    if (insertError || !insertedMeds) {
       console.error('Failed to seed medications:', insertError);
-      return NextResponse.json({ error: 'Failed to seed medications', details: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to seed medications', details: insertError?.message }, { status: 500 });
     }
 
     // Create medication_changes records for all (action: "started")
     const changes = insertedMeds.map(med => ({
       user_id: userId,
       medication_id: med.id,
-      change_type: 'started',
+      action: 'started',
+      change_date: new Date().toISOString().split('T')[0],
       previous_value: null,
-      new_value: med.dosage,
+      new_value: med.dosage ?? med.medication_name ?? med.name,
       reason: 'Initial medication seeding',
     }));
 
-    await supabase
-      .from('medication_changes')
-      .insert(changes);
+    // Best-effort: log changes (don't block if table doesn't exist)
+    try {
+      await supabase
+        .from('medication_changes')
+        .insert(changes);
+    } catch (e) {
+      console.warn('Could not insert medication_changes:', e);
+    }
 
     return NextResponse.json({
       success: true,

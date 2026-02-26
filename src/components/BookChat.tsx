@@ -62,7 +62,7 @@ export default function BookChat({ bookId, initialMessages }: { bookId: string; 
   }
 
   return (
-    <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm" aria-busy={isSending}>
+    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm" aria-busy={isSending}>
       <div className="text-sm font-semibold">Chat about this book</div>
       {error && <div className="mt-2 text-xs text-red-600">AI error: {error}</div>}
       <div className="mt-2 grid gap-2 text-xs">

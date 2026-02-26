@@ -29,7 +29,7 @@ export default async function NotesPage() {
         </p>
       </div>
 
-      <form className="mt-6 grid gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm sm:grid-cols-[1fr_auto]" action="/notes/new" method="post" data-toast="Note created">
+      <form className="mt-6 grid gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:grid-cols-[1fr_auto]" action="/notes/new" method="post" data-toast="Note created">
         <input
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
           name="title"
@@ -62,7 +62,7 @@ export default async function NotesPage() {
           <Link
             key={note.id}
             href={`/notes/${note.id}`}
-            className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="text-base font-semibold">{note.title}</div>
             <div className="mt-1 text-xs text-slate-500">

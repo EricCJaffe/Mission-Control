@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { AlertCircle, Bot, FileHeart, Target, TrendingUp, ArrowRight, Dumbbell, Leaf, Stethoscope } from 'lucide-react';
 
 interface LabPanel {
   id: string;
@@ -246,7 +247,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
 
   if (!data || data.panels.length === 0) {
     return (
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-12 text-center shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
         <p className="text-gray-600">
           No confirmed lab panels found. Upload and confirm lab reports first.
         </p>
@@ -259,7 +260,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
   return (
     <div className="space-y-6">
       {/* Filter Controls */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm font-medium text-gray-700">Filter:</span>
           <button
@@ -339,19 +340,19 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
         <div className="space-y-6">
           {/* Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-600 mb-1">Total Panels</p>
               <p className="text-3xl font-bold text-gray-900">{data.panels.length}</p>
             </div>
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-600 mb-1">Tests Tracked</p>
               <p className="text-3xl font-bold text-gray-900">{Object.keys(data.test_trends).length}</p>
             </div>
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-600 mb-1">Flagged Results</p>
               <p className="text-3xl font-bold text-yellow-600">{data.flagged_results.length}</p>
             </div>
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-600 mb-1">Date Range</p>
               <p className="text-sm font-medium text-gray-900">
                 {new Date(data.panels[data.panels.length - 1].panel_date).toLocaleDateString()} -
@@ -364,7 +365,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
           {data.flagged_results.length > 0 && (
             <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
               <h3 className="text-lg font-semibold text-yellow-900 mb-4">
-                ⚠️ Flagged Results ({data.flagged_results.length})
+                <span className="inline-flex items-center gap-2"><AlertCircle size={20} /> Flagged Results ({data.flagged_results.length})</span>
               </h3>
               <div className="space-y-2">
                 {data.flagged_results.slice(0, 10).map((result, idx) => (
@@ -396,7 +397,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-blue-900">
-                  🤖 AI Comprehensive Analysis
+                  <span className="inline-flex items-center gap-2"><Bot size={20} /> AI Comprehensive Analysis</span>
                 </h3>
                 {comprehensiveAnalysis && (
                   <p className="text-xs text-gray-600 mt-1">
@@ -411,7 +412,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
                     onClick={exportToMarkdown}
                     className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors"
                   >
-                    📄 Export MD
+                    <span className="inline-flex items-center gap-1.5"><FileHeart size={16} /> Export MD</span>
                   </button>
                 )}
                 <button
@@ -448,7 +449,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
 
                 {/* Priority Actions */}
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
-                  <h4 className="font-semibold text-amber-900 mb-3">🎯 Priority Actions</h4>
+                  <h4 className="font-semibold text-amber-900 mb-3 flex items-center gap-2"><Target size={18} /> Priority Actions</h4>
                   <ul className="space-y-2">
                     {comprehensiveAnalysis.priority_actions.map((action, idx) => (
                       <li key={idx} className="flex items-start gap-2">
@@ -484,10 +485,10 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
                           category.overall_trend === 'stable' ? 'bg-blue-100 text-blue-700' :
                           'bg-gray-100 text-gray-700'
                         }`}>
-                          {category.overall_trend === 'improving' ? '📈 IMPROVING' :
-                           category.overall_trend === 'worsening' ? '📉 WORSENING' :
-                           category.overall_trend === 'stable' ? '➡️ STABLE' :
-                           '🔀 MIXED'}
+                          <span className="inline-flex items-center gap-1">{category.overall_trend === 'improving' ? <><TrendingUp size={14} /> IMPROVING</> :
+                           category.overall_trend === 'worsening' ? <><TrendingUp size={14} className="rotate-180" /> WORSENING</> :
+                           category.overall_trend === 'stable' ? <><ArrowRight size={14} /> STABLE</> :
+                           'MIXED'}</span>
                         </span>
                       </div>
                     </div>
@@ -522,7 +523,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {category.recommendations.dietary.length > 0 && (
                             <div>
-                              <h6 className="text-sm font-medium text-gray-700 mb-2">🥗 Dietary</h6>
+                              <h6 className="text-sm font-medium text-gray-700 mb-2">Dietary</h6>
                               <ul className="space-y-1">
                                 {category.recommendations.dietary.map((rec, i) => (
                                   <li key={i} className="text-sm text-gray-600 flex items-start gap-1">
@@ -535,7 +536,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
                           )}
                           {category.recommendations.exercise.length > 0 && (
                             <div>
-                              <h6 className="text-sm font-medium text-gray-700 mb-2">💪 Exercise</h6>
+                              <h6 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1.5"><Dumbbell size={16} /> Exercise</h6>
                               <ul className="space-y-1">
                                 {category.recommendations.exercise.map((rec, i) => (
                                   <li key={i} className="text-sm text-gray-600 flex items-start gap-1">
@@ -548,7 +549,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
                           )}
                           {category.recommendations.lifestyle.length > 0 && (
                             <div>
-                              <h6 className="text-sm font-medium text-gray-700 mb-2">🧘 Lifestyle</h6>
+                              <h6 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1.5"><Leaf size={16} /> Lifestyle</h6>
                               <ul className="space-y-1">
                                 {category.recommendations.lifestyle.map((rec, i) => (
                                   <li key={i} className="text-sm text-gray-600 flex items-start gap-1">
@@ -561,7 +562,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
                           )}
                           {category.recommendations.medical.length > 0 && (
                             <div>
-                              <h6 className="text-sm font-medium text-gray-700 mb-2">🩺 Medical</h6>
+                              <h6 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1.5"><Stethoscope size={16} /> Medical</h6>
                               <ul className="space-y-1">
                                 {category.recommendations.medical.map((rec, i) => (
                                   <li key={i} className="text-sm text-gray-600 flex items-start gap-1">
@@ -591,7 +592,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
           </p>
 
           {Object.keys(data.key_metrics).length === 0 ? (
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-12 text-center shadow-sm">
+            <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
               <p className="text-gray-600">
                 No key metrics found in your lab panels. Upload more comprehensive lab reports with lipid, kidney, and metabolic panels.
               </p>
@@ -601,7 +602,7 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
               {Object.entries(data.key_metrics).map(([testName, points]) => (
                 <div
                   key={testName}
-                  className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                  className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                   onClick={() => setSelectedTest(testName)}
                 >
                   <h3 className="text-lg font-semibold mb-4">{testName}</h3>

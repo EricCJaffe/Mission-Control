@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import HealthFileUploadClient from '@/components/fitness/HealthFileUploadClient';
+import { AlertCircle } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,7 @@ export default async function HealthFileUploadPage() {
       {!healthDoc && (
         <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 mb-6">
           <p className="text-sm text-yellow-800">
-            ⚠️ <strong>Health profile not initialized.</strong> Please <a href="/fitness/health/init" className="underline">initialize your health profile</a> before uploading files.
+            <span className="inline-flex items-center gap-1.5"><AlertCircle size={16} /> <strong>Health profile not initialized.</strong> Please <a href="/fitness/health/init" className="underline">initialize your health profile</a> before uploading files.</span>
           </p>
         </div>
       )}

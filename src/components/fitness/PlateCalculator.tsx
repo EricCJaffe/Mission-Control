@@ -31,7 +31,7 @@ export default function PlateCalculator() {
   const plates = target ? calcPlates(parseFloat(target)) : null;
 
   return (
-    <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
       <h3 className="text-sm font-semibold text-slate-700 mb-3">Plate Calculator</h3>
       <div className="flex gap-2 items-center mb-4">
         <input

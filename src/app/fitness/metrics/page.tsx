@@ -1,5 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import Link from 'next/link';
+import { BarChart3, TrendingUp, Bot, FolderOpen } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,31 +43,31 @@ export default async function BodyMetricsPage() {
             href="/fitness/metrics/history"
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
-            📊 View Full History
+            <span className="inline-flex items-center gap-1.5"><BarChart3 size={16} /> View Full History</span>
           </Link>
           <Link
             href="/fitness/metrics/trends"
             className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
           >
-            📈 Trends & Charts
+            <span className="inline-flex items-center gap-1.5"><TrendingUp size={16} /> Trends & Charts</span>
           </Link>
           <Link
             href="/fitness/metrics/analytics"
             className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
           >
-            🤖 AI Analytics
+            <span className="inline-flex items-center gap-1.5"><Bot size={16} /> AI Analytics</span>
           </Link>
           <Link
             href="/fitness/settings/garmin/import"
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            📁 Import Garmin Data
+            <span className="inline-flex items-center gap-1.5"><FolderOpen size={16} /> Import Garmin Data</span>
           </Link>
         </div>
       </div>
 
       {/* Entry form — upserts for today's date */}
-      <form action="/fitness/metrics/new" method="post" className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm mb-6">
+      <form action="/fitness/metrics/new" method="post" className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm mb-6">
         <h2 className="text-sm font-semibold text-slate-700 mb-4">
           {todayMetrics ? 'Update Today\'s Metrics' : 'Log Today\'s Metrics'}
         </h2>
@@ -211,7 +212,7 @@ export default async function BodyMetricsPage() {
 
       {/* Recent history */}
       {recentMetrics && recentMetrics.length > 0 && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700">Recent History (30 days)</h2>
             <Link

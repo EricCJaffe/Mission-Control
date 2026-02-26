@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { bpFlagLabel, bpFlagTailwindClass } from '@/lib/fitness/alerts';
 import type { BPFlagLevel } from '@/lib/fitness/types';
 import DateRangeFilter, { type DateRange, getDefaultRange } from './DateRangeFilter';
+import { AlertTriangle } from 'lucide-react';
 
 type BPRow = {
   id: string;
@@ -132,7 +133,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
       {/* Crisis alert */}
       {crisisReading && (
         <div className="rounded-2xl border-2 border-red-500 bg-red-50 p-4">
-          <p className="font-semibold text-red-800">🚨 Recent Hypertensive Crisis Reading</p>
+          <p className="font-semibold text-red-800 flex items-center gap-1.5"><AlertTriangle size={18} /> Recent Hypertensive Crisis Reading</p>
           <p className="text-sm text-red-700 mt-1">
             {crisisReading.systolic}/{crisisReading.diastolic} recorded on{' '}
             {new Date(crisisReading.reading_date).toLocaleDateString()}. If symptomatic, seek immediate care.
@@ -143,7 +144,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
       {/* Latest + averages row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {latest && (
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500 mb-1">Latest Reading</p>
             <p className="text-2xl font-bold text-slate-800 tabular-nums">{latest.systolic}/{latest.diastolic}</p>
             <p className="text-xs text-slate-500">{latest.pulse ? `${latest.pulse} bpm · ` : ''}{new Date(latest.reading_date).toLocaleDateString()}</p>
@@ -153,13 +154,13 @@ export default function BPDashboardClient({ readings: initial }: Props) {
           </div>
         )}
         {avgSystolic != null && (
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500 mb-1">30-Day Average</p>
             <p className="text-2xl font-bold text-slate-800 tabular-nums">{avgSystolic}/{avgDiastolic}</p>
             <p className="text-xs text-slate-500">{recent30.length} readings</p>
           </div>
         )}
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <p className="text-xs text-slate-500 mb-1">AHA Targets</p>
           <p className="text-sm font-semibold text-green-700">&lt;120/80 Normal</p>
           <p className="text-xs text-slate-400 mt-1">120-129/&lt;80 Elevated</p>
@@ -169,7 +170,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
       </div>
 
       {/* New reading form */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-slate-700">Log Blood Pressure</h2>
           <button
@@ -280,7 +281,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
       <DateRangeFilter value={dateRange} onChange={handleDateRangeChange} storageKey="bp-range" />
 
       {readings.length > 0 && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-700">Reading History ({readings.length})</h2>
           </div>

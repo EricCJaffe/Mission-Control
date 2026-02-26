@@ -24,14 +24,7 @@ interface HealthContext {
   persona: string | null;
   soul: string | null;
   health: string | null;
-  medications: Array<{
-    name: string;
-    type: string;
-    dose: string;
-    frequency: string;
-    timing: string;
-    purpose: string;
-  }>;
+  medications: Array<Record<string, any>>;
   recentMetrics: {
     rhr: number | null;
     hrv: number | null;
@@ -76,10 +69,9 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
   // Load active medications
   const { data: meds } = await supabase
     .from('medications')
-    .select('name, type, dose, frequency, timing, purpose')
+    .select('*')
     .eq('user_id', userId)
-    .eq('active', true)
-    .order('type', { ascending: true });
+    .eq('active', true);
 
   // Load last 7 days of key metrics
   const sevenDaysAgo = new Date();
@@ -87,7 +79,7 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
 
   const { data: bodyMetrics } = await supabase
     .from('body_metrics')
-    .select('rhr, hrv, body_battery, sleep_hours, weight')
+    .select('resting_hr, hrv_ms, body_battery, sleep_duration_min, weight_lbs')
     .eq('user_id', userId)
     .gte('metric_date', sevenDaysAgo.toISOString().split('T')[0])
     .order('metric_date', { ascending: false })
@@ -129,32 +121,37 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
     .from('bp_readings')
     .select('systolic, diastolic')
     .eq('user_id', userId)
-    .gte('reading_time', sevenDaysAgo.toISOString())
-    .order('reading_time', { ascending: false })
+    .gte('reading_date', sevenDaysAgo.toISOString())
+    .order('reading_date', { ascending: false })
     .limit(7);
 
-  const { data: fastingLog } = await supabase
-    .from('fasting_logs')
-    .select('status, start_time, end_time')
-    .eq('user_id', userId)
-    .gte('start_time', new Date().toISOString().split('T')[0])
-    .limit(1)
-    .single();
+  // fasting_logs table may not exist yet — query safely
+  let fastingLog: { status: string; start_time: string; end_time: string | null } | null = null;
+  try {
+    const { data } = await supabase
+      .from('fasting_logs')
+      .select('status, start_time, end_time')
+      .eq('user_id', userId)
+      .gte('start_time', new Date().toISOString().split('T')[0])
+      .limit(1)
+      .single();
+    fastingLog = data;
+  } catch { /* table may not exist */ }
 
   // Calculate averages
   const avgRHR = bodyMetrics?.length
-    ? Math.round(bodyMetrics.reduce((sum, m) => sum + (m.rhr || 0), 0) / bodyMetrics.length)
+    ? Math.round(bodyMetrics.reduce((sum, m) => sum + (m.resting_hr || 0), 0) / bodyMetrics.length)
     : null;
   const avgHRV = bodyMetrics?.length
-    ? Math.round(bodyMetrics.reduce((sum, m) => sum + (m.hrv || 0), 0) / bodyMetrics.length)
+    ? Math.round(bodyMetrics.reduce((sum, m) => sum + (m.hrv_ms || 0), 0) / bodyMetrics.length)
     : null;
   const avgBB = bodyMetrics?.length
     ? Math.round(bodyMetrics.reduce((sum, m) => sum + (m.body_battery || 0), 0) / bodyMetrics.length)
     : null;
   const avgSleep = bodyMetrics?.length
-    ? (bodyMetrics.reduce((sum, m) => sum + (m.sleep_hours || 0), 0) / bodyMetrics.length).toFixed(1)
+    ? (bodyMetrics.reduce((sum, m) => sum + ((m.sleep_duration_min || 0) / 60), 0) / bodyMetrics.length).toFixed(1)
     : null;
-  const latestWeight = bodyMetrics?.[0]?.weight || null;
+  const latestWeight = bodyMetrics?.[0]?.weight_lbs || null;
 
   const avgBP = bpReadings?.length
     ? {
@@ -482,7 +479,10 @@ export async function buildAISystemPrompt(
   if (context.medications.length > 0) {
     prompt += `━━━ ACTIVE MEDICATIONS ━━━\n`;
     context.medications.forEach(med => {
-      prompt += `- **${med.name}** (${med.type}): ${med.dose}, ${med.frequency}, ${med.timing}\n  Purpose: ${med.purpose}\n`;
+      const medName = med.medication_name || med.name || 'Unknown';
+      const medType = med.medication_type || med.type || '';
+      const medDosage = med.dosage || '';
+      prompt += `- **${medName}** (${medType}): ${medDosage}, ${med.frequency || ''}, ${med.timing || ''}\n  Purpose: ${med.purpose || med.indication || ''}\n`;
     });
     prompt += `\n`;
   }

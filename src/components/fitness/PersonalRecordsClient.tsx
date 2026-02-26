@@ -132,19 +132,19 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm text-center">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
           <p className="text-xs text-slate-500 mb-1">Total PRs</p>
           <p className="text-2xl font-bold text-slate-800">{totalPRs}</p>
         </div>
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm text-center">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
           <p className="text-xs text-slate-500 mb-1">Strength</p>
           <p className="text-2xl font-bold text-red-600">{strengthCount}</p>
         </div>
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm text-center">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
           <p className="text-xs text-slate-500 mb-1">Cardio</p>
           <p className="text-2xl font-bold text-green-600">{cardioCount}</p>
         </div>
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm text-center">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
           <p className="text-xs text-slate-500 mb-1">Most Recent</p>
           {recentPR ? (
             <p className="text-sm font-medium text-slate-700 truncate">{new Date(recentPR.achieved_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
@@ -156,7 +156,7 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
 
       {/* Current bests */}
       {latestByExercise.size > 0 && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-700">Current Bests</h2>
           </div>
@@ -203,7 +203,7 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
         [...grouped.entries()].map(([cat, catRecords]) => (
           <div key={cat}>
             <h2 className="text-sm font-semibold text-slate-600 mb-2">{CATEGORY_LABELS[cat] ?? cat}</h2>
-            <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden divide-y divide-slate-100">
+            <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden divide-y divide-slate-100">
               {catRecords.map(r => (
                 <div key={r.id} className="px-5 py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
@@ -242,7 +242,7 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
           </div>
         ))
       ) : (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
           <p className="text-slate-500 text-sm">
             {records.length === 0
               ? 'No personal records yet. PRs are auto-detected when you log workouts — your first lift or run will set the baseline!'

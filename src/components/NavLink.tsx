@@ -24,7 +24,7 @@ export default function NavLink({ href, label, shortLabel, collapsed, icon, onCl
       className={`rounded-full px-3 py-1.5 text-sm transition ${collapsed ? "text-xs text-center" : ""} ${
         isActive
           ? "bg-blue-700 text-white shadow-sm"
-          : "text-slate-600 hover:text-slate-900 hover:bg-white/70"
+          : "text-slate-600 hover:text-slate-900 hover:bg-white"
       }`}
       title={label}
     >

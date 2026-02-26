@@ -35,24 +35,24 @@ export default async function MetricsPage() {
       </div>
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-xs uppercase tracking-widest text-slate-500">Spirit</div>
           <div className="mt-2 text-3xl font-semibold">{scoreRow?.spirit ?? "—"}</div>
           <div className="mt-1 text-xs text-slate-500">{scoreRow?.spirit_alignment || "No note yet."}</div>
         </div>
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-xs uppercase tracking-widest text-slate-500">Soul</div>
           <div className="mt-2 text-3xl font-semibold">{scoreRow?.soul ?? "—"}</div>
           <div className="mt-1 text-xs text-slate-500">{scoreRow?.soul_alignment || "No note yet."}</div>
         </div>
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-xs uppercase tracking-widest text-slate-500">Body</div>
           <div className="mt-2 text-3xl font-semibold">{scoreRow?.body ?? "—"}</div>
           <div className="mt-1 text-xs text-slate-500">{scoreRow?.body_alignment || "No note yet."}</div>
         </div>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Spirit / Soul / Body Trend</h2>
         <p className="mt-1 text-xs text-slate-500">Last 12 snapshots.</p>
         {(() => {
@@ -90,7 +90,7 @@ export default async function MetricsPage() {
         })()}
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Recent Monthly Alignment</h2>
         <div className="mt-4 grid gap-2 text-sm">
           {(reviews || []).map((review) => (

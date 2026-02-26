@@ -125,7 +125,7 @@ export default function LabPanelsClient({ panels: initial }: { panels: PanelSumm
         {errorBanner}
         <button onClick={() => setSelectedPanel(null)} className="text-xs text-slate-400 hover:text-slate-600">← Back to panels</button>
 
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-lg font-semibold text-slate-800">
@@ -174,7 +174,7 @@ export default function LabPanelsClient({ panels: initial }: { panels: PanelSumm
 
         {/* All results table */}
         {selectedPanel.results && selectedPanel.results.length > 0 && (
-          <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
+          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100">
               <h3 className="text-sm font-semibold text-slate-700">All Results</h3>
             </div>
@@ -215,7 +215,7 @@ export default function LabPanelsClient({ panels: initial }: { panels: PanelSumm
 
         {/* Notes */}
         {selectedPanel.notes && (
-          <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Notes</h3>
             <p className="text-sm text-slate-700">{selectedPanel.notes}</p>
           </div>
@@ -230,7 +230,7 @@ export default function LabPanelsClient({ panels: initial }: { panels: PanelSumm
 
       {/* Add panel form */}
       {showAdd ? (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">Upload Lab Results</h2>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -289,13 +289,13 @@ export default function LabPanelsClient({ panels: initial }: { panels: PanelSumm
 
       {/* Panel list */}
       {panels.length === 0 ? (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
           <p className="text-slate-500 text-sm">No lab results yet. Upload your bloodwork to track trends over time and get AI-powered insights.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {panels.map(panel => (
-            <div key={panel.id} className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
+            <div key={panel.id} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
               <button
                 onClick={() => handleViewPanel(panel.id)}
                 className="w-full text-left px-5 py-4 hover:bg-white/90 transition-colors"

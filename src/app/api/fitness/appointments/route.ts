@@ -141,9 +141,22 @@ export async function PUT(req: Request) {
       r.flag_level && !['normal'].includes(r.flag_level)
     ).length ?? 0;
 
+    // Normalize medication names for AI prompt
+    const normalizedMeds = (meds ?? []).map((m: Record<string, unknown>) => ({
+      ...m,
+      name: m.name || m.medication_name || 'Unknown',
+      type: m.type || m.medication_type || 'prescription',
+    }));
+
+    console.log('[AppointmentPrep] Generating prep with:', {
+      medsCount: normalizedMeds.length,
+      rhrTrend, hrvTrend, bpAvg, weightTrend, compliancePct,
+      labFlagsCount: labFlags?.length ?? 0,
+    });
+
     try {
       const prep = await generateAppointmentPrep({
-        user_id: user.id, // NEW: passes user ID for health context loading
+        user_id: user.id,
         doctor_specialty: updates.doctor_specialty || 'cardiologist',
         last_appointment_date: lastAppt?.appointment_date ?? null,
         rhr_trend: rhrTrend && rhrTrend.start > 0 && rhrTrend.end > 0 ? rhrTrend : null,
@@ -154,8 +167,14 @@ export async function PUT(req: Request) {
         training_compliance_pct: compliancePct,
         cardiac_efficiency_trend: null,
         notable_events: [],
-        medications: meds ?? [],
+        medications: normalizedMeds as any,
         recent_lab_flags: labFlags?.map(f => `${f.test_name}: ${f.flag}`) ?? [],
+      });
+
+      console.log('[AppointmentPrep] AI returned:', {
+        questionsCount: prep.suggested_questions?.length ?? 0,
+        changesCount: prep.changes_summary?.length ?? 0,
+        flagsCount: prep.flags?.length ?? 0,
       });
 
       updates.suggested_questions = prep.suggested_questions;
@@ -164,7 +183,11 @@ export async function PUT(req: Request) {
       updates.prep_generated_at = new Date().toISOString();
       updates.status = 'prep_ready';
     } catch (err) {
-      console.error('Appointment prep generation failed', err);
+      console.error('[AppointmentPrep] Generation FAILED:', err);
+      // Still update the appointment with error info so user sees feedback
+      updates.flags = [`Prep generation error: ${err instanceof Error ? err.message : 'Unknown error'}. Try again.`];
+      updates.status = 'prep_ready';
+      updates.prep_generated_at = new Date().toISOString();
     }
   }
 

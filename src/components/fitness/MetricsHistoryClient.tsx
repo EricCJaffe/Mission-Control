@@ -167,26 +167,26 @@ export default function MetricsHistoryClient({ metrics }: Props) {
     <div className="space-y-6">
       {/* Summary Stats */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-sm text-slate-600">Total Records</div>
           <div className="text-2xl font-bold">{stats.total}</div>
         </div>
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-sm text-slate-600">Avg RHR</div>
           <div className="text-2xl font-bold">{stats.avgRHR || '—'} bpm</div>
         </div>
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-sm text-slate-600">Avg HRV</div>
           <div className="text-2xl font-bold">{stats.avgHRV || '—'} ms</div>
         </div>
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="text-sm text-slate-600">Avg Body Battery</div>
           <div className="text-2xl font-bold">{stats.avgBodyBattery || '—'}</div>
         </div>
       </div>
 
       {/* Filters and Search */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           {/* Date Range Filters */}
           <div className="flex flex-wrap gap-2">
@@ -239,7 +239,7 @@ export default function MetricsHistoryClient({ metrics }: Props) {
       </div>
 
       {/* Metrics Table */}
-      <div className="overflow-x-auto rounded-2xl border border-white/80 bg-white/70 shadow-sm">
+      <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
         <table className="w-full">
           <thead className="border-b border-slate-200 bg-slate-50">
             <tr>

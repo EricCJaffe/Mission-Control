@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { AlertCircle, Moon, TrendingUp } from 'lucide-react';
 
 type Analysis = {
   sleepHRVCorrelation: {
@@ -59,7 +60,7 @@ export default function MetricsAnalyticsClient() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-12 text-center shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
         <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
         <p className="mt-4 text-slate-600">Analyzing your metrics with AI...</p>
         <p className="mt-2 text-sm text-slate-500">
@@ -94,7 +95,7 @@ export default function MetricsAnalyticsClient() {
 
   if (!analysis) {
     return (
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-12 text-center shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
         <p className="text-slate-500">No analysis available</p>
       </div>
     );
@@ -115,7 +116,7 @@ export default function MetricsAnalyticsClient() {
   return (
     <div className="space-y-6">
       {/* Summary */}
-      <div className="rounded-2xl border border-white/80 bg-gradient-to-br from-blue-50 to-purple-50 p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-blue-50 to-purple-50 p-6 shadow-sm">
         <div className="mb-2 text-sm font-medium text-slate-600">
           Analysis based on {dataPoints} days of data
         </div>
@@ -125,7 +126,7 @@ export default function MetricsAnalyticsClient() {
       {/* Early Warnings */}
       {analysis.earlyWarnings.warnings.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-2xl font-bold">⚠️ Early Warning Signs</h2>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><AlertCircle size={24} /> Early Warning Signs</h2>
           {analysis.earlyWarnings.warnings.map((warning, idx) => (
             <div
               key={idx}
@@ -150,8 +151,8 @@ export default function MetricsAnalyticsClient() {
       )}
 
       {/* Sleep/HRV Correlation */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
-        <h2 className="mb-4 text-2xl font-bold">😴 Sleep & HRV Correlation</h2>
+      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-2xl font-bold flex items-center gap-2"><Moon size={24} /> Sleep & HRV Correlation</h2>
         <div className="mb-4">
           <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
             {analysis.sleepHRVCorrelation.correlation.toUpperCase()} Correlation
@@ -182,8 +183,8 @@ export default function MetricsAnalyticsClient() {
       </div>
 
       {/* Recovery Trends */}
-      <div className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm">
-        <h2 className="mb-4 text-2xl font-bold">📈 Recovery Trends</h2>
+      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-2xl font-bold flex items-center gap-2"><TrendingUp size={24} /> Recovery Trends</h2>
         <div className="mb-4">
           <span
             className={`text-lg font-semibold ${

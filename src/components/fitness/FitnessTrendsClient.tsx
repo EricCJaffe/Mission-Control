@@ -218,7 +218,7 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
 
       {/* Workout log table */}
       {workoutLogs.length > 0 && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-700">Workout Log ({rangeLabel})</h2>
           </div>
@@ -258,7 +258,7 @@ function TrendCard({ title, subtitle, target, note, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
       <div className="mb-2">
         <p className="text-sm font-semibold text-slate-700">{title}</p>
         {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
@@ -272,7 +272,7 @@ function TrendCard({ title, subtitle, target, note, children }: {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
       <p className="text-xs text-slate-500 mb-1">{label}</p>
       <p className="text-2xl font-bold tabular-nums text-slate-800">{value}</p>
       {sub && <p className="text-xs text-slate-500 capitalize mt-0.5">{sub}</p>}

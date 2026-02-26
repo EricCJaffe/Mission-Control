@@ -134,7 +134,7 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
 
       {/* Create form */}
       {showCreate ? (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">New Training Plan</h2>
           <div>
             <label className="text-xs text-slate-500 block mb-1">Plan Name</label>
@@ -205,7 +205,7 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
       {activePlan && (
         <div>
           <h2 className="text-sm font-semibold text-slate-600 mb-2">Active Plan</h2>
-          <div className="rounded-2xl border border-green-100 bg-white/70 p-5 shadow-sm">
+          <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-slate-800">{activePlan.name}</h3>
               <span className="text-xs bg-green-100 text-green-800 rounded-full px-2.5 py-0.5 font-medium">Active</span>
@@ -231,7 +231,7 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
               <div className="grid gap-2">
                 {upcomingWorkouts.map(w => (
                   <Link key={w.id} href="/fitness/log"
-                    className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/60 px-4 py-3 shadow-sm hover:bg-white/80 transition-colors">
+                    className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white/60 px-4 py-3 shadow-sm hover:bg-white/80 transition-colors">
                     <span className="text-xs font-mono text-slate-400 w-24 shrink-0">{w.scheduled_date}</span>
                     <span className="text-sm font-medium text-slate-700">{w.day_label ?? w.workout_type ?? 'Workout'}</span>
                   </Link>
@@ -246,7 +246,7 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
       {plans.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold text-slate-600 mb-2">All Plans ({plans.length})</h2>
-          <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden divide-y divide-slate-100">
+          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden divide-y divide-slate-100">
             {plans.map(plan => (
               <div key={plan.id} className="px-5 py-3 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
@@ -287,7 +287,7 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
       )}
 
       {plans.length === 0 && !showCreate && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
           <p className="text-slate-500 text-sm">No training plans yet. Create your first plan to organize your training blocks.</p>
         </div>
       )}

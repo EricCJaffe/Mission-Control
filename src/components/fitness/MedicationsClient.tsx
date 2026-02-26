@@ -20,6 +20,7 @@ export default function MedicationsClient({ medications: initial }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -99,6 +100,24 @@ export default function MedicationsClient({ medications: initial }: Props) {
     } catch { setError('Network error — could not update'); }
   }
 
+  async function handleSeed() {
+    setSeeding(true); setError(null);
+    try {
+      const res = await fetch('/api/fitness/medications/seed', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        // Reload full medication list
+        const listRes = await fetch('/api/fitness/medications');
+        const listData = await listRes.json();
+        if (listData.medications) setMedications(listData.medications);
+        else window.location.reload();
+      } else {
+        setError(data.error || 'Failed to seed medications');
+      }
+    } catch { setError('Network error — could not seed medications'); }
+    setSeeding(false);
+  }
+
   async function handleDelete(id: string) {
     setError(null);
     try {
@@ -125,7 +144,7 @@ export default function MedicationsClient({ medications: initial }: Props) {
 
       {/* Add/edit form */}
       {showAdd ? (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm space-y-3">
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">{editId ? 'Edit Medication' : 'Add Medication'}</h2>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -195,7 +214,7 @@ export default function MedicationsClient({ medications: initial }: Props) {
 
       {/* Active medications */}
       {activeMeds.length > 0 && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-700">Active ({activeMeds.length})</h2>
           </div>
@@ -240,14 +259,19 @@ export default function MedicationsClient({ medications: initial }: Props) {
 
       {/* Empty state */}
       {medications.length === 0 && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm space-y-4">
           <p className="text-slate-500 text-sm">No medications tracked yet. Add your prescriptions and supplements for AI-aware training guidance.</p>
+          <button onClick={handleSeed} disabled={seeding}
+            className="rounded-xl bg-blue-700 text-white text-sm font-medium px-5 py-2.5 hover:bg-blue-600 disabled:opacity-50 min-h-[44px]">
+            {seeding ? 'Loading medications...' : 'Load Current Medications & Supplements'}
+          </button>
+          <p className="text-xs text-slate-400">Seeds your 5 prescriptions and 4 supplements from your cardiac care regimen</p>
         </div>
       )}
 
       {/* Inactive medications */}
       {inactiveMeds.length > 0 && (
-        <div className="rounded-2xl border border-white/80 bg-white/70 shadow-sm overflow-hidden opacity-60">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden opacity-60">
           <div className="px-5 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-500">Inactive ({inactiveMeds.length})</h2>
           </div>

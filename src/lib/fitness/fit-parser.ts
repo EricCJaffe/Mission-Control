@@ -105,19 +105,20 @@ export class FitFileParser {
 
     // Extract from stress array (body battery, stress levels)
     if (fitData.stress && Array.isArray(fitData.stress)) {
+      // Body battery: uint8, 0-100 valid, 127 = no data sentinel
       const validBodyBattery = fitData.stress
         .map((s: any) => s.body_battery)
-        .filter((bb: any) => bb != null && bb < 127); // 127 is sentinel for no data
+        .filter((bb: any) => bb != null && bb >= 0 && bb < 127);
 
       if (validBodyBattery.length > 0) {
         // Use the last valid body battery value
         result.bodyBattery = validBodyBattery[validBodyBattery.length - 1];
       }
 
-      // field_two might be stress level (needs verification)
+      // Stress: use stress_level_value (uint16, 0-100 range), not field_two
       const validStress = fitData.stress
-        .map((s: any) => s.field_two)
-        .filter((s: any) => s != null && s < 101); // 101 might be sentinel
+        .map((s: any) => s.stress_level_value)
+        .filter((s: any) => s != null && s >= 0 && s <= 100);
 
       if (validStress.length > 0) {
         // Average stress level
@@ -223,6 +224,44 @@ export class FitFileParser {
         // Body fat percentage
         if (record.body_fat_percent && !result.bodyFatPercent) {
           result.bodyFatPercent = record.body_fat_percent;
+        }
+      }
+    }
+
+    // Fallback: sweep top-level objects for known fields
+    // fit-file-parser puts unrecognized message types as fitObj[messageType] = message (single object)
+    for (const [key, value] of Object.entries(fitData)) {
+      if (value && typeof value === 'object' && !Array.isArray(value) && key !== 'software') {
+        const obj = value as Record<string, any>;
+        if (obj.resting_heart_rate != null && !result.restingHeartRate) {
+          result.restingHeartRate = obj.resting_heart_rate;
+        }
+        if (obj.weight != null && !result.weight) {
+          result.weight = obj.weight;
+        }
+        if (obj.body_fat_percent != null && !result.bodyFatPercent) {
+          result.bodyFatPercent = obj.body_fat_percent;
+        }
+        if (obj.hrv != null && !result.hrvMs) {
+          result.hrvMs = Array.isArray(obj.hrv) ? obj.hrv[0] : obj.hrv;
+        }
+        if (obj.weekly_average_hrv != null && !result.hrvMs) {
+          result.hrvMs = obj.weekly_average_hrv;
+        }
+        if (obj.overall_sleep_score != null && !result.sleepScore) {
+          result.sleepScore = obj.overall_sleep_score;
+        }
+        if (obj.sleep_score != null && !result.sleepScore) {
+          result.sleepScore = obj.sleep_score;
+        }
+        if (obj.total_sleep != null && !result.sleepDurationHours) {
+          result.sleepDurationHours = obj.total_sleep / 3600;
+        }
+        if (obj.body_battery != null && obj.body_battery < 127 && !result.bodyBattery) {
+          result.bodyBattery = obj.body_battery;
+        }
+        if (obj.stress_level_value != null && obj.stress_level_value <= 100 && !result.stressLevel) {
+          result.stressLevel = obj.stress_level_value;
         }
       }
     }
