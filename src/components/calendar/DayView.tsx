@@ -41,16 +41,30 @@ export default function DayView({
   const dateStr = toISODate(currentDate);
   const isTodayDate = isToday(currentDate);
 
-  // Group events by hour
+  // Group events by hour, separating all-day events
   const eventsByHour = new Map<number, CalendarEvent[]>();
   const allDayEvents: CalendarEvent[] = [];
 
   events.forEach((event) => {
     const eventDate = toISODate(new Date(event.start_at));
     if (eventDate === dateStr) {
-      const eventHour = new Date(event.start_at).getHours();
-      const existing = eventsByHour.get(eventHour) || [];
-      eventsByHour.set(eventHour, [...existing, event]);
+      const startDate = new Date(event.start_at);
+      const endDate = new Date(event.end_at);
+
+      // Check if this is an all-day event (same date for start/end, no specific time)
+      const isAllDay =
+        startDate.getHours() === 0 &&
+        startDate.getMinutes() === 0 &&
+        endDate.getHours() === 0 &&
+        endDate.getMinutes() === 0;
+
+      if (isAllDay) {
+        allDayEvents.push(event);
+      } else {
+        const eventHour = startDate.getHours();
+        const existing = eventsByHour.get(eventHour) || [];
+        eventsByHour.set(eventHour, [...existing, event]);
+      }
     }
   });
 
@@ -112,6 +126,71 @@ export default function DayView({
           </button>
         </div>
       </div>
+
+      {/* All-Day Events */}
+      {allDayEvents.length > 0 && (
+        <div className="mb-4 space-y-2">
+          <div className="text-xs font-medium text-slate-500">All Day</div>
+          {allDayEvents.map((event) => {
+            const workoutData = parseWorkoutTag(event.alignment_tag);
+            const isLogged = workoutData?.isLogged || false;
+            const isPlanned = workoutData?.isPlanned || false;
+
+            return (
+              <div
+                key={event.id}
+                className={`
+                  rounded-lg border p-2
+                  ${isLogged ? 'bg-green-50 border-green-200' :
+                    isPlanned ? 'bg-blue-50 border-blue-200' :
+                    'bg-white border-slate-200'}
+                `}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    {isLogged && workoutData?.loggedWorkoutId ? (
+                      <Link
+                        href={`/fitness/history/${workoutData.loggedWorkoutId}`}
+                        className="font-medium text-green-700 hover:text-green-800"
+                      >
+                        {event.title} ✓
+                      </Link>
+                    ) : isPlanned ? (
+                      <Link
+                        href="/fitness/plans"
+                        className="font-medium text-blue-700 hover:text-blue-800"
+                      >
+                        {event.title}
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() => onEventClick(event)}
+                        className="font-medium text-slate-900 hover:text-blue-700 text-left"
+                      >
+                        {event.title}
+                      </button>
+                    )}
+                    <div className="mt-0.5 text-xs text-slate-600">
+                      {event.event_type && <span>{event.event_type}</span>}
+                      {event.domain && !isLogged && !isPlanned && (
+                        <span> · {event.domain}</span>
+                      )}
+                    </div>
+                  </div>
+                  {!isLogged && !isPlanned && (
+                    <button
+                      onClick={() => onEventClick(event)}
+                      className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Timeline */}
       <div className="max-h-[600px] overflow-y-auto">

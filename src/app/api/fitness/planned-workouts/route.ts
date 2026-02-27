@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { scheduled_date, template_id, workout_type, prescribed, notes, day_label } = body;
+    const { scheduled_date, scheduled_time, template_id, workout_type, prescribed, notes, day_label } = body;
 
     // Validate required fields
     if (!scheduled_date) {
@@ -34,6 +34,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Parse scheduled_time (HH:MM format) or default to 9 AM
+    const timeStr = scheduled_time || '09:00';
+    const [hours, minutes] = timeStr.split(':').map(Number);
 
     // If template_id is provided, fetch template data
     let templateData = null;
@@ -54,6 +58,7 @@ export async function POST(request: NextRequest) {
     const plannedWorkoutData = {
       user_id: user.id,
       scheduled_date,
+      scheduled_time: timeStr, // HH:MM format
       template_id: template_id || null,
       workout_type: workout_type || templateData?.workout_type || null,
       day_label: day_label || templateData?.name || null,

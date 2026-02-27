@@ -354,20 +354,23 @@ export async function POST(req: Request) {
     });
   }
 
-  // Create calendar event for this workout
-  const workoutDate = new Date().toISOString().slice(0, 10);
+  // Create calendar event for this workout with actual timestamps
+  const now = new Date();
+  const durationMinutes = workoutData.duration_minutes ?? 60;
+  const workoutEndTime = new Date(now);
+  const workoutStartTime = new Date(now.getTime() - (durationMinutes * 60 * 1000));
+
   const eventTitle = `${workoutData.workout_type.charAt(0).toUpperCase() + workoutData.workout_type.slice(1)} Workout`;
-  const eventNotes = `View workout details: /fitness/history/${log.id}`;
 
   await supabase.from('calendar_events').upsert({
     user_id: user.id,
     title: eventTitle,
-    start_at: workoutDate,
-    end_at: workoutDate,
-    event_type: 'workout',
-    domain: 'fitness',
-    notes: eventNotes,
+    start_at: workoutStartTime.toISOString(),
+    end_at: workoutEndTime.toISOString(),
+    event_type: 'Workout',
     alignment_tag: `workout:${log.id}`,
+    notes: workoutData.notes,
+    completed: true,
   }, {
     onConflict: 'user_id,alignment_tag',
   });

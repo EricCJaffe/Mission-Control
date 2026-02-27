@@ -50,15 +50,19 @@ declare
   event_title text;
   event_start timestamptz;
   event_end timestamptz;
+  duration_minutes int;
 begin
   -- Generate title from day_label or workout_type
   event_title := coalesce(NEW.day_label, NEW.workout_type, 'Workout');
 
-  -- Set start_at to scheduled_date + 6 hours (6 AM default)
-  event_start := NEW.scheduled_date::timestamptz + interval '6 hours';
+  -- Extract duration from prescribed JSON or default to 60 minutes
+  duration_minutes := coalesce((NEW.prescribed->>'duration_min')::int, 60);
 
-  -- Set end_at based on prescribed duration or default 60 min
-  event_end := event_start + interval '60 minutes';
+  -- If we have a scheduled_time in notes (temporary hack until we add a proper column),
+  -- parse it. Otherwise default to 9 AM.
+  -- For now, just use 9 AM as default
+  event_start := NEW.scheduled_date::timestamptz + interval '9 hours';
+  event_end := event_start + (duration_minutes || ' minutes')::interval;
 
   -- Insert or update calendar event
   insert into public.calendar_events (
