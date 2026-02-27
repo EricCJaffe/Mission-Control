@@ -178,8 +178,9 @@ export default function MonthView({
                       <Link
                         key={event.id}
                         href={`/fitness/history/${workoutData.loggedWorkoutId}`}
-                        className="block truncate rounded px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
-                        title={event.title}
+                        className="block truncate rounded px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:underline cursor-pointer transition-all"
+                        title={`${event.title} - Click to view workout details`}
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {event.title} ✓
                       </Link>
@@ -192,8 +193,9 @@ export default function MonthView({
                       <Link
                         key={event.id}
                         href="/fitness/plans"
-                        className="block truncate rounded px-1.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
-                        title={event.title}
+                        className="block truncate rounded px-1.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 hover:underline cursor-pointer transition-all"
+                        title={`${event.title} - Click to view in plans`}
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {event.title}
                       </Link>

@@ -25,17 +25,26 @@ export default async function CalendarPage({
   const { data: tasks } = await supabase.from("tasks").select("id,title").order("created_at", { ascending: false }).limit(50);
   const { data: notes } = await supabase.from("notes").select("id,title").order("created_at", { ascending: false }).limit(50);
   const { data: reviews } = await supabase.from("monthly_reviews").select("id,period_start").order("period_start", { ascending: false }).limit(12);
-  const { data: templates } = await supabase
+  const { data: templates, error: templatesError } = await supabase
     .from("workout_templates")
     .select("id,name,workout_type,description")
+    .eq("user_id", user.id)
     .order("name", { ascending: true })
     .limit(100);
+
+  // Debug logging
+  console.log(`Calendar: Fetched ${templates?.length || 0} templates for user ${user.id}`);
+  if (templatesError) {
+    console.error('Calendar: Error fetching templates:', templatesError);
+  }
 
   return (
     <main className="pt-4 md:pt-8">
       <div>
         <h1 className="text-3xl font-semibold">Calendar</h1>
-        <p className="mt-1 text-sm text-slate-500">Supabase-only calendar events.</p>
+        <p className="mt-1 text-sm text-slate-500">
+          Supabase-only calendar events. {templates?.length || 0} workout template{templates?.length === 1 ? '' : 's'} available.
+        </p>
       </div>
 
       <CalendarClient
