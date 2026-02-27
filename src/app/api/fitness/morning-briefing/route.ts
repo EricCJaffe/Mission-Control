@@ -18,7 +18,7 @@ export async function GET() {
   const today = new Date().toISOString().slice(0, 10);
 
   // Parallel data fetching
-  const [metricsRes, formRes, bpRes, profileRes, todayPlanRes, weekLogsRes, sleepHistoryRes, prsRes] = await Promise.all([
+  const [metricsRes, formRes, bpRes, profileRes, todayPlanRes, weekLogsRes, sleepHistoryRes, prsRes, medicationsRes, fastingRes] = await Promise.all([
     supabase.from('body_metrics')
       .select('resting_hr, hrv_ms, body_battery, sleep_score, sleep_duration_min, stress_avg, training_readiness')
       .eq('user_id', user.id).order('metric_date', { ascending: false }).limit(1).maybeSingle(),
@@ -50,6 +50,20 @@ export async function GET() {
       .select('notes, record_type, value, unit')
       .eq('user_id', user.id)
       .gte('achieved_date', getWeekAgo(today)).limit(5),
+    // Active medications for reminders
+    supabase.from('medications')
+      .select('medication_name, name, medication_type, type, dosage, timing')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('medication_type', { ascending: false }),
+    // Current fasting status
+    supabase.from('fasting_logs')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('fast_start', new Date(Date.now() - 86400000 * 2).toISOString())
+      .order('fast_start', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const metrics = metricsRes.data;
@@ -60,6 +74,8 @@ export async function GET() {
   const weekLogs = weekLogsRes.data ?? [];
   const sleepHistory = sleepHistoryRes.data ?? [];
   const recentPrs = prsRes.data ?? [];
+  const medications = medicationsRes.data ?? [];
+  const fastingLog = fastingRes.data;
 
   // Calculate readiness
   const sleepTarget = profile?.sleep_target_min ?? 450;
@@ -116,6 +132,28 @@ export async function GET() {
   const plannedCount = weekPlanned?.length ?? 0;
   const completedCount = weekLogs.length;
 
+  // Calculate fasting status
+  let fastingStatus: 'fasting' | 'feeding' | 'unknown' = 'unknown';
+  let fastingHours: number | null = null;
+  if (fastingLog) {
+    const now = Date.now();
+    const fastStart = new Date(fastingLog.fast_start).getTime();
+    const fastEnd = fastingLog.fast_end ? new Date(fastingLog.fast_end).getTime() : null;
+
+    if (fastEnd && now > fastEnd) {
+      fastingStatus = 'feeding';
+    } else if (now > fastStart) {
+      fastingStatus = 'fasting';
+      fastingHours = Math.floor((now - fastStart) / 3600000);
+    }
+  }
+
+  // Morning medications (timing includes 'morning', 'am', or 'daily')
+  const morningMeds = medications.filter(m => {
+    const timing = (m.timing || '').toLowerCase();
+    return timing.includes('morning') || timing.includes('am') || timing.includes('daily');
+  });
+
   // Generate AI briefing (now with health context system)
   const briefing = await generateMorningBriefing({
     user_id: user.id, // NEW: passes user ID for health context loading
@@ -141,6 +179,14 @@ export async function GET() {
     recent_prs: recentPrs.map(p => `${p.record_type}: ${p.value}${p.unit ?? ''}`),
     days_since_bp_reading: daysSinceBP,
     recent_bp: bpReadings[0] ? { systolic: bpReadings[0].systolic, diastolic: bpReadings[0].diastolic } : null,
+    medications: morningMeds.map(m => ({
+      name: m.medication_name || m.name || 'Unknown',
+      type: m.medication_type || m.type || 'supplement',
+      dosage: m.dosage || '',
+      timing: m.timing || '',
+    })),
+    fasting_status: fastingStatus,
+    fasting_hours: fastingHours,
   });
 
   return NextResponse.json({

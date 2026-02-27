@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import RichTextEditor from '@/components/RichTextEditor';
 
 interface HealthDocument {
   id: string;
@@ -11,10 +12,19 @@ interface HealthDocument {
   updated_at: string;
 }
 
+interface ChangeLogItem {
+  id: string;
+  change_type: string;
+  change_summary: string;
+  changed_by: string;
+  created_at: string;
+}
+
 interface VersionHistoryItem {
   id: string;
   version: number;
   created_at: string;
+  health_document_changes?: ChangeLogItem[];
 }
 
 interface HealthDocViewClientProps {
@@ -139,14 +149,12 @@ export default function HealthDocViewClient({
             <h2 className="text-lg font-semibold mb-4">Edit Health Profile</h2>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Content (Markdown)
-              </label>
-              <textarea
+              <RichTextEditor
                 value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                rows={30}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={setEditContent}
+                label="Content"
+                placeholder="Write your health profile content..."
+                minHeight="500px"
               />
             </div>
 
@@ -214,36 +222,70 @@ export default function HealthDocViewClient({
       {versionHistory.length > 1 && (
         <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Version History</h2>
-          <div className="space-y-2">
-            {versionHistory.map((version) => (
-              <div
-                key={version.id}
-                className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Version {version.version}
-                    {version.id === healthDoc.id && (
-                      <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                        Current
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {new Date(version.created_at).toLocaleString()}
-                  </p>
+          <div className="space-y-3">
+            {versionHistory.map((version) => {
+              const changeLog = version.health_document_changes?.[0];
+              const isCurrent = version.id === healthDoc.id;
+
+              return (
+                <div
+                  key={version.id}
+                  className="border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium text-gray-900">
+                            Version {version.version}
+                          </p>
+                          {isCurrent && (
+                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                              Current
+                            </span>
+                          )}
+                          {changeLog && (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                              {changeLog.change_type.replace('_', ' ')}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {new Date(version.created_at).toLocaleString()}
+                        </p>
+                        {changeLog && (
+                          <p className="text-sm text-gray-700">
+                            {changeLog.change_summary}
+                          </p>
+                        )}
+                      </div>
+                      {!isCurrent && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => loadVersion(version.id)}
+                            disabled={loading}
+                            className="px-3 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors text-sm min-h-[40px]"
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Revert to version ${version.version}? This will create a new version with the old content.`)) {
+                                loadVersion(version.id);
+                              }
+                            }}
+                            disabled={loading}
+                            className="px-3 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm min-h-[40px]"
+                          >
+                            Revert
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                {version.id !== healthDoc.id && (
-                  <button
-                    onClick={() => loadVersion(version.id)}
-                    disabled={loading}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 disabled:opacity-50 transition-colors text-sm"
-                  >
-                    View
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

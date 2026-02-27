@@ -12,6 +12,28 @@
 
 ## Latest Changes (Rolling)
 
+### Feb 27, 2026 — Calendar Enhancement + Health.md Auto-Updater (Major)
+- **Calendar Module Overhaul**: Transformed from simple day-view list into full-featured planning tool
+  - Three calendar views: Month grid (6 weeks), Week grid (7 days × 24 hours), Day timeline
+  - Pill-tab view switcher with smooth transitions between month/week/day modes
+  - Advanced filters: Event type (8 types), domain (4 domains), show/hide completed, date range picker
+  - "Schedule Workout" modal with template selection or AI builder integration
+  - Database trigger: Auto-sync planned_workouts ↔ calendar_events (create/update/delete)
+  - Click-through navigation: Calendar → workout history/plans → exercise details
+  - API routes: POST/PATCH/DELETE /api/fitness/planned-workouts with template auto-copy
+  - Components: MonthView, WeekView, DayView, CalendarFilters, ScheduleWorkoutModal
+  - Library: date-utils.ts with grid generation, workout tag parsing, filter utilities
+  - Migration: 20260228000000_calendar_workout_sync.sql (triggers, unique constraint, backfill)
+- **Health.md Auto-Updater System**: Comprehensive 5-week implementation for living health document
+  - Trigger detection: medication_change, lab_upload, metric_shift (daily cron), methylation_upload
+  - 7 of 12 sections support automated generation (§2, §3, §4, §5, §6, §7, §9)
+  - User approval workflow with side-by-side diff viewer and batch operations
+  - Version control with change logs and revert capability
+  - Dashboard widget showing pending update count with compact/full list views
+  - Review page at /fitness/health/review-updates with approve/reject workflow
+  - HealthDocUpdater service class (694 lines) with template-based + AI-powered generators
+  - Docs: health-md-auto-updater-plan.md, health-md-auto-updater-summary.md
+
 ### Feb 26, 2026 — Vitality Evolution + Cardiologist Report (Major)
 - **UI Modernization**: Lucide React icons replaced all emoji across 70+ files, card style migrated to solid white + border-slate-100
 - **Dashboard Enhancement**: Hero cards with SVG readiness score ring, pill tab navigation, enhanced 2x3 metric grid

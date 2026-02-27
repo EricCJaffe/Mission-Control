@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import HealthDocViewClient from '@/components/fitness/HealthDocViewClient';
+import HealthDocPendingUpdates from '@/components/fitness/HealthDocPendingUpdates';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +21,21 @@ export default async function HealthDocViewPage() {
     .eq('is_current', true)
     .single();
 
-  // Get version history (recent 10)
+  // Get version history with change logs (recent 10)
   const { data: versionHistory } = await supabase
     .from('health_documents')
-    .select('id, version, created_at')
+    .select(`
+      id,
+      version,
+      created_at,
+      health_document_changes (
+        id,
+        change_type,
+        change_summary,
+        changed_by,
+        created_at
+      )
+    `)
     .eq('user_id', userData.user.id)
     .order('version', { ascending: false })
     .limit(10);
@@ -35,6 +47,11 @@ export default async function HealthDocViewPage() {
         <p className="text-gray-600">
           Your living health document. This feeds all AI features with complete medical context.
         </p>
+      </div>
+
+      {/* Pending Updates Widget */}
+      <div className="mb-6">
+        <HealthDocPendingUpdates showFullList={true} />
       </div>
 
       <HealthDocViewClient

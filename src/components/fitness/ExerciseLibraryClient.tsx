@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { ExerciseCategory } from '@/lib/fitness/types';
 
 type ExerciseRow = {
@@ -206,7 +207,9 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
                     </div>
                   ) : (
                     <div className="px-4 py-2.5 flex items-center gap-3">
-                      <span className="text-sm font-medium text-slate-800 flex-1">{e.name}</span>
+                      <Link href={`/fitness/exercises/${e.id}`} className="text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors flex-1">
+                        {e.name}
+                      </Link>
                       {e.equipment && (
                         <span className="text-xs text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">{e.equipment}</span>
                       )}

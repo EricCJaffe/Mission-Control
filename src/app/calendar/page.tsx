@@ -17,7 +17,7 @@ export default async function CalendarPage({
 
   const { data: events, error } = await supabase
     .from("calendar_events")
-    .select("id,title,start_at,end_at,event_type,domain,notes,recurrence_rule,recurrence_until,alignment_tag")
+    .select("id,title,start_at,end_at,event_type,domain,notes,recurrence_rule,recurrence_until,alignment_tag,completed")
     .order("start_at", { ascending: true })
     .limit(200);
 
@@ -25,6 +25,11 @@ export default async function CalendarPage({
   const { data: tasks } = await supabase.from("tasks").select("id,title").order("created_at", { ascending: false }).limit(50);
   const { data: notes } = await supabase.from("notes").select("id,title").order("created_at", { ascending: false }).limit(50);
   const { data: reviews } = await supabase.from("monthly_reviews").select("id,period_start").order("period_start", { ascending: false }).limit(12);
+  const { data: templates } = await supabase
+    .from("workout_templates")
+    .select("id,name,workout_type,description")
+    .order("name", { ascending: true })
+    .limit(100);
 
   return (
     <main className="pt-4 md:pt-8">
@@ -40,6 +45,7 @@ export default async function CalendarPage({
         tasks={(tasks || []) as any}
         notes={(notes || []) as any}
         reviews={(reviews || []) as any}
+        templates={(templates || []) as any}
       />
 
       {error && (

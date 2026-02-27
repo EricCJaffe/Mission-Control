@@ -1,7 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { HeartPulse, Dumbbell, Zap } from 'lucide-react';
+import { HeartPulse, Dumbbell, Zap, Pill, UtensilsCrossed } from 'lucide-react';
+
+type Medication = {
+  id: string;
+  medication_name?: string | null;
+  name?: string | null;
+  medication_type?: string | null;
+  type?: string | null;
+  dosage: string | null;
+  frequency: string | null;
+  timing: string | null;
+  purpose?: string | null;
+  indication?: string | null;
+};
 
 type Props = {
   date: string;
@@ -58,6 +71,9 @@ type Props = {
     strain_level: string;
   } | null;
   daysSinceBP: number | null;
+  medications: Medication[];
+  fastingStatus: 'fasting' | 'feeding' | 'unknown';
+  fastingHours: number | null;
 };
 
 const readinessColorClasses = {
@@ -73,7 +89,7 @@ const readinessCircleBg = {
 };
 
 export default function MorningBriefingClient(props: Props) {
-  const { date, metrics, form, latestBP, profile, todayPlan, readiness, strain, daysSinceBP } = props;
+  const { date, metrics, form, latestBP, profile, todayPlan, readiness, strain, daysSinceBP, medications, fastingStatus, fastingHours } = props;
   const [aiBriefing, setAiBriefing] = useState<{ recommendation: string; alerts: string[]; motivation: string } | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
 
@@ -135,6 +151,80 @@ export default function MorningBriefingClient(props: Props) {
           <MetricRow label="Body Battery" value={metrics?.body_battery ? `${metrics.body_battery}` : '—'} />
         </div>
       </div>
+
+      {/* Fasting Status */}
+      {fastingStatus !== 'unknown' && (
+        <div className={`rounded-2xl border p-4 shadow-sm ${fastingStatus === 'fasting' ? 'border-blue-200 bg-blue-50' : 'border-slate-100 bg-white'}`}>
+          <div className="flex items-center gap-3">
+            <UtensilsCrossed className={`h-5 w-5 ${fastingStatus === 'fasting' ? 'text-blue-600' : 'text-slate-600'}`} />
+            <div className="flex-1">
+              <h2 className="text-sm font-semibold">
+                {fastingStatus === 'fasting' ? 'Fasting Window' : 'Feeding Window'}
+              </h2>
+              {fastingStatus === 'fasting' && fastingHours !== null && (
+                <p className="text-xs text-slate-600 mt-0.5">
+                  {fastingHours}h fasted {fastingHours >= 16 ? '✓' : `• ${16 - fastingHours}h until 16h`}
+                </p>
+              )}
+            </div>
+            <a href="/fitness/fasting" className="text-xs text-blue-600 hover:underline">Log</a>
+          </div>
+        </div>
+      )}
+
+      {/* Medication Reminders */}
+      {medications.length > 0 && (
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Pill className="h-4 w-4 text-slate-600" />
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Medications</h2>
+            </div>
+            <a href="/fitness/medications" className="text-xs text-blue-600 hover:underline">View all</a>
+          </div>
+          <div className="space-y-2">
+            {medications.filter(m => {
+              const timing = (m.timing || '').toLowerCase();
+              return timing.includes('morning') || timing.includes('am') || timing.includes('daily');
+            }).slice(0, 5).map((med) => {
+              const name = med.medication_name || med.name || 'Unknown';
+              const type = med.medication_type || med.type || 'supplement';
+              const isPrescription = type === 'prescription' || type === 'rx';
+              return (
+                <div key={med.id} className="flex items-start gap-2 text-sm">
+                  <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${isPrescription ? 'bg-red-500' : 'bg-blue-500'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{name}</p>
+                    <p className="text-xs text-slate-500">
+                      {med.dosage} • {med.timing || 'As needed'}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+            {medications.length > 5 && (
+              <p className="text-xs text-slate-400 pt-1">+{medications.length - 5} more</p>
+            )}
+          </div>
+          {metrics?.meds_taken_at ? (
+            <p className="mt-3 text-xs text-green-600">✓ Logged at {new Date(metrics.meds_taken_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
+          ) : (
+            <button
+              onClick={async () => {
+                await fetch('/api/fitness/metrics', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ meds_taken_at: new Date().toISOString() }),
+                });
+                window.location.reload();
+              }}
+              className="mt-3 w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Mark Meds Taken
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Today's Plan */}
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">

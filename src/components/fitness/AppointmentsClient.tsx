@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Appointment, SuggestedQuestion, ChangeSinceLastVisit } from '@/lib/fitness/types';
+import RichTextEditor from '@/components/RichTextEditor';
 
 type Props = {
   appointments: Appointment[];
@@ -343,13 +344,14 @@ function AppointmentDetail({ appointment, onBack, onGeneratePrep, onComplete, on
       )}
 
       {/* Post-Appointment Notes */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-2">
-        <h3 className="text-sm font-semibold text-slate-700">
-          {appointment.status === 'completed' ? 'Appointment Notes' : 'Post-Appointment Notes'}
-        </h3>
-        <textarea value={apptNotes} onChange={e => setApptNotes(e.target.value)} rows={4}
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
+        <RichTextEditor
+          value={apptNotes}
+          onChange={setApptNotes}
+          label={appointment.status === 'completed' ? 'Appointment Notes' : 'Post-Appointment Notes'}
           placeholder="What was discussed? Any medication changes? Next steps?"
-          className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full" />
+          minHeight="150px"
+        />
         {appointment.status !== 'completed' && (
           <button onClick={() => onComplete(apptNotes)}
             className="rounded-xl bg-green-700 text-white text-sm font-medium px-4 py-2.5 hover:bg-green-800 min-h-[44px]">

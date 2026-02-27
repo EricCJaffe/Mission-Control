@@ -12,7 +12,7 @@ export default async function MorningBriefingPage() {
   const today = new Date().toISOString().slice(0, 10);
 
   // Parallel data fetch
-  const [metricsRes, formRes, bpRes, profileRes, todayPlanRes, readinessRes, strainRes] = await Promise.all([
+  const [metricsRes, formRes, bpRes, profileRes, todayPlanRes, readinessRes, strainRes, medicationsRes, fastingRes] = await Promise.all([
     supabase.from('body_metrics')
       .select('resting_hr, hrv_ms, body_battery, sleep_score, sleep_duration_min, stress_avg, training_readiness, meds_taken_at')
       .eq('user_id', user.id).order('metric_date', { ascending: false }).limit(1).maybeSingle(),
@@ -34,12 +34,43 @@ export default async function MorningBriefingPage() {
     supabase.from('daily_strain')
       .select('strain_score, strain_level')
       .eq('user_id', user.id).eq('calc_date', today).maybeSingle(),
+    // Fetch active medications with timing info
+    supabase.from('medications')
+      .select('id, medication_name, name, medication_type, type, dosage, frequency, timing, purpose, indication, is_active')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('medication_type', { ascending: false }), // Prescriptions first
+    // Fetch today's fasting log or most recent
+    supabase.from('fasting_logs')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('fast_start', new Date(Date.now() - 86400000 * 2).toISOString()) // Last 2 days
+      .order('fast_start', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   // Calculate days since BP
   let daysSinceBP: number | null = null;
   if (bpRes.data?.reading_date) {
     daysSinceBP = Math.floor((Date.now() - new Date(bpRes.data.reading_date).getTime()) / 86400000);
+  }
+
+  // Calculate fasting status
+  let fastingStatus: 'fasting' | 'feeding' | 'unknown' = 'unknown';
+  let fastingHours: number | null = null;
+  if (fastingRes.data) {
+    const fasting = fastingRes.data;
+    const now = Date.now();
+    const fastStart = new Date(fasting.fast_start).getTime();
+    const fastEnd = fasting.fast_end ? new Date(fasting.fast_end).getTime() : null;
+
+    if (fastEnd && now > fastEnd) {
+      fastingStatus = 'feeding';
+    } else if (now > fastStart) {
+      fastingStatus = 'fasting';
+      fastingHours = Math.floor((now - fastStart) / 3600000); // Hours
+    }
   }
 
   return (
@@ -54,6 +85,9 @@ export default async function MorningBriefingPage() {
         readiness={readinessRes.data}
         strain={strainRes.data}
         daysSinceBP={daysSinceBP}
+        medications={medicationsRes.data || []}
+        fastingStatus={fastingStatus}
+        fastingHours={fastingHours}
       />
     </main>
   );

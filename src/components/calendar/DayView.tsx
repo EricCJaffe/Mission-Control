@@ -1,0 +1,226 @@
+'use client';
+
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import Link from 'next/link';
+import {
+  addDays,
+  toISODate,
+  formatDate,
+  formatTime,
+  isToday,
+  parseWorkoutTag,
+} from '@/lib/calendar/date-utils';
+import { useState } from 'react';
+
+type CalendarEvent = {
+  id: string;
+  title: string;
+  start_at: string;
+  end_at: string;
+  event_type: string;
+  domain: string;
+  alignment_tag: string | null;
+  notes: string | null;
+  completed: boolean;
+};
+
+type DayViewProps = {
+  events: CalendarEvent[];
+  selectedDate: string; // ISO date string
+  onEventClick: (event: CalendarEvent) => void;
+  onNavigate: (direction: 'prev' | 'next' | 'today') => void;
+};
+
+export default function DayView({
+  events,
+  selectedDate,
+  onEventClick,
+  onNavigate,
+}: DayViewProps) {
+  const [currentDate, setCurrentDate] = useState(new Date(selectedDate));
+  const dateStr = toISODate(currentDate);
+  const isTodayDate = isToday(currentDate);
+
+  // Group events by hour
+  const eventsByHour = new Map<number, CalendarEvent[]>();
+  const allDayEvents: CalendarEvent[] = [];
+
+  events.forEach((event) => {
+    const eventDate = toISODate(new Date(event.start_at));
+    if (eventDate === dateStr) {
+      const eventHour = new Date(event.start_at).getHours();
+      const existing = eventsByHour.get(eventHour) || [];
+      eventsByHour.set(eventHour, [...existing, event]);
+    }
+  });
+
+  const handlePrev = () => {
+    const newDate = addDays(currentDate, -1);
+    setCurrentDate(newDate);
+    onNavigate('prev');
+  };
+
+  const handleNext = () => {
+    const newDate = addDays(currentDate, 1);
+    setCurrentDate(newDate);
+    onNavigate('next');
+  };
+
+  const handleToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    onNavigate('today');
+  };
+
+  // Hours to display (0-23)
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      {/* Header with navigation */}
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">
+            {formatDate(currentDate, 'long')}
+          </h2>
+          <p className="text-sm text-slate-500">
+            {currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
+            {isTodayDate && ' • Today'}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleToday}
+            className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Calendar className="h-4 w-4" />
+            Today
+          </button>
+          <button
+            onClick={handlePrev}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            aria-label="Previous day"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={handleNext}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            aria-label="Next day"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Timeline */}
+      <div className="max-h-[600px] overflow-y-auto">
+        <div className="space-y-0">
+          {hours.map((hour) => {
+            const hourEvents = eventsByHour.get(hour) || [];
+            const hourLabel = hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`;
+
+            return (
+              <div key={hour} className="flex gap-3 border-t border-slate-100 py-3 first:border-t-0">
+                {/* Time label */}
+                <div className="w-20 flex-shrink-0 pt-1 text-right text-sm font-medium text-slate-500">
+                  {hourLabel}
+                </div>
+
+                {/* Events at this hour */}
+                <div className="flex-1 space-y-2">
+                  {hourEvents.length > 0 ? (
+                    hourEvents.map((event) => {
+                      const workoutData = parseWorkoutTag(event.alignment_tag);
+                      const isLogged = workoutData?.isLogged || false;
+                      const isPlanned = workoutData?.isPlanned || false;
+
+                      return (
+                        <div
+                          key={event.id}
+                          className={`
+                            rounded-lg border p-3
+                            ${isLogged ? 'bg-green-50 border-green-200' :
+                              isPlanned ? 'bg-blue-50 border-blue-200' :
+                              'bg-white border-slate-200'}
+                          `}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              {isLogged && workoutData?.loggedWorkoutId ? (
+                                <Link
+                                  href={`/fitness/history/${workoutData.loggedWorkoutId}`}
+                                  className="font-semibold text-green-700 hover:text-green-800"
+                                >
+                                  {event.title} ✓
+                                </Link>
+                              ) : isPlanned ? (
+                                <Link
+                                  href="/fitness/plans"
+                                  className="font-semibold text-blue-700 hover:text-blue-800"
+                                >
+                                  {event.title}
+                                </Link>
+                              ) : (
+                                <button
+                                  onClick={() => onEventClick(event)}
+                                  className="font-semibold text-slate-900 hover:text-blue-700 text-left"
+                                >
+                                  {event.title}
+                                </button>
+                              )}
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                <span>{formatTime(new Date(event.start_at))}</span>
+                                <span>→</span>
+                                <span>{formatTime(new Date(event.end_at))}</span>
+                                {event.event_type && (
+                                  <>
+                                    <span>·</span>
+                                    <span>{event.event_type}</span>
+                                  </>
+                                )}
+                                {event.domain && !isLogged && !isPlanned && (
+                                  <>
+                                    <span>·</span>
+                                    <span>{event.domain}</span>
+                                  </>
+                                )}
+                              </div>
+                              {event.notes && (
+                                <p className="mt-2 text-sm text-slate-600">{event.notes}</p>
+                              )}
+                            </div>
+                            {!isLogged && !isPlanned && (
+                              <button
+                                onClick={() => onEventClick(event)}
+                                className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="h-8" /> // Empty space to maintain grid
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Empty state */}
+      {events.length === 0 && (
+        <div className="mt-8 rounded-2xl border border-dashed border-slate-200 bg-white/60 p-8 text-center">
+          <p className="text-sm text-slate-500">No events for this day.</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Use the form above to add an event.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

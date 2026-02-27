@@ -1,5 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import FitnessDashboardClient from '@/components/fitness/FitnessDashboardClient';
+import HealthDocPendingUpdates from '@/components/fitness/HealthDocPendingUpdates';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +100,12 @@ export default async function FitnessPage() {
         <h1 className="text-3xl font-semibold">Fitness</h1>
         <p className="mt-1 text-sm text-slate-500">Training dashboard — cardiac-aware tracking.</p>
       </div>
+
+      {/* Health.md Pending Updates Notification */}
+      <div className="mb-6">
+        <HealthDocPendingUpdates showFullList={false} />
+      </div>
+
       <FitnessDashboardClient
         today={today}
         todayPlan={todayPlan}

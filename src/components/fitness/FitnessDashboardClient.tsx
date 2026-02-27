@@ -189,7 +189,16 @@ export default function FitnessDashboardClient({
   const logsByDate = new Map(weekLogs.map((l) => [l.workout_date.slice(0, 10), l]));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Floating Action Button - Log Workout */}
+      <Link
+        href="/fitness/log"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all md:h-16 md:w-16"
+        title="Log Workout"
+      >
+        <Dumbbell size={24} />
+      </Link>
+
       {/* Pill tab navigation */}
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {TABS.map((tab) => (

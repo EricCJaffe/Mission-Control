@@ -167,6 +167,7 @@ Return ONLY the JSON structure, no commentary.`;
 
 /**
  * Generate a workout from natural language input.
+ * Enhanced to support multiple exercises and supersets in one description.
  */
 export async function generateNaturalLanguageWorkout(params: {
   prompt: string;
@@ -175,13 +176,60 @@ export async function generateNaturalLanguageWorkout(params: {
 }): Promise<Partial<WorkoutTemplate>> {
   const { prompt, exerciseLibrary, metrics } = params;
 
+  console.log('[AI Workout Parser] Input description:', prompt);
+  console.log('[AI Workout Parser] Exercise library size:', exerciseLibrary.length);
+  console.log('[AI Workout Parser] First 5 exercises:', exerciseLibrary.slice(0, 5).map(e => e.name));
+
   const system = buildSystemPrompt(metrics);
-  const user = `The athlete says: "${prompt}"
+  const user = `You are a workout parser. Convert the following workout description into structured JSON.
 
-Available exercises:
-${exerciseLibrary.map(e => `- ${e.name} (${e.category}, ${e.muscle_groups.join(', ')}), id: ${e.id}`).join('\n')}
+WORKOUT DESCRIPTION: "${prompt}"
 
-Generate a complete workout plan. Return valid JSON with this structure:
+EXERCISE LIBRARY (match exercises to these IDs):
+${exerciseLibrary.map(e => `- "${e.name}" → id: ${e.id}`).join('\n')}
+
+PARSING INSTRUCTIONS:
+
+1. EXERCISE MATCHING:
+   - Match each mentioned exercise to its ID in the library (case-insensitive, partial match OK)
+   - Examples: "bench press" matches "Barbell Bench Press", "squat" matches "Barbell Back Squat"
+   - If no match found in library, add the exercise name to "unmatched_exercises"
+
+2. SET NOTATION:
+   - "5x5 at 225lbs" = 5 sets × 5 reps @ 225lbs (all type: "working")
+   - "3x10" = 3 sets × 10 reps (all type: "working")
+   - "2 warm-up sets at 95lbs" = 2 sets type: "warmup" @ 95lbs
+   - "3 working sets at 135lbs" = 3 sets type: "working" @ 135lbs
+   - "1 drop set at 100lbs" = 1 set type: "drop" @ 100lbs
+
+3. SUPERSETS:
+   - "superset: pull-ups 3x10, rows 3x10 at 95lbs" → type: "superset" with 2 exercises, 3 rounds
+   - Each exercise in superset gets target_reps and target_weight
+
+4. OUTPUT RULES:
+   - ONLY include exercises explicitly mentioned
+   - Keep exercises in the order they appear
+   - DO NOT add warmups, cooldowns, or stretching unless mentioned
+   - Each standalone exercise becomes one structure item
+   - Each superset becomes one structure item with multiple exercises
+
+EXAMPLE INPUT: "bench press 2 warm-up sets at 95lbs, 3 working sets at 135lbs"
+EXAMPLE OUTPUT:
+{
+  "structure": [{
+    "type": "standalone",
+    "exercise_id": "<bench-press-id>",
+    "sets": [
+      {"type": "warmup", "target_reps": 10, "target_weight": 95},
+      {"type": "warmup", "target_reps": 10, "target_weight": 95},
+      {"type": "working", "target_reps": 8, "target_weight": 135},
+      {"type": "working", "target_reps": 8, "target_weight": 135},
+      {"type": "working", "target_reps": 8, "target_weight": 135}
+    ]
+  }]
+}
+
+Return valid JSON with this structure:
 {
   "name": "workout name",
   "type": "strength|cardio|hiit|hybrid",
@@ -195,21 +243,49 @@ Generate a complete workout plan. Return valid JSON with this structure:
         {"type": "warmup", "target_reps": 12, "target_weight": 95},
         {"type": "working", "target_reps": 5, "target_weight": 185}
       ]
+    },
+    {
+      "type": "superset",
+      "group_name": "Pull Superset",
+      "rounds": 3,
+      "exercises": [
+        {"exercise_id": "<id from library>", "target_reps": 10, "target_weight": 0},
+        {"exercise_id": "<id from library>", "target_reps": 10, "target_weight": 95}
+      ],
+      "rest_between_exercises": 30,
+      "rest_between_rounds": 120
     }
-  ]
+  ],
+  "unmatched_exercises": ["exercise names not found in library"]
 }
-Return ONLY the JSON.`;
 
+Parse the workout description above and return ONLY the JSON structure. No explanation needed.`;
+
+  console.log('[AI Workout Parser] Calling OpenAI with model:', DEFAULT_MODEL);
   const result = await callOpenAI({ model: DEFAULT_MODEL, system, user });
+  console.log('[AI Workout Parser] Raw AI response:', result.substring(0, 500));
 
   try {
-    return JSON.parse(result);
-  } catch {
+    // Strip markdown code fences if present
+    let cleanedResult = result.trim();
+    if (cleanedResult.startsWith('```json')) {
+      cleanedResult = cleanedResult.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    } else if (cleanedResult.startsWith('```')) {
+      cleanedResult = cleanedResult.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    }
+
+    const parsed = JSON.parse(cleanedResult);
+    console.log('[AI Workout Parser] Successfully parsed:', JSON.stringify(parsed, null, 2));
+    return parsed;
+  } catch (error) {
+    console.error('[AI Workout Parser] Failed to parse AI response:', result);
+    console.error('[AI Workout Parser] Parse error:', error);
     return {
       name: 'AI Generated Workout',
       type: 'strength',
       structure: [],
       estimated_duration_min: 45,
+      unmatched_exercises: [],
     };
   }
 }
@@ -311,6 +387,69 @@ Return ONLY the JSON array.`;
 }
 
 /**
+ * Parse workout description and return structured exercises with fuzzy matching.
+ * Used by the AI Workout Builder component.
+ */
+export async function parseWorkoutDescription(params: {
+  description: string;
+  exerciseLibrary: Array<{ id: string; name: string; category: string; muscle_groups: string[] }>;
+  metrics?: AIContext;
+}): Promise<{
+  structure: WorkoutStructureItem[];
+  unmatched_exercises: string[];
+}> {
+  const result = await generateNaturalLanguageWorkout({
+    prompt: params.description,  // Map description to prompt
+    exerciseLibrary: params.exerciseLibrary,
+    metrics: params.metrics,
+  });
+
+  return {
+    structure: result.structure ?? [],
+    unmatched_exercises: (result as any).unmatched_exercises ?? [],
+  };
+}
+
+/**
+ * Find fuzzy matches for an exercise name in the library.
+ * Uses simple string similarity (lowercase, substring matching).
+ */
+export function findExerciseSuggestions(
+  searchTerm: string,
+  exerciseLibrary: Array<{ id: string; name: string; category: string; muscle_groups: string[] }>,
+  limit = 3
+): Array<{ id: string; name: string; category: string; similarity: number }> {
+  const term = searchTerm.toLowerCase().trim();
+
+  const matches = exerciseLibrary.map(ex => {
+    const exName = ex.name.toLowerCase();
+    let similarity = 0;
+
+    // Exact match
+    if (exName === term) similarity = 1.0;
+    // Contains full term
+    else if (exName.includes(term)) similarity = 0.8;
+    // Term contains exercise name
+    else if (term.includes(exName)) similarity = 0.7;
+    // Word overlap
+    else {
+      const termWords = new Set(term.split(/\s+/));
+      const exWords = new Set(exName.split(/\s+/));
+      const overlap = [...termWords].filter(w => exWords.has(w)).length;
+      const totalWords = Math.max(termWords.size, exWords.size);
+      similarity = overlap / totalWords * 0.6;
+    }
+
+    return { id: ex.id, name: ex.name, category: ex.category, similarity };
+  });
+
+  return matches
+    .filter(m => m.similarity > 0.3)
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, limit);
+}
+
+/**
  * Pre-workout readiness check — returns a brief recommendation.
  */
 export async function generateReadinessCheck(params: {
@@ -375,6 +514,9 @@ export async function generateMorningBriefing(params: {
   recent_prs: string[];
   days_since_bp_reading: number | null;
   recent_bp: { systolic: number; diastolic: number } | null;
+  medications?: Array<{ name: string; type: string; dosage: string; timing: string }>;
+  fasting_status?: 'fasting' | 'feeding' | 'unknown';
+  fasting_hours?: number | null;
 }): Promise<{ recommendation: string; alerts: string[]; motivation: string }> {
   // Use comprehensive health context system
   const system = await buildAISystemPrompt(params.user_id, 'morning_briefing');
@@ -397,6 +539,9 @@ WEEKLY: ${params.weekly_compliance}, strain budget ${params.weekly_strain_budget
 ${params.recent_prs.length > 0 ? `RECENT PRs: ${params.recent_prs.join(', ')}` : ''}
 ${params.days_since_bp_reading != null && params.days_since_bp_reading >= 3 ? `⚠️ No BP reading in ${params.days_since_bp_reading} days` : ''}
 ${params.recent_bp ? `LATEST BP: ${params.recent_bp.systolic}/${params.recent_bp.diastolic}` : ''}
+
+${params.medications && params.medications.length > 0 ? `MORNING MEDICATIONS: ${params.medications.map(m => `${m.name} (${m.dosage})`).join(', ')}` : ''}
+${params.fasting_status && params.fasting_status !== 'unknown' ? `FASTING STATUS: ${params.fasting_status === 'fasting' ? `Currently fasting (${params.fasting_hours}h)` : 'Feeding window'}` : ''}
 
 Return JSON:
 {

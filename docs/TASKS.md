@@ -1,22 +1,44 @@
 # Tasks
 
-**Last Updated:** February 26, 2026 (Evening)
+**Last Updated:** February 27, 2026
 
 ## 📍 CURRENT STATUS
 
 **Build Status:** ✅ Production build passing
 **Deployment Status:** ✅ Ready for Vercel deployment
 **Database Status:** ✅ All migrations applied, clean state
-**Recent Changes (Feb 26 Evening Session):**
+**Recent Changes (Feb 27 Session):**
+- ✅ **Calendar Module Enhancement (COMPLETE)**: Full-featured calendar with fitness integration
+  - Three calendar views: Month grid (6 weeks), Week grid (7 days × 24 hours), Day timeline
+  - Pill-tab view switcher with smooth transitions
+  - Advanced filters: event type, domain, completed status, date range
+  - "Schedule Workout" modal with template selection or AI builder
+  - Database trigger: Auto-sync planned_workouts ↔ calendar_events
+  - Click-through navigation: Calendar → workout history/plans → exercise details
+  - API routes: POST/PATCH/DELETE for planned workouts
+  - Files: 8 new, 2 modified (~1,500 LOC)
+  - Migration: `20260228000000_calendar_workout_sync.sql` applied successfully
+
+- ✅ **Health.md Auto-Updater System (COMPLETE)**: Comprehensive 5-week implementation
+  - Trigger detection: medication_change, lab_upload, metric_shift, methylation_upload
+  - 7 of 12 sections support automated generation (§2, §3, §4, §5, §6, §7, §9)
+  - User approval workflow with diff viewer and batch operations
+  - Version control with change logs and revert capability
+  - Dashboard widget showing pending update count
+  - Review page at `/fitness/health/review-updates` with side-by-side diffs
+  - Daily cron job for metric shift monitoring
+  - Files: 13 new, 7 modified (~2,000 LOC)
+  - Docs: `docs/health-md-auto-updater-plan.md`, `docs/health-md-auto-updater-summary.md`
+
+**Previous Session (Feb 26 Evening):**
 - UI Modernization: Lucide React icons replaced all emoji across 70+ files
 - Card style migration: bg-white/70 → bg-white, border-white/80 → border-slate-100
 - Dashboard Enhancement: Hero cards with SVG score ring, pill tabs, enhanced metric grid
-- Medications: Auto-seeding from health.md data, column name resilience (name/type and medication_name/medication_type)
-- Health Context Fixes: Fixed body_metrics column names (resting_hr, hrv_ms, weight_lbs, sleep_duration_min), BP query, fasting_logs safety
-- FIT Parser Fixes: Corrected stress extraction (stress_level_value), body battery filter, fallback field sweep
-- Cardiologist Report PDF: 2-page report with @react-pdf/renderer (questions, vitals, meds, notes sections)
-- Appointment Prep: AI pipeline working end-to-end with Dr. Chandler appointment
-- /health redirects to /fitness/health/init
+- Medications: Auto-seeding from health.md data, column name resilience
+- Health Context Fixes: Fixed body_metrics column names, BP query, fasting_logs safety
+- FIT Parser Fixes: Corrected stress extraction, body battery filter
+- Cardiologist Report PDF: 2-page report with @react-pdf/renderer
+- Appointment Prep: AI pipeline working end-to-end
 
 ---
 
@@ -74,7 +96,6 @@
 ## ⚡ MEDIUM PRIORITY — Future Work
 
 - [ ] Supplement interaction checker (hardcoded + AI rules)
-- [ ] Health.md auto-updater (triggered by lab uploads, med changes, metric shifts)
 - [ ] Enhanced morning briefing with medication reminders + fasting status
 - [ ] Fasting tracker UI + AI advisor
 - [ ] Supplement stack analyzer ("Review My Stack")
@@ -85,12 +106,12 @@
 
 ## 📋 LOWER PRIORITY
 
-- [ ] Health.md version history UI (diff viewer, revert)
 - [ ] Post-appointment notes processor (AI → health.md updates)
 - [ ] Medication timing awareness in workout logger
 - [ ] Session photos (Supabase Storage)
 - [ ] Seasonal zone recalibration
 - [ ] 1RM progression charts
+- [ ] Email notifications for pending health.md updates
 
 ---
 
@@ -122,3 +143,51 @@
 - AI prep generated with questions, changes, flags
 - 2-page PDF cardiologist report with @react-pdf/renderer
 - Download button on appointment detail view
+
+### Phase 6: Health.md Auto-Updater System ✅
+- **Week 1: Core Infrastructure**
+  - Created `health_doc_pending_updates` table migration
+  - Built `HealthDocUpdater` service class (694 lines)
+  - Created `/api/fitness/health/detect-updates` route
+- **Week 2: Trigger Implementations**
+  - Medication change trigger (POST/PUT/DELETE)
+  - Lab upload trigger
+  - Metric shift detector with daily cron job
+  - Methylation upload trigger
+- **Week 3: Content Generation**
+  - 7 section generators (§2, §3, §4, §5, §6, §7, §9)
+  - Template-based: medications, supplements tables
+  - AI-powered: timing protocol, supplements to consider, vital baselines, training constraints, genetic analysis
+  - `/api/fitness/health/generate-section` route
+- **Week 4: User Approval UI**
+  - `HealthDocPendingUpdates` widget component (compact + full list views)
+  - Review page at `/fitness/health/review-updates` with side-by-side diff viewer
+  - Approve/reject workflow (individual + batch operations)
+  - `/api/fitness/health/approve-updates` route
+  - Integration with dashboard and health view page
+- **Week 5: Polish & Integration**
+  - Enhanced version history UI with change logs
+  - Revert capability for restoring previous versions
+  - Change type badges and summaries
+  - Bug fixes and constraint updates
+- **Documentation**: Full implementation plan and summary in `docs/health-md-auto-updater-*.md`
+
+### Phase 7: Calendar Module Enhancement ✅
+- **Phase 1-4: Calendar Views**
+  - Date utilities library with grid generation and workout tag parsing
+  - MonthView: 6-week grid, event badges, click-to-day navigation
+  - WeekView: 7-day × 24-hour grid with time slots, scrollable container
+  - DayView: Timeline with hourly markers, positioned events
+- **Phase 5-6: Integration & Filters**
+  - View switcher (pill tabs) with month/week/day modes
+  - CalendarFilters component with event type, domain, completed, date range
+  - Filter state management with active count badge
+- **Phase 7-8: Workout Features**
+  - ScheduleWorkoutModal with template selection or AI builder
+  - Database trigger for auto-sync: planned_workouts ↔ calendar_events
+  - Unique constraint on (user_id, alignment_tag) for planned workouts
+  - Backfill existing planned workouts to calendar
+- **Phase 9-10: Navigation & API**
+  - Click-through: Logged workouts → /fitness/history/{id}, Planned → /fitness/plans
+  - API routes: POST/PATCH/DELETE /api/fitness/planned-workouts
+  - Template auto-copy and workout data hydration

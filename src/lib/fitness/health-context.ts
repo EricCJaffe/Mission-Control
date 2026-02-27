@@ -12,6 +12,7 @@ export type FunctionType =
   | 'weekly_insights'
   | 'lab_analysis'
   | 'appointment_prep'
+  | 'medication_review'
   | 'supplement_recommendation'
   | 'supplement_interaction_check'
   | 'nutrition_advice'
@@ -304,6 +305,75 @@ Format each question with:
 Also generate:
 - **Changes Since Last Visit**: Brief summary
 - **Proactive Flags**: Concerning trends or medication questions
+`,
+    medication_review: `
+You are reviewing the user's medication and supplement regimen. This can be triggered in two scenarios:
+
+**SCENARIO 1: Single Medication Review (when new medication is added)**
+- Analyze the specific medication provided
+- Check for interactions with ALL current medications and supplements
+- Flag any contraindications based on health.md (cardiac history, kidney function, etc.)
+- Assess timing conflicts (should it be taken with or separately from other meds?)
+- Evaluate purpose vs. current regimen (redundancy? synergy? gap-filling?)
+- Consider lab results (does it address deficiency? does it conflict with current values?)
+
+**SCENARIO 2: Full Regimen Review (user requests comprehensive analysis)**
+- Review ALL medications and supplements together
+- Identify interaction risks across the full stack
+- Look for optimization opportunities (timing, dosing, redundancies)
+- Cross-reference with health.md for appropriateness
+- Cross-reference with recent lab results for efficacy
+- Suggest additions based on cardiac patient needs and current labs (e.g., CoQ10 for statin users, Vitamin K2 for calcium regulation)
+- Suggest removals if redundant or risky
+
+**OUTPUT FORMAT:**
+Return a JSON object with these fields:
+{
+  "overall_assessment": "SAFE | CAUTION | CONCERN",
+  "summary": "Brief 2-3 sentence summary of the review",
+  "interactions": [
+    {
+      "severity": "HIGH | MEDIUM | LOW",
+      "description": "Detailed interaction description",
+      "recommendation": "What to do about it"
+    }
+  ],
+  "warnings": [
+    {
+      "type": "CARDIAC | KIDNEY | LIVER | TIMING | OTHER",
+      "message": "Warning message",
+      "action": "Recommended action"
+    }
+  ],
+  "recommendations": [
+    {
+      "category": "ADD | REMOVE | ADJUST_TIMING | ADJUST_DOSE | MONITOR",
+      "item": "Supplement/medication name",
+      "reasoning": "Why this recommendation",
+      "priority": "HIGH | MEDIUM | LOW"
+    }
+  ],
+  "lab_correlations": [
+    {
+      "lab_marker": "e.g., LDL, eGFR, Vitamin D",
+      "current_value": "Most recent value if available",
+      "assessment": "Whether current regimen addresses this",
+      "suggestion": "Any adjustments based on this marker"
+    }
+  ]
+}
+
+**CRITICAL CHECKS:**
+1. **Drug-Drug Interactions**: Check all medication pairs
+2. **Drug-Nutrient Interactions**: Supplements affecting medication efficacy
+3. **Kidney Safety (eGFR 60)**: Flag nephrotoxic substances
+4. **Cardiac Safety (Post-CABG)**: Flag anything that affects BP, HR, coagulation
+5. **Liver Load**: Consider statin + other hepatic metabolism
+6. **Timing Optimization**: Morning vs. evening, with food vs. empty stomach
+7. **Redundancy**: Multiple supplements addressing same thing
+8. **Gaps**: Missing evidence-based supplements for cardiac patients (e.g., Omega-3 if not taking)
+
+ALWAYS include: "Discuss any changes with your cardiologist before implementing."
 `,
     supplement_recommendation: `
 You are evaluating a supplement recommendation. Consider:

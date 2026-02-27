@@ -367,7 +367,7 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
                           )}
 
                           {/* Workout meta */}
-                          <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+                          <div className="flex flex-wrap gap-3 text-xs text-slate-500 items-center">
                             {w.avg_hr != null && <span>Avg HR: {w.avg_hr} bpm</span>}
                             {w.max_hr != null && <span>Max HR: {w.max_hr} bpm</span>}
                             {w.source && w.source !== 'manual' && (
@@ -376,6 +376,12 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
                             {w.compliance_pct != null && (
                               <span>Compliance: {Math.round(w.compliance_pct)}%</span>
                             )}
+                            <Link
+                              href={`/fitness/history/${w.id}`}
+                              className="ml-auto px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 min-h-[32px] flex items-center"
+                            >
+                              View Full Details
+                            </Link>
                           </div>
 
                           {/* Notes */}

@@ -79,6 +79,13 @@ export default async function MedicationsPage() {
   const user = userData.user;
   if (!user) return null;
 
+  // Load regimen AI review from athlete_profile
+  const { data: profile } = await supabase
+    .from('athlete_profile')
+    .select('regimen_ai_review, regimen_last_reviewed_at')
+    .eq('user_id', user.id)
+    .single();
+
   // Check if medications exist — use select(*) and sort client-side to avoid column name issues
   let { data: medications } = await supabase
     .from('medications')
@@ -145,7 +152,11 @@ export default async function MedicationsPage() {
         </div>
         <Link href="/fitness" className="text-xs text-slate-400 hover:text-slate-600">← Dashboard</Link>
       </div>
-      <MedicationsClient medications={medications ?? []} />
+      <MedicationsClient
+        medications={medications ?? []}
+        regimenReview={profile?.regimen_ai_review}
+        regimenLastReviewedAt={profile?.regimen_last_reviewed_at}
+      />
     </main>
   );
 }

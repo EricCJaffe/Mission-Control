@@ -1,10 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Medication, MedicationType } from '@/lib/fitness/types';
+import MedicationAIInsights from './MedicationAIInsights';
+import SupplementProposal from './SupplementProposal';
+import MedicationDetailsModal from './MedicationDetailsModal';
 
 type Props = {
   medications: Medication[];
+  regimenReview?: any;
+  regimenLastReviewedAt?: string | null;
 };
 
 const TYPE_COLORS: Record<MedicationType, string> = {
@@ -13,14 +18,21 @@ const TYPE_COLORS: Record<MedicationType, string> = {
   supplement: 'bg-purple-100 text-purple-700',
 };
 
-export default function MedicationsClient({ medications: initial }: Props) {
+export default function MedicationsClient({
+  medications: initial,
+  regimenReview: initialReview,
+  regimenLastReviewedAt: initialReviewedAt,
+}: Props) {
   const [medications, setMedications] = useState(initial);
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [viewDetailsId, setViewDetailsId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [showSupplementProposal, setShowSupplementProposal] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Form state
   const [name, setName] = useState('');
@@ -69,8 +81,12 @@ export default function MedicationsClient({ medications: initial }: Props) {
           body: JSON.stringify({ id: editId, ...payload }),
         });
         const data = await res.json();
-        if (data.ok) setMedications(prev => prev.map(m => m.id === editId ? data.medication : m));
-        else setError(data.error || 'Failed to update medication');
+        if (data.ok) {
+          setMedications(prev => prev.map(m => m.id === editId ? data.medication : m));
+          setRefreshTrigger(prev => prev + 1); // Trigger regimen refresh
+        } else {
+          setError(data.error || 'Failed to update medication');
+        }
       } else {
         const res = await fetch('/api/fitness/medications', {
           method: 'POST',
@@ -78,11 +94,58 @@ export default function MedicationsClient({ medications: initial }: Props) {
           body: JSON.stringify(payload),
         });
         const data = await res.json();
-        if (data.ok) setMedications(prev => [data.medication, ...prev]);
-        else setError(data.error || 'Failed to add medication');
+        if (data.ok) {
+          setMedications(prev => [data.medication, ...prev]);
+          setRefreshTrigger(prev => prev + 1); // Trigger regimen refresh
+        } else {
+          setError(data.error || 'Failed to add medication');
+        }
       }
       resetForm();
     } catch { setError('Network error — could not save'); }
+    setSaving(false);
+  }
+
+  async function handleAddFromProposal(supplement: {
+    name: string;
+    type: string;
+    dosage: string;
+    purpose: string;
+    ai_review?: any;
+  }) {
+    setSaving(true);
+    setError(null);
+
+    try {
+      const payload: any = {
+        name: supplement.name,
+        type: supplement.type,
+        dosage: supplement.dosage,
+        purpose: supplement.purpose,
+      };
+
+      // Include AI review if available
+      if (supplement.ai_review) {
+        payload.ai_review = supplement.ai_review;
+        payload.last_reviewed_at = new Date().toISOString();
+      }
+
+      const res = await fetch('/api/fitness/medications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMedications(prev => [data.medication, ...prev]);
+        setShowSupplementProposal(false);
+        setRefreshTrigger(prev => prev + 1); // Trigger regimen refresh
+      } else {
+        setError(data.error || 'Failed to add supplement');
+      }
+    } catch {
+      setError('Network error — could not save');
+    }
     setSaving(false);
   }
 
@@ -95,8 +158,12 @@ export default function MedicationsClient({ medications: initial }: Props) {
         body: JSON.stringify({ id: med.id, active: !med.active }),
       });
       const data = await res.json();
-      if (data.ok) setMedications(prev => prev.map(m => m.id === med.id ? data.medication : m));
-      else setError(data.error || 'Failed to update medication');
+      if (data.ok) {
+        setMedications(prev => prev.map(m => m.id === med.id ? data.medication : m));
+        setRefreshTrigger(prev => prev + 1); // Trigger regimen refresh
+      } else {
+        setError(data.error || 'Failed to update medication');
+      }
     } catch { setError('Network error — could not update'); }
   }
 
@@ -126,12 +193,17 @@ export default function MedicationsClient({ medications: initial }: Props) {
       if (data.ok) {
         setMedications(prev => prev.filter(m => m.id !== id));
         setConfirmDeleteId(null);
+        setRefreshTrigger(prev => prev + 1); // Trigger regimen refresh
       } else { setError(data.error || 'Failed to delete medication'); }
     } catch { setError('Network error — could not delete'); }
   }
 
   const activeMeds = medications.filter(m => m.active);
   const inactiveMeds = medications.filter(m => !m.active);
+
+  // Separate prescriptions and supplements
+  const activePrescriptions = activeMeds.filter(m => m.type === 'prescription' || m.type === 'otc');
+  const activeSupplements = activeMeds.filter(m => m.type === 'supplement');
 
   return (
     <div className="space-y-4">
@@ -140,6 +212,22 @@ export default function MedicationsClient({ medications: initial }: Props) {
           <p className="text-sm text-red-700">{error}</p>
           <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
         </div>
+      )}
+
+      {/* AI Medication Insights */}
+      <MedicationAIInsights
+        onTestNewSupplement={() => setShowSupplementProposal(true)}
+        savedReview={initialReview}
+        lastReviewedAt={initialReviewedAt}
+        triggerRefresh={refreshTrigger}
+      />
+
+      {/* Supplement Proposal Modal */}
+      {showSupplementProposal && (
+        <SupplementProposal
+          onClose={() => setShowSupplementProposal(false)}
+          onAdd={handleAddFromProposal}
+        />
       )}
 
       {/* Add/edit form */}
@@ -212,14 +300,14 @@ export default function MedicationsClient({ medications: initial }: Props) {
         </button>
       )}
 
-      {/* Active medications */}
-      {activeMeds.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100">
-            <h2 className="text-sm font-semibold text-slate-700">Active ({activeMeds.length})</h2>
+      {/* Active Prescriptions */}
+      {activePrescriptions.length > 0 && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50/30 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-blue-200 bg-white">
+            <h2 className="text-sm font-semibold text-slate-800">💊 Prescriptions & OTC ({activePrescriptions.length})</h2>
           </div>
-          <div className="divide-y divide-slate-100">
-            {activeMeds.map(med => (
+          <div className="divide-y divide-blue-100 bg-white">
+            {activePrescriptions.map(med => (
               <div key={med.id} className="px-5 py-3">
                 <div className="flex items-start justify-between">
                   <div>
@@ -236,6 +324,8 @@ export default function MedicationsClient({ medications: initial }: Props) {
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">
+                    <button onClick={() => setViewDetailsId(med.id)}
+                      className="text-xs text-blue-500 hover:text-blue-600 px-2 py-1 min-h-[32px]">Details</button>
                     <button onClick={() => startEdit(med)}
                       className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1 min-h-[32px]">Edit</button>
                     <button onClick={() => handleToggleActive(med)}
@@ -249,6 +339,48 @@ export default function MedicationsClient({ medications: initial }: Props) {
                       <button onClick={() => setConfirmDeleteId(med.id)}
                         className="text-xs text-slate-300 hover:text-red-400 px-2 py-1 min-h-[32px]">Del</button>
                     )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active Supplements/Vitamins */}
+      {activeSupplements.length > 0 && (
+        <div className="rounded-2xl border border-purple-200 bg-purple-50/30 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-purple-200 bg-white">
+            <h2 className="text-sm font-semibold text-slate-800">🌿 Supplements & Vitamins ({activeSupplements.length})</h2>
+          </div>
+          <div className="divide-y divide-purple-100 bg-white">
+            {activeSupplements.map(med => (
+              <div key={med.id} className="px-5 py-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-slate-800">{med.name}</p>
+                      <span className={`text-xs rounded-full px-2 py-0.5 ${TYPE_COLORS[med.type]}`}>{med.type}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {[med.dosage, med.frequency, med.timing].filter(Boolean).join(' · ')}
+                    </p>
+                    {med.purpose && <p className="text-xs text-slate-600 mt-1">{med.purpose}</p>}
+                    {med.known_interactions && <p className="text-xs text-amber-600 mt-1">⚠️ {med.known_interactions}</p>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setViewDetailsId(med.id)}
+                      className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-100 min-h-[36px]">
+                      View Details
+                    </button>
+                    <button onClick={() => startEdit(med)}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 min-h-[36px]">
+                      Edit
+                    </button>
+                    <button onClick={() => handleToggleActive(med)}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 min-h-[36px]">
+                      Deactivate
+                    </button>
                   </div>
                 </div>
               </div>
@@ -288,6 +420,17 @@ export default function MedicationsClient({ medications: initial }: Props) {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Medication Details Modal */}
+      {viewDetailsId && (
+        <MedicationDetailsModal
+          medication={medications.find(m => m.id === viewDetailsId)!}
+          onClose={() => setViewDetailsId(null)}
+          onUpdate={(updatedMed) => {
+            setMedications(prev => prev.map(m => m.id === updatedMed.id ? updatedMed : m));
+          }}
+        />
       )}
     </div>
   );

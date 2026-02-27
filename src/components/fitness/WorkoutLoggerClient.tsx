@@ -21,6 +21,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import RestTimer from './RestTimer';
 import PlateCalculator from './PlateCalculator';
+import QuickExerciseCreator from './QuickExerciseCreator';
+import AIWorkoutBuilder from './AIWorkoutBuilder';
 import type { SetType, CardioLog, WorkoutStructureItem } from '@/lib/fitness/types';
 
 type ExerciseRow = {
@@ -86,6 +88,7 @@ type LoggedSet = {
   rpe: number | '';
   rest_seconds: number | null;
   notes: string;
+  completed: boolean;
 };
 
 type ExerciseBlock = {
@@ -95,6 +98,7 @@ type ExerciseBlock = {
   sets: LoggedSet[];
   notes: string;
   superset_group: string | null; // links blocks in the same superset
+  exercise_rpe: number | ''; // Overall RPE for the exercise
 };
 
 type WorkoutMode = 'select' | 'logging' | 'cardio' | 'complete';
@@ -222,12 +226,31 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [swapTarget, setSwapTarget] = useState<string | null>(null); // blockId to swap
   const [exerciseSearch, setExerciseSearch] = useState('');
+  const [showQuickCreator, setShowQuickCreator] = useState(false);
+
+  // Local exercises list that can be updated when new exercises are created
+  const [localExercises, setLocalExercises] = useState(exercises);
 
   // Superset builder state
   const [showSupersetBuilder, setShowSupersetBuilder] = useState(false);
   const [supersetSelections, setSupersetSelections] = useState<string[]>([]);
 
-  const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
+  // AI workout builder state
+  const [showAIBuilder, setShowAIBuilder] = useState(false);
+
+  // Incomplete sets warning state
+  const [showIncompleteWarning, setShowIncompleteWarning] = useState(false);
+  const [incompleteSetCount, setIncompleteSetCount] = useState(0);
+
+  // Save as template state
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
+  // Exercise history tracking
+  const [exerciseHistory, setExerciseHistory] = useState<Map<string, { date: string; summary: string }>>(new Map());
+
+  const exerciseMap = new Map(localExercises.map((e) => [e.id, e]));
 
   // ——— Template pre-fill ———
   function loadTemplate(template: TemplateRow) {
@@ -250,6 +273,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
               rpe: '',
               rest_seconds: r < item.rounds - 1 ? item.rest_between_exercises : null,
               notes: '',
+              completed: false,
             });
           }
           newBlocks.push({
@@ -259,6 +283,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             sets,
             notes: '',
             superset_group: groupId,
+            exercise_rpe: '',
           });
         }
       } else {
@@ -271,11 +296,12 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           rpe: '',
           rest_seconds: null,
           notes: '',
+          completed: false,
         }));
         // If no sets defined, add 3 working sets as default
         if (sets.length === 0) {
           for (let i = 0; i < 3; i++) {
-            sets.push({ set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '' });
+            sets.push({ set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false });
           }
         }
         newBlocks.push({
@@ -285,6 +311,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           sets,
           notes: item.notes || '',
           superset_group: null,
+          exercise_rpe: '',
         });
       }
     }
@@ -387,20 +414,54 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
   // ——— Block operations ———
 
-  function addExercise(exerciseId: string) {
+  async function addExercise(exerciseId: string) {
     const ex = exerciseMap.get(exerciseId);
     if (!ex) return;
+
+    // Fetch last workout data for this exercise
+    let sets: LoggedSet[] = [
+      { set_type: 'warmup', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
+      { set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
+      { set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
+    ];
+
+    try {
+      const res = await fetch(`/api/fitness/exercises/${exerciseId}/last-workout`);
+      const data = await res.json();
+
+      if (data.ok && data.has_history && data.sets.length > 0) {
+        // Pre-fill with last workout data
+        sets = data.sets.map((s: any) => ({
+          set_type: s.set_type,
+          reps: s.reps ?? '',
+          weight_lbs: s.weight_lbs ?? '',
+          rpe: '',
+          rest_seconds: s.rest_seconds,
+          notes: '',
+          completed: false,
+        }));
+
+        // Create summary string
+        const firstWorkingSet = data.sets.find((s: any) => s.set_type === 'working');
+        if (firstWorkingSet && data.workout_date) {
+          const summary = `${data.sets.length}x${firstWorkingSet.reps || '?'} @ ${firstWorkingSet.weight_lbs || 0}lbs`;
+          const date = new Date(data.workout_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          setExerciseHistory(prev => new Map(prev).set(exerciseId, { date, summary }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch last workout:', error);
+      // Continue with default sets
+    }
+
     const newBlock: ExerciseBlock = {
       id: nextBlockId(),
       exercise_id: exerciseId,
       exercise_name: ex.name,
-      sets: [
-        { set_type: 'warmup', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '' },
-        { set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '' },
-        { set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '' },
-      ],
+      sets,
       notes: '',
       superset_group: null,
+      exercise_rpe: '',
     };
     setBlocks(prev => [...prev, newBlock]);
     setShowExercisePicker(false);
@@ -416,6 +477,71 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     setSwapTarget(null);
     setShowExercisePicker(false);
     setExerciseSearch('');
+  }
+
+  function handleAIGeneratedExercises(structure: WorkoutStructureItem[]) {
+    const newBlocks: ExerciseBlock[] = [];
+
+    for (const item of structure) {
+      if (item.type === 'superset') {
+        const groupId = `ss_${nextBlockId()}`;
+        for (const ssExercise of item.exercises) {
+          const ex = exerciseMap.get(ssExercise.exercise_id) ?? item.exercise;
+          const sets: LoggedSet[] = [];
+          for (let r = 0; r < item.rounds; r++) {
+            sets.push({
+              set_type: 'working',
+              reps: ssExercise.target_reps || '',
+              weight_lbs: ssExercise.target_weight || '',
+              rpe: '',
+              rest_seconds: r < item.rounds - 1 ? item.rest_between_exercises : null,
+              notes: '',
+              completed: false,
+            });
+          }
+          newBlocks.push({
+            id: nextBlockId(),
+            exercise_id: ssExercise.exercise_id,
+            exercise_name: ex?.name || ssExercise.exercise_id,
+            sets,
+            notes: '',
+            superset_group: groupId,
+            exercise_rpe: '',
+          });
+        }
+      } else {
+        // Standalone exercise
+        const ex = exerciseMap.get(item.exercise_id) ?? item.exercise;
+        const sets: LoggedSet[] = item.sets.map((st) => ({
+          set_type: st.type,
+          reps: st.target_reps || '',
+          weight_lbs: st.target_weight || '',
+          rpe: '',
+          rest_seconds: null,
+          notes: '',
+          completed: false,
+        }));
+        // If no sets defined, add 3 working sets as default
+        if (sets.length === 0) {
+          for (let i = 0; i < 3; i++) {
+            sets.push({ set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false });
+          }
+        }
+        newBlocks.push({
+          id: nextBlockId(),
+          exercise_id: item.exercise_id,
+          exercise_name: ex?.name || item.exercise_id,
+          sets,
+          notes: item.notes || '',
+          superset_group: null,
+          exercise_rpe: '',
+        });
+      }
+    }
+
+    // Append to existing blocks
+    setBlocks(prev => [...prev, ...newBlocks]);
+    setShowAIBuilder(false);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -505,6 +631,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           rpe: '',
           rest_seconds: null,
           notes: '',
+          completed: false,
         }],
       };
     }));
@@ -582,7 +709,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     return allSets;
   }
 
-  const saveWorkout = async () => {
+  const performSave = async () => {
     if (saving) return;
     setSaving(true);
 
@@ -628,14 +755,123 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     }
   };
 
+  const saveWorkout = () => {
+    // Count incomplete sets
+    const incompleteSets = blocks.reduce((count, block) => {
+      return count + block.sets.filter(s => !s.completed).length;
+    }, 0);
+
+    if (incompleteSets > 0) {
+      setIncompleteSetCount(incompleteSets);
+      setShowIncompleteWarning(true);
+    } else {
+      performSave();
+    }
+  };
+
+  const handleSaveAnyway = () => {
+    setShowIncompleteWarning(false);
+    performSave();
+  };
+
+  const saveAsTemplate = async () => {
+    if (!templateName.trim() || savingTemplate) return;
+    setSavingTemplate(true);
+
+    // Convert exerciseBlocks to WorkoutStructureItem[]
+    const structure: WorkoutStructureItem[] = [];
+    const seenGroups = new Set<string>();
+
+    for (const block of blocks) {
+      if (block.superset_group) {
+        if (!seenGroups.has(block.superset_group)) {
+          seenGroups.add(block.superset_group);
+          const supersetBlocks = blocks.filter(b => b.superset_group === block.superset_group);
+          const rounds = Math.max(...supersetBlocks.map(b => b.sets.length));
+          structure.push({
+            type: 'superset',
+            group_name: `Superset ${structure.length + 1}`,
+            rounds,
+            exercises: supersetBlocks.map(b => ({
+              exercise_id: b.exercise_id,
+              target_reps: b.sets[0]?.reps !== '' ? Number(b.sets[0].reps) : 10,
+              target_weight: b.sets[0]?.weight_lbs !== '' ? Number(b.sets[0].weight_lbs) : 0,
+            })),
+            rest_between_exercises: 30,
+            rest_between_rounds: 120,
+          });
+        }
+      } else {
+        structure.push({
+          type: 'standalone',
+          exercise_id: block.exercise_id,
+          sets: block.sets.map(s => ({
+            type: s.set_type,
+            target_reps: s.reps !== '' ? Number(s.reps) : undefined,
+            target_weight: s.weight_lbs !== '' ? Number(s.weight_lbs) : undefined,
+          })),
+          notes: block.notes || undefined,
+        });
+      }
+    }
+
+    try {
+      const res = await fetch('/api/fitness/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateName,
+          type: workoutType,
+          structure,
+          estimated_duration_min: duration !== '' ? Number(duration) : null,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        setShowSaveAsTemplate(false);
+        setTemplateName('');
+        alert('Template saved successfully!');
+      } else {
+        setError(data.error || 'Failed to save template');
+      }
+    } catch {
+      setError('Network error — could not save template');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
   const totalSets = blocks.reduce((s, b) => s + b.sets.length, 0);
 
   // ——— Exercise picker (shared by add + swap) ———
-  const filteredExercises = exercises.filter(e => {
+  const filteredExercises = localExercises.filter(e => {
     if (!exerciseSearch) return true;
     const q = exerciseSearch.toLowerCase();
     return e.name.toLowerCase().includes(q) || e.category.toLowerCase().includes(q);
   });
+
+  function handleExerciseCreated(exerciseId: string, exerciseName: string) {
+    // Add the new exercise to local list
+    const newExercise: ExerciseRow = {
+      id: exerciseId,
+      name: exerciseName,
+      category: 'Other',
+      equipment: null,
+      muscle_groups: [],
+      is_compound: false,
+    };
+    setLocalExercises([...localExercises, newExercise]);
+
+    // Close the quick creator and add the exercise to the workout
+    setShowQuickCreator(false);
+
+    if (swapTarget) {
+      swapExercise(swapTarget, exerciseId);
+    } else {
+      addExercise(exerciseId);
+    }
+  }
 
   function renderExercisePicker() {
     return (
@@ -682,6 +918,14 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             <p className="px-3 py-4 text-sm text-slate-400 text-center">No exercises match your search.</p>
           )}
         </div>
+
+        {/* Create New Exercise button */}
+        <button
+          onClick={() => setShowQuickCreator(true)}
+          className="w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-600 hover:border-blue-400 hover:bg-blue-100 transition-colors min-h-[44px]"
+        >
+          + Create New Exercise
+        </button>
       </div>
     );
   }
@@ -1016,11 +1260,14 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
               onChange={(e) => updateSetInBlock(block.id, setIdx, 'reps', e.target.value ? Number(e.target.value) : '')}
               className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm text-center font-medium" placeholder="reps" />
           </div>
-          <div className="w-14">
-            <label className="text-[10px] text-slate-400 block mb-0.5">RPE</label>
-            <input type="number" min={1} max={10} step={0.5} value={s.rpe}
-              onChange={(e) => updateSetInBlock(block.id, setIdx, 'rpe', e.target.value ? Number(e.target.value) : '')}
-              className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm text-center" placeholder="—" />
+          <div className="flex flex-col items-center justify-end">
+            <label className="text-[10px] text-slate-400 block mb-1">Done</label>
+            <input
+              type="checkbox"
+              checked={s.completed}
+              onChange={(e) => updateSetInBlock(block.id, setIdx, 'completed', e.target.checked)}
+              className="h-7 w-7 rounded border-2 border-slate-300 text-green-600 focus:ring-2 focus:ring-green-500 cursor-pointer"
+            />
           </div>
         </div>
       </div>
@@ -1033,7 +1280,19 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       <div key={block.id} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
         {/* Exercise header */}
         <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center gap-2">
-          <p className="text-sm font-semibold text-slate-800 flex-1">{block.exercise_name}</p>
+          <div className="flex-1">
+            <button
+              onClick={() => router.push(`/fitness/exercises/${block.exercise_id}`)}
+              className="text-sm font-semibold text-slate-800 hover:text-blue-600 transition-colors text-left"
+            >
+              {block.exercise_name}
+            </button>
+            {exerciseHistory.has(block.exercise_id) && (
+              <p className="text-xs text-blue-600 mt-0.5">
+                Last: {exerciseHistory.get(block.exercise_id)?.summary} on {exerciseHistory.get(block.exercise_id)?.date}
+              </p>
+            )}
+          </div>
           <div className="flex items-center gap-1 shrink-0">
             <button onClick={() => { setSwapTarget(block.id); setShowExercisePicker(true); }}
               className="text-[10px] text-slate-400 hover:text-blue-500 px-1.5 py-1 rounded min-h-[28px]" title="Swap exercise">
@@ -1061,6 +1320,24 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         {/* Sets */}
         <div className="divide-y divide-slate-100">
           {block.sets.map((s, setIdx) => renderSetRow(block, s, setIdx))}
+        </div>
+
+        {/* Exercise-level RPE */}
+        <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/50">
+          <label className="text-xs text-slate-500 block mb-1.5">Overall RPE for this exercise (1-10)</label>
+          <div className="flex gap-1">
+            {[...Array(10)].map((_, i) => (
+              <button
+                key={i + 1}
+                onClick={() => setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, exercise_rpe: i + 1 } : b))}
+                className={`flex-1 rounded-md py-1.5 text-xs font-medium min-h-[32px] ${
+                  block.exercise_rpe === i + 1 ? 'bg-slate-800 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Add set + notes */}
@@ -1178,6 +1455,10 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           className="flex-1 rounded-xl border border-dashed border-slate-300 text-sm text-slate-400 py-3 hover:border-slate-400 hover:text-slate-500 min-h-[44px]">
           + Add Exercise
         </button>
+        <button onClick={() => setShowAIBuilder(true)}
+          className="rounded-xl border border-dashed border-blue-300 text-sm text-blue-400 px-4 py-3 hover:border-blue-400 hover:text-blue-500 min-h-[44px] whitespace-nowrap">
+          ✨ AI Builder
+        </button>
         {blocks.filter(b => !b.superset_group).length >= 2 && (
           <button onClick={() => setShowSupersetBuilder(true)}
             className="rounded-xl border border-dashed border-purple-300 text-sm text-purple-400 px-4 py-3 hover:border-purple-400 hover:text-purple-500 min-h-[44px]">
@@ -1233,6 +1514,14 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           placeholder="Session notes..." className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full" />
       </div>
 
+      <button
+        onClick={() => setShowSaveAsTemplate(true)}
+        disabled={blocks.length === 0}
+        className="w-full rounded-xl border border-blue-600 text-blue-600 text-sm font-semibold py-3 hover:bg-blue-50 min-h-[44px] disabled:opacity-50"
+      >
+        Save as Template
+      </button>
+
       <button onClick={saveWorkout} disabled={saving || totalSets === 0}
         className="w-full rounded-xl bg-green-700 text-white text-sm font-semibold py-3 hover:bg-green-800 min-h-[44px] disabled:opacity-50">
         {saving ? 'Saving...' : `Complete Workout (${blocks.length} exercises, ${totalSets} sets)`}
@@ -1242,6 +1531,87 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         className="w-full rounded-xl border border-slate-200 text-slate-600 text-sm py-2.5 hover:bg-slate-50">
         Cancel
       </button>
+
+      {/* Quick exercise creator modal */}
+      {showQuickCreator && (
+        <QuickExerciseCreator
+          onExerciseCreated={handleExerciseCreated}
+          onCancel={() => setShowQuickCreator(false)}
+        />
+      )}
+
+      {/* AI workout builder modal */}
+      <AIWorkoutBuilder
+        isOpen={showAIBuilder}
+        onClose={() => setShowAIBuilder(false)}
+        onAddExercises={handleAIGeneratedExercises}
+        mode="logger"
+      />
+
+      {/* Save as Template modal */}
+      {showSaveAsTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-w-md w-full rounded-2xl border border-slate-100 bg-white p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Save as Template</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Give this workout a name to save it as a reusable template.
+            </p>
+            <input
+              type="text"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="e.g., Push Day A, Full Body Strength"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm mb-4 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowSaveAsTemplate(false);
+                  setTemplateName('');
+                }}
+                className="flex-1 min-h-[44px] rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveAsTemplate}
+                disabled={!templateName.trim() || savingTemplate}
+                className="flex-1 min-h-[44px] rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingTemplate ? 'Saving...' : 'Save Template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Incomplete sets warning modal */}
+      {showIncompleteWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-w-md w-full rounded-2xl border border-slate-100 bg-white p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Incomplete Sets</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              You have <strong>{incompleteSetCount}</strong> set{incompleteSetCount !== 1 ? 's' : ''} marked as incomplete.
+              Do you want to review them or save the workout anyway?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowIncompleteWarning(false)}
+                className="flex-1 min-h-[44px] rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Review Sets
+              </button>
+              <button
+                onClick={handleSaveAnyway}
+                className="flex-1 min-h-[44px] rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+              >
+                Save Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

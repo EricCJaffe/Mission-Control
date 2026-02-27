@@ -160,6 +160,25 @@ Be thorough. Extract EVERY SNP visible. Return ONLY the JSON.`;
     // Generate implications using AI with health context
     await generateMethylationAnalysis({ userId, fileId });
 
+    // Trigger health.md update detection (non-blocking)
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1', '')}/api/fitness/health/detect-updates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trigger: 'methylation_upload',
+          trigger_data: {
+            file_id: fileId,
+            markers: extractedData.snps,
+            marker_count: markersToInsert.length,
+          },
+        }),
+      });
+      console.log(`Triggered health.md update for methylation report`);
+    } catch (err) {
+      console.error('Failed to trigger health.md update (non-critical):', err);
+    }
+
     return { success: true };
 
   } catch (error) {

@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Sparkles } from 'lucide-react';
+import RichTextEditor from '@/components/RichTextEditor';
 
 type PlanRow = {
   id: string;
@@ -35,11 +38,20 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, activePlanId }: Props) {
+  const router = useRouter();
   const [plans, setPlans] = useState(initial);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // AI Generation state
+  const [showAIGen, setShowAIGen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiGoal, setAiGoal] = useState('strength');
+  const [aiWeeks, setAiWeeks] = useState('8');
+  const [aiSessionsPerWeek, setAiSessionsPerWeek] = useState('4');
+  const [aiFocusAreas, setAiFocusAreas] = useState<string[]>([]);
 
   // Form state
   const [name, setName] = useState('');
@@ -120,6 +132,39 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
     }
   }
 
+  async function handleAIGenerate() {
+    setAiGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/fitness/plans/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goal: aiGoal,
+          weeks: parseInt(aiWeeks),
+          sessions_per_week: parseInt(aiSessionsPerWeek),
+          focus_areas: aiFocusAreas,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setPlans(prev => [data.plan, ...prev]);
+        setShowAIGen(false);
+        // Reset AI form
+        setAiGoal('strength');
+        setAiWeeks('8');
+        setAiSessionsPerWeek('4');
+        setAiFocusAreas([]);
+        router.refresh();
+      } else {
+        setError(data.error || 'Failed to generate plan');
+      }
+    } catch {
+      setError('Network error — could not generate plan');
+    }
+    setAiGenerating(false);
+  }
+
   const activePlan = plans.find(p => p.status === 'active');
 
   return (
@@ -177,12 +222,13 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
               </select>
             </div>
           </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Notes (optional)</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              placeholder="Goals, focus areas, constraints..."
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full" />
-          </div>
+          <RichTextEditor
+            value={notes}
+            onChange={setNotes}
+            label="Notes (optional)"
+            placeholder="Goals, focus areas, constraints..."
+            minHeight="120px"
+          />
           <div className="flex gap-2">
             <button onClick={handleCreate} disabled={saving || !name || !startDate || !endDate}
               className="rounded-xl bg-slate-800 text-white text-sm font-medium px-4 py-2.5 hover:bg-slate-700 disabled:opacity-50 min-h-[44px]">
@@ -195,10 +241,104 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
           </div>
         </div>
       ) : (
-        <button onClick={() => setShowCreate(true)}
-          className="w-full rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 hover:border-slate-400 transition-colors min-h-[44px]">
-          + Create Training Plan
-        </button>
+        <div className="grid md:grid-cols-2 gap-3">
+          <button onClick={() => setShowCreate(true)}
+            className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 hover:border-slate-400 transition-colors min-h-[44px]">
+            + Create Training Plan
+          </button>
+          <button onClick={() => setShowAIGen(true)}
+            className="rounded-2xl border border-dashed border-purple-300 p-4 text-center text-sm text-purple-600 hover:border-purple-400 transition-colors min-h-[44px] flex items-center justify-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Generate AI Plan
+          </button>
+        </div>
+      )}
+
+      {/* AI Generation Modal */}
+      {showAIGen && (
+        <div className="rounded-2xl border border-purple-100 bg-purple-50 p-6 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="h-5 w-5 text-purple-600" />
+            <h2 className="text-lg font-semibold text-purple-900">AI Training Plan Generator</h2>
+          </div>
+          <p className="text-sm text-purple-700">
+            Generate a personalized training plan based on your historical workout data, PRs, and readiness patterns.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-purple-700 block mb-1 font-medium">Goal</label>
+              <select value={aiGoal} onChange={e => setAiGoal(e.target.value)}
+                className="rounded-xl border border-purple-200 px-3 py-2.5 text-sm w-full bg-white">
+                <option value="strength">Strength</option>
+                <option value="hypertrophy">Hypertrophy</option>
+                <option value="endurance">Endurance</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="maintenance">Maintenance</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-purple-700 block mb-1 font-medium">Duration</label>
+              <select value={aiWeeks} onChange={e => setAiWeeks(e.target.value)}
+                className="rounded-xl border border-purple-200 px-3 py-2.5 text-sm w-full bg-white">
+                {[4, 6, 8, 10, 12].map(w => (
+                  <option key={w} value={w}>{w} weeks</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-purple-700 block mb-1 font-medium">Sessions per Week</label>
+            <select value={aiSessionsPerWeek} onChange={e => setAiSessionsPerWeek(e.target.value)}
+              className="rounded-xl border border-purple-200 px-3 py-2.5 text-sm w-full bg-white">
+              {[2, 3, 4, 5, 6].map(s => (
+                <option key={s} value={s}>{s} sessions</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs text-purple-700 block mb-2 font-medium">Focus Areas (optional)</label>
+            <div className="flex flex-wrap gap-2">
+              {['upper', 'lower', 'cardio', 'core', 'mobility'].map(area => (
+                <button
+                  key={area}
+                  onClick={() => {
+                    if (aiFocusAreas.includes(area)) {
+                      setAiFocusAreas(prev => prev.filter(a => a !== area));
+                    } else {
+                      setAiFocusAreas(prev => [...prev, area]);
+                    }
+                  }}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition ${
+                    aiFocusAreas.includes(area)
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-white border border-purple-200 text-purple-700 hover:bg-purple-100'
+                  }`}
+                >
+                  {area}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={handleAIGenerate}
+              disabled={aiGenerating}
+              className="rounded-xl bg-purple-600 text-white text-sm font-medium px-4 py-2.5 hover:bg-purple-700 disabled:opacity-50 min-h-[44px]"
+            >
+              {aiGenerating ? 'Generating...' : 'Generate Plan'}
+            </button>
+            <button
+              onClick={() => setShowAIGen(false)}
+              className="rounded-xl border border-purple-200 text-purple-700 text-sm px-4 py-2.5 hover:bg-white min-h-[44px]"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Active plan */}

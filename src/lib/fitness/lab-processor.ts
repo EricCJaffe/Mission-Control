@@ -249,6 +249,27 @@ ${pdfText}`;
 
     console.log(`✅ Lab processing complete: ${resultsToInsert.length} results saved`);
 
+    // Trigger health.md update detection (non-blocking)
+    const testNames = resultsToInsert.map(r => r.test_name);
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1', '')}/api/fitness/health/detect-updates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trigger: 'lab_upload',
+          trigger_data: {
+            panel_id: panelRecord.id,
+            panel_date: extractedData.panel.panel_date,
+            test_names: testNames,
+            lab_name: extractedData.panel.lab_name,
+          },
+        }),
+      });
+      console.log(`📧 Triggered health.md update for lab upload`);
+    } catch (err) {
+      console.error('Failed to trigger health.md update (non-critical):', err);
+    }
+
     return { success: true };
 
   } catch (error) {

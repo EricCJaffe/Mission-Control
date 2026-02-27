@@ -58,6 +58,34 @@ export async function POST(req: Request) {
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Trigger health.md update if BP is flagged (non-blocking)
+  if (data && flag_level !== 'normal' && flag_level !== 'elevated') {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1', '') || 'http://localhost:3001';
+      await fetch(`${baseUrl}/api/fitness/health/detect-updates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': req.headers.get('cookie') || '',
+        },
+        body: JSON.stringify({
+          trigger: 'bp_reading',
+          trigger_data: {
+            reading_id: data.id,
+            systolic,
+            diastolic,
+            pulse,
+            flag_level,
+          },
+        }),
+      });
+      console.log(`Triggered health.md update for BP reading: ${systolic}/${diastolic} (${flag_level})`);
+    } catch (err) {
+      console.error('Failed to trigger health.md update (non-critical):', err);
+    }
+  }
+
   return NextResponse.json({ ok: true, reading: data });
 }
 

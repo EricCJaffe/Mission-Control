@@ -1,6 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { Grid, List, Calendar as CalendarIcon, Plus } from "lucide-react";
+import MonthView from "./calendar/MonthView";
+import WeekView from "./calendar/WeekView";
+import DayView from "./calendar/DayView";
+import CalendarFilters from "./calendar/CalendarFilters";
+import ScheduleWorkoutModal from "./calendar/ScheduleWorkoutModal";
+import { CalendarView, toISODate, startOfWeek, EventFilter, createDefaultFilter } from "@/lib/calendar/date-utils";
 
 type CalendarEvent = {
   id: string;
@@ -8,6 +16,7 @@ type CalendarEvent = {
   start_at: string;
   end_at: string;
   event_type: string | null;
+  domain: string | null;
   alignment_tag: string | null;
   recurrence_rule: string | null;
   recurrence_until: string | null;
@@ -15,6 +24,8 @@ type CalendarEvent = {
   task_id: string | null;
   note_id: string | null;
   review_id: string | null;
+  notes: string | null;
+  completed: boolean;
 };
 
 type Option = { id: string; title: string };
@@ -93,6 +104,13 @@ function upcomingOccurrences(events: CalendarEvent[], fromDate: string, days = 1
   return results.sort((a, b) => (a.start_at < b.start_at ? -1 : 1));
 }
 
+type WorkoutTemplate = {
+  id: string;
+  name: string;
+  workout_type: string;
+  description: string | null;
+};
+
 export default function CalendarClient({
   events,
   initialDate,
@@ -100,6 +118,7 @@ export default function CalendarClient({
   tasks,
   notes,
   reviews,
+  templates,
 }: {
   events: CalendarEvent[];
   initialDate: string;
@@ -107,53 +126,187 @@ export default function CalendarClient({
   tasks: Option[];
   notes: Option[];
   reviews: ReviewOption[];
+  templates: WorkoutTemplate[];
 }) {
+  const [view, setView] = useState<CalendarView>('month');
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [editingIsRecurring, setEditingIsRecurring] = useState(false);
+  const [filters, setFilters] = useState<EventFilter>(createDefaultFilter());
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [scheduleModalDate, setScheduleModalDate] = useState(initialDate);
 
-  const dayEvents = useMemo(() => {
-    const items: any[] = [];
-    const seen = new Set<string>();
-    events.forEach((event) => {
-      if (shouldIncludeOnDate(event, selectedDate)) {
-        const occurrence = buildOccurrence(event, selectedDate);
-        if (!seen.has(occurrence.id)) {
-          items.push(occurrence);
-          seen.add(occurrence.id);
+  // Filter events based on active filters
+  const filteredEvents = useMemo(() => {
+    return events.filter((event) => {
+      // Event type filter
+      if (filters.eventTypes.size > 0 && !filters.eventTypes.has(event.event_type || '')) {
+        return false;
+      }
+
+      // Domain filter
+      if (filters.domains.size > 0 && !filters.domains.has(event.domain || '')) {
+        return false;
+      }
+
+      // Show completed filter
+      if (!filters.showCompleted && event.completed) {
+        return false;
+      }
+
+      // Date range filter
+      if (filters.dateRange) {
+        const eventDate = toDateInput(event.start_at);
+        if (eventDate < filters.dateRange.start || eventDate > filters.dateRange.end) {
+          return false;
         }
       }
-    });
-    return items;
-  }, [events, selectedDate]);
 
-  const upcoming = useMemo(() => {
-    return upcomingOccurrences(events, selectedDate, 14).filter(
-      (event) => toDateInput(event.start_at) !== selectedDate
-    ).slice(0, 10);
-  }, [events, selectedDate]);
+      return true;
+    });
+  }, [events, filters]);
+
+  const handleNavigation = (direction: 'prev' | 'next' | 'today') => {
+    if (direction === 'today') {
+      setSelectedDate(toISODate(new Date()));
+    }
+    // MonthView, WeekView, DayView handle their own date state
+  };
+
+  const handleDateClick = (dateStr: string) => {
+    setSelectedDate(dateStr);
+    setView('day');
+  };
+
+  const handleEventClick = (event: CalendarEvent) => {
+    const base = event._baseId ? events.find((e) => e.id === event._baseId) : event;
+    setEditing(base || event);
+    setEditingIsRecurring(Boolean(event._recurring));
+    (document.getElementById("edit-event-dialog") as HTMLDialogElement | null)?.showModal();
+  };
+
+  const handleScheduleWorkout = () => {
+    setScheduleModalDate(selectedDate);
+    setIsScheduleModalOpen(true);
+  };
+
+  const handleWorkoutScheduled = () => {
+    // Refresh the page to show new event
+    window.location.reload();
+  };
+
+  const weekStartDate = toISODate(startOfWeek(new Date(selectedDate)));
 
   return (
     <div className="mt-6 grid gap-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="text-xs text-slate-500">Day view</label>
-        <input
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-        />
+      {/* View Switcher & Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
+            <button
+              onClick={() => setView('month')}
+              className={`
+                flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors
+                ${view === 'month' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}
+              `}
+            >
+              <Grid className="h-4 w-4" />
+              Month
+            </button>
+            <button
+              onClick={() => setView('week')}
+              className={`
+                flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors
+                ${view === 'week' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}
+              `}
+            >
+              <List className="h-4 w-4" />
+              Week
+            </button>
+            <button
+              onClick={() => setView('day')}
+              className={`
+                flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors
+                ${view === 'day' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}
+              `}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              Day
+            </button>
+          </div>
+
+          {view === 'day' && (
+            <input
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+            />
+          )}
+        </div>
+
+        {/* Filters & Actions */}
+        <div className="flex items-center gap-2">
+          <CalendarFilters filters={filters} onFiltersChange={setFilters} />
+          <button
+            onClick={handleScheduleWorkout}
+            className="flex h-9 items-center gap-2 rounded-lg bg-blue-700 px-3 text-sm font-medium text-white hover:bg-blue-800"
+          >
+            <Plus className="h-4 w-4" />
+            Schedule Workout
+          </button>
+        </div>
       </div>
 
-      <form
-        className="grid gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:grid-cols-2"
-        action="/dashboard/events"
-        method="post"
-        data-progress="true"
-        data-toast="Event added"
-      >
-        <input type="hidden" name="date" value={selectedDate} />
-        <input type="hidden" name="redirect" value="calendar" />
+      {/* View Components */}
+      {view === 'month' && (
+        <MonthView
+          events={filteredEvents as any}
+          selectedDate={selectedDate}
+          onDateClick={handleDateClick}
+          onNavigate={handleNavigation}
+        />
+      )}
+
+      {view === 'week' && (
+        <WeekView
+          events={filteredEvents as any}
+          weekStart={weekStartDate}
+          onEventClick={handleEventClick}
+          onNavigate={handleNavigation}
+        />
+      )}
+
+      {view === 'day' && (
+        <DayView
+          events={filteredEvents as any}
+          selectedDate={selectedDate}
+          onEventClick={handleEventClick}
+          onNavigate={handleNavigation}
+        />
+      )}
+
+      {/* Schedule Workout Modal */}
+      <ScheduleWorkoutModal
+        isOpen={isScheduleModalOpen}
+        onClose={() => setIsScheduleModalOpen(false)}
+        defaultDate={scheduleModalDate}
+        templates={templates}
+        onSuccess={handleWorkoutScheduled}
+      />
+
+      {/* Add Event Form */}
+      <div className="mt-6">
+        <h3 className="mb-3 text-sm font-semibold text-slate-900">Add Event</h3>
+        <form
+          className="grid gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:grid-cols-2"
+          action="/dashboard/events"
+          method="post"
+          data-progress="true"
+          data-toast="Event added"
+        >
+          <input type="hidden" name="date" value={selectedDate} />
+          <input type="hidden" name="redirect" value="calendar" />
         <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" placeholder="Event title" required />
         <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="event_type" defaultValue="Daily Anchor">
           <option>Monthly Review</option>
@@ -207,64 +360,12 @@ export default function CalendarClient({
             </option>
           ))}
         </select>
-        <button className="md:col-span-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-          Add Event
-        </button>
-      </form>
+          <button className="md:col-span-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+            Add Event
+          </button>
+        </form>
+      </div>
 
-      <section className="grid gap-3">
-        <div className="text-sm font-semibold">Day Schedule</div>
-        {dayEvents.map((event) => (
-          <div key={event.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <div className="font-semibold">{event.title}</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {formatTime(event.start_at)} → {formatTime(event.end_at)} · {event.event_type || "Event"}
-                </div>
-                {event.alignment_tag && (
-                  <div className="mt-1 text-xs text-slate-500">Alignment: {event.alignment_tag}</div>
-                )}
-                {event.recurrence_rule && (
-                  <div className="mt-1 text-xs text-slate-500">
-                    Recurs: {event.recurrence_rule} until {event.recurrence_until || "n/a"}
-                  </div>
-                )}
-              </div>
-              <button
-                className="rounded-full border border-slate-200 px-3 py-1 text-xs"
-                type="button"
-                onClick={() => {
-                  const base = event._baseId ? events.find((e) => e.id === event._baseId) : event;
-                  setEditing(base || event);
-                  setEditingIsRecurring(Boolean(event._recurring));
-                  (document.getElementById("edit-event-dialog") as HTMLDialogElement | null)?.showModal();
-                }}
-              >
-                Edit
-              </button>
-            </div>
-          </div>
-        ))}
-        {dayEvents.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 p-6 text-sm text-slate-500">
-            No events for this day.
-          </div>
-        )}
-      </section>
-
-      <section className="grid gap-3">
-        <div className="text-sm font-semibold">Upcoming</div>
-        {upcoming.map((event) => (
-          <div key={event.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
-            <div className="font-semibold">{event.title}</div>
-            <div className="mt-1 text-xs text-slate-500">
-              {formatTime(event.start_at)} → {formatTime(event.end_at)} · {event.event_type || "Event"}
-            </div>
-          </div>
-        ))}
-        {upcoming.length === 0 && <div className="text-xs text-slate-500">No upcoming events.</div>}
-      </section>
 
       <dialog id="edit-event-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
         <div className="rounded-2xl bg-white p-6">

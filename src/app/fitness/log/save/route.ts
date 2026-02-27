@@ -119,6 +119,7 @@ export async function POST(req: Request) {
       superset_round: s.superset_round,
       is_pr: false,
       notes: s.notes,
+      completed: (s as any).completed ?? true, // Default to true for backward compatibility
     }));
 
     await supabase.from('set_logs').insert(setInserts);
@@ -307,6 +308,35 @@ export async function POST(req: Request) {
     headers: { cookie: req.headers.get('cookie') ?? '' },
   }).catch(() => { /* non-critical */ });
 
+  // Trigger health.md update for workout patterns (non-blocking)
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1', '') || 'http://localhost:3001';
+    await fetch(`${baseUrl}/api/fitness/health/detect-updates`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': req.headers.get('cookie') || '',
+      },
+      body: JSON.stringify({
+        trigger: 'workout_logged',
+        trigger_data: {
+          workout_id: log.id,
+          workout_type: workoutData.workout_type,
+          duration_min: workoutData.duration_minutes,
+          tss,
+          strain_score: strainScore,
+          avg_hr: cardio?.avg_hr ?? workoutData.avg_hr,
+          max_hr: cardio?.max_hr ?? workoutData.max_hr,
+          rpe_session: workoutData.rpe_session,
+          compliance_pct: compliance.pct,
+        },
+      }),
+    });
+    console.log(`Triggered health.md update check for workout ${log.id}`);
+  } catch (err) {
+    console.error('Failed to trigger health.md update (non-critical):', err);
+  }
+
   // Recovery prediction
   let recovery = null;
   if (strainScore > 0) {
@@ -323,6 +353,24 @@ export async function POST(req: Request) {
       current_readiness: readinessData?.readiness_score ?? 60,
     });
   }
+
+  // Create calendar event for this workout
+  const workoutDate = new Date().toISOString().slice(0, 10);
+  const eventTitle = `${workoutData.workout_type.charAt(0).toUpperCase() + workoutData.workout_type.slice(1)} Workout`;
+  const eventNotes = `View workout details: /fitness/history/${log.id}`;
+
+  await supabase.from('calendar_events').upsert({
+    user_id: user.id,
+    title: eventTitle,
+    start_at: workoutDate,
+    end_at: workoutDate,
+    event_type: 'workout',
+    domain: 'fitness',
+    notes: eventNotes,
+    alignment_tag: `workout:${log.id}`,
+  }, {
+    onConflict: 'user_id,alignment_tag',
+  });
 
   return NextResponse.json({
     ok: true,

@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const { name, type, split_type, notes } = body;
+  const { name, type, split_type, notes, structure, estimated_duration_min } = body;
 
   if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 });
 
@@ -17,7 +17,8 @@ export async function POST(req: Request) {
     name: name.trim(),
     type: type || 'strength',
     split_type: split_type || null,
-    structure: [],
+    structure: structure || [],
+    estimated_duration_min: estimated_duration_min || null,
     notes: notes || null,
   }).select().single();
 

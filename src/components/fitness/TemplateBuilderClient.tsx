@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import RichTextEditor from '@/components/RichTextEditor';
 import {
   DndContext,
   closestCenter,
@@ -20,6 +21,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { WorkoutStructureItem, StandaloneExercise, SupersetGroup, SetTarget, SetType } from '@/lib/fitness/types';
+import QuickExerciseCreator from './QuickExerciseCreator';
+import AIWorkoutBuilder from './AIWorkoutBuilder';
 
 type Exercise = {
   id: string;
@@ -190,6 +193,9 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showQuickCreator, setShowQuickCreator] = useState(false);
+  const [localExercises, setLocalExercises] = useState(exercises);
+  const [showAIBuilder, setShowAIBuilder] = useState(false);
 
   // Editing state
   const [editingSets, setEditingSets] = useState<SetTarget[]>([]);
@@ -230,6 +236,15 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
     setStructure([...structure, newItem]);
     setShowExercisePicker(false);
     setExerciseSearch('');
+  }
+
+  function handleAIGeneratedExercises(aiStructure: WorkoutStructureItem[]) {
+    const newItems = aiStructure.map(item => ({
+      ...item,
+      _id: generateItemId(),
+    }));
+    setStructure([...structure, ...newItems]);
+    setShowAIBuilder(false);
   }
 
   function startEdit(index: number) {
@@ -334,7 +349,22 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
     }
   }
 
-  const filteredExercises = exercises.filter(ex =>
+  function handleExerciseCreated(exerciseId: string, exerciseName: string) {
+    const newExercise: Exercise = {
+      id: exerciseId,
+      name: exerciseName,
+      category: 'Other',
+      equipment: null,
+      muscle_groups: [],
+      is_compound: false,
+      is_template: false,
+    };
+    setLocalExercises([...localExercises, newExercise]);
+    setShowQuickCreator(false);
+    addExercise(exerciseId);
+  }
+
+  const filteredExercises = localExercises.filter(ex =>
     ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()) ||
     ex.category.toLowerCase().includes(exerciseSearch.toLowerCase())
   );
@@ -366,14 +396,22 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
         </div>
       </div>
 
-      {/* Add Exercise Button */}
+      {/* Add Exercise Buttons */}
       {!showExercisePicker && (
-        <button
-          onClick={() => setShowExercisePicker(true)}
-          className="w-full rounded-xl border-2 border-dashed border-slate-300 p-4 text-center text-sm text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
-        >
-          + Add Exercise
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowExercisePicker(true)}
+            className="flex-1 rounded-xl border-2 border-dashed border-slate-300 p-4 text-center text-sm text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+          >
+            + Add Exercise
+          </button>
+          <button
+            onClick={() => setShowAIBuilder(true)}
+            className="rounded-xl border-2 border-dashed border-blue-300 p-4 px-6 text-center text-sm text-blue-500 hover:border-blue-400 hover:text-blue-600 transition-colors whitespace-nowrap"
+          >
+            ✨ AI Builder
+          </button>
+        </div>
       )}
 
       {/* Exercise Picker */}
@@ -413,6 +451,14 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
               </button>
             ))}
           </div>
+
+          {/* Create New Exercise button */}
+          <button
+            onClick={() => setShowQuickCreator(true)}
+            className="w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-600 hover:border-blue-400 hover:bg-blue-100 transition-colors min-h-[44px]"
+          >
+            + Create New Exercise
+          </button>
         </div>
       )}
 
@@ -436,7 +482,7 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
                   onEdit={() => startEdit(index)}
                   onDelete={() => deleteItem(index)}
                   onMakeSuperset={() => makeSuperset(index)}
-                  exercises={exercises}
+                  exercises={localExercises}
                 />
               ))}
             </div>
@@ -495,7 +541,7 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
                     Exercises
                   </label>
                   {editingSuperset.exercises.map((ex, i) => {
-                    const exercise = exercises.find(e => e.id === ex.exercise_id);
+                    const exercise = localExercises.find(e => e.id === ex.exercise_id);
                     return (
                       <div key={i} className="mb-2 p-3 bg-purple-50 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
@@ -557,7 +603,7 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
                       className="w-full rounded-lg border border-purple-300 px-3 py-2 text-sm"
                     >
                       <option value="">+ Add Exercise to Superset</option>
-                      {exercises.map(ex => (
+                      {localExercises.map(ex => (
                         <option key={ex.id} value={ex.id}>{ex.name}</option>
                       ))}
                     </select>
@@ -640,13 +686,11 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
                 </button>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Notes
-                  </label>
-                  <textarea
+                  <RichTextEditor
                     value={editingNotes}
-                    onChange={(e) => setEditingNotes(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    onChange={setEditingNotes}
+                    label="Notes"
+                    minHeight="120px"
                     rows={2}
                     placeholder="Exercise notes..."
                   />
@@ -671,6 +715,22 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
           </div>
         </div>
       )}
+
+      {/* Quick exercise creator modal */}
+      {showQuickCreator && (
+        <QuickExerciseCreator
+          onExerciseCreated={handleExerciseCreated}
+          onCancel={() => setShowQuickCreator(false)}
+        />
+      )}
+
+      {/* AI workout builder modal */}
+      <AIWorkoutBuilder
+        isOpen={showAIBuilder}
+        onClose={() => setShowAIBuilder(false)}
+        onAddExercises={handleAIGeneratedExercises}
+        mode="template"
+      />
     </div>
   );
 }

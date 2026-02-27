@@ -88,6 +88,7 @@ export type SetLog = {
   superset_round: number | null;
   is_pr: boolean;
   notes: string | null;
+  completed?: boolean;
 };
 
 export type CardioLog = {
@@ -480,6 +481,8 @@ export type Medication = {
   active: boolean;
   start_date: string | null;
   end_date: string | null;
+  ai_review: Record<string, unknown> | null;
+  last_reviewed_at: string | null;
 };
 
 export type MorningBriefing = {

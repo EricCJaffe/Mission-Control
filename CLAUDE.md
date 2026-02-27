@@ -13,6 +13,26 @@ npm run lint       # ESLint
 npx tsc --noEmit   # TypeScript check (no test suite configured)
 ```
 
+## ⚠️ Multi-Project Workflow Warning
+
+**CRITICAL**: The user works on multiple projects simultaneously. **NEVER** use broad commands that affect all running processes:
+
+❌ **DO NOT USE**:
+- `killall node` — Kills all Node processes across all projects
+- `pkill -f "npm"` — Kills all npm processes
+- `pkill -f "next"` — Kills all Next.js dev servers
+- `supabase stop --all` — Stops all Supabase instances
+- `docker stop $(docker ps -q)` — Stops all Docker containers
+- Any command that targets processes globally without project-specific filtering
+
+✅ **DO USE**:
+- `lsof -ti:3001 | xargs kill` — Kill specific port only
+- `npm run dev -- -p 3001` — Start on specific port
+- Check specific process: `lsof -i:3001` before killing
+- Project-specific Supabase commands within the project directory
+
+**When port conflicts occur**: Ask the user which port to use or check if the existing process can be reused rather than killing everything.
+
 ## Key Conventions
 
 - **Server components** for data fetching, **client components** (`'use client'`) for interactivity
@@ -34,8 +54,11 @@ Migrations applied:
 - `supabase/migrations/20260225100500_seed_exercises.sql` — 52 default exercises
 - `supabase/migrations/20260225120000_health_context_system.sql` — Health tracking tables
 - `supabase/migrations/20260226000000_garmin_integration.sql` — Garmin sync support
+- `supabase/migrations/20260227240000_add_set_completion_tracking.sql` — Set completion tracking
+- `supabase/migrations/20260227250000_fasting_logs.sql` — Fasting logs table
+- `supabase/migrations/20260228000000_calendar_workout_sync.sql` — Calendar workout auto-sync triggers
 
-All fitness features are working and tested.
+All fitness and calendar features are working and tested.
 
 ## Project Structure
 
@@ -71,10 +94,12 @@ src/
       ai/               # AI routes (book, general)
       fitness/          # 18+ fitness API routes
   components/
-    fitness/            # 18 fitness client components
+    fitness/            # 20+ fitness client components
+    calendar/           # Calendar components (MonthView, WeekView, DayView, Filters, ScheduleWorkoutModal)
     Sidebar.tsx         # App navigation
   lib/
-    fitness/            # 16 lib modules (TSS, PMC, readiness, strain, etc.)
+    fitness/            # 18 lib modules (TSS, PMC, readiness, strain, health-doc-updater, etc.)
+    calendar/           # Calendar utilities (date-utils.ts)
     supabase/           # Supabase client helpers
     openai.ts           # OpenAI call helper
 ```
@@ -96,6 +121,8 @@ src/
 - Appointment Prep: AI-generated questions, changes summary, flags — full pipeline working
 - FIT Parser Fixes: Corrected stress/body battery extraction, added fallback field sweep
 - Column Name Resilience: medications & health-context handle both name/type and medication_name/medication_type schemas
+- Health.md Auto-Updater: Trigger detection (medication_change, lab_upload, metric_shift, methylation_upload), 7 section generators, user approval workflow, version control
+- Calendar Enhancement: Month/week/day views, filters, workout scheduling modal, auto-sync triggers (planned_workouts ↔ calendar_events), click-through navigation
 
 ### 🚧 In Progress / Next Steps
 - Methylation report display (uploads work, need display/routing to show extracted SNPs)
