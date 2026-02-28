@@ -10,7 +10,7 @@ import {
   Sunrise, Scale, Heart, FileEdit, History, TrendingUp, Trophy,
   ClipboardList, FileHeart, Upload, FlaskConical, Pill, CalendarDays,
   Settings, Footprints, Activity, BedDouble, Gauge, Weight,
-  ChevronRight,
+  ChevronRight, CalendarPlus, PenLine,
 } from 'lucide-react';
 
 type Props = {
@@ -427,34 +427,73 @@ export default function FitnessDashboardClient({
         </div>
       )}
 
-      {/* Quick links */}
-      <div>
-        <h2 className="text-sm font-semibold text-slate-700 mb-3">Quick Links</h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {([
-            { href: '/fitness/morning', label: 'Morning Brief', icon: <Sunrise size={20} /> },
-            { href: '/fitness/metrics', label: 'Body Metrics', icon: <Scale size={20} /> },
-            { href: '/fitness/exercises', label: 'Exercises', icon: <Dumbbell size={20} /> },
-            { href: '/fitness/templates', label: 'Templates', icon: <FileEdit size={20} /> },
-            { href: '/fitness/plans', label: 'Training Plan', icon: <ClipboardList size={20} /> },
-            { href: '/fitness/records', label: 'Personal Records', icon: <Trophy size={20} /> },
-            { href: '/fitness/health/view', label: 'Health Profile', icon: <FileHeart size={20} /> },
-            { href: '/fitness/health/upload', label: 'Upload Files', icon: <Upload size={20} /> },
-            { href: '/fitness/health/labs', label: 'Lab Review', icon: <FlaskConical size={20} /> },
-            { href: '/fitness/medications', label: 'Medications', icon: <Pill size={20} /> },
-            { href: '/fitness/appointments', label: 'Appointments', icon: <CalendarDays size={20} /> },
-            { href: '/fitness/settings', label: 'Settings', icon: <Settings size={20} /> },
-            { href: '/fitness/equipment', label: 'Equipment', icon: <Footprints size={20} /> },
-          ] as { href: string; label: string; icon: ReactNode }[]).map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
-            >
-              <span className="text-blue-700/70">{link.icon}</span>
-              <span className="text-sm font-medium text-slate-700">{link.label}</span>
-            </Link>
-          ))}
+      {/* Quick links - Organized by section */}
+      <div className="space-y-8">
+        {/* Standalone actions */}
+        <div className="flex gap-3">
+          <Link
+            href="/fitness/morning"
+            className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+          >
+            <span className="text-blue-700/70"><Sunrise size={20} /></span>
+            <span className="text-sm font-medium text-slate-700">Morning Brief</span>
+          </Link>
+          <Link
+            href="/fitness/settings"
+            className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+          >
+            <span className="text-blue-700/70"><Settings size={20} /></span>
+            <span className="text-sm font-medium text-slate-700">Settings</span>
+          </Link>
+        </div>
+
+        {/* Fitness section */}
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700 mb-3">Fitness</h2>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {([
+              { href: '/fitness/history', label: 'Exercise History', icon: <History size={20} /> },
+              { href: '/fitness/exercises', label: 'Exercises', icon: <Dumbbell size={20} /> },
+              { href: '/fitness/templates', label: 'Workout Templates', icon: <FileEdit size={20} /> },
+              { href: '/fitness/plans', label: 'Training Plans', icon: <ClipboardList size={20} /> },
+              { href: '/fitness/records', label: 'Personal Records', icon: <Trophy size={20} /> },
+              { href: '/fitness/equipment', label: 'Equipment', icon: <Footprints size={20} /> },
+              { href: '/calendar', label: 'Schedule Workout', icon: <CalendarPlus size={20} /> },
+              { href: '/fitness/log', label: 'Log Workout', icon: <PenLine size={20} /> },
+            ] as { href: string; label: string; icon: ReactNode }[]).map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+              >
+                <span className="text-blue-700/70">{link.icon}</span>
+                <span className="text-sm font-medium text-slate-700">{link.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Health section */}
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700 mb-3">Health</h2>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {([
+              { href: '/fitness/metrics', label: 'Body Metrics', icon: <Scale size={20} /> },
+              { href: '/fitness/health/view', label: 'Health Profile', icon: <FileHeart size={20} /> },
+              { href: '/fitness/health/labs', label: 'Lab Review', icon: <FlaskConical size={20} /> },
+              { href: '/fitness/medications', label: 'Medications', icon: <Pill size={20} /> },
+              { href: '/fitness/appointments', label: "Dr's Appointments", icon: <CalendarDays size={20} /> },
+            ] as { href: string; label: string; icon: ReactNode }[]).map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+              >
+                <span className="text-blue-700/70">{link.icon}</span>
+                <span className="text-sm font-medium text-slate-700">{link.label}</span>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </div>
