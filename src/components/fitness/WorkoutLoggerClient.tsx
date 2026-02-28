@@ -990,7 +990,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           <div className="mb-4">
             <label className="text-xs text-slate-500 block mb-2">Type</label>
             <div className="flex flex-wrap gap-2">
-              {(['strength', 'cardio', 'hiit', 'hybrid'] as const).map((t) => (
+              {(['strength', 'cardio', 'hiit', 'hybrid', 'mobility'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setWorkoutType(t)}
@@ -1059,7 +1059,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
           <button
             onClick={() => {
-              if (workoutType === 'cardio') {
+              if (workoutType === 'cardio' || workoutType === 'mobility') {
                 setMode('cardio');
               } else if (loggerMode === 'ai') {
                 // AI mode: Open AI builder directly
@@ -1165,6 +1165,21 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
   // ——— SCREEN: Cardio logging ———
   if (mode === 'cardio') {
+    const isMobility = workoutType === 'mobility';
+    const activityType = cardioData.activity_type || 'run';
+    const isRunning = activityType === 'run' || activityType === 'walk' || activityType === 'treadmill';
+    const isBiking = activityType === 'bike';
+
+    // Auto-calculate pace for running (min/mile)
+    const calculatedPace = (duration && cardioData.distance_miles && Number(duration) > 0 && Number(cardioData.distance_miles) > 0)
+      ? (Number(duration) / Number(cardioData.distance_miles)).toFixed(2)
+      : null;
+
+    // Auto-calculate speed for biking (mph)
+    const calculatedSpeed = (duration && cardioData.distance_miles && Number(duration) > 0 && Number(cardioData.distance_miles) > 0)
+      ? ((Number(cardioData.distance_miles) / Number(duration)) * 60).toFixed(1)
+      : null;
+
     return (
       <div className="space-y-4">
         {error && (
@@ -1177,19 +1192,64 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         <div className="rounded-2xl border border-slate-100 bg-white px-4 py-2.5 shadow-sm flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs text-slate-500">Cardio in progress</span>
+            <span className="text-xs text-slate-500">{isMobility ? 'Mobility' : 'Cardio'} in progress</span>
           </div>
           <span className="text-lg font-bold tabular-nums text-slate-800">{formatElapsed(elapsedSeconds)}</span>
         </div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">Cardio Session</h2>
+
+        {/* Mobility-specific simple form */}
+        {isMobility ? (
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">Mobility Session</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Duration (minutes)</label>
+                <input
+                  type="number"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value ? Number(e.target.value) : '')}
+                  className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+                  placeholder="30"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Session Notes</label>
+                <textarea
+                  value={sessionNotes}
+                  onChange={(e) => setSessionNotes(e.target.value)}
+                  rows={4}
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full"
+                  placeholder="What did you work on? (e.g., hip mobility, shoulder stretches, foam rolling)"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Session RPE (1-10)</label>
+                <div className="flex gap-1.5">
+                  {[...Array(10)].map((_, i) => (
+                    <button
+                      key={i + 1}
+                      onClick={() => setRpeSession(i + 1)}
+                      className={`h-9 w-9 rounded-lg text-xs font-medium ${
+                        rpeSession === i + 1 ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">Cardio Session</h2>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Activity</label>
                 <select value={cardioData.activity_type} onChange={(e) => setCardioData((d) => ({ ...d, activity_type: e.target.value }))}
                   className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full">
-                  {['run', 'walk', 'bike', 'treadmill', 'elliptical', 'swim'].map((a) => (
+                  {['run', 'walk', 'bike', 'treadmill', 'elliptical', 'swim', 'row'].map((a) => (
                     <option key={a} value={a} className="capitalize">{a}</option>
                   ))}
                 </select>
@@ -1202,6 +1262,11 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
+                <label className="text-xs text-slate-500 block mb-1">Distance (mi)</label>
+                <input type="number" step="0.01" value={cardioData.distance_miles ?? ''} onChange={(e) => setCardioData((d) => ({ ...d, distance_miles: e.target.value ? Number(e.target.value) : undefined }))}
+                  className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="3.1" />
+              </div>
+              <div>
                 <label className="text-xs text-slate-500 block mb-1">Avg HR</label>
                 <input type="number" value={cardioData.avg_hr ?? ''} onChange={(e) => setCardioData((d) => ({ ...d, avg_hr: e.target.value ? Number(e.target.value) : undefined }))}
                   className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="125" />
@@ -1211,12 +1276,101 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                 <input type="number" value={cardioData.max_hr ?? ''} onChange={(e) => setCardioData((d) => ({ ...d, max_hr: e.target.value ? Number(e.target.value) : undefined }))}
                   className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="148" />
               </div>
-              <div>
-                <label className="text-xs text-slate-500 block mb-1">Distance (mi)</label>
-                <input type="number" step="0.01" value={cardioData.distance_miles ?? ''} onChange={(e) => setCardioData((d) => ({ ...d, distance_miles: e.target.value ? Number(e.target.value) : undefined }))}
-                  className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full" placeholder="3.1" />
-              </div>
             </div>
+
+            {/* Running-specific fields */}
+            {isRunning && (
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 space-y-3">
+                <p className="text-xs font-semibold text-blue-700">Running Metrics</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Avg Pace (min/mi)</label>
+                    <input
+                      type="text"
+                      value={cardioData.avg_pace_per_mile ?? (calculatedPace || '')}
+                      onChange={(e) => setCardioData((d) => ({ ...d, avg_pace_per_mile: e.target.value || undefined }))}
+                      className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+                      placeholder={calculatedPace || '8:30'}
+                    />
+                    {calculatedPace && <p className="text-xs text-blue-600 mt-0.5">Auto: {calculatedPace}</p>}
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Elevation Gain (ft)</label>
+                    <input
+                      type="number"
+                      value={cardioData.elevation_gain_ft ?? ''}
+                      onChange={(e) => setCardioData((d) => ({ ...d, elevation_gain_ft: e.target.value ? Number(e.target.value) : undefined }))}
+                      className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+                      placeholder="250"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Biking-specific fields */}
+            {isBiking && (
+              <div className="rounded-xl border border-green-100 bg-green-50 p-3 space-y-3">
+                <p className="text-xs font-semibold text-green-700">Cycling Metrics</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Avg Speed (mph)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={cardioData.avg_speed_mph ?? (calculatedSpeed || '')}
+                      onChange={(e) => setCardioData((d) => ({ ...d, avg_speed_mph: e.target.value ? Number(e.target.value) : undefined }))}
+                      className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+                      placeholder={calculatedSpeed || '18.5'}
+                    />
+                    {calculatedSpeed && <p className="text-xs text-green-600 mt-0.5">Auto: {calculatedSpeed} mph</p>}
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Elevation Gain (ft)</label>
+                    <input
+                      type="number"
+                      value={cardioData.elevation_gain_ft ?? ''}
+                      onChange={(e) => setCardioData((d) => ({ ...d, elevation_gain_ft: e.target.value ? Number(e.target.value) : undefined }))}
+                      className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+                      placeholder="500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Avg Power (W)</label>
+                    <input
+                      type="number"
+                      value={cardioData.avg_power_watts ?? ''}
+                      onChange={(e) => setCardioData((d) => ({ ...d, avg_power_watts: e.target.value ? Number(e.target.value) : undefined }))}
+                      className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+                      placeholder="180"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Norm Power (W)</label>
+                    <input
+                      type="number"
+                      value={cardioData.normalized_power ?? ''}
+                      onChange={(e) => setCardioData((d) => ({ ...d, normalized_power: e.target.value ? Number(e.target.value) : undefined }))}
+                      className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+                      placeholder="195"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">TSS</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={cardioData.tss ?? ''}
+                      onChange={(e) => setCardioData((d) => ({ ...d, tss: e.target.value ? Number(e.target.value) : undefined }))}
+                      className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
+                      placeholder="65"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <label className="text-xs text-slate-500 block mb-2">Time in Zones (minutes)</label>
               <div className="grid grid-cols-4 gap-2">
@@ -1269,6 +1423,8 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             </div>
           </div>
         </div>
+        )}
+
         <button onClick={saveWorkout} disabled={saving}
           className="w-full rounded-xl bg-green-700 text-white text-sm font-semibold py-3 hover:bg-green-800 min-h-[44px] disabled:opacity-50">
           {saving ? 'Saving...' : 'Complete Workout'}

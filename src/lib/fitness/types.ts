@@ -2,7 +2,7 @@
 // FITNESS MODULE — Shared TypeScript Types
 // ============================================================
 
-export type WorkoutType = 'strength' | 'cardio' | 'hiit' | 'hybrid';
+export type WorkoutType = 'strength' | 'cardio' | 'hiit' | 'hybrid' | 'mobility';
 export type SetType = 'warmup' | 'working' | 'cooldown' | 'drop' | 'failure' | 'amrap';
 export type ExerciseCategory = 'push' | 'pull' | 'legs' | 'core' | 'cardio' | 'mobility';
 export type ComplianceColor = 'green' | 'yellow' | 'orange' | 'red';
@@ -102,6 +102,9 @@ export type CardioLog = {
   time_in_zone4_min: number | null;
   distance_miles: number | null;
   avg_pace_per_mile: string | null;
+  elevation_gain_ft: number | null;
+  avg_speed_mph: number | null;
+  tss: number | null;
   calories: number | null;
   hr_recovery_1min: number | null;
   hr_recovery_2min: number | null;
