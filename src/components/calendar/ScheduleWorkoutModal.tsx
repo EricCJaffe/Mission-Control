@@ -6,8 +6,9 @@ import { X, Dumbbell, Sparkles, Loader2 } from 'lucide-react';
 type WorkoutTemplate = {
   id: string;
   name: string;
-  workout_type: string;
-  description: string | null;
+  type: string;
+  split_type: string | null;
+  notes: string | null;
 };
 
 type ScheduleWorkoutModalProps = {
@@ -217,7 +218,7 @@ export default function ScheduleWorkoutModal({
                 ) : (
                   templates.map((template) => (
                     <option key={template.id} value={template.id}>
-                      {template.name} ({template.workout_type})
+                      {template.name} ({template.type})
                     </option>
                   ))
                 )}
@@ -229,7 +230,7 @@ export default function ScheduleWorkoutModal({
               )}
               {selectedTemplateId && (
                 <p className="mt-1 text-xs text-slate-500">
-                  {templates.find((t) => t.id === selectedTemplateId)?.description || ''}
+                  {templates.find((t) => t.id === selectedTemplateId)?.notes || ''}
                 </p>
               )}
             </div>

@@ -109,8 +109,9 @@ function upcomingOccurrences(events: CalendarEvent[], fromDate: string, days = 1
 type WorkoutTemplate = {
   id: string;
   name: string;
-  workout_type: string;
-  description: string | null;
+  type: string;
+  split_type: string | null;
+  notes: string | null;
 };
 
 export default function CalendarClient({

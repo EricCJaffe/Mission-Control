@@ -27,7 +27,7 @@ export default async function CalendarPage({
   const { data: reviews } = await supabase.from("monthly_reviews").select("id,period_start").order("period_start", { ascending: false }).limit(12);
   const { data: templates, error: templatesError } = await supabase
     .from("workout_templates")
-    .select("id,name,workout_type,description")
+    .select("id,name,type,split_type,notes")
     .eq("user_id", user.id)
     .order("name", { ascending: true })
     .limit(100);
