@@ -60,11 +60,11 @@ export async function POST(request: NextRequest) {
       scheduled_date,
       scheduled_time: timeStr, // HH:MM format
       template_id: template_id || null,
-      workout_type: workout_type || templateData?.workout_type || null,
+      workout_type: workout_type || templateData?.type || null,
       day_label: day_label || templateData?.name || null,
-      prescribed: prescribed || templateData?.exercises || {},
+      prescribed: prescribed || templateData?.structure || {},
       notes: notes || null,
-      status: 'planned' as const,
+      status: 'pending' as const, // Valid values: pending, completed, skipped, substituted
     };
 
     // Insert planned workout
