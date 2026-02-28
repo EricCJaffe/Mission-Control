@@ -34,15 +34,31 @@ type Option = { id: string; title: string };
 type ReviewOption = { id: string; period_start: string };
 
 function toDateInput(value: string) {
+  // Prefer string slicing to avoid timezone shifts and parsing quirks.
+  const m = String(value || '').match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) return m[1];
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
+  // Fall back to local date components (not UTC) to avoid off-by-one-day.
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function toTimeInput(value: string) {
+  const s = String(value || '');
+  // ISO: 2026-02-28T09:00:00...
+  const iso = s.match(/T(\d{2}:\d{2})/);
+  if (iso) return iso[1];
+  // SQL-ish: 2026-02-28 09:00:00...
+  const sql = s.match(/\s(\d{2}:\d{2})/);
+  if (sql) return sql[1];
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(11, 16);
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
 }
 
 function formatTime(value: string) {
@@ -374,7 +390,9 @@ export default function CalendarClient({
       <dialog id="edit-event-dialog" className="w-[92vw] max-w-xl rounded-2xl border border-slate-200 p-0 shadow-xl">
         <div className="rounded-2xl bg-white p-6">
           <h3 className="text-lg font-semibold">Edit Event</h3>
-          {editing && (
+          {editing && (() => {
+            const isPlannedWorkout = Boolean(editing.alignment_tag && editing.alignment_tag.startsWith('planned_workout:'));
+            return (
             <form className="mt-4 grid gap-3" action="/calendar/events/update" method="post" data-progress="true" data-toast="Event updated">
               <input type="hidden" name="id" value={editing.id} />
               <input type="hidden" name="date" value={toDateInput(editing.start_at)} />
@@ -384,16 +402,28 @@ export default function CalendarClient({
                   This is a recurring event. Edits apply to the series.
                 </div>
               )}
+              {isPlannedWorkout && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                  This is a scheduled workout. Saving will update the underlying planned workout (and the calendar will resync automatically).
+                </div>
+              )}
               <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="title" defaultValue={editing.title} required />
-              <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="event_type" defaultValue={editing.event_type || ""}>
-                <option>Monthly Review</option>
-                <option>Weekly Planning</option>
-                <option>Daily Anchor</option>
-                <option>Sermon/Teaching</option>
-                <option>Client Work</option>
-                <option>Family</option>
-                <option>Health/Training</option>
-              </select>
+
+              {isPlannedWorkout ? (
+                <input type="hidden" name="event_type" value="Workout" />
+              ) : (
+                <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="event_type" defaultValue={editing.event_type || ""}>
+                  <option>Monthly Review</option>
+                  <option>Weekly Planning</option>
+                  <option>Daily Anchor</option>
+                  <option>Sermon/Teaching</option>
+                  <option>Client Work</option>
+                  <option>Family</option>
+                  <option>Health/Training</option>
+                  <option>Workout</option>
+                </select>
+              )}
+
               <div className="grid gap-2 md:grid-cols-2">
                 <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="start_at" type="time" defaultValue={toTimeInput(editing.start_at)} required />
                 <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="end_at" type="time" defaultValue={toTimeInput(editing.end_at)} required />
@@ -401,13 +431,18 @@ export default function CalendarClient({
               <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="recurrence_rule" defaultValue={editing.recurrence_rule || ""} placeholder="Recurrence (e.g., weekly)" />
               <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="recurrence_until" type="date" defaultValue={editing.recurrence_until ? toDateInput(editing.recurrence_until) : ""} />
               <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="expand_count" type="number" min="0" placeholder="Expand next N occurrences (optional)" />
-              <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="alignment_tag" defaultValue={editing.alignment_tag || ""}>
-                <option value="">Alignment tag</option>
-                <option>God First</option>
-                <option>Health</option>
-                <option>Family</option>
-                <option>Impact</option>
-              </select>
+
+              {isPlannedWorkout ? (
+                <input type="hidden" name="alignment_tag" value={editing.alignment_tag || ''} />
+              ) : (
+                <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="alignment_tag" defaultValue={editing.alignment_tag || ""}>
+                  <option value="">Alignment tag</option>
+                  <option>God First</option>
+                  <option>Health</option>
+                  <option>Family</option>
+                  <option>Impact</option>
+                </select>
+              )}
               <div className="grid gap-2 md:grid-cols-2">
                 <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="goal_id" defaultValue={editing.goal_id || ""}>
                   <option value="">Link goal</option>
@@ -462,7 +497,8 @@ export default function CalendarClient({
                 </button>
               </div>
             </form>
-          )}
+            );
+          })()}
         </div>
       </dialog>
     </div>
