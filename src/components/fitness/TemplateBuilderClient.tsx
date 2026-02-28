@@ -31,7 +31,7 @@ type Exercise = {
   equipment: string | null;
   muscle_groups: string[];
   is_compound: boolean;
-  is_template: boolean;
+  is_template?: boolean; // Optional - not in database schema
 };
 
 type Template = {

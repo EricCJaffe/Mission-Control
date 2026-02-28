@@ -33,7 +33,7 @@ export default async function TemplateEditPage({ params }: PageProps) {
   // Load all exercises (global + user's)
   const { data: exercises } = await supabase
     .from('exercises')
-    .select('id, name, category, equipment, muscle_groups, is_compound, is_template')
+    .select('id, name, category, equipment, muscle_groups, is_compound')
     .or(`user_id.is.null,user_id.eq.${user.id}`)
     .order('name', { ascending: true });
 
