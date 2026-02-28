@@ -5,60 +5,22 @@
 -- Blood Pressure: Add pulse field
 -- ============================================================================
 
-alter table public.blood_pressure_readings
+alter table public.bp_readings
   add column if not exists pulse integer;
 
-comment on column public.blood_pressure_readings.pulse is 'Heart rate during BP measurement (bpm)';
+comment on column public.bp_readings.pulse is 'Heart rate during BP measurement (bpm)';
 
 -- ============================================================================
--- Body Metrics: Track weight + body composition over time
+-- Body Metrics: Ensure all weight/composition fields exist
 -- ============================================================================
 
-create table if not exists public.body_metrics (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  measured_at timestamptz not null,
+-- body_metrics table already exists from fitness module
+-- Just ensure all needed columns are present
 
-  -- Weight
-  weight_lbs numeric(5,1),
-  weight_kg numeric(5,2),
+alter table public.body_metrics
+  add column if not exists hydration_lbs numeric(5,1);
 
-  -- Body Composition (from Withings Body+ scale)
-  fat_mass_lbs numeric(5,1),
-  fat_mass_kg numeric(5,2),
-  body_fat_pct numeric(4,1),
-
-  muscle_mass_lbs numeric(5,1),
-  muscle_mass_kg numeric(5,2),
-
-  bone_mass_lbs numeric(5,1),
-  bone_mass_kg numeric(5,2),
-
-  hydration_lbs numeric(5,1),
-  hydration_kg numeric(5,2),
-
-  -- Metadata
-  source text default 'manual' check (source in ('manual', 'Withings', 'Garmin', 'MyFitnessPal')),
-  notes text,
-  created_at timestamptz default now(),
-
-  unique(user_id, measured_at)
-);
-
-create index body_metrics_user_date_idx
-  on public.body_metrics(user_id, measured_at desc);
-
-alter table public.body_metrics enable row level security;
-
-create policy "body_metrics_owner" on public.body_metrics
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-comment on table public.body_metrics is 'Historical body composition tracking (weight, fat%, muscle, bone, hydration)';
-comment on column public.body_metrics.fat_mass_lbs is 'Fat mass in pounds';
-comment on column public.body_metrics.body_fat_pct is 'Body fat percentage (0-100)';
-comment on column public.body_metrics.muscle_mass_lbs is 'Muscle mass in pounds';
-comment on column public.body_metrics.bone_mass_lbs is 'Bone mass in pounds';
-comment on column public.body_metrics.hydration_lbs is 'Body water in pounds';
+comment on column public.body_metrics.hydration_lbs is 'Body water in pounds (from Withings scale)';
 
 -- ============================================================================
 -- Daily Summaries: Steps, calories, distance aggregates

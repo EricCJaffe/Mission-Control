@@ -116,7 +116,7 @@ export class WithingsImporter {
         const twoMinsAfter = new Date(measured_at.getTime() + 2 * 60 * 1000);
 
         const { data: existing } = await this.supabase
-          .from('blood_pressure_readings')
+          .from('bp_readings')
           .select('id')
           .eq('user_id', this.userId)
           .gte('measured_at', twoMinsBefore.toISOString())
@@ -129,7 +129,7 @@ export class WithingsImporter {
         }
 
         // Insert new reading
-        const { error } = await this.supabase.from('blood_pressure_readings').insert({
+        const { error } = await this.supabase.from('bp_readings').insert({
           user_id: this.userId,
           measured_at: measured_at.toISOString(),
           systolic: parseInt(row.Systolic),
@@ -192,8 +192,8 @@ export class WithingsImporter {
 
       try {
         const measured_at = new Date(row.Date);
+        const metric_date = measured_at.toISOString().split('T')[0]; // Extract date only
         const weight_lbs = parseFloat(row['Weight (lb)']);
-        const weight_kg = weight_lbs * 0.453592;
 
         const fat_mass_lbs = row['Fat mass (lb)'] ? parseFloat(row['Fat mass (lb)']) : null;
         const muscle_mass_lbs = row['Muscle mass (lb)'] ? parseFloat(row['Muscle mass (lb)']) : null;
@@ -203,22 +203,16 @@ export class WithingsImporter {
         // Calculate body fat % if we have fat mass
         const body_fat_pct = fat_mass_lbs ? ((fat_mass_lbs / weight_lbs) * 100) : null;
 
-        // Insert with ON CONFLICT DO NOTHING (unique constraint on user_id, measured_at)
+        // Insert with ON CONFLICT DO NOTHING (unique constraint on user_id, metric_date)
         const { error } = await this.supabase.from('body_metrics').insert({
           user_id: this.userId,
-          measured_at: measured_at.toISOString(),
+          metric_date: metric_date,
           weight_lbs: weight_lbs,
-          weight_kg: weight_kg,
-          fat_mass_lbs: fat_mass_lbs,
-          fat_mass_kg: fat_mass_lbs ? fat_mass_lbs * 0.453592 : null,
           body_fat_pct: body_fat_pct ? parseFloat(body_fat_pct.toFixed(1)) : null,
           muscle_mass_lbs: muscle_mass_lbs,
-          muscle_mass_kg: muscle_mass_lbs ? muscle_mass_lbs * 0.453592 : null,
           bone_mass_lbs: bone_mass_lbs,
-          bone_mass_kg: bone_mass_lbs ? bone_mass_lbs * 0.453592 : null,
           hydration_lbs: hydration_lbs,
-          hydration_kg: hydration_lbs ? hydration_lbs * 0.453592 : null,
-          source: 'Withings',
+          weight_source: 'Withings',
           notes: row.Comments || null,
         });
 
