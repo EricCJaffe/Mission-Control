@@ -195,12 +195,23 @@ export default function DayView({
                         {event.title} ✓
                       </Link>
                     ) : isPlanned && workoutData?.plannedWorkoutId ? (
-                      <Link
-                        href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
-                        className={`font-medium ${colors?.text || 'text-blue-700'} hover:underline opacity-75`}
-                      >
-                        {event.title}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onEventClick(event)}
+                          className={`font-medium ${colors?.text || 'text-blue-700'} opacity-75 hover:underline text-left`}
+                          title="Click to edit scheduled workout"
+                        >
+                          {event.title}
+                        </button>
+                        <Link
+                          href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
+                          className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
+                          title="Start workout"
+                        >
+                          Start
+                        </Link>
+                      </div>
                     ) : (
                       <button
                         onClick={() => onEventClick(event)}
@@ -216,7 +227,7 @@ export default function DayView({
                       )}
                     </div>
                   </div>
-                  {!isLogged && !isPlanned && (
+                  {!isLogged && (
                     <button
                       onClick={() => onEventClick(event)}
                       className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
@@ -271,13 +282,24 @@ export default function DayView({
                                 >
                                   {event.title} ✓
                                 </Link>
-                              ) : isPlanned ? (
-                                <Link
-                                  href="/fitness/plans"
-                                  className={`font-semibold ${colors?.text || 'text-blue-700'} hover:underline opacity-75`}
-                                >
-                                  {event.title}
-                                </Link>
+                              ) : isPlanned && workoutData?.plannedWorkoutId ? (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => onEventClick(event)}
+                                    className={`font-semibold ${colors?.text || 'text-blue-700'} opacity-75 hover:underline text-left`}
+                                    title="Click to edit scheduled workout"
+                                  >
+                                    {event.title}
+                                  </button>
+                                  <Link
+                                    href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
+                                    className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
+                                    title="Start workout"
+                                  >
+                                    Start
+                                  </Link>
+                                </div>
                               ) : (
                                 <button
                                   onClick={() => onEventClick(event)}
@@ -307,7 +329,7 @@ export default function DayView({
                                 <p className="mt-2 text-sm text-slate-600">{event.notes}</p>
                               )}
                             </div>
-                            {!isLogged && !isPlanned && (
+                            {!isLogged && (
                               <button
                                 onClick={() => onEventClick(event)}
                                 className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
