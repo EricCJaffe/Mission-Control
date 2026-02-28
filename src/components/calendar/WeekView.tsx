@@ -12,6 +12,46 @@ import {
 } from '@/lib/calendar/date-utils';
 import { useState } from 'react';
 
+// Get color classes based on workout type
+function getWorkoutTypeColors(title: string): { bg: string; text: string; border: string; hoverBg: string } {
+  const lowerTitle = title.toLowerCase();
+
+  if (lowerTitle.includes('cardio')) {
+    return {
+      bg: 'bg-red-50',
+      text: 'text-red-700',
+      border: 'border-red-200',
+      hoverBg: 'hover:bg-red-100',
+    };
+  }
+
+  if (lowerTitle.includes('strength')) {
+    return {
+      bg: 'bg-purple-50',
+      text: 'text-purple-700',
+      border: 'border-purple-200',
+      hoverBg: 'hover:bg-purple-100',
+    };
+  }
+
+  if (lowerTitle.includes('hybrid')) {
+    return {
+      bg: 'bg-orange-50',
+      text: 'text-orange-700',
+      border: 'border-orange-200',
+      hoverBg: 'hover:bg-orange-100',
+    };
+  }
+
+  // Default for other workout types
+  return {
+    bg: 'bg-green-50',
+    text: 'text-green-700',
+    border: 'border-green-200',
+    hoverBg: 'hover:bg-green-100',
+  };
+}
+
 type CalendarEvent = {
   id: string;
   title: string;
@@ -169,14 +209,15 @@ export default function WeekView({
                           const workoutData = parseWorkoutTag(event.alignment_tag);
                           const isLogged = workoutData?.isLogged || false;
                           const isPlanned = workoutData?.isPlanned || false;
+                          const colors = workoutData ? getWorkoutTypeColors(event.title) : null;
 
                           // Logged workout - link to workout history
-                          if (isLogged && workoutData?.loggedWorkoutId) {
+                          if (isLogged && workoutData?.loggedWorkoutId && colors) {
                             return (
                               <Link
                                 key={event.id}
                                 href={`/fitness/history/${workoutData.loggedWorkoutId}`}
-                                className="block w-full truncate rounded px-2 py-1 text-left text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
+                                className={`block w-full truncate rounded px-2 py-1 text-left text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border} ${colors.hoverBg}`}
                                 title={event.title}
                               >
                                 {event.title} ✓
@@ -185,12 +226,12 @@ export default function WeekView({
                           }
 
                           // Planned workout - link to plans page
-                          if (isPlanned) {
+                          if (isPlanned && colors) {
                             return (
                               <Link
                                 key={event.id}
                                 href="/fitness/plans"
-                                className="block w-full truncate rounded px-2 py-1 text-left text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
+                                className={`block w-full truncate rounded px-2 py-1 text-left text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border} ${colors.hoverBg} opacity-75`}
                                 title={event.title}
                               >
                                 {event.title}

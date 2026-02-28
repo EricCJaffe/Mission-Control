@@ -12,6 +12,46 @@ import {
 } from '@/lib/calendar/date-utils';
 import { useState } from 'react';
 
+// Get color classes based on workout type
+function getWorkoutTypeColors(title: string): { bg: string; text: string; border: string; hoverBg: string } {
+  const lowerTitle = title.toLowerCase();
+
+  if (lowerTitle.includes('cardio')) {
+    return {
+      bg: 'bg-red-50',
+      text: 'text-red-700',
+      border: 'border-red-200',
+      hoverBg: 'hover:bg-red-100',
+    };
+  }
+
+  if (lowerTitle.includes('strength')) {
+    return {
+      bg: 'bg-purple-50',
+      text: 'text-purple-700',
+      border: 'border-purple-200',
+      hoverBg: 'hover:bg-purple-100',
+    };
+  }
+
+  if (lowerTitle.includes('hybrid')) {
+    return {
+      bg: 'bg-orange-50',
+      text: 'text-orange-700',
+      border: 'border-orange-200',
+      hoverBg: 'hover:bg-orange-100',
+    };
+  }
+
+  // Default for other workout types
+  return {
+    bg: 'bg-green-50',
+    text: 'text-green-700',
+    border: 'border-green-200',
+    hoverBg: 'hover:bg-green-100',
+  };
+}
+
 type CalendarEvent = {
   id: string;
   title: string;
@@ -135,15 +175,14 @@ export default function DayView({
             const workoutData = parseWorkoutTag(event.alignment_tag);
             const isLogged = workoutData?.isLogged || false;
             const isPlanned = workoutData?.isPlanned || false;
+            const colors = workoutData ? getWorkoutTypeColors(event.title) : null;
 
             return (
               <div
                 key={event.id}
                 className={`
                   rounded-lg border p-2
-                  ${isLogged ? 'bg-green-50 border-green-200' :
-                    isPlanned ? 'bg-blue-50 border-blue-200' :
-                    'bg-white border-slate-200'}
+                  ${colors ? `${colors.bg} ${colors.border}` : 'bg-white border-slate-200'}
                 `}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -151,14 +190,14 @@ export default function DayView({
                     {isLogged && workoutData?.loggedWorkoutId ? (
                       <Link
                         href={`/fitness/history/${workoutData.loggedWorkoutId}`}
-                        className="font-medium text-green-700 hover:text-green-800"
+                        className={`font-medium ${colors?.text || 'text-green-700'} hover:underline`}
                       >
                         {event.title} ✓
                       </Link>
                     ) : isPlanned ? (
                       <Link
                         href="/fitness/plans"
-                        className="font-medium text-blue-700 hover:text-blue-800"
+                        className={`font-medium ${colors?.text || 'text-blue-700'} hover:underline opacity-75`}
                       >
                         {event.title}
                       </Link>
@@ -213,15 +252,14 @@ export default function DayView({
                       const workoutData = parseWorkoutTag(event.alignment_tag);
                       const isLogged = workoutData?.isLogged || false;
                       const isPlanned = workoutData?.isPlanned || false;
+                      const colors = workoutData ? getWorkoutTypeColors(event.title) : null;
 
                       return (
                         <div
                           key={event.id}
                           className={`
                             rounded-lg border p-3
-                            ${isLogged ? 'bg-green-50 border-green-200' :
-                              isPlanned ? 'bg-blue-50 border-blue-200' :
-                              'bg-white border-slate-200'}
+                            ${colors ? `${colors.bg} ${colors.border}` : 'bg-white border-slate-200'}
                           `}
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -229,14 +267,14 @@ export default function DayView({
                               {isLogged && workoutData?.loggedWorkoutId ? (
                                 <Link
                                   href={`/fitness/history/${workoutData.loggedWorkoutId}`}
-                                  className="font-semibold text-green-700 hover:text-green-800"
+                                  className={`font-semibold ${colors?.text || 'text-green-700'} hover:underline`}
                                 >
                                   {event.title} ✓
                                 </Link>
                               ) : isPlanned ? (
                                 <Link
                                   href="/fitness/plans"
-                                  className="font-semibold text-blue-700 hover:text-blue-800"
+                                  className={`font-semibold ${colors?.text || 'text-blue-700'} hover:underline opacity-75`}
                                 >
                                   {event.title}
                                 </Link>

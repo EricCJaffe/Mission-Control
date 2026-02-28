@@ -362,18 +362,23 @@ export async function POST(req: Request) {
 
   const eventTitle = `${workoutData.workout_type.charAt(0).toUpperCase() + workoutData.workout_type.slice(1)} Workout`;
 
-  await supabase.from('calendar_events').upsert({
+  const { error: calError } = await supabase.from('calendar_events').upsert({
     user_id: user.id,
     title: eventTitle,
     start_at: workoutStartTime.toISOString(),
     end_at: workoutEndTime.toISOString(),
-    event_type: 'Workout',
+    event_type: 'workout',
+    domain: 'Health',
     alignment_tag: `workout:${log.id}`,
     notes: workoutData.notes,
     completed: true,
   }, {
     onConflict: 'user_id,alignment_tag',
   });
+
+  if (calError) {
+    console.error('Failed to create calendar event for workout:', calError);
+  }
 
   return NextResponse.json({
     ok: true,

@@ -13,6 +13,46 @@ import {
   addMonths,
 } from '@/lib/calendar/date-utils';
 
+// Get color classes based on workout type
+function getWorkoutTypeColors(title: string): { bg: string; text: string; border: string; hoverBg: string } {
+  const lowerTitle = title.toLowerCase();
+
+  if (lowerTitle.includes('cardio')) {
+    return {
+      bg: 'bg-red-50',
+      text: 'text-red-700',
+      border: 'border-red-200',
+      hoverBg: 'hover:bg-red-100',
+    };
+  }
+
+  if (lowerTitle.includes('strength')) {
+    return {
+      bg: 'bg-purple-50',
+      text: 'text-purple-700',
+      border: 'border-purple-200',
+      hoverBg: 'hover:bg-purple-100',
+    };
+  }
+
+  if (lowerTitle.includes('hybrid')) {
+    return {
+      bg: 'bg-orange-50',
+      text: 'text-orange-700',
+      border: 'border-orange-200',
+      hoverBg: 'hover:bg-orange-100',
+    };
+  }
+
+  // Default for other workout types
+  return {
+    bg: 'bg-green-50',
+    text: 'text-green-700',
+    border: 'border-green-200',
+    hoverBg: 'hover:bg-green-100',
+  };
+}
+
 type CalendarEvent = {
   id: string;
   title: string;
@@ -171,6 +211,7 @@ export default function MonthView({
                 {workoutEvents.slice(0, 2).map((event) => {
                   const workoutData = parseWorkoutTag(event.alignment_tag);
                   const isLogged = workoutData?.isLogged || false;
+                  const colors = getWorkoutTypeColors(event.title);
 
                   // Logged workout - link to workout history
                   if (isLogged && workoutData?.loggedWorkoutId) {
@@ -178,7 +219,7 @@ export default function MonthView({
                       <Link
                         key={event.id}
                         href={`/fitness/history/${workoutData.loggedWorkoutId}`}
-                        className="block truncate rounded px-1.5 py-0.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:underline cursor-pointer transition-all"
+                        className={`block truncate rounded px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border} ${colors.hoverBg} hover:underline cursor-pointer transition-all`}
                         title={`${event.title} - Click to view workout details`}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -193,7 +234,7 @@ export default function MonthView({
                       <Link
                         key={event.id}
                         href="/fitness/plans"
-                        className="block truncate rounded px-1.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 hover:underline cursor-pointer transition-all"
+                        className={`block truncate rounded px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border} ${colors.hoverBg} hover:underline cursor-pointer transition-all opacity-75`}
                         title={`${event.title} - Click to view in plans`}
                         onClick={(e) => e.stopPropagation()}
                       >
