@@ -26,10 +26,11 @@ cd "$REPO_DIR"
 
 echo
 
-echo "== Git sync (safe) =="
+echo "== Git sync (safe; first) =="
+# Always try to get current before reading docs. Never merge; fast-forward only.
 git fetch origin --prune
 if [[ -n "$(git status --porcelain)" ]]; then
-  echo "Working tree NOT clean — skipping pull"
+  echo "Working tree NOT clean — skipping pull (will read docs from current local state)"
   git status -sb
 else
   git pull --ff-only
