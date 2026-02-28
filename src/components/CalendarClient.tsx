@@ -268,6 +268,7 @@ export default function CalendarClient({
           selectedDate={selectedDate}
           onDateClick={handleDateClick}
           onNavigate={handleNavigation}
+          onEventClick={handleEventClick as any}
         />
       )}
 

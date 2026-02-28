@@ -58,11 +58,20 @@ type CalendarEvent = {
   title: string;
   start_at: string;
   end_at: string;
-  event_type: string;
-  domain: string;
+  event_type: string | null;
+  domain: string | null;
   alignment_tag: string | null;
+  recurrence_rule?: string | null;
+  recurrence_until?: string | null;
+  goal_id?: string | null;
+  task_id?: string | null;
+  note_id?: string | null;
+  review_id?: string | null;
   notes: string | null;
   completed: boolean;
+  // For recurring occurrences (CalendarClient may expand these)
+  _baseId?: string;
+  _recurring?: boolean;
 };
 
 type MonthViewProps = {
@@ -70,6 +79,7 @@ type MonthViewProps = {
   selectedDate: string; // ISO date string
   onDateClick: (date: string) => void;
   onNavigate: (direction: 'prev' | 'next' | 'today') => void;
+  onEventClick?: (event: CalendarEvent) => void;
 };
 
 export default function MonthView({
@@ -77,6 +87,7 @@ export default function MonthView({
   selectedDate,
   onDateClick,
   onNavigate,
+  onEventClick,
 }: MonthViewProps) {
   const selectedDateObj = new Date(selectedDate);
   const [year, setYear] = useState(selectedDateObj.getFullYear());
@@ -198,13 +209,19 @@ export default function MonthView({
               <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
                 {/* Show first 2 regular events */}
                 {regularEvents.slice(0, 2).map((event) => (
-                  <div
+                  <button
                     key={event.id}
-                    className="truncate rounded px-1.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
-                    title={event.title}
+                    type="button"
+                    className="w-full truncate rounded px-1.5 py-0.5 text-left text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
+                    title={onEventClick ? `${event.title} — click to edit` : event.title}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick?.(event);
+                    }}
+                    disabled={!onEventClick}
                   >
                     {event.title}
-                  </div>
+                  </button>
                 ))}
 
                 {/* Show first 2 workout events */}
@@ -228,18 +245,31 @@ export default function MonthView({
                     );
                   }
 
-                  // Planned workout - link to workout logger with template pre-loaded
+                  // Planned workout - allow editing from calendar (and keep a way to start)
                   if (workoutData?.isPlanned && workoutData?.plannedWorkoutId) {
                     return (
-                      <Link
-                        key={event.id}
-                        href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
-                        className={`block truncate rounded px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border} ${colors.hoverBg} hover:underline cursor-pointer transition-all opacity-75`}
-                        title={`${event.title} - Click to start workout`}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {event.title}
-                      </Link>
+                      <div key={event.id} className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          className={`flex-1 truncate rounded px-1.5 py-0.5 text-left text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border} ${colors.hoverBg} transition-all opacity-75`}
+                          title={onEventClick ? `${event.title} — click to edit scheduled workout` : event.title}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEventClick?.(event);
+                          }}
+                          disabled={!onEventClick}
+                        >
+                          {event.title}
+                        </button>
+                        <Link
+                          href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
+                          className="shrink-0 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] text-slate-600 hover:bg-slate-50"
+                          title="Start workout"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Start
+                        </Link>
+                      </div>
                     );
                   }
 
