@@ -102,6 +102,7 @@ type ExerciseBlock = {
 };
 
 type WorkoutMode = 'select' | 'logging' | 'cardio' | 'complete';
+type LoggerMode = 'template' | 'ai' | 'manual';
 
 const SET_TYPE_LABELS: Record<SetType, string> = {
   warmup: 'Warm', working: 'Work', cooldown: 'Cool', drop: 'Drop', failure: 'Fail', amrap: 'AMRAP',
@@ -160,6 +161,7 @@ function SortableExerciseItem({
 export default function WorkoutLoggerClient({ exercises, templates, todayPlan, latestMetrics, repeatData, templateId }: Props) {
   const router = useRouter();
   const [mode, setMode] = useState<WorkoutMode>('select');
+  const [loggerMode, setLoggerMode] = useState<LoggerMode>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateRow | null>(null);
   const [workoutType, setWorkoutType] = useState<string>(todayPlan?.workout_type ?? 'strength');
   const [blocks, setBlocks] = useState<ExerciseBlock[]>([]);
@@ -955,6 +957,36 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Start Workout</h2>
 
+          {/* Mode Tabs */}
+          <div className="mb-4">
+            <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
+              <button
+                onClick={() => setLoggerMode('template')}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors min-h-[40px] ${
+                  loggerMode === 'template' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                From Template
+              </button>
+              <button
+                onClick={() => setLoggerMode('ai')}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors min-h-[40px] ${
+                  loggerMode === 'ai' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                AI Builder
+              </button>
+              <button
+                onClick={() => setLoggerMode('manual')}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors min-h-[40px] ${
+                  loggerMode === 'manual' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                Manual
+              </button>
+            </div>
+          </div>
+
           <div className="mb-4">
             <label className="text-xs text-slate-500 block mb-2">Type</label>
             <div className="flex flex-wrap gap-2">
@@ -972,9 +1004,10 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             </div>
           </div>
 
-          {templates.length > 0 && (
+          {/* Template selector - only show in template mode */}
+          {loggerMode === 'template' && templates.length > 0 && (
             <div className="mb-4">
-              <label className="text-xs text-slate-500 block mb-2">Template (optional)</label>
+              <label className="text-xs text-slate-500 block mb-2">Select Template</label>
               <select
                 value={selectedTemplate?.id ?? ''}
                 onChange={(e) => {
@@ -984,11 +1017,29 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                 }}
                 className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm w-full"
               >
-                <option value="">— No template (blank) —</option>
+                <option value="">— Choose a template —</option>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* AI Builder hint */}
+          {loggerMode === 'ai' && (
+            <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
+              <p className="text-xs text-blue-700">
+                AI Builder will help you create a workout based on your goals and recent training. Click "Start Workout" to begin.
+              </p>
+            </div>
+          )}
+
+          {/* Manual mode hint */}
+          {loggerMode === 'manual' && (
+            <div className="mb-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <p className="text-xs text-slate-600">
+                Manual mode starts with a blank workout. Add exercises one by one as you go.
+              </p>
             </div>
           )}
 
@@ -1010,8 +1061,16 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             onClick={() => {
               if (workoutType === 'cardio') {
                 setMode('cardio');
+              } else if (loggerMode === 'ai') {
+                // AI mode: Open AI builder directly
+                setMode('logging');
+                setShowAIBuilder(true);
+              } else if (loggerMode === 'manual') {
+                // Manual mode: Start with blank workout
+                setBlocks([]);
+                setMode('logging');
               } else {
-                // Pre-populate from repeat, template, or plan
+                // Template mode: Pre-populate from repeat, template, or plan
                 if (repeatData && repeatData.sets.length > 0) {
                   loadRepeat();
                 } else if (selectedTemplate) {
@@ -1022,9 +1081,10 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                 setMode('logging');
               }
             }}
-            className="w-full rounded-xl bg-slate-800 text-white text-sm font-semibold py-3 hover:bg-slate-700 min-h-[44px]"
+            disabled={loggerMode === 'template' && !selectedTemplate && !repeatData && !todayPlan}
+            className="w-full rounded-xl bg-slate-800 text-white text-sm font-semibold py-3 hover:bg-slate-700 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {repeatData ? 'Repeat Workout' : 'Start Workout'}
+            {repeatData ? 'Repeat Workout' : loggerMode === 'ai' ? 'Build with AI' : 'Start Workout'}
           </button>
         </div>
       </div>

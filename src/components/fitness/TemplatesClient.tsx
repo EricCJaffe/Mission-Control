@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { WorkoutType } from '@/lib/fitness/types';
 import type { ReactNode } from 'react';
 import { Dumbbell, PersonStanding, Zap, Flame } from 'lucide-react';
@@ -21,6 +22,7 @@ const TYPE_ICONS: Record<string, ReactNode> = { strength: <Dumbbell size={20} />
 const TYPES: WorkoutType[] = ['strength', 'cardio', 'hiit', 'hybrid'];
 
 export default function TemplatesClient({ templates: initial }: { templates: TemplateRow[] }) {
+  const router = useRouter();
   const [templates, setTemplates] = useState(initial);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -51,9 +53,8 @@ export default function TemplatesClient({ templates: initial }: { templates: Tem
       });
       const data = await res.json();
       if (data.ok) {
-        setTemplates(prev => [...prev, data.template]);
-        setName(''); setSplitType(''); setNotes('');
-        setShowAdd(false);
+        // Immediately redirect to edit structure page
+        router.push(`/fitness/templates/${data.template.id}/edit`);
       }
     } catch { setError('Network error — could not save'); }
     setSaving(false);
