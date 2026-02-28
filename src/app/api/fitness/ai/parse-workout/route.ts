@@ -97,7 +97,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ParseWork
         };
       } else {
         // Superset
-        const hydratedExercises = item.exercises.map((ex) => {
+        const hydratedExercises = item.exercises.map((ex: any) => {
           const exercise = exerciseLibrary.find((e) => e.id === ex.exercise_id);
           return {
             ...ex,

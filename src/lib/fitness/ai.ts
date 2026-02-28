@@ -8,6 +8,7 @@ import { callOpenAI } from '@/lib/openai';
 import { buildAISystemPrompt, type FunctionType } from './health-context';
 import type {
   WorkoutTemplate,
+  WorkoutStructureItem,
   BodyMetrics,
   FitnessForm,
   BPReading,
@@ -285,8 +286,7 @@ Parse the workout description above and return ONLY the JSON structure. No expla
       type: 'strength',
       structure: [],
       estimated_duration_min: 45,
-      unmatched_exercises: [],
-    };
+    } as any;
   }
 }
 

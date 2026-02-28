@@ -26,6 +26,8 @@ type CalendarEvent = {
   review_id: string | null;
   notes: string | null;
   completed: boolean;
+  _baseId?: string;
+  _recurring?: boolean;
 };
 
 type Option = { id: string; title: string };
@@ -272,7 +274,7 @@ export default function CalendarClient({
         <WeekView
           events={filteredEvents as any}
           weekStart={weekStartDate}
-          onEventClick={handleEventClick}
+          onEventClick={handleEventClick as any}
           onNavigate={handleNavigation}
         />
       )}
@@ -281,7 +283,7 @@ export default function CalendarClient({
         <DayView
           events={filteredEvents as any}
           selectedDate={selectedDate}
-          onEventClick={handleEventClick}
+          onEventClick={handleEventClick as any}
           onNavigate={handleNavigation}
         />
       )}

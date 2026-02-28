@@ -10,6 +10,8 @@ import { buildAISystemPrompt } from './health-context';
 import { callOpenAI } from '@/lib/openai';
 import { diffLines } from 'diff';
 
+const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+
 export type UpdateTrigger =
   | 'medication_change'
   | 'lab_upload'
@@ -553,9 +555,9 @@ Format:
 Return ONLY the section content starting with "## 4. Medication Timing Protocol", nothing else.`;
 
       const content = await callOpenAI({
-        systemPrompt,
-        userPrompt,
-        temperature: 0.3,
+        model: DEFAULT_MODEL,
+        system: systemPrompt,
+        user: userPrompt,
       });
 
       return content.trim();
@@ -585,9 +587,9 @@ Generate the updated table with:
 Return ONLY the section content starting with "## 6. Vital Baselines & Targets", nothing else.`;
 
       const content = await callOpenAI({
-        systemPrompt,
-        userPrompt,
-        temperature: 0.3,
+        model: DEFAULT_MODEL,
+        system: systemPrompt,
+        user: userPrompt,
       });
 
       return content.trim();
@@ -618,9 +620,9 @@ Include:
 Return ONLY the section content starting with "## 9. Genetic / Methylation", nothing else.`;
 
       const content = await callOpenAI({
-        systemPrompt,
-        userPrompt,
-        temperature: 0.3,
+        model: DEFAULT_MODEL,
+        system: systemPrompt,
+        user: userPrompt,
       });
 
       return content.trim();
@@ -653,9 +655,9 @@ Also include a "Supplements to AVOID" subsection with contraindications.
 Return ONLY the section content starting with "## 5. Supplements to Consider", nothing else.`;
 
       const content = await callOpenAI({
-        systemPrompt,
-        userPrompt,
-        temperature: 0.3,
+        model: DEFAULT_MODEL,
+        system: systemPrompt,
+        user: userPrompt,
       });
 
       return content.trim();
@@ -690,9 +692,9 @@ Keep all safety rules intact. Update HR zones if new max HR provided, otherwise 
 Return ONLY the section content starting with "## 7. Training Constraints", nothing else.`;
 
       const content = await callOpenAI({
-        systemPrompt,
-        userPrompt,
-        temperature: 0.2, // Lower temperature for safety-critical content
+        model: DEFAULT_MODEL,
+        system: systemPrompt,
+        user: userPrompt,
       });
 
       return content.trim();

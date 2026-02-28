@@ -691,7 +691,6 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
                     onChange={setEditingNotes}
                     label="Notes"
                     minHeight="120px"
-                    rows={2}
                     placeholder="Exercise notes..."
                   />
                 </div>

@@ -346,6 +346,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             rpe: '',
             rest_seconds: null,
             notes: '',
+            completed: true,
           });
         }
         newBlocks.push({
@@ -355,6 +356,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           sets,
           notes: '',
           superset_group: null,
+          exercise_rpe: '',
         });
       }
       if (newBlocks.length > 0) setBlocks(newBlocks);
@@ -392,6 +394,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         rpe: '',
         rest_seconds: null,
         notes: '',
+        completed: true,
       }));
 
       newBlocks.push({
@@ -401,6 +404,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         sets,
         notes: '',
         superset_group: firstSet?.superset_group ?? null,
+        exercise_rpe: '',
       });
     }
 
@@ -486,7 +490,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       if (item.type === 'superset') {
         const groupId = `ss_${nextBlockId()}`;
         for (const ssExercise of item.exercises) {
-          const ex = exerciseMap.get(ssExercise.exercise_id) ?? item.exercise;
+          const ex = exerciseMap.get(ssExercise.exercise_id);
           const sets: LoggedSet[] = [];
           for (let r = 0; r < item.rounds; r++) {
             sets.push({
