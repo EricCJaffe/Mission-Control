@@ -44,5 +44,8 @@ next-env.d.ts
 .env*
 
 
+# local notes / scratch
+Projects/
+
 # supabase temp
 supabase/.temp
