@@ -63,10 +63,11 @@ export class WithingsImporter {
     };
 
     // Import in priority order
+    // Note: Skipping activities - using Garmin as workout source of truth
     results.bp = await this.importBloodPressure(path.join(exportPath, 'bp.csv'));
     results.weight = await this.importBodyMetrics(path.join(exportPath, 'weight.csv'));
     results.dailyAggregates = await this.importDailyAggregates(exportPath);
-    results.activities = await this.importActivities(path.join(exportPath, 'activities.csv'));
+    // results.activities = await this.importActivities(path.join(exportPath, 'activities.csv')); // DISABLED
     results.sleep = await this.importSleep(path.join(exportPath, 'sleep.csv'));
 
     return results;
@@ -119,8 +120,8 @@ export class WithingsImporter {
           .from('bp_readings')
           .select('id')
           .eq('user_id', this.userId)
-          .gte('measured_at', twoMinsBefore.toISOString())
-          .lte('measured_at', twoMinsAfter.toISOString())
+          .gte('reading_date', twoMinsBefore.toISOString())
+          .lte('reading_date', twoMinsAfter.toISOString())
           .limit(1);
 
         if (existing && existing.length > 0) {
@@ -128,10 +129,10 @@ export class WithingsImporter {
           continue;
         }
 
-        // Insert new reading
+        // Insert new reading (deduplication handled above)
         const { error } = await this.supabase.from('bp_readings').insert({
           user_id: this.userId,
-          measured_at: measured_at.toISOString(),
+          reading_date: measured_at.toISOString(),
           systolic: parseInt(row.Systolic),
           diastolic: parseInt(row.Diastolic),
           pulse: row['Heart rate'] ? parseInt(row['Heart rate']) : null,
@@ -203,27 +204,28 @@ export class WithingsImporter {
         // Calculate body fat % if we have fat mass
         const body_fat_pct = fat_mass_lbs ? ((fat_mass_lbs / weight_lbs) * 100) : null;
 
-        // Insert with ON CONFLICT DO NOTHING (unique constraint on user_id, metric_date)
-        const { error } = await this.supabase.from('body_metrics').insert({
-          user_id: this.userId,
-          metric_date: metric_date,
-          weight_lbs: weight_lbs,
-          body_fat_pct: body_fat_pct ? parseFloat(body_fat_pct.toFixed(1)) : null,
-          muscle_mass_lbs: muscle_mass_lbs,
-          bone_mass_lbs: bone_mass_lbs,
-          hydration_lbs: hydration_lbs,
-          weight_source: 'Withings',
-          notes: row.Comments || null,
-        });
+        // Smart upsert: merge Withings data with existing (unique constraint on user_id, metric_date)
+        const { error } = await this.supabase.from('body_metrics').upsert(
+          {
+            user_id: this.userId,
+            metric_date: metric_date,
+            weight_lbs: weight_lbs,
+            body_fat_pct: body_fat_pct ? parseFloat(body_fat_pct.toFixed(1)) : null,
+            muscle_mass_lbs: muscle_mass_lbs,
+            bone_mass_lbs: bone_mass_lbs,
+            hydration_lbs: hydration_lbs,
+            weight_source: 'Withings',
+            notes: row.Comments || null,
+          },
+          {
+            onConflict: 'user_id,metric_date',
+            ignoreDuplicates: false,
+          }
+        );
 
         if (error) {
-          if (error.code === '23505') {
-            // Duplicate entry
-            stats.skipped++;
-          } else {
-            console.error('Body metrics insert error:', error);
-            stats.errors++;
-          }
+          console.error('Body metrics upsert error:', error);
+          stats.errors++;
         } else {
           stats.imported++;
         }
@@ -289,8 +291,8 @@ export class WithingsImporter {
           .from('workout_logs')
           .select('id')
           .eq('user_id', this.userId)
-          .gte('start_time', fiveMinsBefore.toISOString())
-          .lte('start_time', fiveMinsAfter.toISOString())
+          .gte('workout_date', fiveMinsBefore.toISOString())
+          .lte('workout_date', fiveMinsAfter.toISOString())
           .limit(1);
 
         if (existing && existing.length > 0) {
@@ -307,14 +309,10 @@ export class WithingsImporter {
           .from('workout_logs')
           .insert({
             user_id: this.userId,
-            start_time: start_time.toISOString(),
-            duration_seconds: duration_seconds,
+            workout_date: start_time.toISOString(),
+            duration_minutes: Math.round(duration_seconds / 60),
             workout_type: workoutType,
-            avg_hr: activityData.hr_average || null,
-            max_hr: activityData.hr_max || null,
-            min_hr: activityData.hr_min || null,
-            calories_burned: activityData.calories || null,
-            session_notes: activityType,
+            notes: activityType,
             external_id: `withings_${row.from}`,
             import_source: 'Withings',
           })
@@ -339,6 +337,7 @@ export class WithingsImporter {
             max_hr: activityData.hr_max || null,
             min_hr: activityData.hr_min || null,
             avg_pace_per_mile: this.calculatePace(duration_seconds, distance_miles, activityType),
+            calories: activityData.calories || null,
             hr_zone_0_seconds: activityData.hr_zone_0 || null,
             hr_zone_1_seconds: activityData.hr_zone_1 || null,
             hr_zone_2_seconds: activityData.hr_zone_2 || null,
@@ -416,25 +415,28 @@ export class WithingsImporter {
       try {
         const total_calories = (dayData.active_calories || 0) + (dayData.bmr_calories || 0);
 
-        const { error } = await this.supabase.from('daily_summaries').insert({
-          user_id: this.userId,
-          summary_date: dateKey,
-          total_steps: dayData.steps || null,
-          distance_miles: dayData.distance_miles || null,
-          floors_climbed: dayData.floors_climbed || null,
-          total_calories: total_calories > 0 ? total_calories : null,
-          active_calories: dayData.active_calories || null,
-          bmr_calories: dayData.bmr_calories || null,
-          source: 'Withings',
-        });
+        // Smart upsert: merge Withings data with existing (unique constraint on user_id, summary_date)
+        const { error } = await this.supabase.from('daily_summaries').upsert(
+          {
+            user_id: this.userId,
+            summary_date: dateKey,
+            total_steps: dayData.steps || null,
+            distance_miles: dayData.distance_miles || null,
+            floors_climbed: dayData.floors_climbed || null,
+            total_calories: total_calories > 0 ? total_calories : null,
+            active_calories: dayData.active_calories || null,
+            bmr_calories: dayData.bmr_calories || null,
+            source: 'Withings',
+          },
+          {
+            onConflict: 'user_id,summary_date',
+            ignoreDuplicates: false,
+          }
+        );
 
         if (error) {
-          if (error.code === '23505') {
-            stats.skipped++;
-          } else {
-            console.error('Daily summary insert error:', error);
-            stats.errors++;
-          }
+          console.error('Daily summary upsert error:', error);
+          stats.errors++;
         } else {
           stats.imported++;
         }
@@ -496,34 +498,37 @@ export class WithingsImporter {
           continue;
         }
 
-        const { error } = await this.supabase.from('sleep_logs').insert({
-          user_id: this.userId,
-          sleep_date: sleep_date,
-          sleep_start: sleep_start.toISOString(),
-          sleep_end: sleep_end.toISOString(),
-          total_sleep_seconds: total_sleep_seconds,
-          light_sleep_seconds: light_sleep_seconds > 0 ? light_sleep_seconds : null,
-          deep_sleep_seconds: deep_sleep_seconds > 0 ? deep_sleep_seconds : null,
-          rem_sleep_seconds: rem_sleep_seconds > 0 ? rem_sleep_seconds : null,
-          awake_seconds: awake_seconds > 0 ? awake_seconds : null,
-          avg_hr: row['Average heart rate'] ? parseInt(row['Average heart rate']) : null,
-          min_hr: row['Heart rate (min)'] ? parseInt(row['Heart rate (min)']) : null,
-          max_hr: row['Heart rate (max)'] ? parseInt(row['Heart rate (max)']) : null,
-          duration_to_sleep_seconds: row['Duration to sleep (s)'] ? parseInt(row['Duration to sleep (s)']) : null,
-          duration_to_wake_seconds: row['Duration to wake up (s)'] ? parseInt(row['Duration to wake up (s)']) : null,
-          wake_up_count: row['wake up'] ? parseInt(row['wake up']) : null,
-          snoring_seconds: row['Snoring (s)'] ? parseInt(row['Snoring (s)']) : null,
-          snoring_episodes: row['Snoring episodes'] ? parseInt(row['Snoring episodes']) : null,
-          source: 'Withings',
-        });
+        // Smart upsert: merge Withings data with existing (unique constraint on user_id, sleep_date)
+        const { error } = await this.supabase.from('sleep_logs').upsert(
+          {
+            user_id: this.userId,
+            sleep_date: sleep_date,
+            sleep_start: sleep_start.toISOString(),
+            sleep_end: sleep_end.toISOString(),
+            total_sleep_seconds: total_sleep_seconds,
+            light_sleep_seconds: light_sleep_seconds > 0 ? light_sleep_seconds : null,
+            deep_sleep_seconds: deep_sleep_seconds > 0 ? deep_sleep_seconds : null,
+            rem_sleep_seconds: rem_sleep_seconds > 0 ? rem_sleep_seconds : null,
+            awake_seconds: awake_seconds > 0 ? awake_seconds : null,
+            avg_hr: row['Average heart rate'] ? parseInt(row['Average heart rate']) : null,
+            min_hr: row['Heart rate (min)'] ? parseInt(row['Heart rate (min)']) : null,
+            max_hr: row['Heart rate (max)'] ? parseInt(row['Heart rate (max)']) : null,
+            duration_to_sleep_seconds: row['Duration to sleep (s)'] ? parseInt(row['Duration to sleep (s)']) : null,
+            duration_to_wake_seconds: row['Duration to wake up (s)'] ? parseInt(row['Duration to wake up (s)']) : null,
+            wake_up_count: row['wake up'] ? parseInt(row['wake up']) : null,
+            snoring_seconds: row['Snoring (s)'] ? parseInt(row['Snoring (s)']) : null,
+            snoring_episodes: row['Snoring episodes'] ? parseInt(row['Snoring episodes']) : null,
+            source: 'Withings',
+          },
+          {
+            onConflict: 'user_id,sleep_date',
+            ignoreDuplicates: false,
+          }
+        );
 
         if (error) {
-          if (error.code === '23505') {
-            stats.skipped++;
-          } else {
-            console.error('Sleep insert error:', error);
-            stats.errors++;
-          }
+          console.error('Sleep upsert error:', error);
+          stats.errors++;
         } else {
           stats.imported++;
         }

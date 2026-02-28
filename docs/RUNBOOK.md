@@ -77,3 +77,21 @@
   - If invalid key: Generate new key from OpenAI dashboard.
   - If model not available: Check `OPENAI_MODEL` override and ensure model name is valid (defaults: `gpt-5.2` for books/sermons, `gpt-4o-mini` for fitness).
   - Consider adding retry logic or fallback models for production resilience.
+
+## 7) Next.js Turbopack cache corruption (dev server crashes)
+- Symptom:
+  - Dev server crashes with "FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory".
+  - After restart, errors like "Failed to restore task data (corrupted database or bug)" or "No such file or directory" for .sst files.
+  - "Unable to acquire lock" or "Another write batch or compaction is already active" errors.
+  - Missing build-manifest.json files.
+- Checks:
+  - Check server logs for Turbopack database corruption messages.
+  - Verify `.next` directory exists and has corrupted cache files.
+  - Check for lingering lock files at `.next/dev/lock`.
+- Fix:
+  1. Kill all Next.js dev processes: `ps aux | grep "[n]ext dev" | awk '{print $2}' | xargs kill -9`
+  2. Kill processes on dev ports: `lsof -ti:3000,3001,3002 | xargs kill -9`
+  3. Delete corrupted cache: `rm -rf .next`
+  4. Remove lock file: `rm -f .next/dev/lock`
+  5. Restart dev server: `npm run dev`
+  - Note: First restart will show warning "Turbopack's filesystem cache has been deleted" - this is expected and normal.

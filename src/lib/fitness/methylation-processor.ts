@@ -3,6 +3,7 @@
 
 import { supabaseServer } from '@/lib/supabase/server';
 import { buildAISystemPrompt } from './health-context';
+import { extractText } from 'unpdf';
 
 /**
  * Process methylation/genetic report PDF
@@ -31,15 +32,35 @@ export async function processMethylationReport(params: {
       return { success: false, error: 'Failed to download file from storage' };
     }
 
-    // Convert to base64 for OpenAI
+    // Extract text from PDF
     const arrayBuffer = await fileData.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-    const mimeType = fileData.type || 'application/pdf';
+    const uint8Array = new Uint8Array(arrayBuffer);
+    console.log(`📄 Extracting text from methylation report (${uint8Array.length} bytes)`);
 
-    // Call OpenAI GPT-4o with vision to extract SNP data
+    let pdfText = '';
+    try {
+      const result = await extractText(uint8Array);
+
+      // unpdf returns { totalPages, text: string[] }
+      pdfText = Array.isArray(result.text)
+        ? result.text.join('\n\n')
+        : (result.text || '');
+
+      if (!pdfText || typeof pdfText !== 'string' || pdfText.trim().length === 0) {
+        console.error('❌ No text extracted from methylation report');
+        return { success: false, error: 'PDF is empty or scanned image' };
+      }
+
+      console.log(`✅ Extracted ${pdfText.length} characters from methylation report`);
+    } catch (pdfError) {
+      console.error('❌ PDF parsing error:', pdfError);
+      return { success: false, error: 'Failed to parse PDF file' };
+    }
+
+    // Send extracted text to GPT-4 for SNP extraction
     const extractionPrompt = `You are extracting SNP (Single Nucleotide Polymorphism) data from a genetic/methylation test report.
 
-Extract ALL SNPs visible in the report, focusing on these key genes:
+Below is the text extracted from a methylation report PDF. Extract ALL SNPs visible in the text, focusing on these key genes:
 - MTHFR (C677T, A1298C)
 - COMT (V158M)
 - CBS (C699T)
@@ -74,7 +95,11 @@ Return JSON in this format:
 }
 \`\`\`
 
-Be thorough. Extract EVERY SNP visible. Return ONLY the JSON.`;
+Be thorough. Extract EVERY SNP visible. Return ONLY the JSON.
+
+---PDF TEXT---
+${pdfText}
+---END PDF TEXT---`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -84,34 +109,24 @@ Be thorough. Extract EVERY SNP visible. Return ONLY the JSON.`;
       },
       body: JSON.stringify({
         model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: extractionPrompt },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mimeType};base64,${base64}`,
-                },
-              },
-            ],
-          },
-        ],
+        messages: [{ role: 'user', content: extractionPrompt }],
         max_tokens: 3000,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
+      console.error('❌ OpenAI API error:', response.status, errorText);
       return { success: false, error: `OpenAI API error: ${response.status}` };
     }
+
+    console.log('✅ OpenAI response received for methylation extraction');
 
     const aiResponse = await response.json();
     const extractedText = aiResponse.choices[0]?.message?.content;
 
     if (!extractedText) {
+      console.error('❌ No content returned from OpenAI');
       return { success: false, error: 'No content returned from OpenAI' };
     }
 
@@ -119,11 +134,13 @@ Be thorough. Extract EVERY SNP visible. Return ONLY the JSON.`;
     let extractedData: {
       snps: Array<{
         gene: string;
-        variant: string;
+        variant?: string;
         rs_id: string;
         genotype: string;
         status: string;
         notes?: string;
+        clinical_significance?: string;
+        supplement_implications?: string;
       }>;
     };
 
@@ -136,26 +153,57 @@ Be thorough. Extract EVERY SNP visible. Return ONLY the JSON.`;
       return { success: false, error: 'Failed to parse AI response as JSON' };
     }
 
-    // Store genetic markers
-    const markersToInsert = extractedData.snps.map(snp => ({
-      user_id: userId,
-      file_id: fileId,
-      gene: snp.gene,
-      variant: snp.variant,
-      rs_id: snp.rs_id,
-      genotype: snp.genotype,
-      status: snp.status,
-      notes: snp.notes || null,
-    }));
+    // Store genetic markers - map to actual database schema
+    const markersToInsert = extractedData.snps.map(snp => {
+      // Map status to risk_level (normal, moderate, high)
+      let risk_level = 'normal';
+      const statusLower = snp.status?.toLowerCase() || '';
+      if (statusLower.includes('homozygous') || statusLower.includes('+/+')) {
+        risk_level = 'high';
+      } else if (statusLower.includes('heterozygous') || statusLower.includes('+/-')) {
+        risk_level = 'moderate';
+      }
 
-    const { error: insertError } = await supabase
-      .from('genetic_markers')
-      .insert(markersToInsert);
+      return {
+        user_id: userId,
+        file_id: fileId,
+        snp_id: snp.rs_id, // rs_id → snp_id
+        gene: snp.gene,
+        genotype: snp.genotype,
+        risk_level,
+        clinical_significance: snp.clinical_significance || snp.notes || null,
+        supplement_implications: snp.supplement_implications || null,
+      };
+    });
+
+    console.log(`📊 Inserting ${markersToInsert.length} genetic markers`);
+    console.log(`📋 First marker sample:`, JSON.stringify(markersToInsert[0], null, 2));
+
+    // Use RPC function to bypass PostgREST schema cache issues
+    const { data: rpcResult, error: insertError } = await supabase.rpc('insert_genetic_markers', {
+      p_user_id: userId,
+      p_file_id: fileId,
+      p_markers: markersToInsert.map(m => ({
+        snp_id: m.snp_id,
+        gene: m.gene,
+        genotype: m.genotype,
+        risk_level: m.risk_level,
+        clinical_significance: m.clinical_significance,
+        supplement_implications: m.supplement_implications,
+      }))
+    });
 
     if (insertError) {
-      console.error('Failed to insert genetic markers:', insertError);
-      return { success: false, error: 'Failed to store genetic markers' };
+      console.error('❌ RPC error:', insertError);
+      return { success: false, error: `Failed to store genetic markers: ${insertError.message}` };
     }
+
+    if (rpcResult && !rpcResult.success) {
+      console.error('❌ Function error:', rpcResult.error);
+      return { success: false, error: `Failed to store genetic markers: ${rpcResult.error}` };
+    }
+
+    console.log(`✅ Successfully inserted ${markersToInsert.length} genetic markers via RPC`);
 
     // Generate implications using AI with health context
     await generateMethylationAnalysis({ userId, fileId });

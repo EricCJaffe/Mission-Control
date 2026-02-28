@@ -58,6 +58,9 @@ TacPastor’s Mission Control is a personal-first system for projects, tasks, go
   - `/fitness/settings` — Athlete profile (zones, FTP, meds, baselines)
   - `/fitness/appointments` — Medical appointments
   - `/fitness/medications` — Medication tracking
+  - `/fitness/metrics/rhr` — Resting heart rate trends with AI insights
+  - `/fitness/metrics/hrv` — Heart rate variability trends with AI insights
+  - `/fitness/sleep` — Sleep tracking dashboard
 - Fitness API routes (`/api/fitness/*`):
   - `/api/fitness/workouts` — Workout CRUD
   - `/api/fitness/exercises` — Exercise CRUD
@@ -77,6 +80,10 @@ TacPastor’s Mission Control is a personal-first system for projects, tasks, go
   - `/api/fitness/labs` — Lab results + AI analysis
   - `/api/fitness/appointments` — Appointments CRUD
   - `/api/fitness/medications` — Medications CRUD
+  - `/api/fitness/insights/rhr` — Generate AI insights for RHR trends
+  - `/api/fitness/insights/hrv` — Generate AI insights for HRV trends
+  - `/api/fitness/garmin/mass-import` — Bulk import Garmin Connect historical data
+  - `/api/fitness/withings/cleanup` — Clean up duplicate Withings imports
   - `/api/fitness/ai/*` — AI workout builder, insights, summaries
 - AI/API routes:
   - `/api/ai`
@@ -101,14 +108,20 @@ TacPastor’s Mission Control is a personal-first system for projects, tasks, go
 ## Key Entry Points (Fitness)
 - `src/app/fitness/page.tsx` — Dashboard server component
 - `src/components/fitness/WorkoutLoggerClient.tsx` — Core workout logging UI (largest client component)
-- `src/components/fitness/FitnessDashboardClient.tsx` — Dashboard client component
+- `src/components/fitness/FitnessDashboardClient.tsx` — Dashboard client component with colored metric cards
+- `src/components/fitness/RHRDashboardClient.tsx` — Resting HR trends with AI insights
+- `src/components/fitness/HRVDashboardClient.tsx` — HRV trends with AI insights
+- `src/components/fitness/SleepDashboardClient.tsx` — Sleep tracking dashboard
 - `src/lib/fitness/types.ts` — All fitness type definitions
 - `src/lib/fitness/ai.ts` — AI service layer for fitness
 - `src/lib/fitness/tss.ts` — TSS calculation engine
 - `src/lib/fitness/pmc.ts` — PMC (CTL/ATL/TSB) calculator
 - `src/lib/fitness/readiness.ts` — Composite readiness score
 - `src/lib/fitness/strain.ts` — Daily strain scoring
-- `supabase/migrations/20260225100000_fitness_module.sql` — Database schema (NOT YET APPLIED)
+- `src/lib/fitness/garmin-import.ts` — Garmin Connect historical data import
+- `src/lib/fitness/withings-import.ts` — Withings Health Mate data import
+- `supabase/migrations/20260225100000_fitness_module.sql` — Database schema (✅ APPLIED)
+- `supabase/migrations/20260228300000_withings_import_schema.sql` — Sleep logs, daily summaries (✅ APPLIED)
 
 ## Module Flags
 - `ADMIN_EMAIL` gates Knowledge export UI action to a single email when set (`src/app/knowledge/page.tsx`).

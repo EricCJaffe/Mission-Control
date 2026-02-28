@@ -103,18 +103,21 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
   const loadMethylationReports = async () => {
     setMethylationLoading(true);
     try {
-      const response = await fetch('/api/fitness/health/view');
+      const response = await fetch('/api/fitness/health/methylation');
       const result = await response.json();
 
-      if (response.ok && result.document) {
-        // Extract methylation data from health document
-        const methylationSection = result.document.sections?.find(
-          (s: any) => s.type === 'methylation' || s.title?.toLowerCase().includes('methylation')
-        );
-        setMethylationReports(methylationSection ? [methylationSection] : []);
+      console.log('Methylation API response:', { status: response.status, result });
+
+      if (response.ok && result.reports) {
+        console.log(`Loaded ${result.reports.length} methylation reports with ${result.total_markers} total markers`);
+        setMethylationReports(result.reports);
+      } else {
+        console.warn('No methylation reports found or error:', result);
+        setMethylationReports([]);
       }
     } catch (err) {
       console.error('Failed to load methylation reports:', err);
+      setMethylationReports([]);
     } finally {
       setMethylationLoading(false);
     }
@@ -824,10 +827,19 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
             </div>
           ) : methylationReports.length === 0 ? (
             <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Methylation Reports</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Methylation Reports Found</h3>
               <p className="text-gray-600 mb-4">
                 Upload your DNA methylation reports (e.g., from 23andMe, AncestryDNA, TruDiagnostic) to see genetic insights and SNP analysis.
               </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-sm text-left max-w-md mx-auto">
+                <p className="font-medium text-blue-900 mb-2">Troubleshooting:</p>
+                <ul className="text-blue-800 space-y-1 text-xs">
+                  <li>• Check browser console (F12) for API response details</li>
+                  <li>• Verify file was uploaded as "Methylation Report" type</li>
+                  <li>• Processing may take 30-60 seconds after upload</li>
+                  <li>• Check /fitness/health/upload page for upload status</li>
+                </ul>
+              </div>
               <a
                 href="/fitness/health/upload"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm"
@@ -837,46 +849,141 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
               </a>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {methylationReports.map((report, idx) => (
-                <div key={idx} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{report.title || 'Methylation Report'}</h3>
-                  {report.content && (
-                    <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
-                      {report.content}
-                    </div>
-                  )}
-                  {report.snps && (
-                    <div className="mt-4">
-                      <h4 className="font-medium text-gray-900 mb-2">SNPs Analyzed</h4>
-                      <div className="text-sm text-gray-600">
-                        {JSON.stringify(report.snps, null, 2)}
+            <div className="space-y-6">
+              {methylationReports.map((report: any, idx: number) => (
+                <div key={idx} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+                  {/* Report Header */}
+                  <div className="bg-purple-50 border-b border-purple-100 p-6">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold text-purple-900 mb-1">{report.file_name}</h3>
+                        <p className="text-sm text-purple-700">
+                          {report.marker_count} genetic markers analyzed • Uploaded {new Date(report.upload_date).toLocaleDateString()}
+                        </p>
                       </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        report.processing_status === 'completed'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {report.processing_status || 'processed'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* AI Analysis Summary */}
+                  {report.analysis && (
+                    <div className="p-6 border-b border-slate-100 bg-gradient-to-br from-purple-50/50 to-white">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Bot className="text-purple-600" size={20} />
+                        <h4 className="font-semibold text-slate-900">AI Analysis</h4>
+                      </div>
+
+                      {report.analysis.summary && (
+                        <p className="text-sm text-slate-700 mb-4 leading-relaxed">{report.analysis.summary}</p>
+                      )}
+
+                      {/* Supplement Recommendations */}
+                      {report.analysis.supplement_recommendations && report.analysis.supplement_recommendations.length > 0 && (
+                        <div className="mb-4">
+                          <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                            <Leaf size={14} /> Supplement Recommendations
+                          </h5>
+                          <div className="space-y-2">
+                            {report.analysis.supplement_recommendations.map((rec: any, i: number) => (
+                              <div key={i} className="bg-white rounded-lg p-3 border border-green-100">
+                                <div className="flex items-start justify-between mb-1">
+                                  <p className="font-medium text-sm text-slate-900">{rec.supplement}</p>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                    rec.priority === 'high' ? 'bg-red-100 text-red-700' :
+                                    rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-slate-100 text-slate-700'
+                                  }`}>
+                                    {rec.priority}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600 mb-1">{rec.reason}</p>
+                                {rec.dosage && <p className="text-xs text-slate-500 font-mono">{rec.dosage}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Lifestyle Recommendations */}
+                      {report.analysis.lifestyle_recommendations && report.analysis.lifestyle_recommendations.length > 0 && (
+                        <div className="mb-4">
+                          <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                            <Dumbbell size={14} /> Lifestyle Recommendations
+                          </h5>
+                          <div className="space-y-2">
+                            {report.analysis.lifestyle_recommendations.map((rec: any, i: number) => (
+                              <div key={i} className="bg-white rounded-lg p-3 border border-blue-100">
+                                <p className="font-medium text-sm text-slate-900 mb-1">{rec.area}</p>
+                                <p className="text-xs text-slate-600">{rec.recommendation}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Cardiac Relevance */}
+                      {report.analysis.cardiac_relevance && (
+                        <div className="bg-red-50 rounded-lg p-3 border border-red-100">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Stethoscope size={14} className="text-red-600" />
+                            <h5 className="text-xs font-semibold text-red-900 uppercase tracking-wide">Cardiac Relevance</h5>
+                          </div>
+                          <p className="text-xs text-red-800">{report.analysis.cardiac_relevance}</p>
+                        </div>
+                      )}
                     </div>
                   )}
+
+                  {/* SNP Data Table */}
+                  <div className="p-6">
+                    <h4 className="font-semibold text-slate-900 mb-4">Genetic Markers (SNPs)</h4>
+                    <div className="space-y-4">
+                      {Object.entries(report.markers_by_gene).map(([gene, markers]: [string, any]) => (
+                        <div key={gene} className="border border-slate-200 rounded-lg overflow-hidden">
+                          <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+                            <h5 className="font-semibold text-slate-900">{gene}</h5>
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {markers.map((marker: any, i: number) => (
+                              <div key={i} className="px-4 py-3 hover:bg-slate-50 transition-colors">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="font-mono text-sm font-medium text-slate-900">{marker.snp_id}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs">
+                                      <span className="font-mono text-slate-700">Genotype: {marker.genotype}</span>
+                                      <span className={`px-2 py-0.5 rounded-full font-medium ${
+                                        marker.risk_level === 'normal' ? 'bg-green-100 text-green-700' :
+                                        marker.risk_level === 'moderate' ? 'bg-yellow-100 text-yellow-700' :
+                                        marker.risk_level === 'high' ? 'bg-orange-100 text-orange-700' :
+                                        'bg-slate-100 text-slate-700'
+                                      }`}>
+                                        {marker.risk_level}
+                                      </span>
+                                    </div>
+                                    {marker.clinical_significance && (
+                                      <p className="text-xs text-slate-600 mt-1">{marker.clinical_significance}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           )}
-
-          {/* How It Works Section */}
-          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
-            <h3 className="text-lg font-semibold text-blue-900 mb-3">How Methylation Reports Work</h3>
-            <div className="space-y-2 text-sm text-gray-700">
-              <p>
-                <strong>DNA Methylation</strong> is an epigenetic modification that affects gene expression without changing the DNA sequence itself. Methylation patterns can provide insights into:
-              </p>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>Biological age vs chronological age</li>
-                <li>Health span and longevity markers</li>
-                <li>Disease risk prediction</li>
-                <li>Response to lifestyle interventions</li>
-              </ul>
-              <p className="mt-3">
-                Upload reports from providers like <strong>TruDiagnostic</strong>, <strong>myDNAge</strong>, or raw data from <strong>23andMe</strong> / <strong>AncestryDNA</strong> to track your epigenetic health over time.
-              </p>
-            </div>
-          </div>
         </div>
       )}
     </div>

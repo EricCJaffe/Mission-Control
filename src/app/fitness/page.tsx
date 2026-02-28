@@ -23,6 +23,7 @@ export default async function FitnessPage() {
     { data: weekPlanned },
     { data: readiness },
     { data: strain },
+    { data: latestSleep },
   ] = await Promise.all([
     supabase
       .from('planned_workouts')
@@ -36,13 +37,21 @@ export default async function FitnessPage() {
       .eq('user_id', user.id)
       .order('workout_date', { ascending: false })
       .limit(5),
+    // Get latest body metrics record
     supabase
       .from('body_metrics')
       .select('resting_hr, hrv_ms, body_battery, sleep_score, training_readiness, weight_lbs, metric_date')
       .eq('user_id', user.id)
       .order('metric_date', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(10)
+      .then(result => {
+        // Find the first record with actual data (not just weight)
+        const record = result.data?.find(r =>
+          r.resting_hr != null || r.hrv_ms != null || r.body_battery != null || r.sleep_score != null
+        ) || result.data?.[0] || null;
+        console.log('[Fitness Dashboard] Latest body_metrics with data:', record);
+        return { data: record, error: result.error };
+      }),
     supabase
       .from('bp_readings')
       .select('systolic, diastolic, pulse, flag_level, reading_date')
@@ -74,16 +83,43 @@ export default async function FitnessPage() {
       .order('scheduled_date', { ascending: true }),
     supabase
       .from('daily_readiness')
-      .select('readiness_score, readiness_color, readiness_label, recommendation')
+      .select('readiness_score, readiness_color, readiness_label, recommendation, calc_date')
       .eq('user_id', user.id)
-      .eq('calc_date', today)
+      .order('calc_date', { ascending: false })
+      .limit(1)
       .maybeSingle(),
     supabase
       .from('daily_strain')
-      .select('strain_score, strain_level')
+      .select('strain_score, strain_level, calc_date')
       .eq('user_id', user.id)
-      .eq('calc_date', today)
+      .order('calc_date', { ascending: false })
+      .limit(1)
       .maybeSingle(),
+    supabase
+      .from('sleep_logs')
+      .select('total_sleep_seconds, sleep_score, avg_hr, sleep_date')
+      .eq('user_id', user.id)
+      .order('sleep_date', { ascending: false })
+      .limit(7) // Get last 7 days for averaging
+      .then(result => {
+        const logs = result.data || [];
+        const latestNight = logs[0] || null;
+        const avgHours = logs.length > 0
+          ? logs.reduce((sum, log) => sum + log.total_sleep_seconds, 0) / logs.length / 3600
+          : null;
+        const avgScore = logs.length > 0
+          ? Math.round(logs.filter(l => l.sleep_score != null).reduce((sum, log) => sum + (log.sleep_score || 0), 0) / logs.filter(l => l.sleep_score != null).length)
+          : null;
+        return {
+          data: latestNight ? {
+            ...latestNight,
+            avg_hours: avgHours,
+            avg_score: avgScore,
+            days_counted: logs.length,
+          } : null,
+          error: result.error
+        };
+      }),
   ]);
 
   // Get workout logs for this week to cross-reference with planned
@@ -118,6 +154,7 @@ export default async function FitnessPage() {
         weekLogs={weekLogs ?? []}
         readiness={readiness}
         strain={strain}
+        latestSleep={latestSleep}
       />
     </main>
   );

@@ -38,6 +38,27 @@
 - `POST /books/chapters/comments/bulk-reject`
   - Auth required.
   - Accepts `comment_ids[]`, rejects selected inline comments.
+- `POST /api/fitness/insights/rhr`
+  - Auth required.
+  - Accepts `{ rhrData, stats }` with 30-day RHR data and statistics.
+  - Generates AI analysis and recommendations for resting heart rate trends.
+  - Saves insight to `ai_insights` table with type `rhr_analysis`.
+  - Returns `{ insight }` with generated content.
+- `POST /api/fitness/insights/hrv`
+  - Auth required.
+  - Accepts `{ hrvData, stats }` with 30-day HRV data and statistics.
+  - Generates AI analysis and recommendations for heart rate variability trends.
+  - Saves insight to `ai_insights` table with type `hrv_analysis`.
+  - Returns `{ insight }` with generated content.
+- `GET /api/fitness/health/methylation`
+  - Auth required.
+  - Fetches all genetic markers and associated methylation reports for the current user.
+  - Queries `genetic_markers` table and joins with `health_file_uploads` for AI analysis.
+  - Groups markers by file and by gene for organized display.
+  - Returns `{ reports, total_markers }` where each report includes:
+    - `file_id`, `file_name`, `upload_date`, `processing_status`
+    - `analysis` (AI-generated supplement/lifestyle recommendations from processing_metadata)
+    - `marker_count`, `markers`, `markers_by_gene` (SNP data grouped by gene)
 
 ## File/Download Endpoints
 - `GET /attachments/[id]/download`

@@ -46,7 +46,7 @@ export default async function BodyMetricsPage() {
             <span className="inline-flex items-center gap-1.5"><BarChart3 size={16} /> View Full History</span>
           </Link>
           <Link
-            href="/fitness/metrics/trends"
+            href="/fitness/trends"
             className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
           >
             <span className="inline-flex items-center gap-1.5"><TrendingUp size={16} /> Trends & Charts</span>

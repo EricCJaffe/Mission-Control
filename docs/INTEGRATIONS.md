@@ -23,9 +23,27 @@
 - macOS `textutil` integration in `scripts/import_book_from_rtf.mjs`
   - Used to convert RTF input to text before inserting book/chapter data.
 
+## Data Import Integrations (Implemented)
+- Withings Health Mate Export
+  - Purpose: Import historical health data (BP, weight, sleep, activity) from Withings Health Mate CSV exports.
+  - Status: ✅ Fully implemented with UI at `/fitness/settings/withings`.
+  - Integration helper: `src/lib/fitness/withings-import.ts`.
+  - Components: `WithingsImportForm.tsx`.
+  - API route: `/api/fitness/withings/cleanup` for duplicate handling.
+  - Tables: `bp_readings`, `body_metrics`, `sleep_logs`, `daily_summaries`.
+  - Migration: `20260228300000_withings_import_schema.sql`.
+- Garmin Connect Export
+  - Purpose: Import historical activities and health data from Garmin Connect CSV exports.
+  - Status: ✅ Implemented with mass import UI at `/fitness/settings/garmin/mass-import`.
+  - Integration helper: `src/lib/fitness/garmin-import.ts`.
+  - Components: `GarminMassImportForm.tsx`.
+  - API routes: `/api/fitness/garmin/mass-import`, `/api/fitness/garmin/fix-distances`.
+  - Tables: `workout_logs`, `cardio_logs`, `body_metrics`, `sleep_logs`.
+  - Supports: Activities CSV, DailySummaries CSV, weight CSV, sleep CSV.
+
 ## Planned Integrations (Not Yet Implemented)
-- Garmin Connect API
-  - Purpose: sync activities from Garmin devices (watches, bike computers) into fitness module.
-  - Status: Library functions exist in `src/lib/fitness/garmin-sync.ts` but OAuth client not implemented.
+- Garmin Connect OAuth API (Live Sync)
+  - Purpose: Real-time sync activities from Garmin devices (watches, bike computers).
+  - Status: Manual CSV import works; OAuth client not implemented.
   - Would require: Garmin Health API credentials, OAuth flow implementation.
   - Tables ready: `workout_logs.garmin_activity_id` for deduplication.

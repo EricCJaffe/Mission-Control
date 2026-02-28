@@ -86,6 +86,15 @@ type Props = {
     strain_score: number;
     strain_level: string;
   } | null;
+  latestSleep: {
+    total_sleep_seconds: number;
+    sleep_score: number | null;
+    avg_hr: number | null;
+    sleep_date: string;
+    avg_hours: number | null;
+    avg_score: number | null;
+    days_counted: number;
+  } | null;
 };
 
 const WORKOUT_ICONS: Record<string, ReactNode> = {
@@ -185,6 +194,7 @@ export default function FitnessDashboardClient({
   weekLogs,
   readiness,
   strain,
+  latestSleep,
 }: Props) {
   const logsByDate = new Map(weekLogs.map((l) => [l.workout_date.slice(0, 10), l]));
 
@@ -314,21 +324,20 @@ export default function FitnessDashboardClient({
           unit="bpm"
           target="< 70"
           good={latestMetrics?.resting_hr != null ? latestMetrics.resting_hr < 70 : undefined}
-          icon={<HeartPulseIcon />}
+          icon={<Heart size={16} className="text-red-500" />}
+          href="/fitness/metrics/rhr"
+          cardBg="border-red-100 bg-red-50/30"
+          textColor="text-red-600"
         />
         <MetricCard
           label="HRV"
           value={latestMetrics?.hrv_ms != null ? latestMetrics.hrv_ms : null}
           unit="ms"
           note="higher = better"
-          icon={<Activity size={16} className="text-slate-400" />}
-        />
-        <MetricCard
-          label="Sleep Score"
-          value={latestMetrics?.sleep_score != null ? latestMetrics.sleep_score : null}
-          unit="/100"
-          good={latestMetrics?.sleep_score != null ? latestMetrics.sleep_score >= 70 : undefined}
-          icon={<BedDouble size={16} className="text-slate-400" />}
+          icon={<Activity size={16} className="text-purple-500" />}
+          href="/fitness/metrics/hrv"
+          cardBg="border-purple-100 bg-purple-50/30"
+          textColor="text-purple-600"
         />
         <MetricCard
           label="Form / TSB"
@@ -338,12 +347,7 @@ export default function FitnessDashboardClient({
           statusColor={formStatusColor(latestForm?.form_status ?? null)}
           statusBg={formStatusBg(latestForm?.form_status ?? null)}
           icon={<Gauge size={16} className="text-slate-400" />}
-        />
-        <MetricCard
-          label="Weight"
-          value={latestMetrics?.weight_lbs != null ? latestMetrics.weight_lbs : null}
-          unit="lbs"
-          icon={<Weight size={16} className="text-slate-400" />}
+          href="/fitness/trends"
         />
         {/* BP mini card */}
         {latestBP ? (
@@ -361,6 +365,49 @@ export default function FitnessDashboardClient({
           <Link href="/fitness/bp" className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 hover:border-slate-400 transition-colors flex flex-col items-center justify-center gap-1">
             <Heart size={20} className="text-slate-300" />
             <span>Log BP</span>
+          </Link>
+        )}
+
+        {/* Sleep mini card */}
+        {latestSleep ? (
+          <Link href="/fitness/sleep" className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4 shadow-sm hover:shadow transition-shadow">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-indigo-600 font-medium flex items-center gap-1"><BedDouble size={14} /> Sleep</p>
+              {latestSleep.sleep_score && (
+                <span className="text-[10px] font-medium rounded-full px-2 py-0.5 border border-indigo-300 bg-indigo-100 text-indigo-700">
+                  {latestSleep.sleep_score}/100
+                </span>
+              )}
+            </div>
+            <div className="flex items-baseline gap-2 mb-1">
+              <p className="text-2xl font-bold tabular-nums text-indigo-900">{(latestSleep.total_sleep_seconds / 3600).toFixed(1)}<span className="text-sm text-indigo-500">h</span></p>
+              {latestSleep.avg_hours && (
+                <p className="text-xs text-indigo-600">avg: {latestSleep.avg_hours.toFixed(1)}h</p>
+              )}
+            </div>
+            <div className="flex items-center justify-between text-xs text-indigo-500">
+              {latestSleep.avg_score && <span>Avg score: {latestSleep.avg_score}/100</span>}
+              {latestSleep.avg_hr && <span>{latestSleep.avg_hr} bpm</span>}
+            </div>
+          </Link>
+        ) : (
+          <Link href="/fitness/sleep" className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 hover:border-slate-400 transition-colors flex flex-col items-center justify-center gap-1">
+            <BedDouble size={20} className="text-slate-300" />
+            <span>Track Sleep</span>
+          </Link>
+        )}
+
+        {/* Weight / Body Comp mini card */}
+        {latestMetrics?.weight_lbs ? (
+          <Link href="/fitness/trends" className="rounded-2xl border border-green-100 bg-green-50/30 p-4 shadow-sm hover:shadow transition-shadow">
+            <p className="text-xs text-green-600 font-medium flex items-center gap-1 mb-1"><Scale size={14} /> Weight</p>
+            <p className="text-2xl font-bold tabular-nums text-green-900">{latestMetrics.weight_lbs.toFixed(1)}<span className="text-sm text-green-500"> lbs</span></p>
+            <p className="text-xs text-green-600 mt-0.5">View trends →</p>
+          </Link>
+        ) : (
+          <Link href="/fitness/trends" className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 hover:border-slate-400 transition-colors flex flex-col items-center justify-center gap-1">
+            <Scale size={20} className="text-slate-300" />
+            <span>Track Weight</span>
           </Link>
         )}
       </div>
@@ -515,6 +562,9 @@ function MetricCard({
   statusColor,
   statusBg,
   icon,
+  href,
+  cardBg,
+  textColor,
 }: {
   label: string;
   value: number | null;
@@ -526,21 +576,32 @@ function MetricCard({
   statusColor?: string;
   statusBg?: string;
   icon?: ReactNode;
+  href?: string;
+  cardBg?: string;
+  textColor?: string;
 }) {
-  return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${statusBg ?? 'border-slate-100 bg-white'}`}>
-      <p className="text-xs text-slate-500 mb-1 flex items-center gap-1">{icon}{label}</p>
-      <p className={`text-3xl font-bold tabular-nums ${
-        good === true ? 'text-green-600' : good === false ? 'text-orange-600' : 'text-slate-800'
-      }`}>
+  const bgClass = cardBg ?? statusBg ?? 'border-slate-100 bg-white';
+  const valueColor = textColor ?? (good === true ? 'text-green-600' : good === false ? 'text-orange-600' : 'text-slate-800');
+  const labelColor = textColor ? textColor.replace('600', '600 font-medium') : 'text-slate-500';
+
+  const content = (
+    <div className={`rounded-2xl border p-4 shadow-sm ${bgClass} ${href ? 'cursor-pointer transition-shadow hover:shadow-md' : ''}`}>
+      <p className={`text-xs mb-1 flex items-center gap-1 ${labelColor}`}>{icon}{label}</p>
+      <p className={`text-3xl font-bold tabular-nums ${valueColor}`}>
         {value != null ? value : '—'}
-        {unit && value != null && <span className="text-sm font-normal text-slate-400 ml-1">{unit}</span>}
+        {unit && value != null && <span className={`text-sm font-normal ml-1 ${textColor ? textColor.replace('600', '500') : 'text-slate-400'}`}>{unit}</span>}
       </p>
-      {target && <p className="text-xs text-slate-400 mt-0.5">Target: {target}</p>}
-      {note && <p className="text-xs text-slate-400 mt-0.5">{note}</p>}
+      {target && <p className={`text-xs mt-0.5 ${textColor ? textColor.replace('600', '600') : 'text-slate-400'}`}>Target: {target}</p>}
+      {note && <p className={`text-xs mt-0.5 ${textColor ? textColor.replace('600', '600') : 'text-slate-400'}`}>{note}</p>}
       {statusLabel && (
         <p className={`text-xs font-semibold mt-1 capitalize ${statusColor ?? 'text-slate-500'}`}>{statusLabel}</p>
       )}
     </div>
   );
+
+  if (href) {
+    return <Link href={href}>{content}</Link>;
+  }
+
+  return content;
 }

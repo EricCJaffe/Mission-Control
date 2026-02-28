@@ -1,10 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { bpFlagLabel, bpFlagTailwindClass } from '@/lib/fitness/alerts';
 import type { BPFlagLevel } from '@/lib/fitness/types';
 import DateRangeFilter, { type DateRange, getDefaultRange } from './DateRangeFilter';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  ReferenceLine,
+} from 'recharts';
 
 type BPRow = {
   id: string;
@@ -120,6 +131,88 @@ export default function BPDashboardClient({ readings: initial }: Props) {
     ? Math.round(recent30.reduce((s, r) => s + r.diastolic, 0) / recent30.length)
     : null;
 
+  // Advanced stats
+  const { chartData, stats, trends } = useMemo(() => {
+    if (readings.length === 0) return { chartData: [], stats: null, trends: null };
+
+    // Prepare chart data (reverse for chronological order)
+    const reversed = [...readings].reverse();
+    const data = reversed.map((r, idx) => {
+      // Calculate moving averages
+      const window7 = reversed.slice(Math.max(0, idx - 6), idx + 1);
+      const window30 = reversed.slice(Math.max(0, idx - 29), idx + 1);
+
+      return {
+        date: new Date(r.reading_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        fullDate: r.reading_date,
+        systolic: r.systolic,
+        diastolic: r.diastolic,
+        pulse: r.pulse,
+        systolic_7d: window7.length >= 3
+          ? Math.round(window7.reduce((s, x) => s + x.systolic, 0) / window7.length)
+          : null,
+        diastolic_7d: window7.length >= 3
+          ? Math.round(window7.reduce((s, x) => s + x.diastolic, 0) / window7.length)
+          : null,
+        systolic_30d: window30.length >= 7
+          ? Math.round(window30.reduce((s, x) => s + x.systolic, 0) / window30.length)
+          : null,
+        diastolic_30d: window30.length >= 7
+          ? Math.round(window30.reduce((s, x) => s + x.diastolic, 0) / window30.length)
+          : null,
+      };
+    });
+
+    // Calculate stats
+    const allSystolic = readings.map(r => r.systolic);
+    const allDiastolic = readings.map(r => r.diastolic);
+    const allPulse = readings.filter(r => r.pulse).map(r => r.pulse!);
+
+    const stats = {
+      systolic: {
+        avg: Math.round(allSystolic.reduce((a, b) => a + b, 0) / allSystolic.length),
+        min: Math.min(...allSystolic),
+        max: Math.max(...allSystolic),
+      },
+      diastolic: {
+        avg: Math.round(allDiastolic.reduce((a, b) => a + b, 0) / allDiastolic.length),
+        min: Math.min(...allDiastolic),
+        max: Math.max(...allDiastolic),
+      },
+      pulse: allPulse.length > 0 ? {
+        avg: Math.round(allPulse.reduce((a, b) => a + b, 0) / allPulse.length),
+        min: Math.min(...allPulse),
+        max: Math.max(...allPulse),
+      } : null,
+      pulsePressure: latest ? latest.systolic - latest.diastolic : null,
+      map: latest ? Math.round(latest.diastolic + (latest.systolic - latest.diastolic) / 3) : null,
+    };
+
+    // Calculate trends (compare recent 7 vs previous 7)
+    const recent7 = readings.slice(0, 7);
+    const prev7 = readings.slice(7, 14);
+
+    let trends = null;
+    if (recent7.length >= 3 && prev7.length >= 3) {
+      const recentSysAvg = recent7.reduce((s, r) => s + r.systolic, 0) / recent7.length;
+      const prevSysAvg = prev7.reduce((s, r) => s + r.systolic, 0) / prev7.length;
+      const recentDiaAvg = recent7.reduce((s, r) => s + r.diastolic, 0) / recent7.length;
+      const prevDiaAvg = prev7.reduce((s, r) => s + r.diastolic, 0) / prev7.length;
+
+      const sysDiff = recentSysAvg - prevSysAvg;
+      const diaDiff = recentDiaAvg - prevDiaAvg;
+
+      trends = {
+        systolic: Math.abs(sysDiff) < 2 ? 'stable' : sysDiff > 0 ? 'up' : 'down',
+        diastolic: Math.abs(diaDiff) < 2 ? 'stable' : diaDiff > 0 ? 'up' : 'down',
+        sysDiff: Math.round(sysDiff),
+        diaDiff: Math.round(diaDiff),
+      };
+    }
+
+    return { chartData: data, stats, trends };
+  }, [readings]);
+
   return (
     <div className="space-y-6">
       {/* Error banner */}
@@ -141,8 +234,11 @@ export default function BPDashboardClient({ readings: initial }: Props) {
         </div>
       )}
 
+      {/* Date range filter */}
+      <DateRangeFilter value={dateRange} onChange={handleDateRangeChange} storageKey="bp-range" />
+
       {/* Latest + averages row */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {latest && (
           <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500 mb-1">Latest Reading</p>
@@ -155,19 +251,179 @@ export default function BPDashboardClient({ readings: initial }: Props) {
         )}
         {avgSystolic != null && (
           <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-            <p className="text-xs text-slate-500 mb-1">30-Day Average</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-slate-500">30-Day Average</p>
+              {trends && (
+                <div className="flex items-center gap-0.5">
+                  {trends.systolic === 'up' ? (
+                    <TrendingUp className="h-3 w-3 text-red-500" />
+                  ) : trends.systolic === 'down' ? (
+                    <TrendingDown className="h-3 w-3 text-green-500" />
+                  ) : (
+                    <Minus className="h-3 w-3 text-slate-400" />
+                  )}
+                </div>
+              )}
+            </div>
             <p className="text-2xl font-bold text-slate-800 tabular-nums">{avgSystolic}/{avgDiastolic}</p>
             <p className="text-xs text-slate-500">{recent30.length} readings</p>
           </div>
         )}
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <p className="text-xs text-slate-500 mb-1">AHA Targets</p>
-          <p className="text-sm font-semibold text-green-700">&lt;120/80 Normal</p>
-          <p className="text-xs text-slate-400 mt-1">120-129/&lt;80 Elevated</p>
-          <p className="text-xs text-slate-400">130-139/80-89 Stage 1</p>
-          <p className="text-xs text-slate-400">≥140/≥90 Stage 2</p>
-        </div>
+        {stats?.pulsePressure != null && (
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500 mb-1">Pulse Pressure</p>
+            <p className="text-2xl font-bold text-slate-800 tabular-nums">{stats.pulsePressure}</p>
+            <p className="text-xs text-slate-400">SYS - DIA</p>
+            <p className="text-xs text-slate-500 mt-1">Target: &lt;60</p>
+          </div>
+        )}
+        {stats?.map != null && (
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500 mb-1">Mean Arterial Pressure</p>
+            <p className="text-2xl font-bold text-slate-800 tabular-nums">{stats.map}</p>
+            <p className="text-xs text-slate-400">MAP</p>
+            <p className="text-xs text-slate-500 mt-1">Target: 70-100</p>
+          </div>
+        )}
       </div>
+
+      {/* Advanced Charts */}
+      {chartData.length > 0 && (
+        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold mb-4">Blood Pressure Trends</h2>
+
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 12 }}
+                stroke="#94a3b8"
+              />
+              <YAxis
+                domain={[60, 180]}
+                tick={{ fontSize: 12 }}
+                stroke="#94a3b8"
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '12px'
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
+
+              {/* Reference lines for AHA guidelines */}
+              <ReferenceLine y={120} stroke="#10b981" strokeDasharray="3 3" label={{ value: 'Normal (120)', fontSize: 10, fill: '#10b981' }} />
+              <ReferenceLine y={130} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: 'Stage 1 (130)', fontSize: 10, fill: '#f59e0b' }} />
+              <ReferenceLine y={140} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Stage 2 (140)', fontSize: 10, fill: '#ef4444' }} />
+              <ReferenceLine y={80} stroke="#10b981" strokeDasharray="3 3" />
+
+              {/* Actual readings */}
+              <Line
+                type="monotone"
+                dataKey="systolic"
+                stroke="#ef4444"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                name="Systolic"
+              />
+              <Line
+                type="monotone"
+                dataKey="diastolic"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                name="Diastolic"
+              />
+
+              {/* Moving averages */}
+              <Line
+                type="monotone"
+                dataKey="systolic_7d"
+                stroke="#fca5a5"
+                strokeWidth={1}
+                strokeDasharray="5 5"
+                dot={false}
+                name="Systolic 7-day MA"
+              />
+              <Line
+                type="monotone"
+                dataKey="diastolic_7d"
+                stroke="#93c5fd"
+                strokeWidth={1}
+                strokeDasharray="5 5"
+                dot={false}
+                name="Diastolic 7-day MA"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+
+          {trends && (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-slate-50 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-600">Systolic Trend (7d)</span>
+                  {trends.systolic === 'up' ? (
+                    <TrendingUp className="h-4 w-4 text-red-500" />
+                  ) : trends.systolic === 'down' ? (
+                    <TrendingDown className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Minus className="h-4 w-4 text-slate-400" />
+                  )}
+                </div>
+                <p className="text-sm font-semibold mt-1">
+                  {trends.systolic === 'up' && `↑ ${trends.sysDiff} mmHg`}
+                  {trends.systolic === 'down' && `↓ ${Math.abs(trends.sysDiff)} mmHg`}
+                  {trends.systolic === 'stable' && 'Stable'}
+                </p>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-600">Diastolic Trend (7d)</span>
+                  {trends.diastolic === 'up' ? (
+                    <TrendingUp className="h-4 w-4 text-red-500" />
+                  ) : trends.diastolic === 'down' ? (
+                    <TrendingDown className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Minus className="h-4 w-4 text-slate-400" />
+                  )}
+                </div>
+                <p className="text-sm font-semibold mt-1">
+                  {trends.diastolic === 'up' && `↑ ${trends.diaDiff} mmHg`}
+                  {trends.diastolic === 'down' && `↓ ${Math.abs(trends.diaDiff)} mmHg`}
+                  {trends.diastolic === 'stable' && 'Stable'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Stats summary */}
+          {stats && (
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="rounded-lg bg-red-50 border border-red-100 p-3">
+                <p className="text-xs text-red-600 font-medium">Systolic Range</p>
+                <p className="text-sm font-bold text-red-700 mt-1">{stats.systolic.min} - {stats.systolic.max}</p>
+                <p className="text-xs text-red-600">Avg: {stats.systolic.avg}</p>
+              </div>
+              <div className="rounded-lg bg-blue-50 border border-blue-100 p-3">
+                <p className="text-xs text-blue-600 font-medium">Diastolic Range</p>
+                <p className="text-sm font-bold text-blue-700 mt-1">{stats.diastolic.min} - {stats.diastolic.max}</p>
+                <p className="text-xs text-blue-600">Avg: {stats.diastolic.avg}</p>
+              </div>
+              {stats.pulse && (
+                <div className="rounded-lg bg-purple-50 border border-purple-100 p-3">
+                  <p className="text-xs text-purple-600 font-medium">Pulse Range</p>
+                  <p className="text-sm font-bold text-purple-700 mt-1">{stats.pulse.min} - {stats.pulse.max} bpm</p>
+                  <p className="text-xs text-purple-600">Avg: {stats.pulse.avg} bpm</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* New reading form */}
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -277,9 +533,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
         )}
       </div>
 
-      {/* Date range filter + readings log */}
-      <DateRangeFilter value={dateRange} onChange={handleDateRangeChange} storageKey="bp-range" />
-
+      {/* Reading History */}
       {readings.length > 0 && (
         <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">

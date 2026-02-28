@@ -219,7 +219,7 @@ export default function MetricsHistoryClient({ metrics }: Props) {
       {/* Quick Actions */}
       <div className="flex gap-3">
         <Link
-          href="/fitness/metrics/trends"
+          href="/fitness/trends"
           className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
         >
           View Trends

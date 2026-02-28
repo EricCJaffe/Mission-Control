@@ -1,13 +1,35 @@
 # Tasks
 
-**Last Updated:** February 27, 2026
+**Last Updated:** February 28, 2026
 
 ## 📍 CURRENT STATUS
 
 **Build Status:** ✅ Production build passing
 **Deployment Status:** ✅ Ready for Vercel deployment
 **Database Status:** ✅ All migrations applied, clean state
-**Recent Changes (Feb 27 Session):**
+**Recent Changes (Feb 28 Evening Session):**
+- ⚠️ **Methylation Report Processing (BLOCKED)**: PDF upload and extraction working, DB insert blocked
+  - ✅ Updated processor to use unpdf library (mirroring lab processor)
+  - ✅ Fixed column mapping: snp_id, risk_level, clinical_significance
+  - ✅ PDF extraction working: 45K characters, 8-9 SNPs extracted via OpenAI
+  - ❌ Database insert fails due to PostgREST schema cache issue (PGRST204)
+  - ❌ Schema cache persists across restarts, even RPC functions blocked
+  - 📋 See `docs/METHYLATION_BUG.md` for full troubleshooting details
+  - Files: methylation-processor.ts, methylation API route, LabDashboardClient
+  - Created: insert_genetic_markers() Postgres function (bypasses PostgREST)
+
+**Recent Changes (Feb 28 Morning Session):**
+- ✅ **Fitness Dashboard UI Polish (COMPLETE)**: Colorful metric cards with themed designs
+  - RHR card (red theme) → /fitness/metrics/rhr with AI insights
+  - HRV card (purple theme) → /fitness/metrics/hrv with AI insights
+  - Sleep card (indigo theme) showing last night + 7-day averages
+  - Weight card (green theme) merged with body comp
+  - Sidebar icons now colorful (12 different colors across nav sections)
+  - Trends pages consolidated: /fitness/metrics/trends redirects to /fitness/trends
+  - Components: RHRDashboardClient, HRVDashboardClient (212 lines each)
+  - API routes: /api/fitness/insights/rhr, /api/fitness/insights/hrv
+
+**Previous Session (Feb 27):**
 - ✅ **Calendar Module Enhancement (COMPLETE)**: Full-featured calendar with fitness integration
   - Three calendar views: Month grid (6 weeks), Week grid (7 days × 24 hours), Day timeline
   - Pill-tab view switcher with smooth transitions
@@ -77,19 +99,26 @@
 ## 🔥 OPEN TASKS — Next Session
 
 ### Methylation Report Display
-- [ ] **Methylation reports uploaded but not visible on lab results page**
-  - Upload pipeline works (`/fitness/health/upload` → `processMethylationReport()` → `genetic_markers` table)
-  - Issue: Lab results page queries `lab_panels`/`lab_results`, not `genetic_markers`
-  - Need: Dedicated genetics/methylation view, or integrate into lab dashboard
-  - Files: `src/lib/fitness/methylation-processor.ts`, `src/components/fitness/LabDashboardClient.tsx`
-  - Also update health.md Section 9 (Genetic/Methylation) after processing
+- [x] **✅ RESOLVED: Methylation reports now visible on lab results page**
+  - Solution: Created dedicated API route `/api/fitness/health/methylation` to fetch genetic markers
+  - Updated `LabDashboardClient.tsx` to query `genetic_markers` table directly (not health.md)
+  - Display shows:
+    - Report header with file name, marker count, upload date, processing status
+    - AI analysis summary with supplement & lifestyle recommendations
+    - Cardiac relevance section
+    - SNP data table grouped by gene (MTHFR, COMT, CBS, etc.)
+    - Each marker shows: variant, rsID, genotype, status (normal/heterozygous/homozygous), notes
+  - Files:
+    - `src/app/api/fitness/health/methylation/route.ts` (new, 77 lines)
+    - `src/components/fitness/LabDashboardClient.tsx` (updated methylation tab display)
+  - Note: Health.md Section 9 auto-update still pending (separate task)
 
 ### Workout Log Button Visibility
-- [ ] **No visible "Log Workout" button on fitness pages**
+- [x] **✅ RESOLVED: Floating action button added to fitness dashboard**
   - Full workout logger exists at `/fitness/log` (template selection, build-on-fly, drag-and-drop, sets, RPE)
-  - Issue: After Phase 2 dashboard rewrite, the log button may not be prominent enough
-  - Need: Prominent CTA on fitness dashboard, verify logger page loads correctly
-  - Files: `src/components/fitness/FitnessDashboardClient.tsx`, `src/app/fitness/log/page.tsx`
+  - Solution: Added fixed bottom-right floating action button (blue circle with dumbbell icon)
+  - Also added "Log Workout" button in Today's workout hero card
+  - Files: `src/components/fitness/FitnessDashboardClient.tsx` (lines 201-207, 307-313)
 
 ---
 
