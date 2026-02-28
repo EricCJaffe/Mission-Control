@@ -225,14 +225,14 @@ export default function WeekView({
                             );
                           }
 
-                          // Planned workout - link to plans page
-                          if (isPlanned && colors) {
+                          // Planned workout - link to workout logger with template pre-loaded
+                          if (isPlanned && colors && workoutData?.plannedWorkoutId) {
                             return (
                               <Link
                                 key={event.id}
-                                href="/fitness/plans"
+                                href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
                                 className={`block w-full truncate rounded px-2 py-1 text-left text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border} ${colors.hoverBg} opacity-75`}
-                                title={event.title}
+                                title={`${event.title} - Click to start workout`}
                               >
                                 {event.title}
                               </Link>

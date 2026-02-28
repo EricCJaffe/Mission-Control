@@ -204,6 +204,13 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     }
   }, [templateId, templates]);
 
+  // Auto-load planned workout (from calendar click)
+  useEffect(() => {
+    if (todayPlan && templates.length > 0) {
+      loadPlan();
+    }
+  }, [todayPlan, templates]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (mode === 'logging' || mode === 'cardio') {
       if (!timerStartRef.current) timerStartRef.current = Date.now();

@@ -4,7 +4,7 @@ import WorkoutLoggerClient from '@/components/fitness/WorkoutLoggerClient';
 export const dynamic = 'force-dynamic';
 
 type PageProps = {
-  searchParams: Promise<{ repeat?: string; template?: string }>;
+  searchParams: Promise<{ repeat?: string; template?: string; planned_workout_id?: string }>;
 };
 
 export default async function LogWorkoutPage({ searchParams }: PageProps) {
@@ -32,12 +32,20 @@ export default async function LogWorkoutPage({ searchParams }: PageProps) {
       .select('id, name, type, split_type, structure, estimated_duration_min')
       .eq('user_id', user.id)
       .order('name', { ascending: true }),
-    supabase
-      .from('planned_workouts')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('scheduled_date', today)
-      .maybeSingle(),
+    // If planned_workout_id is provided, fetch that specific workout; otherwise get today's
+    params.planned_workout_id
+      ? supabase
+          .from('planned_workouts')
+          .select('*')
+          .eq('id', params.planned_workout_id)
+          .eq('user_id', user.id)
+          .maybeSingle()
+      : supabase
+          .from('planned_workouts')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('scheduled_date', today)
+          .maybeSingle(),
     supabase
       .from('body_metrics')
       .select('body_battery, hrv_ms, resting_hr, sleep_score')

@@ -194,9 +194,9 @@ export default function DayView({
                       >
                         {event.title} ✓
                       </Link>
-                    ) : isPlanned ? (
+                    ) : isPlanned && workoutData?.plannedWorkoutId ? (
                       <Link
-                        href="/fitness/plans"
+                        href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
                         className={`font-medium ${colors?.text || 'text-blue-700'} hover:underline opacity-75`}
                       >
                         {event.title}

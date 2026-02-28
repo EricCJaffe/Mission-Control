@@ -228,14 +228,14 @@ export default function MonthView({
                     );
                   }
 
-                  // Planned workout - link to plans page
-                  if (workoutData?.isPlanned) {
+                  // Planned workout - link to workout logger with template pre-loaded
+                  if (workoutData?.isPlanned && workoutData?.plannedWorkoutId) {
                     return (
                       <Link
                         key={event.id}
-                        href="/fitness/plans"
+                        href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
                         className={`block truncate rounded px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border} ${colors.hoverBg} hover:underline cursor-pointer transition-all opacity-75`}
-                        title={`${event.title} - Click to view in plans`}
+                        title={`${event.title} - Click to start workout`}
                         onClick={(e) => e.stopPropagation()}
                       >
                         {event.title}
