@@ -877,11 +877,18 @@ Return ONLY the section content starting with "## 7. Training Constraints", noth
 
     // Map trigger type to change type
     const primaryTrigger = updates[0]?.trigger_type || 'auto_update';
-    let changeType = primaryTrigger;
+    let changeType: string;
 
     // Map trigger types to valid change_type values
     if (primaryTrigger === 'manual_edit') changeType = 'manual_edit';
     else if (primaryTrigger === 'ai_recommendation') changeType = 'ai_update';
+    else if (primaryTrigger === 'appointment_notes') changeType = 'appointment_prep';
+    else if (['medication_change', 'lab_upload', 'metric_shift', 'methylation_upload'].includes(primaryTrigger)) {
+      changeType = primaryTrigger;
+    } else {
+      // Default fallback for any unmapped trigger types
+      changeType = 'auto_update';
+    }
 
     await supabase
       .from('health_document_changes')
