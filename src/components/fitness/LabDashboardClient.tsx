@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { AlertCircle, Bot, FileHeart, Target, TrendingUp, ArrowRight, Dumbbell, Leaf, Stethoscope } from 'lucide-react';
+import { AlertCircle, Bot, FileHeart, Target, TrendingUp, ArrowRight, Dumbbell, Leaf, Stethoscope, Upload } from 'lucide-react';
 
 interface LabPanel {
   id: string;
@@ -67,6 +67,7 @@ interface ComprehensiveAnalysis {
 }
 
 export default function LabDashboardClient({ userId }: LabDashboardClientProps) {
+  const [labType, setLabType] = useState<'bloodwork' | 'methylation'>('bloodwork');
   const [activeTab, setActiveTab] = useState<'overview' | 'trends' | 'tests'>('overview');
   const [filter, setFilter] = useState<string>('all');
   const [data, setData] = useState<DashboardData | null>(null);
@@ -76,6 +77,8 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
   const [comprehensiveAnalysis, setComprehensiveAnalysis] = useState<ComprehensiveAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [methylationReports, setMethylationReports] = useState<any[]>([]);
+  const [methylationLoading, setMethylationLoading] = useState(false);
 
   const loadDashboardData = async (filterValue: string) => {
     setLoading(true);
@@ -97,9 +100,33 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
     }
   };
 
+  const loadMethylationReports = async () => {
+    setMethylationLoading(true);
+    try {
+      const response = await fetch('/api/fitness/health/view');
+      const result = await response.json();
+
+      if (response.ok && result.document) {
+        // Extract methylation data from health document
+        const methylationSection = result.document.sections?.find(
+          (s: any) => s.type === 'methylation' || s.title?.toLowerCase().includes('methylation')
+        );
+        setMethylationReports(methylationSection ? [methylationSection] : []);
+      }
+    } catch (err) {
+      console.error('Failed to load methylation reports:', err);
+    } finally {
+      setMethylationLoading(false);
+    }
+  };
+
   useEffect(() => {
-    loadDashboardData(filter);
-  }, [filter]);
+    if (labType === 'bloodwork') {
+      loadDashboardData(filter);
+    } else {
+      loadMethylationReports();
+    }
+  }, [filter, labType]);
 
   const handleFilterChange = (newFilter: string) => {
     setFilter(newFilter);
@@ -259,7 +286,28 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
 
   return (
     <div className="space-y-6">
-      {/* Filter Controls */}
+      {/* Lab Type Tabs */}
+      <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1 w-fit">
+        <button
+          onClick={() => setLabType('bloodwork')}
+          className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-colors min-h-[44px] ${
+            labType === 'bloodwork' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          Blood Work
+        </button>
+        <button
+          onClick={() => setLabType('methylation')}
+          className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-colors min-h-[44px] ${
+            labType === 'methylation' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          Methylation Reports
+        </button>
+      </div>
+
+      {/* Filter Controls (Blood Work only) */}
+      {labType === 'bloodwork' && (
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm font-medium text-gray-700">Filter:</span>
@@ -298,7 +346,11 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
           ))}
         </div>
       </div>
+      )}
 
+      {/* Blood Work Dashboard */}
+      {labType === 'bloodwork' && (
+      <>
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <div className="flex gap-6">
@@ -755,6 +807,73 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
               <h4 className="font-semibold text-blue-900 mb-2">AI Insights</h4>
               <p className="text-sm text-gray-700">
                 Coming soon: Detailed AI analysis of {selectedTest} trends, clinical significance, and personalized recommendations.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      </>
+      )}
+
+      {/* Methylation Reports */}
+      {labType === 'methylation' && (
+        <div className="space-y-6">
+          {methylationLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-gray-600">Loading methylation reports...</p>
+            </div>
+          ) : methylationReports.length === 0 ? (
+            <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Methylation Reports</h3>
+              <p className="text-gray-600 mb-4">
+                Upload your DNA methylation reports (e.g., from 23andMe, AncestryDNA, TruDiagnostic) to see genetic insights and SNP analysis.
+              </p>
+              <a
+                href="/fitness/health/upload"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm"
+              >
+                <Upload size={18} />
+                Upload Methylation Report
+              </a>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {methylationReports.map((report, idx) => (
+                <div key={idx} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{report.title || 'Methylation Report'}</h3>
+                  {report.content && (
+                    <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
+                      {report.content}
+                    </div>
+                  )}
+                  {report.snps && (
+                    <div className="mt-4">
+                      <h4 className="font-medium text-gray-900 mb-2">SNPs Analyzed</h4>
+                      <div className="text-sm text-gray-600">
+                        {JSON.stringify(report.snps, null, 2)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* How It Works Section */}
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
+            <h3 className="text-lg font-semibold text-blue-900 mb-3">How Methylation Reports Work</h3>
+            <div className="space-y-2 text-sm text-gray-700">
+              <p>
+                <strong>DNA Methylation</strong> is an epigenetic modification that affects gene expression without changing the DNA sequence itself. Methylation patterns can provide insights into:
+              </p>
+              <ul className="list-disc list-inside space-y-1 ml-4">
+                <li>Biological age vs chronological age</li>
+                <li>Health span and longevity markers</li>
+                <li>Disease risk prediction</li>
+                <li>Response to lifestyle interventions</li>
+              </ul>
+              <p className="mt-3">
+                Upload reports from providers like <strong>TruDiagnostic</strong>, <strong>myDNAge</strong>, or raw data from <strong>23andMe</strong> / <strong>AncestryDNA</strong> to track your epigenetic health over time.
               </p>
             </div>
           </div>
