@@ -11,7 +11,7 @@ import {
   addWeeks,
   startOfWeek,
 } from '@/lib/calendar/date-utils';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // Get color classes based on workout type
 function getWorkoutTypeColors(title: string): { bg: string; text: string; border: string; hoverBg: string } {
@@ -78,7 +78,14 @@ export default function WeekView({
   onEventClick,
   onNavigate,
 }: WeekViewProps) {
-  const [currentWeekStart, setCurrentWeekStart] = useState(new Date(weekStart));
+  const [currentWeekStart, setCurrentWeekStart] = useState(new Date(`${weekStart}T12:00:00`));
+
+  // Keep internal state in sync when parent-selected week changes.
+  // Using a midday anchor avoids UTC parsing shifting the day backwards.
+  useEffect(() => {
+    setCurrentWeekStart(new Date(`${weekStart}T12:00:00`));
+  }, [weekStart]);
+
   const weekGrid = getWeekGrid(startOfWeek(currentWeekStart));
 
   // Group events by date and hour
