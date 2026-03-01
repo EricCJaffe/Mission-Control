@@ -235,7 +235,9 @@ export default function CalendarClient({
     window.location.reload();
   };
 
-  const weekStartDate = toISODate(startOfWeek(new Date(selectedDate || todayStr)));
+  // Avoid JS Date timezone shifting when parsing YYYY-MM-DD (treated as UTC).
+  // Use a midday local time anchor so week calculations are stable.
+  const weekStartDate = toISODate(startOfWeek(new Date(`${selectedDate || todayStr}T12:00:00`)));
 
   return (
     <div className="mt-6 grid gap-6">

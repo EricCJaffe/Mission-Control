@@ -203,6 +203,13 @@ export default function DayView({
                         >
                           {event.title}
                         </Link>
+                        <Link
+                          href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
+                          className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
+                          title="Start workout"
+                        >
+                          Start
+                        </Link>
                         <button
                           type="button"
                           onClick={() => onEventClick(event)}
@@ -290,6 +297,13 @@ export default function DayView({
                                     title="Click to start workout"
                                   >
                                     {event.title}
+                                  </Link>
+                                  <Link
+                                    href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
+                                    className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
+                                    title="Start workout"
+                                  >
+                                    Start
                                   </Link>
                                   <button
                                     type="button"

@@ -9,6 +9,7 @@ import {
   formatDate,
   parseWorkoutTag,
   addWeeks,
+  startOfWeek,
 } from '@/lib/calendar/date-utils';
 import { useState } from 'react';
 
@@ -78,7 +79,7 @@ export default function WeekView({
   onNavigate,
 }: WeekViewProps) {
   const [currentWeekStart, setCurrentWeekStart] = useState(new Date(weekStart));
-  const weekGrid = getWeekGrid(currentWeekStart);
+  const weekGrid = getWeekGrid(startOfWeek(currentWeekStart));
 
   // Group events by date and hour
   const eventsByDateHour = new Map<string, Map<number, CalendarEvent[]>>();
@@ -95,20 +96,21 @@ export default function WeekView({
   });
 
   const handlePrev = () => {
-    const newWeekStart = addWeeks(currentWeekStart, -1);
+    const newWeekStart = startOfWeek(addWeeks(currentWeekStart, -1));
     setCurrentWeekStart(newWeekStart);
     onNavigate('prev');
   };
 
   const handleNext = () => {
-    const newWeekStart = addWeeks(currentWeekStart, 1);
+    const newWeekStart = startOfWeek(addWeeks(currentWeekStart, 1));
     setCurrentWeekStart(newWeekStart);
     onNavigate('next');
   };
 
   const handleToday = () => {
     const today = new Date();
-    setCurrentWeekStart(today);
+    // Keep week aligned to Monday.
+    setCurrentWeekStart(startOfWeek(today));
     onNavigate('today');
   };
 
