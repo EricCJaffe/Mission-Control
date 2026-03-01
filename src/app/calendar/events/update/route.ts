@@ -52,8 +52,16 @@ export async function POST(req: Request) {
         .eq('id', plannedId)
         .eq('user_id', user.id);
 
-      // Even if this fails, we redirect (UI currently uses toast-on-redirect).
-      // TODO: surface errors more explicitly.
+      // If a prior edit accidentally detached this calendar row from the planned_workout
+      // (e.g., alignment_tag got cleared), we'll end up with a stale "normal" event.
+      // Clean that up by deleting the specific row we were editing when it doesn't match.
+      await supabase
+        .from('calendar_events')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .not('alignment_tag', 'eq', `planned_workout:${plannedId}`);
+
       if (error) {
         console.error('Error updating planned_workout from calendar edit:', error);
       }

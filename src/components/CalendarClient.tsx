@@ -394,8 +394,17 @@ export default function CalendarClient({
             return (
             <form className="mt-4 grid gap-3" action="/calendar/events/update" method="post" data-progress="true" data-toast="Event updated">
               <input type="hidden" name="id" value={editing.id} />
-              <input type="hidden" name="date" value={toDateInput(editing.start_at)} />
               <input type="hidden" name="redirect" value={`/calendar?date=${selectedDate}`} />
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Date</label>
+                <input
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+                  name="date"
+                  type="date"
+                  defaultValue={toDateInput(editing.start_at)}
+                  required
+                />
+              </div>
               {editingIsRecurring && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   This is a recurring event. Edits apply to the series.
