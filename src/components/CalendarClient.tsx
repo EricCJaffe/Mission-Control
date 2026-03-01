@@ -8,6 +8,7 @@ import WeekView from "./calendar/WeekView";
 import DayView from "./calendar/DayView";
 import CalendarFilters from "./calendar/CalendarFilters";
 import ScheduleWorkoutModal from "./calendar/ScheduleWorkoutModal";
+import EditPlannedWorkoutModal from "./calendar/EditPlannedWorkoutModal";
 import { CalendarView, toISODate, startOfWeek, EventFilter, createDefaultFilter } from "@/lib/calendar/date-utils";
 
 type CalendarEvent = {
@@ -154,6 +155,12 @@ export default function CalendarClient({
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleModalDate, setScheduleModalDate] = useState(initialDate);
 
+  const [plannedEditOpen, setPlannedEditOpen] = useState(false);
+  const [plannedEditId, setPlannedEditId] = useState<string | null>(null);
+  const [plannedEditTitle, setPlannedEditTitle] = useState('');
+  const [plannedEditDate, setPlannedEditDate] = useState(initialDate);
+  const [plannedEditTime, setPlannedEditTime] = useState('09:00');
+
   // Filter events based on active filters
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
@@ -197,6 +204,20 @@ export default function CalendarClient({
   };
 
   const handleEventClick = (event: CalendarEvent) => {
+    // Planned workouts are source-of-truth in planned_workouts (calendar_events are derived).
+    // So we edit via planned_workouts PATCH, not the generic calendar event form.
+    if (event.alignment_tag && event.alignment_tag.startsWith('planned_workout:')) {
+      const plannedId = event.alignment_tag.split(':')[1];
+      if (plannedId) {
+        setPlannedEditId(plannedId);
+        setPlannedEditTitle(event.title || 'Workout');
+        setPlannedEditDate(toDateInput(event.start_at));
+        setPlannedEditTime(toTimeInput(event.start_at) || '09:00');
+        setPlannedEditOpen(true);
+        return;
+      }
+    }
+
     const base = event._baseId ? events.find((e) => e.id === event._baseId) : event;
     setEditing(base || event);
     setEditingIsRecurring(Boolean(event._recurring));
@@ -312,6 +333,17 @@ export default function CalendarClient({
         defaultDate={scheduleModalDate}
         templates={templates}
         onSuccess={handleWorkoutScheduled}
+      />
+
+      {/* Planned workout editor */}
+      <EditPlannedWorkoutModal
+        isOpen={plannedEditOpen}
+        onClose={() => setPlannedEditOpen(false)}
+        plannedWorkoutId={plannedEditId}
+        initialTitle={plannedEditTitle}
+        initialDate={plannedEditDate}
+        initialTime={plannedEditTime}
+        onSaved={() => window.location.reload()}
       />
 
       {/* Add Event Form */}

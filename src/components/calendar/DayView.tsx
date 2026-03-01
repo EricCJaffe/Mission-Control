@@ -196,21 +196,21 @@ export default function DayView({
                       </Link>
                     ) : isPlanned && workoutData?.plannedWorkoutId ? (
                       <div className="flex items-center gap-2">
+                        <Link
+                          href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
+                          className={`font-medium ${colors?.text || 'text-blue-700'} opacity-75 hover:underline`}
+                          title="Click to start workout"
+                        >
+                          {event.title}
+                        </Link>
                         <button
                           type="button"
                           onClick={() => onEventClick(event)}
-                          className={`font-medium ${colors?.text || 'text-blue-700'} opacity-75 hover:underline text-left`}
-                          title="Click to edit scheduled workout"
-                        >
-                          {event.title}
-                        </button>
-                        <Link
-                          href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
                           className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
-                          title="Start workout"
+                          title="Edit scheduled workout"
                         >
-                          Start
-                        </Link>
+                          Edit
+                        </button>
                       </div>
                     ) : (
                       <button
@@ -284,21 +284,21 @@ export default function DayView({
                                 </Link>
                               ) : isPlanned && workoutData?.plannedWorkoutId ? (
                                 <div className="flex items-center gap-2">
+                                  <Link
+                                    href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
+                                    className={`font-semibold ${colors?.text || 'text-blue-700'} opacity-75 hover:underline`}
+                                    title="Click to start workout"
+                                  >
+                                    {event.title}
+                                  </Link>
                                   <button
                                     type="button"
                                     onClick={() => onEventClick(event)}
-                                    className={`font-semibold ${colors?.text || 'text-blue-700'} opacity-75 hover:underline text-left`}
-                                    title="Click to edit scheduled workout"
-                                  >
-                                    {event.title}
-                                  </button>
-                                  <Link
-                                    href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
                                     className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
-                                    title="Start workout"
+                                    title="Edit scheduled workout"
                                   >
-                                    Start
-                                  </Link>
+                                    Edit
+                                  </button>
                                 </div>
                               ) : (
                                 <button

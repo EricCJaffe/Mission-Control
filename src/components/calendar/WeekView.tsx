@@ -225,25 +225,25 @@ export default function WeekView({
                             );
                           }
 
-                          // Planned workout - allow edit from calendar, keep a way to start
+                          // Planned workout - click starts, small edit opens modal
                           if (isPlanned && colors && workoutData?.plannedWorkoutId) {
                             return (
                               <div key={event.id} className="flex items-center gap-1">
+                                <Link
+                                  href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
+                                  className={`block flex-1 truncate rounded px-2 py-1 text-left text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border} ${colors.hoverBg} opacity-75 hover:underline`}
+                                  title={`${event.title} - Click to start workout`}
+                                >
+                                  {event.title}
+                                </Link>
                                 <button
                                   type="button"
                                   onClick={() => onEventClick(event)}
-                                  className={`flex-1 truncate rounded px-2 py-1 text-left text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border} ${colors.hoverBg} opacity-75`}
-                                  title={`${event.title} — click to edit`}
-                                >
-                                  {event.title}
-                                </button>
-                                <Link
-                                  href={`/fitness/log?planned_workout_id=${workoutData.plannedWorkoutId}`}
                                   className="shrink-0 rounded border border-slate-200 bg-white px-1.5 py-1 text-[10px] text-slate-600 hover:bg-slate-50"
-                                  title="Start workout"
+                                  title="Edit scheduled workout"
                                 >
-                                  Start
-                                </Link>
+                                  Edit
+                                </button>
                               </div>
                             );
                           }

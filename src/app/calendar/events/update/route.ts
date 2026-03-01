@@ -36,40 +36,6 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL(redirect || "/calendar", req.url));
   }
 
-  // Special case: scheduled workouts are backed by planned_workouts and are auto-synced to calendar_events.
-  // Editing the calendar row directly will get overwritten; instead, update planned_workouts.
-  if (alignmentTag.startsWith('planned_workout:')) {
-    const plannedId = alignmentTag.split(':')[1];
-    if (plannedId) {
-      const { error } = await supabase
-        .from('planned_workouts')
-        .update({
-          scheduled_date: date,
-          scheduled_time: startTime || null,
-          day_label: title,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', plannedId)
-        .eq('user_id', user.id);
-
-      // If a prior edit accidentally detached this calendar row from the planned_workout
-      // (e.g., alignment_tag got cleared), we'll end up with a stale "normal" event.
-      // Clean that up by deleting the specific row we were editing when it doesn't match.
-      await supabase
-        .from('calendar_events')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .not('alignment_tag', 'eq', `planned_workout:${plannedId}`);
-
-      if (error) {
-        console.error('Error updating planned_workout from calendar edit:', error);
-      }
-
-      return NextResponse.redirect(new URL(redirect || "/calendar", req.url));
-    }
-  }
-
   const { error: updateError } = await supabase
     .from("calendar_events")
     .update({
