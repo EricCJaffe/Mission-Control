@@ -83,10 +83,14 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
           fileInputRef.current.value = '';
         }
 
-        // Redirect to lab review page if uploading lab reports
+        // Redirect to appropriate review page based on file type
         if (fileType === 'lab_report') {
           setTimeout(() => {
             window.location.href = '/fitness/health/labs';
+          }, 2000);
+        } else if (fileType === 'methylation_report') {
+          setTimeout(() => {
+            window.location.href = '/fitness/genetics';
           }, 2000);
         } else {
           setTimeout(() => {

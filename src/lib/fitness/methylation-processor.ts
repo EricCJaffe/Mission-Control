@@ -179,34 +179,24 @@ ${pdfText}
     console.log(`📊 Inserting ${markersToInsert.length} genetic markers`);
     console.log(`📋 First marker sample:`, JSON.stringify(markersToInsert[0], null, 2));
 
-    // Use RPC function to bypass PostgREST schema cache issues
-    const { data: rpcResult, error: insertError } = await supabase.rpc('insert_genetic_markers', {
-      p_user_id: userId,
-      p_file_id: fileId,
-      p_markers: markersToInsert.map(m => ({
-        snp_id: m.snp_id,
-        gene: m.gene,
-        genotype: m.genotype,
-        risk_level: m.risk_level,
-        clinical_significance: m.clinical_significance,
-        supplement_implications: m.supplement_implications,
-      }))
-    });
+    // Direct insert — same pattern as lab processor uses for lab_results
+    const { error: insertError } = await supabase
+      .from('genetic_markers')
+      .insert(markersToInsert);
 
     if (insertError) {
-      console.error('❌ RPC error:', insertError);
+      console.error('❌ Insert error:', insertError);
       return { success: false, error: `Failed to store genetic markers: ${insertError.message}` };
     }
 
-    if (rpcResult && !rpcResult.success) {
-      console.error('❌ Function error:', rpcResult.error);
-      return { success: false, error: `Failed to store genetic markers: ${rpcResult.error}` };
+    console.log(`✅ Successfully inserted ${markersToInsert.length} genetic markers`);
+
+    // Generate implications using AI with health context (non-blocking)
+    try {
+      await generateMethylationAnalysis({ userId, fileId });
+    } catch (analysisErr) {
+      console.error('Methylation analysis failed (non-critical, markers saved):', analysisErr);
     }
-
-    console.log(`✅ Successfully inserted ${markersToInsert.length} genetic markers via RPC`);
-
-    // Generate implications using AI with health context
-    await generateMethylationAnalysis({ userId, fileId });
 
     // Trigger health.md update detection (non-blocking)
     try {
@@ -266,7 +256,7 @@ async function generateMethylationAnalysis(params: {
   const userPrompt = `Analyze these genetic markers and provide actionable recommendations:
 
 **SNP Data**:
-${markers.map(m => `- ${m.gene} ${m.variant} (${m.rs_id}): ${m.genotype} (${m.status})`).join('\n')}
+${markers.map(m => `- ${m.gene} (${m.snp_id}): ${m.genotype} — risk: ${m.risk_level || 'unknown'}${m.clinical_significance ? ` — ${m.clinical_significance}` : ''}`).join('\n')}
 
 Return JSON:
 \`\`\`json
@@ -323,15 +313,12 @@ Return ONLY the JSON.`;
     const jsonText = jsonMatch ? jsonMatch[1] : analysisText;
     const analysis = JSON.parse(jsonText);
 
-    // Update file record with analysis
-    await supabase
-      .from('health_file_uploads')
-      .update({
-        processing_metadata: analysis,
-      })
-      .eq('id', fileId);
-
-    // TODO: Propose health.md genetic section update (would need health doc updater)
+    // Log analysis results (health_file_uploads doesn't have a metadata column yet)
+    console.log(`✅ Methylation analysis complete:`, JSON.stringify({
+      summary: analysis.summary?.substring(0, 100),
+      supplement_count: analysis.supplement_recommendations?.length || 0,
+      lifestyle_count: analysis.lifestyle_recommendations?.length || 0,
+    }));
 
   } catch (error) {
     console.error('Methylation analysis error:', error);
