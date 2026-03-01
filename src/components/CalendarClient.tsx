@@ -34,12 +34,11 @@ type Option = { id: string; title: string };
 type ReviewOption = { id: string; period_start: string };
 
 function toDateInput(value: string) {
-  // Prefer string slicing to avoid timezone shifts and parsing quirks.
-  const m = String(value || '').match(/^(\d{4}-\d{2}-\d{2})/);
-  if (m) return m[1];
+  // IMPORTANT: calendar UI groups by *local* date (via new Date(start_at)), so the edit form
+  // should also show the local date. Using YYYY-MM-DD slicing on an ISO timestamptz string
+  // can be off by one day for evening events (UTC rolls over).
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  // Fall back to local date components (not UTC) to avoid off-by-one-day.
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
