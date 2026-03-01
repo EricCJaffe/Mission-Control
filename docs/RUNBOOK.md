@@ -78,7 +78,21 @@
   - If model not available: Check `OPENAI_MODEL` override and ensure model name is valid (defaults: `gpt-5.2` for books/sermons, `gpt-4o-mini` for fitness).
   - Consider adding retry logic or fallback models for production resilience.
 
-## 7) Next.js Turbopack cache corruption (dev server crashes)
+## 7) Calendar scheduled workout issues (planned_workouts sync)
+- Symptom:
+  - Scheduled workout shows wrong time (e.g., 9am showing as 4am) or wrong day.
+  - Scheduled workout can't be moved via calendar.
+  - Calendar shows duplicate workout entries.
+- Cause:
+  - Scheduled workouts are source-of-truth in `planned_workouts`.
+  - `calendar_events` rows for scheduled workouts are derived via Postgres trigger `sync_planned_workout_to_calendar()`.
+  - Timezone handling must interpret (date + time) in **America/New_York** (ET).
+- Fix:
+  1. Ensure `sync_planned_workout_to_calendar()` interprets `(scheduled_date + scheduled_time)` using `AT TIME ZONE 'America/New_York'`.
+  2. Resync existing `planned_workout:%` calendar rows from `planned_workouts`.
+  3. In UI, edit scheduled workouts by PATCHing `/api/fitness/planned-workouts` (do not edit the derived calendar row).
+
+## 8) Next.js Turbopack cache corruption (dev server crashes)
 - Symptom:
   - Dev server crashes with "FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory".
   - After restart, errors like "Failed to restore task data (corrupted database or bug)" or "No such file or directory" for .sst files.

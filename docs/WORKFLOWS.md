@@ -26,6 +26,15 @@
 - Migrations are stored in `supabase/migrations/`.
 - Apply migrations via Supabase CLI: `supabase db push`
 - Fitness module migration helper: `npm run db:migrate:fitness` (applies fitness tables via Node script)
+
+### Calendar scheduled workouts workflow
+- Source of truth: `planned_workouts`.
+- Derived view: `calendar_events` rows with `alignment_tag = planned_workout:<id>`.
+- Sync mechanism: Postgres trigger function `sync_planned_workout_to_calendar()`.
+- Timezone: interpret `(scheduled_date + scheduled_time)` in **America/New_York** (ET), then store as `timestamptz`.
+- UX expectation:
+  - Click planned workout = **Start** (`/fitness/log?planned_workout_id=<id>`)
+  - Small **Edit** opens modal that PATCHes `/api/fitness/planned-workouts` (date/time/title)
 - If migration history mismatches occur, use:
   - `supabase migration list`
   - `supabase migration repair --status applied <ids...>`
