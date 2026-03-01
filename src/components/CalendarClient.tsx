@@ -147,8 +147,9 @@ export default function CalendarClient({
   reviews: ReviewOption[];
   templates: WorkoutTemplate[];
 }) {
-  const [view, setView] = useState<CalendarView>('month');
-  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [view, setView] = useState<CalendarView>('day');
+  const todayStr = toISODate(new Date());
+  const [selectedDate, setSelectedDate] = useState(initialDate || todayStr);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [editingIsRecurring, setEditingIsRecurring] = useState(false);
   const [filters, setFilters] = useState<EventFilter>(createDefaultFilter());
@@ -234,7 +235,7 @@ export default function CalendarClient({
     window.location.reload();
   };
 
-  const weekStartDate = toISODate(startOfWeek(new Date(selectedDate)));
+  const weekStartDate = toISODate(startOfWeek(new Date(selectedDate || todayStr)));
 
   return (
     <div className="mt-6 grid gap-6">
