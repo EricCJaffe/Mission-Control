@@ -46,18 +46,18 @@ function toDateInput(value: string) {
 }
 
 function toTimeInput(value: string) {
-  const s = String(value || '');
-  // ISO: 2026-02-28T09:00:00...
-  const iso = s.match(/T(\d{2}:\d{2})/);
-  if (iso) return iso[1];
-  // SQL-ish: 2026-02-28 09:00:00...
-  const sql = s.match(/\s(\d{2}:\d{2})/);
-  if (sql) return sql[1];
+  // IMPORTANT: start_at/end_at are stored as timestamptz (UTC). We want to show the user's
+  // local time (ET) in the edit form, so always parse as Date and use local hours/minutes.
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+  if (!Number.isNaN(date.getTime())) {
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+  // Fallback for non-ISO strings.
+  const s = String(value || '');
+  const m = s.match(/(\d{2}:\d{2})/);
+  return m ? m[1] : '';
 }
 
 function formatTime(value: string) {
@@ -436,9 +436,16 @@ export default function CalendarClient({
                 <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="start_at" type="time" defaultValue={toTimeInput(editing.start_at)} required />
                 <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="end_at" type="time" defaultValue={toTimeInput(editing.end_at)} required />
               </div>
-              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="recurrence_rule" defaultValue={editing.recurrence_rule || ""} placeholder="Recurrence (e.g., weekly)" />
-              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="recurrence_until" type="date" defaultValue={editing.recurrence_until ? toDateInput(editing.recurrence_until) : ""} />
-              <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="expand_count" type="number" min="0" placeholder="Expand next N occurrences (optional)" />
+              {!isPlannedWorkout && (
+                <>
+                  <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="recurrence_rule" defaultValue={editing.recurrence_rule || ""} placeholder="Recurrence (e.g., weekly)" />
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">Recurrence until (optional)</label>
+                    <input className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2" name="recurrence_until" type="date" defaultValue={editing.recurrence_until ? toDateInput(editing.recurrence_until) : ""} />
+                  </div>
+                  <input className="rounded-xl border border-slate-200 bg-white px-3 py-2" name="expand_count" type="number" min="0" placeholder="Expand next N occurrences (optional)" />
+                </>
+              )}
 
               {isPlannedWorkout ? (
                 <input type="hidden" name="alignment_tag" value={editing.alignment_tag || ''} />
