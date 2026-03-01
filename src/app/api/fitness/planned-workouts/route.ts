@@ -126,7 +126,6 @@ export async function PATCH(request: NextRequest) {
     if (notes !== undefined) updateData.notes = notes;
     if (status !== undefined) updateData.status = status;
     if (day_label !== undefined) updateData.day_label = day_label;
-    updateData.updated_at = new Date().toISOString();
 
     // Update planned workout
     const { data, error } = await supabase

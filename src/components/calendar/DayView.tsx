@@ -227,7 +227,7 @@ export default function DayView({
                       )}
                     </div>
                   </div>
-                  {!isLogged && (
+                  {!isLogged && !isPlanned && (
                     <button
                       onClick={() => onEventClick(event)}
                       className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
@@ -329,7 +329,7 @@ export default function DayView({
                                 <p className="mt-2 text-sm text-slate-600">{event.notes}</p>
                               )}
                             </div>
-                            {!isLogged && (
+                            {!isLogged && !isPlanned && (
                               <button
                                 onClick={() => onEventClick(event)}
                                 className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
