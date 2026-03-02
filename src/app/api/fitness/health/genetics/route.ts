@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { generateMethylationAnalysis } from '@/lib/fitness/methylation-processor';
+import { refreshGeneticAnalysis, isGeneticReportType, GENETIC_REPORT_LABELS } from '@/lib/fitness/genetics-processor';
 
 /**
  * GET - Fetch genetic markers for a specific file upload
@@ -66,54 +66,58 @@ export async function PUT(req: Request) {
 
   if (confirm) {
     try {
-      // Generate AI analysis
-      const analysis = await generateMethylationAnalysis({
-        userId: userData.user.id,
-        fileId: file_id,
-      });
+      // Get the file upload to determine report type
+      const { data: fileUpload } = await supabase
+        .from('health_file_uploads')
+        .select('file_type')
+        .eq('id', file_id)
+        .eq('user_id', userData.user.id)
+        .single();
 
-      // Save analysis to health_file_uploads and mark as completed
-      // Use RPC to bypass PostgREST schema cache for new column
-      const { error: updateError } = await supabase.rpc('update_file_upload_analysis', {
-        p_file_id: file_id,
-        p_user_id: userData.user.id,
-        p_analysis: analysis || null,
-      });
+      const reportType = fileUpload?.file_type;
+      let analysis: Record<string, unknown> | null = null;
 
-      if (updateError) {
-        console.error('RPC update error, falling back to direct update:', updateError);
-        // Fallback: update status without analysis_json column
-        await supabase
-          .from('health_file_uploads')
-          .update({
-            processing_status: 'completed',
-            processed_at: new Date().toISOString(),
-          })
-          .eq('id', file_id)
-          .eq('user_id', userData.user.id);
+      if (reportType && isGeneticReportType(reportType)) {
+        // Load existing analysis_json (set during processing) — it's already there
+        const { data: existingResult } = await supabase.rpc('get_file_upload_analysis', {
+          p_file_id: file_id,
+          p_user_id: userData.user.id,
+        });
+        analysis = existingResult?.analysis || null;
+
+        // If no analysis yet (shouldn't happen but just in case), generate it
+        if (!analysis) {
+          const result = await refreshGeneticAnalysis({
+            userId: userData.user.id,
+            fileId: file_id,
+            reportType,
+          });
+          analysis = result.analysis || null;
+        }
       }
 
-      return NextResponse.json({
-        success: true,
-        analysis,
+      // Mark as completed
+      await supabase.rpc('update_file_upload_analysis', {
+        p_file_id: file_id,
+        p_user_id: userData.user.id,
+        p_analysis: analysis,
       });
+
+      const label = reportType && isGeneticReportType(reportType)
+        ? GENETIC_REPORT_LABELS[reportType]
+        : 'Genetic Report';
+
+      return NextResponse.json({ success: true, analysis, report_type_label: label });
+
     } catch (error) {
-      console.error('Failed to generate methylation analysis:', error);
-      // Still mark as completed even if analysis fails — markers are saved
+      console.error('Failed to confirm genetic report:', error);
       await supabase
         .from('health_file_uploads')
-        .update({
-          processing_status: 'completed',
-          processed_at: new Date().toISOString(),
-        })
+        .update({ processing_status: 'completed', processed_at: new Date().toISOString() })
         .eq('id', file_id)
         .eq('user_id', userData.user.id);
 
-      return NextResponse.json({
-        success: true,
-        analysis: null,
-        warning: 'Markers confirmed but AI analysis failed',
-      });
+      return NextResponse.json({ success: true, analysis: null, warning: 'Confirmed but AI analysis failed' });
     }
   }
 

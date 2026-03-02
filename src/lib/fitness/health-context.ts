@@ -19,6 +19,7 @@ export type FunctionType =
   | 'fasting_guidance'
   | 'fasting_advisor'
   | 'methylation_analysis'
+  | 'genetics_analysis'
   | 'health_doc_update'
   | 'plan_generation'
   | 'general_health_query';
@@ -438,6 +439,11 @@ You are analyzing methylation/genetic report SNP data. For each significant vari
 
 Generate an updated health.md genetic section with extracted data + plain-language summary.
 Prioritize variants that have actionable interventions.
+`,
+    genetics_analysis: `
+You are a clinical genetics consultant analyzing genetic report data for a patient with a documented cardiac history.
+Focus on: actionable gene variants, supplement implications, dietary adjustments, lifestyle modifications, medication interactions, and cardiovascular relevance.
+Explain findings in plain English that an informed non-scientist can understand. Be thorough and reference specific genes.
 `,
     health_doc_update: `
 You are proposing updates to health.md. For each proposed update:

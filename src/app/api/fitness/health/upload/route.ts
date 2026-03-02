@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { processLabReportUnpdf } from '@/lib/fitness/lab-processor-unpdf';
-import { processMethylationReport } from '@/lib/fitness/methylation-processor';
+import { processGeneticReport, isGeneticReportType } from '@/lib/fitness/genetics-processor';
 
 /**
  * Upload health documents (lab reports, methylation reports, doctor notes, imaging)
@@ -109,12 +109,13 @@ export async function POST(req: Request) {
           fileId: fileRecord.id,
           filePath: storagePath,
         });
-      } else if (fileType === 'methylation_report') {
-        // Process methylation report (extract SNP data)
-        processingResult = await processMethylationReport({
+      } else if (isGeneticReportType(fileType)) {
+        // All genetic report types: unified processor
+        processingResult = await processGeneticReport({
           userId,
           fileId: fileRecord.id,
           filePath: storagePath,
+          reportType: fileType,
         });
       } else {
         // Other file types: just store, no processing
@@ -127,12 +128,11 @@ export async function POST(req: Request) {
 
       // Update processing status
       if (processingResult.success) {
+        const needsReview = fileType === 'lab_report' || isGeneticReportType(fileType);
         await supabase
           .from('health_file_uploads')
           .update({
-            processing_status: fileType === 'lab_report' || fileType === 'methylation_report'
-              ? 'needs_review'
-              : 'completed',
+            processing_status: needsReview ? 'needs_review' : 'completed',
             processed_at: new Date().toISOString()
           })
           .eq('id', fileRecord.id);
@@ -165,7 +165,7 @@ export async function POST(req: Request) {
         name: file.name,
         type: fileType,
         status: processingResult.success
-          ? (fileType === 'lab_report' || fileType === 'methylation_report' ? 'needs_review' : 'completed')
+          ? (fileType === 'lab_report' || isGeneticReportType(fileType) ? 'needs_review' : 'completed')
           : 'failed',
       },
     });

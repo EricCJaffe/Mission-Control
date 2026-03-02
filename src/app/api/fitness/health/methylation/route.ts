@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
+import { GENETIC_REPORT_TYPES, GENETIC_REPORT_LABELS, GeneticReportType } from '@/lib/fitness/genetics-processor';
 
 export async function GET(request: NextRequest) {
+  void request;
   try {
     const supabase = await supabaseServer();
     const { data: { user } } = await supabase.auth.getUser();
@@ -10,31 +12,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get all genetic markers for the user
-    const { data: markers, error: markersError } = await supabase
-      .from('genetic_markers')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (markersError) {
-      console.error('Error fetching genetic markers:', markersError);
-      return NextResponse.json({ error: 'Failed to fetch genetic markers' }, { status: 500 });
-    }
-
-    // Get file uploads to find saved analysis
-    // Use explicit column list to avoid PostgREST schema cache issues
-    const uploadColumns = 'id, file_name, file_type, processing_status, error_message, file_path, processed_at';
-
+    // Fetch all completed/needs_review uploads across all 6 genetic report types
+    const uploadColumns = 'id, file_name, file_type, processing_status, error_message, file_path, processed_at, uploaded_at';
     const { data: uploads } = await supabase
       .from('health_file_uploads')
       .select(uploadColumns)
       .eq('user_id', user.id)
-      .eq('file_type', 'methylation_report')
-      .in('processing_status', ['completed', 'needs_review']);
+      .in('file_type', GENETIC_REPORT_TYPES as unknown as string[])
+      .in('processing_status', ['completed', 'needs_review'])
+      .order('processed_at', { ascending: false });
 
-    // Try to load analysis_json via RPC (bypasses schema cache)
-    let analysisMap: Record<string, Record<string, unknown>> = {};
+    // Load analysis_json for each upload via RPC (bypasses PostgREST schema cache)
+    const analysisMap: Record<string, Record<string, unknown>> = {};
     if (uploads && uploads.length > 0) {
       for (const upload of uploads) {
         try {
@@ -42,45 +31,61 @@ export async function GET(request: NextRequest) {
             p_file_id: upload.id,
             p_user_id: user.id,
           });
-          if (analysisResult && analysisResult.analysis) {
+          if (analysisResult?.analysis) {
             analysisMap[upload.id] = analysisResult.analysis;
           }
         } catch {
-          // RPC may not exist yet, continue
+          // RPC may not exist, skip
         }
       }
     }
 
-    // Group markers by file
-    const fileIds = [...new Set(markers?.map(m => m.file_id).filter(Boolean))];
+    // For methylation_report files: also load genetic markers (legacy + detail view)
+    const methylationIds = (uploads || [])
+      .filter(u => u.file_type === 'methylation_report')
+      .map(u => u.id);
 
-    const reportsByFile = fileIds.map(fileId => {
-      const fileMarkers = markers?.filter(m => m.file_id === fileId) || [];
-      const firstMarker = fileMarkers[0];
+    let allMarkers: Record<string, unknown>[] = [];
+    if (methylationIds.length > 0) {
+      const { data: markers } = await supabase
+        .from('genetic_markers')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('file_id', methylationIds)
+        .order('gene');
+      allMarkers = markers || [];
+    }
 
-      // Group markers by gene
-      const markersByGene: Record<string, typeof markers> = {};
-      fileMarkers.forEach(marker => {
-        if (!markersByGene[marker.gene]) {
-          markersByGene[marker.gene] = [];
-        }
-        markersByGene[marker.gene].push(marker);
-      });
+    // Group markers by file_id
+    const markersByFile: Record<string, Record<string, unknown>[]> = {};
+    for (const marker of allMarkers) {
+      const fid = marker.file_id as string;
+      if (!markersByFile[fid]) markersByFile[fid] = [];
+      markersByFile[fid].push(marker);
+    }
 
-      // Find matching upload record
-      const upload = uploads?.find(u => u.id === fileId);
+    // Build unified report list
+    const reports = (uploads || []).map(upload => {
+      const analysis = analysisMap[upload.id] || null;
+      const fileMarkers = markersByFile[upload.id] || [];
 
-      // Use saved analysis if available, otherwise build basic summary
-      const savedAnalysis = analysisMap[fileId];
-      const geneList = Object.keys(markersByGene);
-
-      const analysis = savedAnalysis || buildFallbackAnalysis(fileMarkers, geneList);
+      // Group markers by gene (for methylation reports)
+      const markersByGene: Record<string, Record<string, unknown>[]> = {};
+      for (const marker of fileMarkers) {
+        const gene = marker.gene as string;
+        if (!markersByGene[gene]) markersByGene[gene] = [];
+        markersByGene[gene].push(marker);
+      }
 
       return {
-        file_id: fileId,
-        file_name: upload?.file_name || `Methylation Report (${new Date(firstMarker?.created_at || Date.now()).toLocaleDateString()})`,
-        upload_date: upload?.processed_at || firstMarker?.created_at,
-        processing_status: upload?.processing_status || 'completed',
+        file_id: upload.id,
+        file_name: upload.file_name,
+        file_type: upload.file_type as GeneticReportType,
+        file_type_label: GENETIC_REPORT_LABELS[upload.file_type as GeneticReportType] || upload.file_type,
+        file_path: upload.file_path,
+        processing_status: upload.processing_status,
+        upload_date: upload.uploaded_at,
+        processed_at: upload.processed_at,
         analysis,
         marker_count: fileMarkers.length,
         markers: fileMarkers,
@@ -88,75 +93,44 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // Load cross-report comprehensive analysis
+    let comprehensiveAnalysis: Record<string, unknown> | null = null;
+    try {
+      const { data: compResult } = await supabase.rpc('get_genetics_comprehensive_analysis', {
+        p_user_id: user.id,
+      });
+      if (compResult?.found) {
+        comprehensiveAnalysis = {
+          analysis: compResult.analysis,
+          file_ids: compResult.file_ids,
+          report_types: compResult.report_types,
+          generated_at: compResult.generated_at,
+        };
+      }
+    } catch {
+      // RPC may not exist yet
+    }
+
+    // Summary counts by report type
+    const reportTypeCounts: Record<string, number> = {};
+    for (const report of reports) {
+      reportTypeCounts[report.file_type] = (reportTypeCounts[report.file_type] || 0) + 1;
+    }
+
     return NextResponse.json({
-      reports: reportsByFile,
-      total_markers: markers?.length || 0,
+      reports,
+      comprehensive_analysis: comprehensiveAnalysis,
+      total_markers: allMarkers.length,
+      report_type_counts: reportTypeCounts,
+      genetic_report_types: GENETIC_REPORT_TYPES,
+      genetic_report_labels: GENETIC_REPORT_LABELS,
     });
 
-  } catch (error: any) {
-    console.error('Methylation fetch error:', error);
+  } catch (error: unknown) {
+    console.error('Genetics fetch error:', error);
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
-}
-
-/**
- * Build a basic fallback analysis from marker data when no saved AI analysis exists
- */
-function buildFallbackAnalysis(
-  fileMarkers: any[],
-  geneList: string[]
-): Record<string, unknown> {
-  const highRisk = fileMarkers.filter(m => m.risk_level === 'high');
-  const moderateRisk = fileMarkers.filter(m => m.risk_level === 'moderate');
-
-  const supplementRecs: Array<Record<string, string>> = [];
-  const lifestyleRecs: Array<Record<string, string>> = [];
-  const medicationNotes: Array<Record<string, string>> = [];
-
-  // Generate basic recommendations from marker data
-  for (const marker of fileMarkers) {
-    if (marker.supplement_implications) {
-      supplementRecs.push({
-        supplement: marker.supplement_implications,
-        reason: `Based on ${marker.gene} ${marker.snp_id} (${marker.genotype})`,
-        priority: marker.risk_level === 'high' ? 'high' : 'medium',
-      });
-    }
-  }
-
-  // Add known gene-specific recommendations
-  const mthfrHigh = fileMarkers.find(m => m.gene === 'MTHFR' && m.risk_level === 'high');
-  const mthfrMod = fileMarkers.find(m => m.gene === 'MTHFR' && m.risk_level === 'moderate');
-  if (mthfrHigh) {
-    supplementRecs.push({
-      supplement: 'Methylfolate (5-MTHF)',
-      reason: 'MTHFR homozygous variant significantly reduces folate metabolism',
-      dosage: '800-1000 mcg daily',
-      priority: 'high',
-    });
-  } else if (mthfrMod) {
-    supplementRecs.push({
-      supplement: 'Methylfolate (5-MTHF)',
-      reason: 'MTHFR heterozygous variant moderately reduces folate metabolism',
-      dosage: '400-800 mcg daily',
-      priority: 'medium',
-    });
-  }
-
-  const summary = highRisk.length > 0
-    ? `Found ${highRisk.length} high-risk and ${moderateRisk.length} moderate-risk variants across ${geneList.length} genes. Key areas: ${geneList.slice(0, 5).join(', ')}. Review supplement and lifestyle recommendations below.`
-    : `Analyzed ${fileMarkers.length} markers across ${geneList.length} genes (${geneList.slice(0, 5).join(', ')}${geneList.length > 5 ? ', and more' : ''}). ${moderateRisk.length} moderate-risk variants found.`;
-
-  return {
-    summary,
-    supplement_recommendations: supplementRecs,
-    lifestyle_recommendations: lifestyleRecs,
-    medication_notes: medicationNotes,
-    cardiac_relevance: highRisk.some(m => ['MTHFR', 'COMT', 'APOE'].includes(m.gene))
-      ? 'Variants detected in genes related to cardiovascular health. MTHFR affects homocysteine metabolism (a cardiac risk factor), COMT affects stress response and blood pressure regulation.'
-      : 'No high-impact cardiac-related variants detected. Continue standard cardiac monitoring.',
-  };
 }

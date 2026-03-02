@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { AlertCircle, Bot, FileHeart, Target, TrendingUp, ArrowRight, Dumbbell, Leaf, Stethoscope, Upload } from 'lucide-react';
+import { AlertCircle, Bot, FileHeart, Target, TrendingUp, ArrowRight, Dumbbell, Leaf, Stethoscope, Upload, RefreshCw, ChevronDown, ChevronRight, Brain, Zap, FlaskConical, Activity, Pill } from 'lucide-react';
 
 interface LabPanel {
   id: string;
@@ -44,6 +44,32 @@ interface LabDashboardClientProps {
   initialTab?: string;
 }
 
+interface GeneticReport {
+  file_id: string;
+  file_name: string;
+  file_type: string;
+  file_type_label: string;
+  file_path: string;
+  processing_status: string;
+  upload_date: string;
+  processed_at: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  analysis: Record<string, any> | null;
+  marker_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  markers: Record<string, any>[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  markers_by_gene: Record<string, Record<string, any>[]>;
+}
+
+interface GeneticsComprehensiveAnalysis {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  analysis: Record<string, any>;
+  file_ids: string[];
+  report_types: string[];
+  generated_at: string;
+}
+
 interface ComprehensiveAnalysis {
   executive_summary: string;
   categories: Array<{
@@ -80,8 +106,13 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
   const [comprehensiveAnalysis, setComprehensiveAnalysis] = useState<ComprehensiveAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [methylationReports, setMethylationReports] = useState<any[]>([]);
+  const [methylationReports, setMethylationReports] = useState<GeneticReport[]>([]);
   const [methylationLoading, setMethylationLoading] = useState(false);
+  const [comprehensiveGeneticsAnalysis, setComprehensiveGeneticsAnalysis] = useState<GeneticsComprehensiveAnalysis | null>(null);
+  const [geneticsComprehensiveLoading, setGeneticsComprehensiveLoading] = useState(false);
+  const [geneticsComprehensiveError, setGeneticsComprehensiveError] = useState<string | null>(null);
+  const [collapsedReports, setCollapsedReports] = useState<Set<string>>(new Set());
+  const [refreshingReport, setRefreshingReport] = useState<string | null>(null);
 
   const loadDashboardData = async (filterValue: string) => {
     setLoading(true);
@@ -109,21 +140,65 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
       const response = await fetch('/api/fitness/health/methylation');
       const result = await response.json();
 
-      console.log('Methylation API response:', { status: response.status, result });
-
       if (response.ok && result.reports) {
-        console.log(`Loaded ${result.reports.length} methylation reports with ${result.total_markers} total markers`);
         setMethylationReports(result.reports);
+        if (result.comprehensive_analysis) {
+          setComprehensiveGeneticsAnalysis(result.comprehensive_analysis);
+        }
       } else {
-        console.warn('No methylation reports found or error:', result);
         setMethylationReports([]);
       }
     } catch (err) {
-      console.error('Failed to load methylation reports:', err);
+      console.error('Failed to load genetics reports:', err);
       setMethylationReports([]);
     } finally {
       setMethylationLoading(false);
     }
+  };
+
+  const generateComprehensiveGeneticsAnalysis = async () => {
+    setGeneticsComprehensiveLoading(true);
+    setGeneticsComprehensiveError(null);
+    try {
+      const response = await fetch('/api/fitness/health/genetics/comprehensive', {
+        method: 'POST',
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to generate analysis');
+      setComprehensiveGeneticsAnalysis(result.comprehensive_analysis);
+    } catch (err) {
+      setGeneticsComprehensiveError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setGeneticsComprehensiveLoading(false);
+    }
+  };
+
+  const refreshGeneticReport = async (fileId: string) => {
+    setRefreshingReport(fileId);
+    try {
+      const response = await fetch(`/api/fitness/health/genetics/${fileId}/refresh`, {
+        method: 'POST',
+      });
+      const result = await response.json();
+      if (response.ok && result.analysis) {
+        setMethylationReports(prev =>
+          prev.map(r => r.file_id === fileId ? { ...r, analysis: result.analysis } : r)
+        );
+      }
+    } catch (err) {
+      console.error('Failed to refresh report:', err);
+    } finally {
+      setRefreshingReport(null);
+    }
+  };
+
+  const toggleCollapsed = (fileId: string) => {
+    setCollapsedReports(prev => {
+      const next = new Set(prev);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -297,7 +372,7 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
             onClick={() => setLabType('methylation')}
             className="rounded-lg px-4 py-2.5 text-sm font-medium transition-colors min-h-[44px] text-slate-600 hover:bg-slate-50"
           >
-            Methylation Reports
+            Genetics Reports
           </button>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
@@ -842,223 +917,183 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
       </>
       )}
 
-      {/* Methylation Reports */}
+      {/* Genetics Reports */}
       {labType === 'methylation' && (
         <div className="space-y-6">
           {methylationLoading ? (
             <div className="flex items-center justify-center py-12">
-              <p className="text-gray-600">Loading methylation reports...</p>
+              <p className="text-gray-600">Loading genetics reports...</p>
             </div>
           ) : methylationReports.length === 0 ? (
             <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Methylation Reports Found</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Genetics Reports Found</h3>
               <p className="text-gray-600 mb-4">
-                Upload your DNA methylation reports (e.g., from 23andMe, AncestryDNA, TruDiagnostic) to see genetic insights and SNP analysis.
+                Upload your genetic report PDFs to get AI-powered insights on methylation, neurotransmitters, detox, mitochondria, hormones, and nutrition.
               </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-sm text-left max-w-md mx-auto">
-                <p className="font-medium text-blue-900 mb-2">Troubleshooting:</p>
-                <ul className="text-blue-800 space-y-1 text-xs">
-                  <li>• Check browser console (F12) for API response details</li>
-                  <li>• Verify file was uploaded as "Methylation Report" type</li>
-                  <li>• Processing may take 30-60 seconds after upload</li>
-                  <li>• Check /fitness/health/upload page for upload status</li>
-                </ul>
+              <div className="grid grid-cols-2 gap-2 mb-6 text-xs text-left max-w-lg mx-auto">
+                {[
+                  ['Methylation & SNP', 'MTHFR, COMT, VDR variants'],
+                  ['Neurotransmitter', 'Dopamine, serotonin pathways'],
+                  ['Detoxification', 'Phase I & II enzymes'],
+                  ['Mitochondrial', 'Energy production genes'],
+                  ['Hormone Genetics', 'Estrogen, testosterone, cortisol'],
+                  ['Nutritional Genomics', 'Vitamin D, B12, omega-3'],
+                ].map(([label, desc]) => (
+                  <div key={label} className="bg-slate-50 rounded-lg p-2 border border-slate-200">
+                    <p className="font-medium text-slate-800">{label}</p>
+                    <p className="text-slate-500">{desc}</p>
+                  </div>
+                ))}
               </div>
               <a
                 href="/fitness/health/upload"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm"
               >
                 <Upload size={18} />
-                Upload Methylation Report
+                Upload Genetic Report
               </a>
             </div>
           ) : (
             <div className="space-y-6">
-              {methylationReports.map((report: any, idx: number) => (
-                <div key={idx} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-                  {/* Report Header */}
-                  <div className="bg-purple-50 border-b border-purple-100 p-6">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-xl font-bold text-purple-900 mb-1">{report.file_name}</h3>
-                        <p className="text-sm text-purple-700">
-                          {report.marker_count} genetic markers analyzed • Uploaded {new Date(report.upload_date).toLocaleDateString()}
+              {/* ── Comprehensive Cross-Report Analysis Card ── */}
+              <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-indigo-100">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Bot className="text-indigo-600" size={20} />
+                        <h3 className="text-lg font-bold text-indigo-900">Comprehensive Genetic Profile</h3>
+                      </div>
+                      <p className="text-sm text-indigo-700">
+                        Cross-report AI synthesis across {methylationReports.length} report{methylationReports.length !== 1 ? 's' : ''} — unified recommendations and pattern analysis
+                      </p>
+                      {comprehensiveGeneticsAnalysis?.generated_at && (
+                        <p className="text-xs text-indigo-500 mt-1">
+                          Last generated: {new Date(comprehensiveGeneticsAnalysis.generated_at).toLocaleString()}
                         </p>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        report.processing_status === 'completed'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {report.processing_status || 'processed'}
-                      </span>
+                      )}
                     </div>
+                    <button
+                      onClick={generateComprehensiveGeneticsAnalysis}
+                      disabled={geneticsComprehensiveLoading}
+                      className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[44px]"
+                    >
+                      <RefreshCw size={14} className={geneticsComprehensiveLoading ? 'animate-spin' : ''} />
+                      {comprehensiveGeneticsAnalysis ? 'Refresh' : 'Generate'} Analysis
+                    </button>
                   </div>
+                  {geneticsComprehensiveError && (
+                    <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+                      {geneticsComprehensiveError}
+                    </div>
+                  )}
+                </div>
 
-                  {/* AI Analysis Summary */}
-                  {report.analysis && (
-                    <div className="p-6 border-b border-slate-100 bg-gradient-to-br from-purple-50/50 to-white">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Bot className="text-purple-600" size={20} />
-                        <h4 className="font-semibold text-slate-900">AI Analysis</h4>
-                      </div>
-
-                      {report.analysis.summary && (
-                        <p className="text-sm text-slate-700 mb-4 leading-relaxed">{report.analysis.summary}</p>
+                {comprehensiveGeneticsAnalysis?.analysis && (() => {
+                  const ca = comprehensiveGeneticsAnalysis.analysis;
+                  return (
+                    <div className="p-6 space-y-5">
+                      {/* Overall Profile */}
+                      {ca.overall_genetic_profile && (
+                        <p className="text-sm text-slate-700 leading-relaxed">{String(ca.overall_genetic_profile)}</p>
                       )}
 
-                      {/* Supplement Recommendations */}
-                      {report.analysis.supplement_recommendations && report.analysis.supplement_recommendations.length > 0 && (
-                        <div className="mb-4">
-                          <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                            <Leaf size={14} /> Supplement Recommendations
-                          </h5>
+                      {/* Cross-Report Patterns */}
+                      {Array.isArray(ca.cross_report_patterns) && ca.cross_report_patterns.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                            <TrendingUp size={13} /> Cross-Report Patterns
+                          </h4>
                           <div className="space-y-2">
-                            {report.analysis.supplement_recommendations.map((rec: any, i: number) => (
-                              <div key={i} className="bg-white rounded-lg p-3 border border-green-100">
-                                <div className="flex items-start justify-between mb-1">
-                                  <p className="font-medium text-sm text-slate-900">{rec.supplement}</p>
-                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                    rec.priority === 'high' ? 'bg-red-100 text-red-700' :
-                                    rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-slate-100 text-slate-700'
-                                  }`}>
-                                    {rec.priority}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-slate-600 mb-1">{rec.reason}</p>
-                                {rec.dosage && <p className="text-xs text-slate-500 font-mono">{rec.dosage}</p>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Lifestyle Recommendations */}
-                      {report.analysis.lifestyle_recommendations && report.analysis.lifestyle_recommendations.length > 0 && (
-                        <div className="mb-4">
-                          <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                            <Dumbbell size={14} /> Lifestyle Recommendations
-                          </h5>
-                          <div className="space-y-2">
-                            {report.analysis.lifestyle_recommendations.map((rec: any, i: number) => (
-                              <div key={i} className="bg-white rounded-lg p-3 border border-blue-100">
-                                <p className="font-medium text-sm text-slate-900 mb-1">{rec.area}</p>
-                                <p className="text-xs text-slate-600">{rec.recommendation}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Gene-by-Gene Explanations */}
-                      {report.analysis.gene_explanations && report.analysis.gene_explanations.length > 0 && (
-                        <div className="mb-4">
-                          <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                            <FileHeart size={14} /> What Your Genes Mean
-                          </h5>
-                          <div className="space-y-2">
-                            {report.analysis.gene_explanations.map((gene: any, i: number) => (
-                              <div key={i} className={`bg-white rounded-lg p-3 border ${
-                                gene.risk_level === 'high' ? 'border-red-200' :
-                                gene.risk_level === 'moderate' ? 'border-yellow-200' :
-                                'border-green-200'
+                            {(ca.cross_report_patterns as Array<{pattern_name?: string; severity?: string; plain_english?: string; genes_involved?: string[]}>).map((p, i) => (
+                              <div key={i} className={`rounded-lg p-3 border ${
+                                p.severity === 'high' ? 'bg-red-50 border-red-200' :
+                                p.severity === 'moderate' ? 'bg-yellow-50 border-yellow-200' :
+                                'bg-slate-50 border-slate-200'
                               }`}>
                                 <div className="flex items-center gap-2 mb-1">
-                                  <p className="font-medium text-sm text-slate-900">{gene.gene}</p>
-                                  {gene.variant && <span className="text-xs text-slate-500">({gene.variant})</span>}
+                                  <span className="font-medium text-sm text-slate-900">{p.pattern_name}</span>
+                                  {Array.isArray(p.genes_involved) && (
+                                    <span className="text-xs text-slate-500">({p.genes_involved.join(', ')})</span>
+                                  )}
                                   <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${
-                                    gene.risk_level === 'high' ? 'bg-red-100 text-red-700' :
-                                    gene.risk_level === 'moderate' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-green-100 text-green-700'
-                                  }`}>
-                                    {gene.risk_level}
-                                  </span>
+                                    p.severity === 'high' ? 'bg-red-100 text-red-700' :
+                                    p.severity === 'moderate' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-slate-100 text-slate-700'
+                                  }`}>{p.severity}</span>
                                 </div>
-                                <p className="text-xs text-slate-600 mb-2 leading-relaxed">{gene.what_it_means}</p>
-                                {gene.action_items && gene.action_items.length > 0 && (
-                                  <ul className="space-y-1">
-                                    {gene.action_items.map((item: string, j: number) => (
-                                      <li key={j} className="text-xs text-slate-500 flex items-start gap-1">
-                                        <span className="text-blue-500">→</span>
-                                        <span>{item}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
+                                <p className="text-xs text-slate-600 leading-relaxed">{p.plain_english}</p>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {/* Dietary Recommendations */}
-                      {report.analysis.dietary_recommendations && report.analysis.dietary_recommendations.length > 0 && (
-                        <div className="mb-4">
-                          <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                            <Target size={14} /> Dietary Recommendations
-                          </h5>
-                          <div className="space-y-2">
-                            {report.analysis.dietary_recommendations.map((rec: any, i: number) => (
-                              <div key={i} className="bg-white rounded-lg p-3 border border-orange-100">
-                                <p className="font-medium text-sm text-slate-900 mb-1">{rec.area}</p>
-                                <p className="text-xs text-slate-600 mb-1">{rec.recommendation}</p>
-                                {rec.foods && rec.foods.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {rec.foods.map((food: string, j: number) => (
-                                      <span key={j} className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full border border-orange-100">
-                                        {food}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
+                      {/* Top Priorities */}
+                      {Array.isArray(ca.top_priorities) && ca.top_priorities.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                            <Target size={13} /> Top Priority Actions
+                          </h4>
+                          <div className="space-y-1.5">
+                            {(ca.top_priorities as string[]).map((p, i) => (
+                              <div key={i} className="flex items-start gap-2 text-sm">
+                                <span className="flex-shrink-0 mt-0.5 h-5 w-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px] font-bold">{i + 1}</span>
+                                <span className="text-slate-700">{p}</span>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {/* Medication Notes */}
-                      {report.analysis.medication_notes && report.analysis.medication_notes.length > 0 && (
-                        <div className="mb-4">
-                          <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                            <Stethoscope size={14} /> Medication Interactions
-                          </h5>
-                          <div className="space-y-2">
-                            {report.analysis.medication_notes.map((note: any, i: number) => (
-                              <div key={i} className="bg-white rounded-lg p-3 border border-purple-100">
-                                <p className="font-medium text-sm text-slate-900 mb-1">{note.medication}</p>
-                                <p className="text-xs text-slate-600">{note.note}</p>
+                      {/* Unified Supplement Plan */}
+                      {Array.isArray(ca.unified_supplement_plan) && ca.unified_supplement_plan.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                            <Leaf size={13} /> Unified Supplement Plan
+                          </h4>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {(ca.unified_supplement_plan as Array<{supplement?: string; reason?: string; dosage?: string; priority?: string; caution?: string; addresses?: string[]}>).map((s, i) => (
+                              <div key={i} className="bg-white rounded-lg p-3 border border-green-100">
+                                <div className="flex items-start justify-between mb-1">
+                                  <p className="font-medium text-sm text-slate-900">{s.supplement}</p>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                    s.priority === 'high' ? 'bg-red-100 text-red-700' :
+                                    s.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-slate-100 text-slate-700'
+                                  }`}>{s.priority}</span>
+                                </div>
+                                <p className="text-xs text-slate-600 mb-1">{s.reason}</p>
+                                {s.dosage && <p className="text-xs text-slate-400 font-mono">{s.dosage}</p>}
+                                {s.caution && <p className="text-xs text-amber-700 mt-1 italic">{s.caution}</p>}
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {/* Cardiac Relevance */}
-                      {report.analysis.cardiac_relevance && (
-                        <div className="bg-red-50 rounded-lg p-3 border border-red-100 mb-4">
-                          <div className="flex items-center gap-1.5 mb-1">
+                      {/* Cardiac Genetic Profile */}
+                      {ca.cardiac_genetic_profile && (
+                        <div className="bg-red-50 rounded-lg p-4 border border-red-100">
+                          <div className="flex items-center gap-1.5 mb-2">
                             <Stethoscope size={14} className="text-red-600" />
-                            <h5 className="text-xs font-semibold text-red-900 uppercase tracking-wide">Cardiac Relevance</h5>
+                            <h4 className="text-xs font-semibold text-red-900 uppercase tracking-wide">Cardiac Genetic Profile</h4>
                           </div>
-                          <p className="text-xs text-red-800 leading-relaxed">{report.analysis.cardiac_relevance}</p>
+                          <p className="text-xs text-red-800 leading-relaxed">{String(ca.cardiac_genetic_profile)}</p>
                         </div>
                       )}
 
                       {/* Things to Discuss with Doctor */}
-                      {report.analysis.things_to_discuss_with_doctor && report.analysis.things_to_discuss_with_doctor.length > 0 && (
-                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                      {Array.isArray(ca.things_to_discuss_with_doctor) && ca.things_to_discuss_with_doctor.length > 0 && (
+                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
                           <div className="flex items-center gap-1.5 mb-2">
                             <AlertCircle size={14} className="text-blue-600" />
-                            <h5 className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Discuss with Your Doctor</h5>
+                            <h4 className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Discuss with Your Doctor</h4>
                           </div>
                           <ul className="space-y-1.5">
-                            {report.analysis.things_to_discuss_with_doctor.map((item: string, i: number) => (
+                            {(ca.things_to_discuss_with_doctor as string[]).map((item, i) => (
                               <li key={i} className="text-xs text-blue-800 flex items-start gap-1.5">
-                                <span className="flex-shrink-0 mt-0.5 h-4 w-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">
-                                  {i + 1}
-                                </span>
+                                <span className="flex-shrink-0 mt-0.5 h-4 w-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
                                 <span>{item}</span>
                               </li>
                             ))}
@@ -1066,50 +1101,345 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
                         </div>
                       )}
                     </div>
-                  )}
+                  );
+                })()}
 
-                  {/* SNP Data Table */}
-                  <div className="p-6">
-                    <h4 className="font-semibold text-slate-900 mb-4">Genetic Markers (SNPs)</h4>
-                    <div className="space-y-4">
-                      {Object.entries(report.markers_by_gene).map(([gene, markers]: [string, any]) => (
-                        <div key={gene} className="border border-slate-200 rounded-lg overflow-hidden">
-                          <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
-                            <h5 className="font-semibold text-slate-900">{gene}</h5>
-                          </div>
-                          <div className="divide-y divide-slate-100">
-                            {markers.map((marker: any, i: number) => (
-                              <div key={i} className="px-4 py-3 hover:bg-slate-50 transition-colors">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="font-mono text-sm font-medium text-slate-900">{marker.snp_id}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 text-xs">
-                                      <span className="font-mono text-slate-700">Genotype: {marker.genotype}</span>
-                                      <span className={`px-2 py-0.5 rounded-full font-medium ${
-                                        marker.risk_level === 'normal' ? 'bg-green-100 text-green-700' :
-                                        marker.risk_level === 'moderate' ? 'bg-yellow-100 text-yellow-700' :
-                                        marker.risk_level === 'high' ? 'bg-orange-100 text-orange-700' :
-                                        'bg-slate-100 text-slate-700'
-                                      }`}>
-                                        {marker.risk_level}
-                                      </span>
-                                    </div>
-                                    {marker.clinical_significance && (
-                                      <p className="text-xs text-slate-600 mt-1">{marker.clinical_significance}</p>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                {!comprehensiveGeneticsAnalysis && !geneticsComprehensiveLoading && (
+                  <div className="px-6 pb-6">
+                    <p className="text-sm text-indigo-600 italic">
+                      Click &ldquo;Generate Analysis&rdquo; to create a unified AI synthesis across all your genetic reports.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Individual Report Cards ── */}
+              {methylationReports.map((report: GeneticReport) => {
+                const isCollapsed = collapsedReports.has(report.file_id);
+                const isRefreshing = refreshingReport === report.file_id;
+
+                const reportIcon = (() => {
+                  switch (report.file_type) {
+                    case 'genetics_neurotransmitter': return <Brain size={16} className="text-purple-600" />;
+                    case 'genetics_detox': return <FlaskConical size={16} className="text-green-600" />;
+                    case 'genetics_mitochondrial': return <Zap size={16} className="text-yellow-600" />;
+                    case 'genetics_hormone': return <Activity size={16} className="text-pink-600" />;
+                    case 'genetics_nutrition': return <Leaf size={16} className="text-emerald-600" />;
+                    default: return <FileHeart size={16} className="text-blue-600" />;
+                  }
+                })();
+
+                const headerColor = (() => {
+                  switch (report.file_type) {
+                    case 'genetics_neurotransmitter': return 'bg-purple-50 border-purple-100';
+                    case 'genetics_detox': return 'bg-green-50 border-green-100';
+                    case 'genetics_mitochondrial': return 'bg-yellow-50 border-yellow-100';
+                    case 'genetics_hormone': return 'bg-pink-50 border-pink-100';
+                    case 'genetics_nutrition': return 'bg-emerald-50 border-emerald-100';
+                    default: return 'bg-blue-50 border-blue-100';
+                  }
+                })();
+
+                return (
+                <div key={report.file_id} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+                  {/* Collapsible Header */}
+                  <div
+                    className={`border-b p-5 cursor-pointer select-none ${headerColor}`}
+                    onClick={() => toggleCollapsed(report.file_id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      {reportIcon}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-slate-900 text-base leading-tight truncate">{report.file_name}</h3>
+                          <span className="text-xs text-slate-500 font-normal flex-shrink-0">{report.file_type_label}</span>
                         </div>
-                      ))}
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Uploaded {new Date(report.upload_date).toLocaleDateString()}
+                          {report.marker_count > 0 && ` • ${report.marker_count} SNPs`}
+                          {report.analysis?.generated_at && ` • AI: ${new Date(String(report.analysis.generated_at)).toLocaleDateString()}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          report.processing_status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {report.processing_status}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); refreshGeneticReport(report.file_id); }}
+                          disabled={isRefreshing}
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors min-h-[32px]"
+                          title="Refresh AI analysis"
+                        >
+                          <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
+                          {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                        </button>
+                        {isCollapsed ? <ChevronRight size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Collapsible Body */}
+                  {!isCollapsed && (
+                    <div>
+                      {/* AI Analysis */}
+                      {report.analysis ? (
+                        <div className="p-6 space-y-4">
+                          {/* Summary */}
+                          {report.analysis.summary && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <Bot size={16} className="text-slate-500" />
+                                <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">AI Summary</h4>
+                              </div>
+                              <p className="text-sm text-slate-700 leading-relaxed">{String(report.analysis.summary)}</p>
+                            </div>
+                          )}
+
+                          {/* Key Findings */}
+                          {Array.isArray(report.analysis.key_findings) && report.analysis.key_findings.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                <AlertCircle size={13} /> Key Findings
+                              </h5>
+                              <div className="space-y-2">
+                                {(report.analysis.key_findings as Array<{finding?: string; severity?: string; plain_english?: string}>).map((f, i) => (
+                                  <div key={i} className={`rounded-lg p-3 border ${
+                                    f.severity === 'high' ? 'bg-red-50 border-red-200' :
+                                    f.severity === 'moderate' ? 'bg-yellow-50 border-yellow-200' :
+                                    'bg-slate-50 border-slate-200'
+                                  }`}>
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span className="font-medium text-sm text-slate-900">{f.finding}</span>
+                                      <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${
+                                        f.severity === 'high' ? 'bg-red-100 text-red-700' :
+                                        f.severity === 'moderate' ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-slate-100 text-slate-700'
+                                      }`}>{f.severity}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-600 leading-relaxed">{f.plain_english}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Gene Explanations */}
+                          {Array.isArray(report.analysis.gene_explanations) && report.analysis.gene_explanations.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                <FileHeart size={13} /> What Your Genes Mean
+                              </h5>
+                              <div className="space-y-2">
+                                {(report.analysis.gene_explanations as Array<{gene?: string; variant?: string; risk_level?: string; what_it_means?: string; action_items?: string[]}>).map((g, i) => (
+                                  <div key={i} className={`bg-white rounded-lg p-3 border ${
+                                    g.risk_level === 'high' ? 'border-red-200' :
+                                    g.risk_level === 'moderate' ? 'border-yellow-200' :
+                                    'border-green-200'
+                                  }`}>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <p className="font-medium text-sm text-slate-900">{g.gene}</p>
+                                      {g.variant && <span className="text-xs text-slate-500">({g.variant})</span>}
+                                      <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${
+                                        g.risk_level === 'high' ? 'bg-red-100 text-red-700' :
+                                        g.risk_level === 'moderate' ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-green-100 text-green-700'
+                                      }`}>{g.risk_level}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-600 mb-2 leading-relaxed">{g.what_it_means}</p>
+                                    {g.action_items && g.action_items.length > 0 && (
+                                      <ul className="space-y-1">
+                                        {g.action_items.map((item, j) => (
+                                          <li key={j} className="text-xs text-slate-500 flex items-start gap-1">
+                                            <span className="text-blue-400">→</span><span>{item}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Supplement Recommendations */}
+                          {Array.isArray(report.analysis.supplement_recommendations) && report.analysis.supplement_recommendations.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                <Leaf size={13} /> Supplements
+                              </h5>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                {(report.analysis.supplement_recommendations as Array<{supplement?: string; reason?: string; dosage?: string; priority?: string; caution?: string}>).map((s, i) => (
+                                  <div key={i} className="bg-white rounded-lg p-3 border border-green-100">
+                                    <div className="flex items-start justify-between mb-1">
+                                      <p className="font-medium text-sm text-slate-900">{s.supplement}</p>
+                                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                        s.priority === 'high' ? 'bg-red-100 text-red-700' :
+                                        s.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-slate-100 text-slate-700'
+                                      }`}>{s.priority}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-600 mb-1">{s.reason}</p>
+                                    {s.dosage && <p className="text-xs text-slate-400 font-mono">{s.dosage}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Dietary */}
+                          {Array.isArray(report.analysis.dietary_recommendations) && report.analysis.dietary_recommendations.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                <Target size={13} /> Dietary Recommendations
+                              </h5>
+                              <div className="space-y-2">
+                                {(report.analysis.dietary_recommendations as Array<{area?: string; recommendation?: string; foods?: string[]}>).map((r, i) => (
+                                  <div key={i} className="bg-white rounded-lg p-3 border border-orange-100">
+                                    <p className="font-medium text-sm text-slate-900 mb-1">{r.area}</p>
+                                    <p className="text-xs text-slate-600 mb-1">{r.recommendation}</p>
+                                    {r.foods && r.foods.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {r.foods.map((food, j) => (
+                                          <span key={j} className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full border border-orange-100">{food}</span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Lifestyle */}
+                          {Array.isArray(report.analysis.lifestyle_recommendations) && report.analysis.lifestyle_recommendations.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                <Dumbbell size={13} /> Lifestyle
+                              </h5>
+                              <div className="space-y-2">
+                                {(report.analysis.lifestyle_recommendations as Array<{area?: string; recommendation?: string}>).map((r, i) => (
+                                  <div key={i} className="bg-white rounded-lg p-3 border border-blue-100">
+                                    <p className="font-medium text-sm text-slate-900 mb-1">{r.area}</p>
+                                    <p className="text-xs text-slate-600">{r.recommendation}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Medication Notes */}
+                          {Array.isArray(report.analysis.medication_notes) && report.analysis.medication_notes.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                <Pill size={13} /> Medication Notes
+                              </h5>
+                              <div className="space-y-2">
+                                {(report.analysis.medication_notes as Array<{medication_or_class?: string; medication?: string; note?: string}>).map((n, i) => (
+                                  <div key={i} className="bg-white rounded-lg p-3 border border-purple-100">
+                                    <p className="font-medium text-sm text-slate-900 mb-1">{n.medication_or_class || n.medication}</p>
+                                    <p className="text-xs text-slate-600">{n.note}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Cardiac */}
+                          {report.analysis.cardiac_relevance && (
+                            <div className="bg-red-50 rounded-lg p-3 border border-red-100">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <Stethoscope size={13} className="text-red-600" />
+                                <h5 className="text-xs font-semibold text-red-900 uppercase tracking-wide">Cardiac Relevance</h5>
+                              </div>
+                              <p className="text-xs text-red-800 leading-relaxed">{String(report.analysis.cardiac_relevance)}</p>
+                            </div>
+                          )}
+
+                          {/* Doctor Items */}
+                          {Array.isArray(report.analysis.things_to_discuss_with_doctor) && report.analysis.things_to_discuss_with_doctor.length > 0 && (
+                            <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <AlertCircle size={13} className="text-blue-600" />
+                                <h5 className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Discuss with Your Doctor</h5>
+                              </div>
+                              <ul className="space-y-1.5">
+                                {(report.analysis.things_to_discuss_with_doctor as string[]).map((item, i) => (
+                                  <li key={i} className="text-xs text-blue-800 flex items-start gap-1.5">
+                                    <span className="flex-shrink-0 mt-0.5 h-4 w-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
+                                    <span>{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* SNP Markers (methylation_report only) */}
+                          {report.file_type === 'methylation_report' && Object.keys(report.markers_by_gene).length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                <FileHeart size={13} /> Genetic Markers (SNPs)
+                              </h5>
+                              <div className="space-y-3">
+                                {Object.entries(report.markers_by_gene).map(([gene, markers]) => (
+                                  <div key={gene} className="border border-slate-200 rounded-lg overflow-hidden">
+                                    <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+                                      <h6 className="font-semibold text-slate-900 text-sm">{gene}</h6>
+                                    </div>
+                                    <div className="divide-y divide-slate-100">
+                                      {markers.map((marker, i) => (
+                                        <div key={i} className="px-4 py-3 hover:bg-slate-50">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="font-mono text-sm font-medium text-slate-900">{String(marker.snp_id)}</span>
+                                            <span className="font-mono text-xs text-slate-600">Genotype: {String(marker.genotype)}</span>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                              marker.risk_level === 'normal' ? 'bg-green-100 text-green-700' :
+                                              marker.risk_level === 'moderate' ? 'bg-yellow-100 text-yellow-700' :
+                                              'bg-orange-100 text-orange-700'
+                                            }`}>{String(marker.risk_level)}</span>
+                                          </div>
+                                          {marker.clinical_significance && (
+                                            <p className="text-xs text-slate-500 mt-1">{String(marker.clinical_significance)}</p>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-6 text-center text-slate-500">
+                          <p className="text-sm mb-3">No AI analysis yet for this report.</p>
+                          <button
+                            onClick={() => refreshGeneticReport(report.file_id)}
+                            disabled={isRefreshing}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                          >
+                            <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+                            {isRefreshing ? 'Generating...' : 'Generate Analysis'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
+
+              {/* Upload More CTA */}
+              <div className="text-center pt-2">
+                <a
+                  href="/fitness/health/upload"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors"
+                >
+                  <Upload size={16} />
+                  Upload More Genetic Reports
+                </a>
+              </div>
             </div>
           )}
         </div>
