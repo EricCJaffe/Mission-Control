@@ -95,6 +95,23 @@
 
 ---
 
+## 🔜 NEXT SESSION — Genetics Multi-Report Dashboard
+
+Full plan: `docs/GENETICS_MULTI_REPORT_PLAN.md`
+
+- [ ] **Step 1**: Review 5 PDFs, confirm report type slugs
+- [ ] **Step 2**: Migration — `genetics_comprehensive_analysis` table + RPC functions
+- [ ] **Step 3**: Build `genetics-processor.ts` with 6 type-specific extraction + analysis prompts
+- [ ] **Step 4**: Upload flow — add 5 new file types, route to unified processor
+- [ ] **Step 5**: Test upload + review for each of the 5 new report types
+- [ ] **Step 6**: Extend methylation API to return all genetic report types
+- [ ] **Step 7**: Build `/api/fitness/health/genetics/comprehensive` POST + GET routes
+- [ ] **Step 8**: Rebuild methylation tab UI — comprehensive card + collapsible per-report cards
+- [ ] **Step 9**: Per-report refresh endpoint + comprehensive refresh button
+- [ ] **Step 10**: PDF viewer (signed URLs) baked in as part of each report card
+
+---
+
 ## 🔥 OPEN TASKS — Next Session
 
 ### Methylation Report Display
