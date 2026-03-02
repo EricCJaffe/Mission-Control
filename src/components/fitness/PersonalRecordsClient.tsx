@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 
 type PRRecord = {
   id: string;
@@ -77,6 +78,30 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'strength' | 'cardio' | 'health'>('all');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [recalcLoading, setRecalcLoading] = useState(false);
+  const [recalcMsg, setRecalcMsg] = useState<string | null>(null);
+
+  async function handleRecalculate() {
+    setRecalcLoading(true);
+    setRecalcMsg(null);
+    setError(null);
+    try {
+      const res = await fetch('/api/fitness/records/recalculate', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? 'Recalculate failed');
+        return;
+      }
+      const { exercises_analyzed, records_created } = data.summary;
+      setRecalcMsg(`Calculated ${records_created} PRs across ${exercises_analyzed} exercises.`);
+      // Reload page to reflect new records
+      window.location.reload();
+    } catch {
+      setError('Network error — could not recalculate PRs');
+    } finally {
+      setRecalcLoading(false);
+    }
+  }
 
   async function handleDelete(id: string) {
     setError(null);
@@ -129,6 +154,26 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
           <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
         </div>
       )}
+
+      {/* Recalculate banner */}
+      {recalcMsg && (
+        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-green-700">{recalcMsg}</p>
+          <button onClick={() => setRecalcMsg(null)} className="text-xs text-green-500 hover:text-green-700">Dismiss</button>
+        </div>
+      )}
+
+      {/* Recalculate PRs button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleRecalculate}
+          disabled={recalcLoading}
+          className="inline-flex items-center gap-2 min-h-[44px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-40 transition-colors"
+        >
+          <RefreshCw className={`w-4 h-4 ${recalcLoading ? 'animate-spin' : ''}`} />
+          {recalcLoading ? 'Calculating…' : 'Recalculate PRs from History'}
+        </button>
+      </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

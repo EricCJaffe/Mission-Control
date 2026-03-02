@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Upload, CheckCircle, AlertCircle, Loader2, FileText, X } from 'lucide-react';
+import { Upload, CheckCircle, AlertCircle, Loader2, FileText, X, RefreshCw, Trophy } from 'lucide-react';
 
 interface ImportSummary {
   workouts_imported: number;
@@ -18,6 +18,19 @@ export default function StrongImportClient() {
   const [result, setResult] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [prLoading, setPrLoading] = useState(false);
+  const [prResult, setPrResult] = useState<{ exercises_analyzed: number; records_created: number } | null>(null);
+
+  async function handleCalculatePRs() {
+    setPrLoading(true);
+    try {
+      const res = await fetch('/api/fitness/records/recalculate', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) setPrResult(data.summary);
+    } finally {
+      setPrLoading(false);
+    }
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0] ?? null;
@@ -193,7 +206,35 @@ export default function StrongImportClient() {
             </div>
           )}
 
-          <p className="mt-4 text-xs text-slate-500">
+          {/* Calculate PRs prompt */}
+          {!prResult ? (
+            <div className="mt-4 rounded-xl border border-purple-100 bg-purple-50 p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-purple-500 shrink-0" />
+                <p className="text-sm text-purple-800">
+                  Calculate your all-time personal records from this workout history?
+                </p>
+              </div>
+              <button
+                onClick={handleCalculatePRs}
+                disabled={prLoading}
+                className="inline-flex items-center gap-1.5 shrink-0 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
+              >
+                {prLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                {prLoading ? 'Calculating…' : 'Calculate PRs'}
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl border border-purple-100 bg-purple-50 px-4 py-3 flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-purple-500 shrink-0" />
+              <p className="text-sm text-purple-800">
+                <strong>{prResult.records_created} personal records</strong> calculated across {prResult.exercises_analyzed} exercises.{' '}
+                <a href="/fitness/records" className="underline font-medium">View your PRs →</a>
+              </p>
+            </div>
+          )}
+
+          <p className="mt-3 text-xs text-slate-500">
             Your historical workouts are now visible in{' '}
             <a href="/fitness/history" className="text-blue-600 hover:underline font-medium">
               Workout History
