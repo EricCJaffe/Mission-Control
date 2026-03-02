@@ -12,27 +12,27 @@
 
 ## Latest Changes (Rolling)
 
-### Feb 28, 2026 (Evening) — Methylation Report Processing (BLOCKED - In Progress)
-- **⚠️ Status**: Upload and extraction working, database insert blocked by PostgREST schema cache
-- **PDF Processing**: Updated to use unpdf library (mirroring working lab processor)
-  - Text extraction: ✅ Working (45K characters from 4.3MB PDF)
-  - OpenAI SNP extraction: ✅ Working (8-9 genetic markers with full data)
-  - Data mapping: ✅ Correct schema (snp_id, gene, genotype, risk_level, clinical_significance)
-- **Database Insert**: ❌ BLOCKED by PostgREST schema cache issue
-  - Error: PGRST204 "Could not find the 'risk_level' column in the schema cache"
-  - Column exists in DB (confirmed via psql query)
-  - Schema cache persists across multiple full Supabase restarts
-  - Even custom RPC functions blocked by cache (PGRST202)
-- **Troubleshooting Attempted**:
-  - Multiple Supabase restarts, SIGHUP to PostgREST, dev server restarts
-  - Created `insert_genetic_markers()` Postgres function to bypass PostgREST
-  - All approaches blocked by schema cache
+### March 1, 2026 — Methylation Report Processing (COMPLETE)
+- **Full Pipeline Working**: Upload → AI extraction → DB storage → rich analysis → dashboard display
+- **PostgREST Fix**: Resolved schema cache issue with direct SQL insert + RPC functions for analysis_json
+- **Rich AI Analysis**: GPT-4o generates gene-by-gene explanations, supplement/dietary/lifestyle recs,
+  medication interactions, cardiac relevance, and doctor discussion points
+- **Persistent Analysis Storage**: New `analysis_json` JSONB column on `health_file_uploads` with RPC
+  functions (`update_file_upload_analysis`, `get_file_upload_analysis`) to bypass schema cache
+- **Genetics Review Page**: `/fitness/genetics/review?fileId=` with rich AnalysisDisplay component
+  showing summary, gene explanations, supplements (with caution notes), dietary (with food tags),
+  lifestyle, medication interactions, cardiac relevance, doctor discussion points
+- **Auto-redirect**: After confirming upload, redirects to `/fitness/health/labs/dashboard?tab=methylation`
+- **Dashboard Fix**: Fixed loading state bug where methylation tab was stuck on "Loading dashboard..."
+  (bloodwork loading state was never cleared when methylation tab was active)
 - **Files Modified**:
-  - `src/lib/fitness/methylation-processor.ts` - Updated to unpdf + RPC
-  - `src/app/api/fitness/health/methylation/route.ts` - Fixed column names
-  - `src/components/fitness/LabDashboardClient.tsx` - Display updates
-  - Created `docs/METHYLATION_BUG.md` - Full troubleshooting documentation
-- **Next Steps**: Reset database, check migration order, consider direct Postgres connection
+  - `supabase/migrations/20260301200000_health_file_uploads_analysis_json.sql` (new)
+  - `src/lib/fitness/methylation-processor.ts` - Enhanced AI prompt, 4000 max_tokens
+  - `src/app/api/fitness/health/genetics/route.ts` - Saves analysis via RPC
+  - `src/app/api/fitness/health/methylation/route.ts` - Loads saved analysis from DB
+  - `src/components/fitness/GeneticsReviewClient.tsx` - Rich AnalysisDisplay component
+  - `src/components/fitness/LabDashboardClient.tsx` - Fixed loading, added initialTab prop, new sections
+  - `src/app/fitness/health/labs/dashboard/page.tsx` - Added searchParams/initialTab support
 
 ### Feb 28, 2026 (Morning) — Fitness Dashboard UI Polish + Metric Insights (Enhancement)
 - **Metric Cards with Color Theming**: Added visual variety to fitness dashboard

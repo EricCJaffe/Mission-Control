@@ -89,6 +89,7 @@ Key migrations (all applied):
 - `20260228000000` — Calendar workout sync triggers
 - `20260228300000` — Withings import schema
 - `20260228999999` — insert_genetic_markers RPC function
+- `20260301200000` — analysis_json column + RPC functions for persistent AI analysis
 
 Run `supabase migration list` to check sync status. Apply with `supabase db push`.
 
@@ -173,9 +174,10 @@ GARMIN_PASSWORD=...            # Garmin sync (when built)
 - Data imports (Garmin CSV, Withings CSV, FIT file parser)
 - Metric dashboards (RHR, HRV, sleep, weight with AI insights)
 - UI modernization (Lucide icons, solid white cards, colorful sidebar)
+- Methylation pipeline (upload → AI extraction → DB → rich analysis → dashboard, persistent analysis storage)
 
 ### In Progress / Known Issues
-- Methylation report: DB insert blocked by PostgREST schema cache (see `docs/METHYLATION_BUG.md`)
+- PDF viewer on lab dashboard (source PDFs in Supabase Storage, need signed URL buttons)
 - 2 calendar timezone migrations not yet pushed to remote
 - Garmin OAuth not implemented (CSV import works)
 - AI training plan generation (planned, not started)

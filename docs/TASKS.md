@@ -1,22 +1,21 @@
 # Tasks
 
-**Last Updated:** February 28, 2026
+**Last Updated:** March 1, 2026
 
 ## 📍 CURRENT STATUS
 
 **Build Status:** ✅ Production build passing
 **Deployment Status:** ✅ Ready for Vercel deployment
 **Database Status:** ✅ All migrations applied, clean state
-**Recent Changes (Feb 28 Evening Session):**
-- ⚠️ **Methylation Report Processing (BLOCKED)**: PDF upload and extraction working, DB insert blocked
-  - ✅ Updated processor to use unpdf library (mirroring lab processor)
-  - ✅ Fixed column mapping: snp_id, risk_level, clinical_significance
-  - ✅ PDF extraction working: 45K characters, 8-9 SNPs extracted via OpenAI
-  - ❌ Database insert fails due to PostgREST schema cache issue (PGRST204)
-  - ❌ Schema cache persists across restarts, even RPC functions blocked
-  - 📋 See `docs/METHYLATION_BUG.md` for full troubleshooting details
-  - Files: methylation-processor.ts, methylation API route, LabDashboardClient
-  - Created: insert_genetic_markers() Postgres function (bypasses PostgREST)
+**Recent Changes (March 1 Session):**
+- ✅ **Methylation Report Processing (COMPLETE)**: Full end-to-end pipeline working
+  - ✅ PostgREST schema cache issue resolved with direct SQL insert + RPC functions
+  - ✅ Rich AI analysis: gene explanations, supplements, dietary, lifestyle, medication, cardiac, doctor discussion
+  - ✅ Persistent analysis storage via `analysis_json` JSONB column + RPC functions
+  - ✅ Genetics review page with rich AnalysisDisplay component
+  - ✅ Auto-redirect to labs dashboard methylation tab after confirm
+  - ✅ Fixed dashboard loading bug (methylation tab stuck on "Loading dashboard...")
+  - Migration: `20260301200000_health_file_uploads_analysis_json.sql` applied
 
 **Recent Changes (Feb 28 Morning Session):**
 - ✅ **Fitness Dashboard UI Polish (COMPLETE)**: Colorful metric cards with themed designs
@@ -124,6 +123,11 @@
 
 ## ⚡ MEDIUM PRIORITY — Future Work
 
+- [ ] **PDF Viewer on Lab Dashboard**: Add "View Original PDF" button to bloodwork and methylation cards
+  - Source PDFs already stored in Supabase Storage (`health-files` bucket)
+  - `health_file_uploads.file_path` links to storage path
+  - Need signed URL generation for secure access
+  - Both bloodwork panels and methylation reports should link to their source PDF
 - [ ] Supplement interaction checker (hardcoded + AI rules)
 - [ ] Enhanced morning briefing with medication reminders + fasting status
 - [ ] Fasting tracker UI + AI advisor
