@@ -175,6 +175,7 @@ GARMIN_PASSWORD=...            # Garmin sync (when built)
 - Metric dashboards (RHR, HRV, sleep, weight with AI insights)
 - UI modernization (Lucide icons, solid white cards, colorful sidebar)
 - Methylation pipeline (upload → AI extraction → DB → rich analysis → dashboard, persistent analysis storage)
+- Genetics multi-report dashboard: 6 report types (methylation, neurotransmitter, detox, mitochondrial, hormone, nutrition) with unified processor, per-report AI analysis, cross-report comprehensive synthesis, collapsible UI, refresh buttons
 
 ### In Progress / Known Issues
 - PDF viewer on lab dashboard (source PDFs in Supabase Storage, need signed URL buttons)
