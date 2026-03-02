@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import { Upload } from 'lucide-react';
 import { supabaseServer } from '@/lib/supabase/server';
 import WorkoutHistoryClient from '@/components/fitness/WorkoutHistoryClient';
 
@@ -37,9 +39,18 @@ export default async function HistoryPage() {
 
   return (
     <main className="pt-4 md:pt-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Workout History</h1>
-        <p className="mt-1 text-sm text-slate-500">All logged workouts with details, stats, and trends.</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold">Workout History</h1>
+          <p className="mt-1 text-sm text-slate-500">All logged workouts with details, stats, and trends.</p>
+        </div>
+        <Link
+          href="/fitness/history/import"
+          className="inline-flex items-center gap-2 min-h-[44px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors shrink-0"
+        >
+          <Upload className="w-4 h-4" />
+          Import Strong
+        </Link>
       </div>
       <WorkoutHistoryClient workouts={enriched} />
     </main>
