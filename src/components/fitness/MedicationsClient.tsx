@@ -5,6 +5,7 @@ import type { Medication, MedicationType } from '@/lib/fitness/types';
 import MedicationAIInsights from './MedicationAIInsights';
 import SupplementProposal from './SupplementProposal';
 import MedicationDetailsModal from './MedicationDetailsModal';
+import InteractionChecker from './InteractionChecker';
 
 type Props = {
   medications: Medication[];
@@ -221,6 +222,9 @@ export default function MedicationsClient({
         lastReviewedAt={initialReviewedAt}
         triggerRefresh={refreshTrigger}
       />
+
+      {/* Hardcoded Interaction Checker */}
+      <InteractionChecker medications={medications} />
 
       {/* Supplement Proposal Modal */}
       {showSupplementProposal && (

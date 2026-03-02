@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { HeartPulse, Dumbbell, Zap, Pill, UtensilsCrossed } from 'lucide-react';
+import { HeartPulse, Dumbbell, Zap, Pill, UtensilsCrossed, AlertTriangle, Moon, Sun } from 'lucide-react';
 
 type Medication = {
   id: string;
@@ -172,59 +172,121 @@ export default function MorningBriefingClient(props: Props) {
         </div>
       )}
 
-      {/* Medication Reminders */}
-      {medications.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Pill className="h-4 w-4 text-slate-600" />
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Medications</h2>
+      {/* Medication Reminders — Grouped by Time */}
+      {medications.length > 0 && (() => {
+        const groupMed = (med: Medication) => {
+          const timing = (med.timing || '').toLowerCase();
+          if (timing.includes('evening') || timing.includes('bedtime') || timing.includes('night') || timing.includes('pm')) return 'evening';
+          if (timing.includes('morning') || timing.includes('am') || timing.includes('breakfast') || timing.includes('daily')) return 'morning';
+          return 'other';
+        };
+
+        const morningMeds = medications.filter(m => groupMed(m) === 'morning');
+        const eveningMeds = medications.filter(m => groupMed(m) === 'evening');
+        // Meds appearing in both morning+evening (e.g. "Morning + evening")
+        const bothMeds = medications.filter(m => {
+          const timing = (m.timing || '').toLowerCase();
+          return (timing.includes('morning') || timing.includes('am')) &&
+                 (timing.includes('evening') || timing.includes('pm') || timing.includes('night'));
+        });
+
+        const renderMedRow = (med: Medication) => {
+          const name = med.medication_name || med.name || 'Unknown';
+          const type = med.medication_type || med.type || 'supplement';
+          const isPrescription = type === 'prescription' || type === 'rx';
+          return (
+            <div key={med.id} className="flex items-start gap-2 text-sm">
+              <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${isPrescription ? 'bg-red-500' : 'bg-purple-500'}`} />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{name}</p>
+                <p className="text-xs text-slate-500">{med.dosage}</p>
+              </div>
             </div>
-            <a href="/fitness/medications" className="text-xs text-blue-600 hover:underline">View all</a>
-          </div>
-          <div className="space-y-2">
-            {medications.filter(m => {
+          );
+        };
+
+        // Fasting-medication conflict: if fasting and morning meds need food
+        const fastingConflicts = fastingStatus === 'fasting'
+          ? morningMeds.filter(m => {
               const timing = (m.timing || '').toLowerCase();
-              return timing.includes('morning') || timing.includes('am') || timing.includes('daily');
-            }).slice(0, 5).map((med) => {
-              const name = med.medication_name || med.name || 'Unknown';
-              const type = med.medication_type || med.type || 'supplement';
-              const isPrescription = type === 'prescription' || type === 'rx';
-              return (
-                <div key={med.id} className="flex items-start gap-2 text-sm">
-                  <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${isPrescription ? 'bg-red-500' : 'bg-blue-500'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{name}</p>
-                    <p className="text-xs text-slate-500">
-                      {med.dosage} • {med.timing || 'As needed'}
+              return timing.includes('food') || timing.includes('breakfast') || timing.includes('meal');
+            })
+          : [];
+
+        return (
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Pill className="h-4 w-4 text-slate-600" />
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Medications</h2>
+              </div>
+              <a href="/fitness/medications" className="text-xs text-blue-600 hover:underline">View all</a>
+            </div>
+
+            {/* Fasting-medication conflict warning */}
+            {fastingConflicts.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 mb-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-amber-800">Fasting Conflict</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      {fastingConflicts.map(m => m.medication_name || m.name).join(', ')} should be taken with food.
+                      Consider timing your break-fast accordingly.
                     </p>
                   </div>
                 </div>
-              );
-            })}
-            {medications.length > 5 && (
-              <p className="text-xs text-slate-400 pt-1">+{medications.length - 5} more</p>
+              </div>
+            )}
+
+            {/* Morning meds */}
+            {morningMeds.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Sun className="h-3.5 w-3.5 text-amber-500" />
+                  <p className="text-xs font-semibold text-slate-500">Morning</p>
+                </div>
+                <div className="space-y-1.5 pl-5">
+                  {morningMeds.map(renderMedRow)}
+                </div>
+              </div>
+            )}
+
+            {/* Evening meds (excluding those already shown in morning if they appear in both) */}
+            {eveningMeds.filter(m => !bothMeds.includes(m)).length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Moon className="h-3.5 w-3.5 text-indigo-500" />
+                  <p className="text-xs font-semibold text-slate-500">Evening</p>
+                </div>
+                <div className="space-y-1.5 pl-5">
+                  {eveningMeds.filter(m => !bothMeds.includes(m)).map(renderMedRow)}
+                </div>
+              </div>
+            )}
+
+            {metrics?.meds_taken_at ? (
+              <p className="mt-3 text-xs text-green-600">
+                ✓ Morning meds logged at {new Date(metrics.meds_taken_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+              </p>
+            ) : (
+              <button
+                onClick={async () => {
+                  await fetch('/api/fitness/metrics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ meds_taken_at: new Date().toISOString() }),
+                  });
+                  window.location.reload();
+                }}
+                className="mt-3 w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Mark Morning Meds Taken
+              </button>
             )}
           </div>
-          {metrics?.meds_taken_at ? (
-            <p className="mt-3 text-xs text-green-600">✓ Logged at {new Date(metrics.meds_taken_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
-          ) : (
-            <button
-              onClick={async () => {
-                await fetch('/api/fitness/metrics', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ meds_taken_at: new Date().toISOString() }),
-                });
-                window.location.reload();
-              }}
-              className="mt-3 w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Mark Meds Taken
-            </button>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {/* Today's Plan */}
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">

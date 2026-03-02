@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { AlertCircle, Bot, FileHeart, Target, TrendingUp, ArrowRight, Dumbbell, Leaf, Stethoscope, Upload, RefreshCw, ChevronDown, ChevronRight, Brain, Zap, FlaskConical, Activity, Pill } from 'lucide-react';
+import { AlertCircle, Bot, FileHeart, Target, TrendingUp, ArrowRight, Dumbbell, Leaf, Stethoscope, Upload, RefreshCw, ChevronDown, ChevronRight, Brain, Zap, FlaskConical, Activity, Pill, FileText } from 'lucide-react';
 
 interface LabPanel {
   id: string;
@@ -11,6 +11,7 @@ interface LabPanel {
   provider_name: string | null;
   fasting: boolean;
   ai_summary: string | null;
+  file_id: string | null;
 }
 
 interface TestDataPoint {
@@ -113,6 +114,22 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
   const [geneticsComprehensiveError, setGeneticsComprehensiveError] = useState<string | null>(null);
   const [collapsedReports, setCollapsedReports] = useState<Set<string>>(new Set());
   const [refreshingReport, setRefreshingReport] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState<string | null>(null);
+
+  const openPdf = async (fileId: string) => {
+    setPdfLoading(fileId);
+    try {
+      const res = await fetch(`/api/fitness/health/files/signed-url?fileId=${fileId}`);
+      const data = await res.json();
+      if (data.ok && data.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (err) {
+      console.error('Failed to open PDF:', err);
+    } finally {
+      setPdfLoading(null);
+    }
+  };
 
   const loadDashboardData = async (filterValue: string) => {
     setLoading(true);
@@ -512,6 +529,36 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
                 {new Date(data.panels[data.panels.length - 1].panel_date).toLocaleDateString()} -
                 {' '}{new Date(data.panels[0].panel_date).toLocaleDateString()}
               </p>
+            </div>
+          </div>
+
+          {/* Lab Panels — with View PDF buttons */}
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3">Lab Panels</h3>
+            <div className="space-y-2">
+              {data.panels.map(panel => (
+                <div key={panel.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{panel.lab_name}</p>
+                    <p className="text-xs text-slate-500">
+                      {new Date(panel.panel_date).toLocaleDateString()}
+                      {panel.provider_name && ` • ${panel.provider_name}`}
+                      {panel.fasting && ' • Fasting'}
+                    </p>
+                  </div>
+                  {panel.file_id && (
+                    <button
+                      onClick={() => openPdf(panel.file_id!)}
+                      disabled={pdfLoading === panel.file_id}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors min-h-[32px]"
+                      title="View original PDF"
+                    >
+                      <FileText size={14} className={pdfLoading === panel.file_id ? 'animate-pulse' : ''} />
+                      View PDF
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1166,6 +1213,15 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
                         }`}>
                           {report.processing_status}
                         </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openPdf(report.file_id); }}
+                          disabled={pdfLoading === report.file_id}
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors min-h-[32px]"
+                          title="View original PDF"
+                        >
+                          <FileText size={12} className={pdfLoading === report.file_id ? 'animate-pulse' : ''} />
+                          PDF
+                        </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); refreshGeneticReport(report.file_id); }}
                           disabled={isRefreshing}
