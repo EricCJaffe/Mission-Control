@@ -130,6 +130,8 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
     if (labType === 'bloodwork') {
       loadDashboardData(filter);
     } else {
+      // For methylation, clear the bloodwork loading state
+      setLoading(false);
       loadMethylationReports();
     }
   }, [filter, labType]);
@@ -260,7 +262,7 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
     }
   };
 
-  if (loading) {
+  if (loading && labType === 'bloodwork') {
     return (
       <div className="flex items-center justify-center py-12">
         <p className="text-gray-600">Loading dashboard...</p>
@@ -278,17 +280,36 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
     );
   }
 
-  if (!data || data.panels.length === 0) {
+  if (labType === 'bloodwork' && (!data || data.panels.length === 0)) {
     return (
-      <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
-        <p className="text-gray-600">
-          No confirmed lab panels found. Upload and confirm lab reports first.
-        </p>
+      <div className="space-y-6">
+        {/* Lab Type Tabs - still show so user can switch */}
+        <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1 w-fit">
+          <button
+            onClick={() => setLabType('bloodwork')}
+            className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-colors min-h-[44px] ${
+              labType === 'bloodwork' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Blood Work
+          </button>
+          <button
+            onClick={() => setLabType('methylation')}
+            className="rounded-lg px-4 py-2.5 text-sm font-medium transition-colors min-h-[44px] text-slate-600 hover:bg-slate-50"
+          >
+            Methylation Reports
+          </button>
+        </div>
+        <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+          <p className="text-gray-600">
+            No confirmed lab panels found. Upload and confirm lab reports first.
+          </p>
+        </div>
       </div>
     );
   }
 
-  const years = Array.from(new Set(data.panels.map(p => new Date(p.panel_date).getFullYear()))).sort((a, b) => b - a);
+  const years = data ? Array.from(new Set(data.panels.map(p => new Date(p.panel_date).getFullYear()))).sort((a, b) => b - a) : [];
 
   return (
     <div className="space-y-6">
@@ -313,7 +334,7 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
       </div>
 
       {/* Filter Controls (Blood Work only) */}
-      {labType === 'bloodwork' && (
+      {labType === 'bloodwork' && data && (
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm font-medium text-gray-700">Filter:</span>
@@ -355,7 +376,7 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
       )}
 
       {/* Blood Work Dashboard */}
-      {labType === 'bloodwork' && (
+      {labType === 'bloodwork' && data && (
       <>
       {/* Tabs */}
       <div className="border-b border-gray-200">
