@@ -84,18 +84,13 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
         }
 
         // Redirect to appropriate review page based on file type
+        const GENETIC_TYPES = ['methylation_report','genetics_neurotransmitter','genetics_detox','genetics_mitochondrial','genetics_hormone','genetics_nutrition'];
         if (fileType === 'lab_report') {
-          setTimeout(() => {
-            window.location.href = '/fitness/health/labs';
-          }, 2000);
-        } else if (fileType === 'methylation_report') {
-          setTimeout(() => {
-            window.location.href = '/fitness/genetics/review';
-          }, 2000);
+          setTimeout(() => { window.location.href = '/fitness/health/labs'; }, 2000);
+        } else if (GENETIC_TYPES.includes(fileType)) {
+          setTimeout(() => { window.location.href = '/fitness/genetics/review'; }, 2000);
         } else {
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
+          setTimeout(() => { window.location.reload(); }, 2000);
         }
       } else {
         setError(`All uploads failed. Check console for details.`);
@@ -120,14 +115,19 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
   };
 
   const getFileTypeLabel = (type: string) => {
-    switch (type) {
-      case 'lab_report': return 'Lab Report';
-      case 'methylation_report': return 'Methylation Report';
-      case 'doctor_notes': return 'Doctor Notes';
-      case 'imaging': return 'Imaging';
-      case 'other': return 'Other';
-      default: return type;
-    }
+    const labels: Record<string, string> = {
+      lab_report: 'Lab Report',
+      methylation_report: 'Methylation & SNP',
+      genetics_neurotransmitter: 'Neurotransmitter',
+      genetics_detox: 'Detoxification',
+      genetics_mitochondrial: 'Mitochondrial',
+      genetics_hormone: 'Hormone Genetics',
+      genetics_nutrition: 'Nutritional Genomics',
+      doctor_notes: 'Doctor Notes',
+      imaging: 'Imaging',
+      other: 'Other',
+    };
+    return labels[type] || type;
   };
 
   return (
@@ -147,11 +147,22 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
             disabled={uploading}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
           >
-            <option value="lab_report">Lab Report (PDF)</option>
-            <option value="methylation_report">Methylation/Genetic Report (PDF)</option>
-            <option value="doctor_notes">Doctor Notes (PDF)</option>
-            <option value="imaging">Imaging Results (PDF/Image)</option>
-            <option value="other">Other</option>
+            <optgroup label="Blood Work">
+              <option value="lab_report">Lab Report (PDF)</option>
+            </optgroup>
+            <optgroup label="Genetic Reports">
+              <option value="methylation_report">Methylation &amp; SNP Report</option>
+              <option value="genetics_neurotransmitter">Neurotransmitter Genetics Panel</option>
+              <option value="genetics_detox">Detoxification Genetics Panel</option>
+              <option value="genetics_mitochondrial">Mitochondrial Function Panel</option>
+              <option value="genetics_hormone">Hormone &amp; Endocrine Genetics Panel</option>
+              <option value="genetics_nutrition">Nutritional Genomics Panel</option>
+            </optgroup>
+            <optgroup label="Other Documents">
+              <option value="doctor_notes">Doctor Notes (PDF)</option>
+              <option value="imaging">Imaging Results (PDF/Image)</option>
+              <option value="other">Other</option>
+            </optgroup>
           </select>
         </div>
 
@@ -171,7 +182,12 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
           />
           <p className="mt-2 text-sm text-gray-500">
             {fileType === 'lab_report' && 'Upload up to 5 lab reports at once. AI will auto-extract panel metadata (lab, date, provider) and all test results. You\'ll review and confirm the extracted data.'}
-            {fileType === 'methylation_report' && 'Upload your genetic/methylation test report for SNP analysis (MTHFR, COMT, VDR, etc.).'}
+            {fileType === 'methylation_report' && 'Upload your main methylation/SNP report. AI extracts variants (MTHFR, COMT, VDR, etc.) and generates a full supplement, dietary, and lifestyle analysis.'}
+            {fileType === 'genetics_neurotransmitter' && 'Upload your neurotransmitter genetics panel. AI analyzes dopamine, serotonin, GABA, and other brain chemical pathway variants.'}
+            {fileType === 'genetics_detox' && 'Upload your detoxification genetics panel. AI analyzes Phase I/II detox enzyme variants and their impact on toxin clearance and medication processing.'}
+            {fileType === 'genetics_mitochondrial' && 'Upload your mitochondrial function panel. AI analyzes energy production, oxidative stress, and cellular resilience variants.'}
+            {fileType === 'genetics_hormone' && 'Upload your hormone/endocrine genetics panel. AI analyzes estrogen, testosterone, cortisol, and thyroid pathway variants.'}
+            {fileType === 'genetics_nutrition' && 'Upload your nutritional genomics panel. AI analyzes nutrient absorption variants (Vitamin D, B12, omega-3, iron, etc.) and tailors supplement recommendations.'}
             {fileType === 'doctor_notes' && 'Upload notes from doctor visits for reference.'}
             {fileType === 'imaging' && 'Upload imaging reports (echo, CT, MRI, etc.).'}
             {fileType === 'other' && 'Upload any other health-related documents.'}
