@@ -90,7 +90,7 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
           }, 2000);
         } else if (fileType === 'methylation_report') {
           setTimeout(() => {
-            window.location.href = '/fitness/genetics';
+            window.location.href = '/fitness/genetics/review';
           }, 2000);
         } else {
           setTimeout(() => {

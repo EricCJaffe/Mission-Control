@@ -41,6 +41,7 @@ interface DashboardData {
 
 interface LabDashboardClientProps {
   userId: string;
+  initialTab?: string;
 }
 
 interface ComprehensiveAnalysis {
@@ -66,8 +67,10 @@ interface ComprehensiveAnalysis {
   date_range: { from: string; to: string };
 }
 
-export default function LabDashboardClient({ userId }: LabDashboardClientProps) {
-  const [labType, setLabType] = useState<'bloodwork' | 'methylation'>('bloodwork');
+export default function LabDashboardClient({ userId, initialTab }: LabDashboardClientProps) {
+  const [labType, setLabType] = useState<'bloodwork' | 'methylation'>(
+    initialTab === 'methylation' ? 'methylation' : 'bloodwork'
+  );
   const [activeTab, setActiveTab] = useState<'overview' | 'trends' | 'tests'>('overview');
   const [filter, setFilter] = useState<string>('all');
   const [data, setData] = useState<DashboardData | null>(null);
@@ -927,14 +930,118 @@ export default function LabDashboardClient({ userId }: LabDashboardClientProps) 
                         </div>
                       )}
 
+                      {/* Gene-by-Gene Explanations */}
+                      {report.analysis.gene_explanations && report.analysis.gene_explanations.length > 0 && (
+                        <div className="mb-4">
+                          <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                            <FileHeart size={14} /> What Your Genes Mean
+                          </h5>
+                          <div className="space-y-2">
+                            {report.analysis.gene_explanations.map((gene: any, i: number) => (
+                              <div key={i} className={`bg-white rounded-lg p-3 border ${
+                                gene.risk_level === 'high' ? 'border-red-200' :
+                                gene.risk_level === 'moderate' ? 'border-yellow-200' :
+                                'border-green-200'
+                              }`}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="font-medium text-sm text-slate-900">{gene.gene}</p>
+                                  {gene.variant && <span className="text-xs text-slate-500">({gene.variant})</span>}
+                                  <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${
+                                    gene.risk_level === 'high' ? 'bg-red-100 text-red-700' :
+                                    gene.risk_level === 'moderate' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-green-100 text-green-700'
+                                  }`}>
+                                    {gene.risk_level}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600 mb-2 leading-relaxed">{gene.what_it_means}</p>
+                                {gene.action_items && gene.action_items.length > 0 && (
+                                  <ul className="space-y-1">
+                                    {gene.action_items.map((item: string, j: number) => (
+                                      <li key={j} className="text-xs text-slate-500 flex items-start gap-1">
+                                        <span className="text-blue-500">→</span>
+                                        <span>{item}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Dietary Recommendations */}
+                      {report.analysis.dietary_recommendations && report.analysis.dietary_recommendations.length > 0 && (
+                        <div className="mb-4">
+                          <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                            <Target size={14} /> Dietary Recommendations
+                          </h5>
+                          <div className="space-y-2">
+                            {report.analysis.dietary_recommendations.map((rec: any, i: number) => (
+                              <div key={i} className="bg-white rounded-lg p-3 border border-orange-100">
+                                <p className="font-medium text-sm text-slate-900 mb-1">{rec.area}</p>
+                                <p className="text-xs text-slate-600 mb-1">{rec.recommendation}</p>
+                                {rec.foods && rec.foods.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {rec.foods.map((food: string, j: number) => (
+                                      <span key={j} className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full border border-orange-100">
+                                        {food}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Medication Notes */}
+                      {report.analysis.medication_notes && report.analysis.medication_notes.length > 0 && (
+                        <div className="mb-4">
+                          <h5 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                            <Stethoscope size={14} /> Medication Interactions
+                          </h5>
+                          <div className="space-y-2">
+                            {report.analysis.medication_notes.map((note: any, i: number) => (
+                              <div key={i} className="bg-white rounded-lg p-3 border border-purple-100">
+                                <p className="font-medium text-sm text-slate-900 mb-1">{note.medication}</p>
+                                <p className="text-xs text-slate-600">{note.note}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Cardiac Relevance */}
                       {report.analysis.cardiac_relevance && (
-                        <div className="bg-red-50 rounded-lg p-3 border border-red-100">
+                        <div className="bg-red-50 rounded-lg p-3 border border-red-100 mb-4">
                           <div className="flex items-center gap-1.5 mb-1">
                             <Stethoscope size={14} className="text-red-600" />
                             <h5 className="text-xs font-semibold text-red-900 uppercase tracking-wide">Cardiac Relevance</h5>
                           </div>
-                          <p className="text-xs text-red-800">{report.analysis.cardiac_relevance}</p>
+                          <p className="text-xs text-red-800 leading-relaxed">{report.analysis.cardiac_relevance}</p>
+                        </div>
+                      )}
+
+                      {/* Things to Discuss with Doctor */}
+                      {report.analysis.things_to_discuss_with_doctor && report.analysis.things_to_discuss_with_doctor.length > 0 && (
+                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <AlertCircle size={14} className="text-blue-600" />
+                            <h5 className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Discuss with Your Doctor</h5>
+                          </div>
+                          <ul className="space-y-1.5">
+                            {report.analysis.things_to_discuss_with_doctor.map((item: string, i: number) => (
+                              <li key={i} className="text-xs text-blue-800 flex items-start gap-1.5">
+                                <span className="flex-shrink-0 mt-0.5 h-4 w-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">
+                                  {i + 1}
+                                </span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
                     </div>

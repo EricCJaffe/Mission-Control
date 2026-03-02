@@ -153,8 +153,8 @@ ${pdfText}
       return { success: false, error: 'Failed to parse AI response as JSON' };
     }
 
-    // Store genetic markers - map to actual database schema
-    const markersToInsert = extractedData.snps.map(snp => {
+    // Store genetic markers via RPC function (bypasses PostgREST schema cache)
+    const markersForRpc = extractedData.snps.map(snp => {
       // Map status to risk_level (normal, moderate, high)
       let risk_level = 'normal';
       const statusLower = snp.status?.toLowerCase() || '';
@@ -165,9 +165,7 @@ ${pdfText}
       }
 
       return {
-        user_id: userId,
-        file_id: fileId,
-        snp_id: snp.rs_id, // rs_id → snp_id
+        snp_id: snp.rs_id,
         gene: snp.gene,
         genotype: snp.genotype,
         risk_level,
@@ -176,20 +174,28 @@ ${pdfText}
       };
     });
 
-    console.log(`📊 Inserting ${markersToInsert.length} genetic markers`);
-    console.log(`📋 First marker sample:`, JSON.stringify(markersToInsert[0], null, 2));
+    console.log(`📊 Inserting ${markersForRpc.length} genetic markers via RPC`);
+    console.log(`📋 First marker sample:`, JSON.stringify(markersForRpc[0], null, 2));
 
-    // Direct insert — same pattern as lab processor uses for lab_results
-    const { error: insertError } = await supabase
-      .from('genetic_markers')
-      .insert(markersToInsert);
+    // Use SECURITY DEFINER RPC function to bypass PostgREST schema cache issue
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('insert_genetic_markers', {
+      p_user_id: userId,
+      p_file_id: fileId,
+      p_markers: markersForRpc,
+    });
 
-    if (insertError) {
-      console.error('❌ Insert error:', insertError);
-      return { success: false, error: `Failed to store genetic markers: ${insertError.message}` };
+    if (rpcError) {
+      console.error('❌ RPC error:', rpcError);
+      return { success: false, error: `Failed to store genetic markers: ${rpcError.message}` };
     }
 
-    console.log(`✅ Successfully inserted ${markersToInsert.length} genetic markers`);
+    // The RPC returns { success: bool, count: int } or { success: false, error: string }
+    if (rpcResult && !rpcResult.success) {
+      console.error('❌ RPC function error:', rpcResult.error);
+      return { success: false, error: `Failed to store genetic markers: ${rpcResult.error}` };
+    }
+
+    console.log(`✅ Successfully inserted ${rpcResult?.count || markersForRpc.length} genetic markers`);
 
     // Generate implications using AI with health context (non-blocking)
     try {
@@ -208,7 +214,7 @@ ${pdfText}
           trigger_data: {
             file_id: fileId,
             markers: extractedData.snps,
-            marker_count: markersToInsert.length,
+            marker_count: markersForRpc.length,
           },
         }),
       });
@@ -232,10 +238,10 @@ ${pdfText}
  * Generate methylation analysis (supplement + lifestyle implications)
  * Uses AI with health context
  */
-async function generateMethylationAnalysis(params: {
+export async function generateMethylationAnalysis(params: {
   userId: string;
   fileId: string;
-}): Promise<void> {
+}): Promise<Record<string, unknown> | null> {
   const { userId, fileId } = params;
   const supabase = await supabaseServer();
 
@@ -247,47 +253,73 @@ async function generateMethylationAnalysis(params: {
 
   if (!markers || markers.length === 0) {
     console.error('No genetic markers found for analysis');
-    return;
+    return null;
   }
 
   // Build AI prompt with health context
   const systemPrompt = await buildAISystemPrompt(userId, 'methylation_analysis');
 
-  const userPrompt = `Analyze these genetic markers and provide actionable recommendations:
+  const userPrompt = `You are a clinical genetics consultant explaining methylation/SNP results to an informed patient with a cardiac history. Analyze these genetic markers and provide thorough, actionable recommendations in plain English.
 
 **SNP Data**:
 ${markers.map(m => `- ${m.gene} (${m.snp_id}): ${m.genotype} — risk: ${m.risk_level || 'unknown'}${m.clinical_significance ? ` — ${m.clinical_significance}` : ''}`).join('\n')}
 
+Provide a COMPREHENSIVE analysis. For each gene variant:
+- Explain what the gene does in plain English
+- What the specific genotype means for this person
+- What actionable steps they can take
+
 Return JSON:
 \`\`\`json
 {
-  "summary": "Plain-language summary of key findings",
+  "summary": "A 3-5 sentence plain-English overview of the most important findings. Explain what the results mean for daily life, not just list gene names. Highlight the 2-3 most actionable findings.",
+  "gene_explanations": [
+    {
+      "gene": "MTHFR",
+      "variant": "C677T",
+      "snp_id": "rs1801133",
+      "genotype": "+/-",
+      "risk_level": "moderate",
+      "what_it_means": "Plain English explanation of what this gene does and what this variant means for the person. 2-3 sentences. Explain the biochemistry simply — e.g. 'This gene helps convert folate into its active form. Your variant means this process works at about 65% efficiency, which can lead to higher homocysteine levels.'",
+      "action_items": ["Specific actionable step 1", "Specific actionable step 2"]
+    }
+  ],
   "supplement_recommendations": [
     {
       "supplement": "Methylfolate (5-MTHF)",
-      "reason": "MTHFR C677T heterozygous variant reduces folate metabolism efficiency",
-      "dosage": "400-800 mcg daily",
-      "priority": "high" | "medium" | "low"
+      "reason": "Your MTHFR variant reduces folate conversion by ~35%. Methylfolate bypasses this bottleneck, helping lower homocysteine and support methylation.",
+      "dosage": "400-800 mcg daily with food",
+      "priority": "high",
+      "caution": "Start at lower dose and increase gradually. Avoid folic acid (synthetic) in supplements."
     }
   ],
   "lifestyle_recommendations": [
     {
       "area": "Exercise",
-      "recommendation": "Your COMT variant suggests better stress tolerance with moderate-intensity exercise",
-      "priority": "medium"
+      "recommendation": "Detailed, specific recommendation based on genetic profile. Reference the specific genes driving this recommendation.",
+      "priority": "high"
     }
   ],
   "medication_notes": [
     {
-      "medication": "Carvedilol",
-      "note": "COMT variants can affect beta-blocker metabolism — monitor effectiveness"
+      "medication": "Medication name",
+      "note": "How this genetic profile interacts with this medication. Be specific about which variant matters and why."
     }
   ],
-  "cardiac_relevance": "Summary of how these SNPs affect cardiac risk, exercise response, recovery"
+  "dietary_recommendations": [
+    {
+      "area": "Folate-Rich Foods",
+      "recommendation": "Specific dietary guidance based on genetic profile",
+      "foods": ["dark leafy greens", "lentils", "avocado"],
+      "priority": "high"
+    }
+  ],
+  "cardiac_relevance": "Detailed 3-5 sentence summary of how these SNPs specifically affect cardiovascular health, exercise tolerance, recovery, and blood pressure management. Reference specific genes and their cardiac implications.",
+  "things_to_discuss_with_doctor": ["Specific item to bring up at next appointment", "Another item"]
 }
 \`\`\`
 
-Return ONLY the JSON.`;
+Be thorough, specific, and actionable. Explain things a smart non-scientist would understand. Return ONLY the JSON.`;
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -302,7 +334,7 @@ Return ONLY the JSON.`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        max_tokens: 2000,
+        max_tokens: 4000,
       }),
     });
 
@@ -313,14 +345,16 @@ Return ONLY the JSON.`;
     const jsonText = jsonMatch ? jsonMatch[1] : analysisText;
     const analysis = JSON.parse(jsonText);
 
-    // Log analysis results (health_file_uploads doesn't have a metadata column yet)
     console.log(`✅ Methylation analysis complete:`, JSON.stringify({
       summary: analysis.summary?.substring(0, 100),
       supplement_count: analysis.supplement_recommendations?.length || 0,
       lifestyle_count: analysis.lifestyle_recommendations?.length || 0,
     }));
 
+    return analysis;
+
   } catch (error) {
     console.error('Methylation analysis error:', error);
+    return null;
   }
 }

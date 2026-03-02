@@ -6,13 +6,20 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default async function LabDashboardPage() {
+export default async function LabDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
 
   if (!userData.user) {
     redirect('/login');
   }
+
+  const params = await searchParams;
+  const initialTab = params.tab === 'methylation' ? 'methylation' : 'bloodwork';
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
@@ -45,7 +52,7 @@ export default async function LabDashboardPage() {
         </div>
       </div>
 
-      <LabDashboardClient userId={userData.user.id} />
+      <LabDashboardClient userId={userData.user.id} initialTab={initialTab} />
     </div>
   );
 }
