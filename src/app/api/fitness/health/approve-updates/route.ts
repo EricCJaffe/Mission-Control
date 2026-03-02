@@ -45,6 +45,21 @@ export async function POST(req: NextRequest) {
     console.log(`[Approve Updates] ${action}ing ${update_ids.length} updates for user ${user.id}`);
 
     if (action === 'approve') {
+      // Mark updates as approved before applying
+      const { error: approveError } = await supabase
+        .from('health_doc_pending_updates')
+        .update({ status: 'approved', reviewed_at: new Date().toISOString() })
+        .in('id', update_ids)
+        .eq('user_id', user.id);
+
+      if (approveError) {
+        console.error('Error setting approved status:', approveError);
+        return NextResponse.json(
+          { ok: false, error: 'Failed to approve updates' },
+          { status: 500 }
+        );
+      }
+
       // Apply updates using HealthDocUpdater
       const updater = new HealthDocUpdater(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
