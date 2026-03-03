@@ -1,6 +1,6 @@
 # Tasks
 
-**Last Updated:** March 1, 2026
+**Last Updated:** March 3, 2026
 
 ## 📍 CURRENT STATUS
 
@@ -95,20 +95,20 @@
 
 ---
 
-## 🔜 NEXT SESSION — Genetics Multi-Report Dashboard
+## ✅ COMPLETE — Genetics Multi-Report Dashboard
 
 Full plan: `docs/GENETICS_MULTI_REPORT_PLAN.md`
 
-- [ ] **Step 1**: Review 5 PDFs, confirm report type slugs
-- [ ] **Step 2**: Migration — `genetics_comprehensive_analysis` table + RPC functions
-- [ ] **Step 3**: Build `genetics-processor.ts` with 6 type-specific extraction + analysis prompts
-- [ ] **Step 4**: Upload flow — add 5 new file types, route to unified processor
-- [ ] **Step 5**: Test upload + review for each of the 5 new report types
-- [ ] **Step 6**: Extend methylation API to return all genetic report types
-- [ ] **Step 7**: Build `/api/fitness/health/genetics/comprehensive` POST + GET routes
-- [ ] **Step 8**: Rebuild methylation tab UI — comprehensive card + collapsible per-report cards
-- [ ] **Step 9**: Per-report refresh endpoint + comprehensive refresh button
-- [ ] **Step 10**: PDF viewer (signed URLs) baked in as part of each report card
+- [x] **Step 1**: 6 report type slugs defined in `genetics-processor.ts`
+- [x] **Step 2**: Migration `20260302000000_genetics_comprehensive_analysis.sql` — table + RPC functions
+- [x] **Step 3**: `genetics-processor.ts` (461 lines) with type-specific extraction + analysis prompts
+- [x] **Step 4**: Upload flow routes all 6 genetic types to unified processor
+- [x] **Step 5**: Review page updated to handle all genetic report types (not just methylation)
+- [x] **Step 6**: Methylation API returns all genetic report types
+- [x] **Step 7**: `/api/fitness/health/genetics/comprehensive` POST + GET routes
+- [x] **Step 8**: Lab Dashboard methylation tab with comprehensive card + collapsible per-report cards
+- [x] **Step 9**: Per-report refresh + comprehensive refresh buttons
+- [x] **Step 10**: PDF viewer (signed URLs) on each report card
 
 ---
 
@@ -140,28 +140,37 @@ Full plan: `docs/GENETICS_MULTI_REPORT_PLAN.md`
 
 ## ⚡ MEDIUM PRIORITY — Future Work
 
-- [ ] **PDF Viewer on Lab Dashboard**: Add "View Original PDF" button to bloodwork and methylation cards
-  - Source PDFs already stored in Supabase Storage (`health-files` bucket)
-  - `health_file_uploads.file_path` links to storage path
-  - Need signed URL generation for secure access
-  - Both bloodwork panels and methylation reports should link to their source PDF
-- [ ] Supplement interaction checker (hardcoded + AI rules)
-- [ ] Enhanced morning briefing with medication reminders + fasting status
-- [ ] Fasting tracker UI + AI advisor
-- [ ] Supplement stack analyzer ("Review My Stack")
+- [x] **PDF Viewer on Lab Dashboard**: "View PDF" buttons on both bloodwork panels and genetics report cards
+  - Signed URL generation via `/api/fitness/health/files/signed-url` (1-hour expiry)
+  - Opens in new tab, loading state, user ownership verification
+- [x] **Supplement interaction checker**: Dual-layer system
+  - Fast layer: 17 hardcoded cardiac-focused rules in `interaction-rules.ts`
+  - AI layer: GPT-4o-mini analysis via `/api/fitness/medications/ai-review`
+  - InteractionChecker component, SupplementProposal modal, MedicationAIInsights component
+- [x] **Enhanced morning briefing**: Medication reminders + fasting status
+  - Medications grouped by timing (morning/evening), fasting-medication conflict detection
+  - "Mark Morning Meds Taken" button, fasting hours display, AI briefing includes both
+- [x] **Fasting tracker UI + AI advisor**: End-fast modal with energy/hunger levels, AI fasting advice
+- [x] **Supplement stack analyzer ("Review My Stack")**: "Analyze My Stack" in MedicationAIInsights
 - [ ] Garmin OAuth full automation (manual FIT import works)
-- [ ] AI plan generation (auto-generate training plans from historical data)
+- [x] **AI plan generation**: Full implementation at `/api/fitness/plans/generate` with TrainingPlansClient UI
 
 ---
 
 ## 📋 LOWER PRIORITY
 
-- [ ] Post-appointment notes processor (AI → health.md updates)
-- [ ] Medication timing awareness in workout logger
-- [ ] Session photos (Supabase Storage)
-- [ ] Seasonal zone recalibration
-- [ ] 1RM progression charts
-- [ ] Email notifications for pending health.md updates
+- [x] **Post-appointment notes processor**: AI → health.md updates via `/api/fitness/appointments/process-notes`
+- [x] **Medication timing awareness in workout logger**: MedicationTimingCard component in workout log page
+- [x] **Session photos (Supabase Storage)**: WorkoutPhotos component with upload, grid, lightbox, delete
+  - Migration: `20260303000000_workout_photos.sql` (needs `supabase db push`)
+- [x] **Seasonal zone recalibration**: Auto-calculated HR zones from max HR ceiling with Jacksonville heat adjustments
+  - `hr-zones.ts` utility, recalibrate-zones API endpoint, seasonal display in settings UI
+  - Summer: -8 bpm, transition months: -2 to -4 bpm, winter: full capacity
+- [x] **1RM progression charts**: OneRMProgressionChart component on personal records page
+- [ ] **Email notifications for pending health.md updates**
+  - **BLOCKED**: Requires email service integration (Resend recommended)
+  - Tasks: Install `resend` package, create `/api/notifications/email` route, configure Resend API key
+  - Then: Wire health.md pending updates to trigger email notifications
 
 ---
 
