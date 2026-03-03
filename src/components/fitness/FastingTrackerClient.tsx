@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, TrendingUp, Calendar, Sparkles, Play, Square, Edit2, Trash2 } from 'lucide-react';
+import { Clock, TrendingUp, Calendar, Sparkles, Play, Square, Edit2, Trash2, X, Dumbbell } from 'lucide-react';
 
 type FastingLog = {
   id: string;
@@ -34,6 +34,14 @@ type Props = {
 export default function FastingTrackerClient({ fastingLogs, upcomingWorkouts }: Props) {
   const router = useRouter();
   const [showNewLogForm, setShowNewLogForm] = useState(false);
+  const [showEndFastForm, setShowEndFastForm] = useState(false);
+  const [endFastData, setEndFastData] = useState({
+    broke_fast_with: '',
+    energy_level: 5,
+    hunger_level: 5,
+    workout_during_fast: false,
+    notes: '',
+  });
   const [aiAdvice, setAiAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
 
@@ -128,7 +136,7 @@ export default function FastingTrackerClient({ fastingLogs, upcomingWorkouts }: 
     }
   };
 
-  // End current fast
+  // End current fast (with details)
   const handleEndFast = async () => {
     if (!activeFast) return;
 
@@ -138,10 +146,17 @@ export default function FastingTrackerClient({ fastingLogs, upcomingWorkouts }: 
       body: JSON.stringify({
         id: activeFast.id,
         fast_end: new Date().toISOString(),
+        broke_fast_with: endFastData.broke_fast_with || null,
+        energy_level: endFastData.energy_level,
+        hunger_level: endFastData.hunger_level,
+        workout_during_fast: endFastData.workout_during_fast,
+        notes: endFastData.notes || null,
       }),
     });
 
     if (res.ok) {
+      setShowEndFastForm(false);
+      setEndFastData({ broke_fast_with: '', energy_level: 5, hunger_level: 5, workout_during_fast: false, notes: '' });
       router.refresh();
     }
   };
@@ -172,8 +187,8 @@ export default function FastingTrackerClient({ fastingLogs, upcomingWorkouts }: 
               <h2 className="text-lg font-semibold text-blue-900">Currently Fasting</h2>
             </div>
             <button
-              onClick={handleEndFast}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              onClick={() => setShowEndFastForm(true)}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 min-h-[44px]"
             >
               <Square className="h-4 w-4" />
               End Fast
@@ -343,6 +358,16 @@ export default function FastingTrackerClient({ fastingLogs, upcomingWorkouts }: 
                           <> → {new Date(log.fast_end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</>
                         )}
                       </p>
+                      {log.broke_fast_with && (
+                        <p className="text-xs text-slate-500 mt-1">Broke fast with: {log.broke_fast_with}</p>
+                      )}
+                      {(log.energy_level || log.hunger_level || log.workout_during_fast) && (
+                        <div className="flex gap-3 mt-1 text-xs text-slate-400">
+                          {log.energy_level && <span>Energy: {log.energy_level}/10</span>}
+                          {log.hunger_level && <span>Hunger: {log.hunger_level}/10</span>}
+                          {log.workout_during_fast && <span className="text-blue-500">Trained fasted</span>}
+                        </div>
+                      )}
                       {log.notes && (
                         <p className="text-xs text-slate-600 mt-1">{log.notes}</p>
                       )}
@@ -359,6 +384,106 @@ export default function FastingTrackerClient({ fastingLogs, upcomingWorkouts }: 
           </div>
         )}
       </div>
+
+      {/* End Fast Modal */}
+      {showEndFastForm && activeFast && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">End Fast</h3>
+              <button onClick={() => setShowEndFastForm(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">What are you breaking fast with?</label>
+                <input
+                  type="text"
+                  value={endFastData.broke_fast_with}
+                  onChange={e => setEndFastData(prev => ({ ...prev, broke_fast_with: e.target.value }))}
+                  placeholder="e.g., Eggs and avocado"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Energy Level: {endFastData.energy_level}/10
+                </label>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={endFastData.energy_level}
+                  onChange={e => setEndFastData(prev => ({ ...prev, energy_level: Number(e.target.value) }))}
+                  className="w-full accent-blue-600"
+                />
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span>Low</span><span>High</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Hunger Level: {endFastData.hunger_level}/10
+                </label>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={endFastData.hunger_level}
+                  onChange={e => setEndFastData(prev => ({ ...prev, hunger_level: Number(e.target.value) }))}
+                  className="w-full accent-orange-500"
+                />
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span>Not hungry</span><span>Starving</span>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={endFastData.workout_during_fast}
+                  onChange={e => setEndFastData(prev => ({ ...prev, workout_during_fast: e.target.checked }))}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                />
+                <div className="flex items-center gap-1.5">
+                  <Dumbbell className="h-4 w-4 text-slate-500" />
+                  <span className="text-sm text-slate-700">Worked out during this fast</span>
+                </div>
+              </label>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optional)</label>
+                <textarea
+                  value={endFastData.notes}
+                  onChange={e => setEndFastData(prev => ({ ...prev, notes: e.target.value }))}
+                  rows={2}
+                  placeholder="How did this fast feel?"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleEndFast}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 min-h-[44px]"
+              >
+                End Fast
+              </button>
+              <button
+                onClick={() => setShowEndFastForm(false)}
+                className="px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm hover:bg-slate-50 min-h-[44px]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import WorkoutDetailClient from '@/components/fitness/WorkoutDetailClient';
+import WorkoutPhotos from '@/components/fitness/WorkoutPhotos';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -49,10 +50,15 @@ export default async function WorkoutDetailPage({ params }: Props) {
   }
 
   return (
-    <WorkoutDetailClient
-      workout={workout}
-      sets={sets || []}
-      cardioData={cardioData}
-    />
+    <div className="space-y-6">
+      <WorkoutDetailClient
+        workout={workout}
+        sets={sets || []}
+        cardioData={cardioData}
+      />
+      <div className="max-w-4xl mx-auto px-4">
+        <WorkoutPhotos workoutId={id} />
+      </div>
+    </div>
   );
 }

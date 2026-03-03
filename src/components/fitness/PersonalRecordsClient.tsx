@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import OneRMProgressionChart from './OneRMProgressionChart';
 
 type PRRecord = {
   id: string;
@@ -182,6 +183,9 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
           </div>
         </div>
       )}
+
+      {/* 1RM Progression Chart */}
+      <OneRMProgressionChart records={records} />
 
       {/* Filter tabs */}
       <div className="flex gap-1.5">

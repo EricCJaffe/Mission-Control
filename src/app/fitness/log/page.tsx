@@ -1,5 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import WorkoutLoggerClient from '@/components/fitness/WorkoutLoggerClient';
+import MedicationTimingCard from '@/components/fitness/MedicationTimingCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,6 +108,8 @@ export default async function LogWorkoutPage({ searchParams }: PageProps) {
           {today} — {latestMetrics?.body_battery != null ? `Body battery: ${latestMetrics.body_battery}` : 'No readiness data'}
         </p>
       </div>
+      <MedicationTimingCard />
+      <div className="mt-4" />
       <WorkoutLoggerClient
         exercises={exercises ?? []}
         templates={templates ?? []}

@@ -157,6 +157,10 @@ export class HealthDocUpdater {
         updates.push(...(await this.detectWorkoutUpdates(userId, triggerData)));
         break;
 
+      case 'appointment_notes':
+        updates.push(...(await this.detectAppointmentNotesUpdates(userId, triggerData)));
+        break;
+
       default:
         console.warn(`Unsupported trigger type: ${trigger}`);
     }
@@ -442,6 +446,93 @@ export class HealthDocUpdater {
           });
         }
       }
+    }
+
+    return updates;
+  }
+
+  /**
+   * Detect updates from post-appointment notes.
+   * Uses AI to analyze doctor visit notes and suggest health.md section updates.
+   */
+  private async detectAppointmentNotesUpdates(userId: string, triggerData: any): Promise<SectionUpdate[]> {
+    const updates: SectionUpdate[] = [];
+    const healthDoc = await this.loadCurrentHealthDoc(userId);
+    if (!healthDoc || !triggerData?.notes) return updates;
+
+    const systemPrompt = await buildAISystemPrompt(userId, 'health_doc_update');
+
+    const userPrompt = `Analyze these post-appointment notes from a ${triggerData.doctor_specialty || 'doctor'} visit on ${triggerData.appointment_date || 'recent date'}:
+
+---
+${triggerData.notes}
+---
+
+Based on these notes, identify which sections of the health document need updating. For each section that needs changes, provide the COMPLETE updated section content (not just the changes).
+
+Current health document sections that may need updates:
+- Section 1: Medical History
+- Section 2: Medications (Active)
+- Section 3: Supplements (Active)
+- Section 6: Vital Baselines & Targets
+- Section 7: Training Constraints
+- Section 11: Health Priorities
+
+Respond in JSON format:
+{
+  "updates": [
+    {
+      "section_number": <number>,
+      "section_name": "<name>",
+      "proposed_content": "<full markdown section content>",
+      "reason": "<why this section needs updating based on the appointment notes>",
+      "confidence": "high" | "medium" | "low"
+    }
+  ]
+}
+
+Only include sections that actually need changes. If no updates are needed, return { "updates": [] }.`;
+
+    try {
+      const response = await callOpenAI({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+      });
+
+      const content = response.choices?.[0]?.message?.content;
+      if (!content) return updates;
+
+      const parsed = JSON.parse(content);
+
+      if (Array.isArray(parsed.updates)) {
+        for (const update of parsed.updates) {
+          const sectionNum = update.section_number;
+          const currentContent = this.extractSection(healthDoc, sectionNum);
+          if (!currentContent) continue;
+
+          updates.push({
+            section_number: sectionNum,
+            section_name: update.section_name,
+            current_content: currentContent,
+            proposed_content: update.proposed_content,
+            reason: update.reason || `Updated from ${triggerData.doctor_specialty || 'doctor'} appointment notes`,
+            trigger: 'appointment_notes',
+            trigger_data: {
+              appointment_id: triggerData.appointment_id,
+              doctor_name: triggerData.doctor_name,
+              appointment_date: triggerData.appointment_date,
+            },
+            confidence: update.confidence || 'medium',
+            priority: 8,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[HealthDocUpdater] Failed to process appointment notes:', err);
     }
 
     return updates;

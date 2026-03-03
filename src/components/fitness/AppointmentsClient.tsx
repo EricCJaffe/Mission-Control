@@ -22,6 +22,8 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [processingNotes, setProcessingNotes] = useState(false);
+  const [processResult, setProcessResult] = useState<{ updates_count: number; review_url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Add form
@@ -94,6 +96,28 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
     } catch { setError('Network error — could not update'); }
   }
 
+  async function handleProcessNotes(id: string) {
+    setProcessingNotes(true);
+    setProcessResult(null);
+    setError(null);
+    try {
+      const res = await fetch('/api/fitness/appointments/process-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointment_id: id }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setProcessResult({ updates_count: data.updates_count, review_url: data.review_url });
+      } else {
+        setError(data.error || 'Failed to process notes');
+      }
+    } catch {
+      setError('Network error — could not process notes');
+    }
+    setProcessingNotes(false);
+  }
+
   async function handleDelete(id: string) {
     setError(null);
     try {
@@ -114,8 +138,11 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
         onBack={() => setSelectedId(null)}
         onGeneratePrep={() => handleGeneratePrep(selected.id)}
         onComplete={(apptNotes) => handleComplete(selected.id, apptNotes)}
+        onProcessNotes={(id) => handleProcessNotes(id)}
         onDelete={() => handleDelete(selected.id)}
         generating={generating}
+        processingNotes={processingNotes}
+        processResult={processResult}
       />
     );
   }
@@ -223,13 +250,16 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
   );
 }
 
-function AppointmentDetail({ appointment, onBack, onGeneratePrep, onComplete, onDelete, generating }: {
+function AppointmentDetail({ appointment, onBack, onGeneratePrep, onComplete, onProcessNotes, onDelete, generating, processingNotes, processResult }: {
   appointment: Appointment;
   onBack: () => void;
   onGeneratePrep: () => void;
   onComplete: (notes: string) => void;
+  onProcessNotes: (id: string) => void;
   onDelete: () => void;
   generating: boolean;
+  processingNotes: boolean;
+  processResult: { updates_count: number; review_url: string } | null;
 }) {
   const [apptNotes, setApptNotes] = useState(appointment.appointment_notes ?? '');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -352,11 +382,36 @@ function AppointmentDetail({ appointment, onBack, onGeneratePrep, onComplete, on
           placeholder="What was discussed? Any medication changes? Next steps?"
           minHeight="150px"
         />
-        {appointment.status !== 'completed' && (
-          <button onClick={() => onComplete(apptNotes)}
-            className="rounded-xl bg-green-700 text-white text-sm font-medium px-4 py-2.5 hover:bg-green-800 min-h-[44px]">
-            Mark Completed
-          </button>
+        <div className="flex gap-2 flex-wrap">
+          {appointment.status !== 'completed' && (
+            <button onClick={() => onComplete(apptNotes)}
+              className="rounded-xl bg-green-700 text-white text-sm font-medium px-4 py-2.5 hover:bg-green-800 min-h-[44px]">
+              Mark Completed
+            </button>
+          )}
+          {appointment.status === 'completed' && appointment.appointment_notes && (
+            <button
+              onClick={() => onProcessNotes(appointment.id)}
+              disabled={processingNotes}
+              className="rounded-xl bg-indigo-600 text-white text-sm font-medium px-4 py-2.5 hover:bg-indigo-700 disabled:opacity-50 min-h-[44px]"
+            >
+              {processingNotes ? 'Processing...' : 'Process Notes → health.md'}
+            </button>
+          )}
+        </div>
+        {processResult && (
+          <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+            <p className="text-sm text-indigo-800">
+              {processResult.updates_count > 0
+                ? `Found ${processResult.updates_count} suggested update${processResult.updates_count !== 1 ? 's' : ''} for health.md.`
+                : 'No health.md updates needed from these notes.'}
+            </p>
+            {processResult.updates_count > 0 && (
+              <a href={processResult.review_url} className="text-sm font-medium text-indigo-600 hover:underline mt-1 inline-block">
+                Review & Approve Updates →
+              </a>
+            )}
+          </div>
         )}
       </div>
 
