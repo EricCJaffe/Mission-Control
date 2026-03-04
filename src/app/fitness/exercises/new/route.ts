@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const name = String(form.get('name') || '').trim();
   if (!name) return NextResponse.redirect(new URL('/fitness/exercises', req.url));
 
-  const category = String(form.get('category') || 'push');
+  const category = String(form.get('category') || 'push').toLowerCase();
   const equipment = String(form.get('equipment') || '') || null;
   const muscleGroupsRaw = String(form.get('muscle_groups') || '');
   const muscle_groups = muscleGroupsRaw

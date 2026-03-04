@@ -12,10 +12,17 @@ export async function POST(req: Request) {
 
   if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 });
 
+  // Normalize category to lowercase (DB constraint requires lowercase)
+  const validCategories = ['push', 'pull', 'legs', 'core', 'cardio', 'mobility'];
+  const normalizedCategory = (category || 'push').toLowerCase();
+  if (!validCategories.includes(normalizedCategory)) {
+    return NextResponse.json({ error: `Invalid category: ${category}` }, { status: 400 });
+  }
+
   const { data, error } = await supabase.from('exercises').insert({
     user_id: user.id,
     name: name.trim(),
-    category: category || 'push',
+    category: normalizedCategory,
     equipment: equipment || null,
     muscle_groups: muscle_groups || [],
     is_compound: is_compound || false,
@@ -39,7 +46,7 @@ export async function PUT(req: Request) {
 
   const updates: Record<string, unknown> = {};
   if (name !== undefined) updates.name = name.trim();
-  if (category !== undefined) updates.category = category;
+  if (category !== undefined) updates.category = category.toLowerCase();
   if (equipment !== undefined) updates.equipment = equipment || null;
   if (muscle_groups !== undefined) updates.muscle_groups = muscle_groups;
   if (is_compound !== undefined) updates.is_compound = is_compound;
