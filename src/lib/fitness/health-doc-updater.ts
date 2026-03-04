@@ -494,16 +494,12 @@ Respond in JSON format:
 Only include sections that actually need changes. If no updates are needed, return { "updates": [] }.`;
 
     try {
-      const response = await callOpenAI({
+      const content = await callOpenAI({
         model: DEFAULT_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
+        system: systemPrompt,
+        user: userPrompt,
       });
 
-      const content = response.choices?.[0]?.message?.content;
       if (!content) return updates;
 
       const parsed = JSON.parse(content);
