@@ -49,3 +49,4 @@ Projects/
 
 # supabase temp
 supabase/.temp
+.env*.local
