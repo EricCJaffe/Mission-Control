@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { supabaseBrowser } from '@/lib/supabase/client'
 
 export default function LoginPage() {
@@ -148,6 +149,14 @@ export default function LoginPage() {
             </div>
           )}
         </form>
+
+        <p className="mt-4 text-center text-xs text-slate-500">
+          By using this app, you agree to our{' '}
+          <Link className="underline hover:text-slate-700" href="/privacy-policy">
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </div>
     </main>
   )
