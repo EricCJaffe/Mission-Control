@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS genetics_comprehensive_analysis (
 
 ALTER TABLE genetics_comprehensive_analysis ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own genetics comprehensive analysis"
+  ON genetics_comprehensive_analysis;
+
 CREATE POLICY "Users can manage own genetics comprehensive analysis"
   ON genetics_comprehensive_analysis FOR ALL
   USING (auth.uid() = user_id)
