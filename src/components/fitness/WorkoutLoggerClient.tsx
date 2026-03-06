@@ -71,6 +71,13 @@ type Props = {
     resting_hr: number | null;
     sleep_score: number | null;
   } | null;
+  activeMeds: Array<{
+    id: string;
+    name: string;
+    type: string;
+    timing: string | null;
+    known_interactions: string | null;
+  }>;
   repeatData?: {
     workout_type: string;
     template_id: string | null;
@@ -158,7 +165,7 @@ function SortableExerciseItem({
   );
 }
 
-export default function WorkoutLoggerClient({ exercises, templates, todayPlan, latestMetrics, repeatData, templateId }: Props) {
+export default function WorkoutLoggerClient({ exercises, templates, todayPlan, latestMetrics, activeMeds, repeatData, templateId }: Props) {
   const router = useRouter();
   const [mode, setMode] = useState<WorkoutMode>('select');
   const [loggerMode, setLoggerMode] = useState<LoggerMode>('template');
@@ -229,6 +236,57 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     const s = secs % 60;
     if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function getMedicationTimingGuidance() {
+    if (!activeMeds || activeMeds.length === 0) {
+      return null;
+    }
+
+    const hour = new Date().getHours();
+    const dayPart = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+    const dueNow = activeMeds.filter((m) => (m.timing || '').toLowerCase().includes(dayPart));
+    const interactionWarnings = activeMeds
+      .map((m) => ({ name: m.name, warning: m.known_interactions }))
+      .filter((m) => m.warning && m.warning.length > 0)
+      .slice(0, 2);
+
+    return {
+      dayPart,
+      dueNow,
+      interactionWarnings,
+    };
+  }
+
+  function renderMedicationTimingCard() {
+    const guidance = getMedicationTimingGuidance();
+    if (!guidance) return null;
+
+    const sectionLabel = guidance.dayPart[0].toUpperCase() + guidance.dayPart.slice(1);
+
+    return (
+      <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+        <p className="text-sm font-semibold text-indigo-900">{sectionLabel} Medication Timing Check</p>
+        {guidance.dueNow.length > 0 ? (
+          <p className="text-xs text-indigo-800 mt-1">
+            Due around now: {guidance.dueNow.map((m) => m.name).join(', ')}.
+          </p>
+        ) : (
+          <p className="text-xs text-indigo-800 mt-1">
+            No medications explicitly scheduled for this part of day.
+          </p>
+        )}
+        {guidance.interactionWarnings.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {guidance.interactionWarnings.map((item) => (
+              <p key={item.name} className="text-xs text-amber-800">
+                {item.name}: {item.warning}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
 
   // Exercise picker state
@@ -444,7 +502,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
       if (data.ok && data.has_history && data.sets.length > 0) {
         // Pre-fill with last workout data
-        sets = data.sets.map((s: any) => ({
+        sets = data.sets.map((s: { set_type: SetType; reps: number | null; weight_lbs: number | null; rest_seconds: number | null }) => ({
           set_type: s.set_type,
           reps: s.reps ?? '',
           weight_lbs: s.weight_lbs ?? '',
@@ -455,7 +513,9 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         }));
 
         // Create summary string
-        const firstWorkingSet = data.sets.find((s: any) => s.set_type === 'working');
+        const firstWorkingSet = data.sets.find((s: { set_type: SetType }) => s.set_type === 'working') as
+          | { reps: number | null; weight_lbs: number | null }
+          | undefined;
         if (firstWorkingSet && data.workout_date) {
           const summary = `${data.sets.length}x${firstWorkingSet.reps || '?'} @ ${firstWorkingSet.weight_lbs || 0}lbs`;
           const date = new Date(data.workout_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -947,6 +1007,8 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   if (mode === 'select') {
     return (
       <div className="space-y-4">
+        {renderMedicationTimingCard()}
+
         {latestMetrics?.body_battery != null && latestMetrics.body_battery < 25 && (
           <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4">
             <p className="text-sm font-semibold text-orange-800">Low Body Battery ({latestMetrics.body_battery}/100)</p>
@@ -1029,7 +1091,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           {loggerMode === 'ai' && (
             <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
               <p className="text-xs text-blue-700">
-                AI Builder will help you create a workout based on your goals and recent training. Click "Start Workout" to begin.
+                AI Builder will help you create a workout based on your goals and recent training. Click &ldquo;Start Workout&rdquo; to begin.
               </p>
             </div>
           )}
@@ -1588,6 +1650,8 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
   return (
     <div className="space-y-4">
+      {renderMedicationTimingCard()}
+
       {/* Error banner */}
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">

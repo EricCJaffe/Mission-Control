@@ -30,6 +30,14 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
   const [saved, setSaved] = useState(false);
   const [garminStatus, setGarminStatus] = useState<GarminStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [recalibratingZones, setRecalibratingZones] = useState(false);
+  const [recalibrationResult, setRecalibrationResult] = useState<{
+    season: string;
+    sample_count: number;
+    current_ftp: number | null;
+    baseline_ftp_estimate: number;
+    seasonal_adjusted_ftp: number;
+  } | null>(null);
 
   const [maxHr, setMaxHr] = useState(profile?.max_hr_ceiling ?? 155);
   const [lthr, setLthr] = useState(profile?.lactate_threshold_hr ?? 140);
@@ -71,7 +79,7 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
       const data = await res.json();
       alert(data.message || data.error);
       await fetchGarminStatus();
-    } catch (error) {
+    } catch {
       alert('Network error - please try again');
     } finally {
       setSyncing(false);
@@ -106,6 +114,45 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
     if (res.ok) setSaved(true);
   }
 
+  async function handleSeasonalRecalibrate() {
+    setRecalibratingZones(true);
+    try {
+      const res = await fetch('/api/fitness/power-zones/recalibrate');
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(data.message || data.error || 'Could not generate recalibration suggestion');
+        return;
+      }
+      setRecalibrationResult(data);
+      setFtp(data.seasonal_adjusted_ftp);
+    } catch {
+      alert('Network error while recalibrating');
+    } finally {
+      setRecalibratingZones(false);
+    }
+  }
+
+  async function applySeasonalSuggestion() {
+    if (!recalibrationResult) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/fitness/power-zones/recalibrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ftp_watts: recalibrationResult.seasonal_adjusted_ftp }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to apply recalibration');
+      }
+      setSaved(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to apply recalibration');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-xl space-y-4">
       {/* Cardiac Settings */}
@@ -125,6 +172,30 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
       <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Cycling</h2>
         <Field label="FTP (Functional Threshold Power)" value={ftp} onChange={setFtp} type="number" unit="watts" placeholder="e.g., 200" />
+        <button
+          onClick={handleSeasonalRecalibrate}
+          disabled={recalibratingZones}
+          className="w-full min-h-[44px] rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 font-medium hover:bg-indigo-100 disabled:opacity-50"
+        >
+          {recalibratingZones ? 'Analyzing 90-day cycling data...' : 'Seasonal Zone Recalibration'}
+        </button>
+        {recalibrationResult && (
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-sm text-indigo-900 space-y-1">
+            <p>
+              Suggested FTP: <strong>{recalibrationResult.seasonal_adjusted_ftp}W</strong> ({recalibrationResult.season})
+            </p>
+            <p className="text-xs text-indigo-700">
+              Baseline estimate: {recalibrationResult.baseline_ftp_estimate}W from {recalibrationResult.sample_count} qualifying rides.
+            </p>
+            <button
+              onClick={applySeasonalSuggestion}
+              disabled={saving}
+              className="mt-2 rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Apply Suggested FTP & Zones
+            </button>
+          </div>
+        )}
         {profile?.power_zones && (
           <div className="text-xs text-slate-400">
             Power Zones: Z1 0–{(profile.power_zones as Record<string, [number, number]>).z1?.[1] ?? ''}W, Z2 {(profile.power_zones as Record<string, [number, number]>).z2?.[0] ?? ''}–{(profile.power_zones as Record<string, [number, number]>).z2?.[1] ?? ''}W, Z3 {(profile.power_zones as Record<string, [number, number]>).z3?.[0] ?? ''}–{(profile.power_zones as Record<string, [number, number]>).z3?.[1] ?? ''}W, Z4 {(profile.power_zones as Record<string, [number, number]>).z4?.[0] ?? ''}–{(profile.power_zones as Record<string, [number, number]>).z4?.[1] ?? ''}W

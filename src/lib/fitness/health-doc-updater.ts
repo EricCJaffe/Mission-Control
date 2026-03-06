@@ -157,6 +157,10 @@ export class HealthDocUpdater {
         updates.push(...(await this.detectWorkoutUpdates(userId, triggerData)));
         break;
 
+      case 'appointment_notes':
+        updates.push(...(await this.detectAppointmentNotesUpdates(userId, triggerData)));
+        break;
+
       default:
         console.warn(`Unsupported trigger type: ${trigger}`);
     }
@@ -448,6 +452,36 @@ export class HealthDocUpdater {
   }
 
   /**
+   * Detect post-appointment note updates
+   */
+  private async detectAppointmentNotesUpdates(userId: string, triggerData: any): Promise<SectionUpdate[]> {
+    const updates: SectionUpdate[] = [];
+    const healthDoc = await this.loadCurrentHealthDoc(userId);
+    if (!healthDoc) return updates;
+
+    // Section 11: Health Priorities
+    const currentPriorities = this.extractSection(healthDoc, 11);
+    if (currentPriorities) {
+      const proposedPriorities = await this.generateHealthPrioritiesFromAppointment(userId, triggerData);
+      if (proposedPriorities && proposedPriorities !== currentPriorities) {
+        updates.push({
+          section_number: 11,
+          section_name: 'Health Priorities',
+          current_content: currentPriorities,
+          proposed_content: proposedPriorities,
+          reason: `Post-appointment notes captured (${triggerData?.doctor_specialty || 'appointment'})`,
+          trigger: 'appointment_notes',
+          trigger_data: triggerData,
+          confidence: 'medium',
+          priority: 8,
+        });
+      }
+    }
+
+    return updates;
+  }
+
+  /**
    * Generate medications section content
    */
   private async generateMedicationsSection(userId: string): Promise<string> {
@@ -701,6 +735,46 @@ Return ONLY the section content starting with "## 7. Training Constraints", noth
     } catch (error) {
       console.error('Error generating training constraints section:', error);
       return '## 7. Training Constraints\n\n(Error generating constraints - please update manually)';
+    }
+  }
+
+  /**
+   * Generate updated health priorities from post-appointment notes
+   */
+  private async generateHealthPrioritiesFromAppointment(userId: string, triggerData?: any): Promise<string> {
+    try {
+      const systemPrompt = await buildAISystemPrompt(userId, 'health_doc_update');
+
+      const userPrompt = `Update the "Health Priorities" section (§11) of health.md based on these appointment outcomes:
+
+Doctor: ${triggerData?.doctor_name || 'Unknown'}
+Specialty: ${triggerData?.doctor_specialty || 'Unknown'}
+Appointment date: ${triggerData?.appointment_date || 'Unknown'}
+
+Appointment notes:
+${triggerData?.appointment_notes || 'No notes provided'}
+
+Medication changes:
+${JSON.stringify(triggerData?.medication_changes || [], null, 2)}
+
+Create a concise, practical section with:
+1. Updated top 3-5 priorities for the next 30-90 days
+2. Any monitoring focus areas
+3. Clear next-step actions
+
+Keep the output actionable and aligned with cardiac safety.
+Return ONLY section content starting with "## 11. Health Priorities".`;
+
+      const content = await callOpenAI({
+        model: DEFAULT_MODEL,
+        system: systemPrompt,
+        user: userPrompt,
+      });
+
+      return content.trim();
+    } catch (error) {
+      console.error('Error generating post-appointment priorities section:', error);
+      return '## 11. Health Priorities\n\n(Error generating post-appointment priorities update - please update manually)';
     }
   }
 

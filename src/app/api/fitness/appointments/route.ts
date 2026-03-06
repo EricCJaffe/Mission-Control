@@ -167,7 +167,7 @@ export async function PUT(req: Request) {
         training_compliance_pct: compliancePct,
         cardiac_efficiency_trend: null,
         notable_events: [],
-        medications: normalizedMeds as any,
+        medications: normalizedMeds as Record<string, unknown>[],
         recent_lab_flags: labFlags?.map(f => `${f.test_name}: ${f.flag}`) ?? [],
       });
 
@@ -200,6 +200,37 @@ export async function PUT(req: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Trigger health.md update detection from completed appointment notes (non-blocking)
+  const isCompletingWithNotes =
+    data.status === 'completed' &&
+    typeof data.appointment_notes === 'string' &&
+    data.appointment_notes.trim().length > 0;
+
+  if (isCompletingWithNotes) {
+    const baseUrl = req.headers.get('origin') || 'http://localhost:3000';
+    fetch(`${baseUrl}/api/fitness/health/detect-updates`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': req.headers.get('cookie') || '',
+      },
+      body: JSON.stringify({
+        trigger: 'appointment_notes',
+        trigger_data: {
+          appointment_id: data.id,
+          appointment_date: data.appointment_date,
+          doctor_name: data.doctor_name,
+          doctor_specialty: data.doctor_specialty,
+          appointment_notes: data.appointment_notes,
+          medication_changes: data.medication_changes,
+        },
+      }),
+    }).catch(err => {
+      console.error('Failed to trigger health.md update from appointment notes (non-critical):', err);
+    });
+  }
+
   return NextResponse.json({ ok: true, appointment: data });
 }
 

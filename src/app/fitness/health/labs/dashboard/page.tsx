@@ -52,7 +52,7 @@ export default async function LabDashboardPage({
         </div>
       </div>
 
-      <LabDashboardClient userId={userData.user.id} initialTab={initialTab} />
+      <LabDashboardClient initialTab={initialTab} />
     </div>
   );
 }

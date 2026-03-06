@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { ArrowLeft, Calendar, Clock, Zap, Heart, Repeat } from 'lucide-react';
 
 type WorkoutLog = {
@@ -57,8 +58,79 @@ type Props = {
   cardioData: CardioLog | null;
 };
 
+type SessionPhoto = {
+  id: string;
+  caption: string | null;
+  created_at: string;
+  signed_url: string | null;
+};
+
 export default function WorkoutDetailClient({ workout, sets, cardioData }: Props) {
   const router = useRouter();
+  const [photos, setPhotos] = useState<SessionPhoto[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(true);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoCaption, setPhotoCaption] = useState('');
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  const loadPhotos = useCallback(async () => {
+    setPhotosLoading(true);
+    try {
+      const res = await fetch(`/api/fitness/workout-photos?workout_id=${encodeURIComponent(workout.id)}`);
+      const data = await res.json();
+      if (res.ok && data.photos) {
+        setPhotos(data.photos);
+      } else {
+        setPhotoError(data.error || 'Failed to load photos');
+      }
+    } catch {
+      setPhotoError('Failed to load photos');
+    } finally {
+      setPhotosLoading(false);
+    }
+  }, [workout.id]);
+
+  useEffect(() => {
+    void loadPhotos();
+  }, [loadPhotos]);
+
+  async function uploadPhoto(file: File) {
+    setUploadingPhoto(true);
+    setPhotoError(null);
+    try {
+      const form = new FormData();
+      form.set('workout_id', workout.id);
+      form.set('file', file);
+      if (photoCaption.trim()) form.set('caption', photoCaption.trim());
+
+      const res = await fetch('/api/fitness/workout-photos', {
+        method: 'POST',
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+      setPhotoCaption('');
+      await loadPhotos();
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
+
+  async function deletePhoto(photoId: string) {
+    try {
+      const res = await fetch(`/api/fitness/workout-photos?photo_id=${encodeURIComponent(photoId)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      setPhotos(prev => prev.filter(p => p.id !== photoId));
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : 'Delete failed');
+    }
+  }
 
   // Group sets by exercise
   const exerciseGroups = useMemo(() => {
@@ -222,6 +294,79 @@ export default function WorkoutDetailClient({ workout, sets, cardioData }: Props
           </div>
         </div>
       )}
+
+      {/* Session Photos */}
+      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Session Photos</h2>
+
+        {photoError && (
+          <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+            {photoError}
+          </div>
+        )}
+
+        <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+          <input
+            type="text"
+            value={photoCaption}
+            onChange={(e) => setPhotoCaption(e.target.value)}
+            placeholder="Optional caption..."
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+          />
+          <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 min-h-[44px]">
+            {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
+            <input
+              type="file"
+              accept="image/*"
+              disabled={uploadingPhoto}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void uploadPhoto(file);
+                e.currentTarget.value = '';
+              }}
+            />
+          </label>
+        </div>
+
+        {photosLoading ? (
+          <p className="text-sm text-slate-500">Loading photos...</p>
+        ) : photos.length === 0 ? (
+          <p className="text-sm text-slate-500">No session photos yet.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {photos.map((photo) => (
+              <div key={photo.id} className="rounded-xl border border-slate-200 overflow-hidden">
+                {photo.signed_url ? (
+                  <div className="relative h-40 w-full">
+                    <Image
+                      src={photo.signed_url}
+                      alt={photo.caption || 'Workout session photo'}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                ) : (
+                  <div className="h-40 w-full bg-slate-100" />
+                )}
+                <div className="p-2">
+                  <p className="text-xs text-slate-500">
+                    {new Date(photo.created_at).toLocaleString()}
+                  </p>
+                  {photo.caption && <p className="text-sm text-slate-700 mt-0.5">{photo.caption}</p>}
+                  <button
+                    onClick={() => deletePhoto(photo.id)}
+                    className="mt-2 text-xs text-red-600 hover:text-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Exercise Details */}
       {exerciseGroups.length > 0 && (

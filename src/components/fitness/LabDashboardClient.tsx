@@ -6,6 +6,7 @@ import { AlertCircle, Bot, FileHeart, Target, TrendingUp, ArrowRight, Dumbbell, 
 
 interface LabPanel {
   id: string;
+  file_id?: string | null;
   lab_name: string;
   panel_date: string;
   provider_name: string | null;
@@ -40,7 +41,6 @@ interface DashboardData {
 }
 
 interface LabDashboardClientProps {
-  userId: string;
   initialTab?: string;
 }
 
@@ -93,7 +93,7 @@ interface ComprehensiveAnalysis {
   date_range: { from: string; to: string };
 }
 
-export default function LabDashboardClient({ userId, initialTab }: LabDashboardClientProps) {
+export default function LabDashboardClient({ initialTab }: LabDashboardClientProps) {
   const [labType, setLabType] = useState<'bloodwork' | 'methylation'>(
     initialTab === 'methylation' ? 'methylation' : 'bloodwork'
   );
@@ -113,6 +113,7 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
   const [geneticsComprehensiveError, setGeneticsComprehensiveError] = useState<string | null>(null);
   const [collapsedReports, setCollapsedReports] = useState<Set<string>>(new Set());
   const [refreshingReport, setRefreshingReport] = useState<string | null>(null);
+  const [openingSourceFileId, setOpeningSourceFileId] = useState<string | null>(null);
 
   const loadDashboardData = async (filterValue: string) => {
     setLoading(true);
@@ -199,6 +200,24 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
       else next.add(fileId);
       return next;
     });
+  };
+
+  const openSourcePdf = async (fileId: string) => {
+    setOpeningSourceFileId(fileId);
+    try {
+      const response = await fetch(`/api/fitness/health/files/signed-url?fileId=${encodeURIComponent(fileId)}`);
+      const result = await response.json();
+
+      if (!response.ok || !result.signedUrl) {
+        throw new Error(result.error || 'Could not open source PDF');
+      }
+
+      window.open(result.signedUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to open source PDF');
+    } finally {
+      setOpeningSourceFileId(null);
+    }
   };
 
   useEffect(() => {
@@ -515,6 +534,35 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
             </div>
           </div>
 
+          {/* Source PDF Links */}
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-slate-900 mb-3">Source Lab PDFs</h3>
+            <div className="space-y-2">
+              {data.panels.map((panel) => (
+                <div key={panel.id} className="flex items-center justify-between rounded-lg border border-slate-100 p-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{panel.lab_name || 'Lab Panel'}</p>
+                    <p className="text-xs text-slate-500">
+                      {new Date(panel.panel_date).toLocaleDateString()}
+                      {panel.provider_name ? ` • ${panel.provider_name}` : ''}
+                    </p>
+                  </div>
+                  {panel.file_id ? (
+                    <button
+                      onClick={() => openSourcePdf(panel.file_id!)}
+                      disabled={openingSourceFileId === panel.file_id}
+                      className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50 min-h-[36px]"
+                    >
+                      {openingSourceFileId === panel.file_id ? 'Opening...' : 'View Original PDF'}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-slate-400">No source file linked</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Flagged Results Across All Panels */}
           {data.flagged_results.length > 0 && (
             <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
@@ -587,7 +635,7 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
 
             {!comprehensiveAnalysis && !analysisLoading && (
               <p className="text-gray-700 text-sm">
-                Click "Generate Analysis" to get comprehensive AI analysis of all trends, recommendations, and health insights across {data.panels.length} panels.
+                Click &ldquo;Generate Analysis&rdquo; to get comprehensive AI analysis of all trends, recommendations, and health insights across {data.panels.length} panels.
               </p>
             )}
 
@@ -1174,6 +1222,14 @@ export default function LabDashboardClient({ userId, initialTab }: LabDashboardC
                         >
                           <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
                           {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openSourcePdf(report.file_id); }}
+                          disabled={openingSourceFileId === report.file_id}
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-white border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors min-h-[32px]"
+                          title="Open source PDF"
+                        >
+                          {openingSourceFileId === report.file_id ? 'Opening...' : 'View PDF'}
                         </button>
                         {isCollapsed ? <ChevronRight size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
                       </div>
