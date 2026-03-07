@@ -28,7 +28,7 @@ export default async function TrainingPlanDetailPage({
 
   if (!plan) notFound();
 
-  const [{ data: plannedWorkouts }, { data: workoutLogs }, { data: bodyMetrics }] = await Promise.all([
+  const [{ data: plannedWorkouts }, { data: workoutLogs }, { data: bodyMetrics }, { data: recoverySessions }] = await Promise.all([
     supabase
       .from('planned_workouts')
       .select('id, scheduled_date, week_number, day_label, workout_type, prescribed, status')
@@ -49,6 +49,13 @@ export default async function TrainingPlanDetailPage({
       .gte('metric_date', plan.start_date)
       .lte('metric_date', plan.end_date)
       .order('metric_date', { ascending: true }),
+    supabase
+      .from('recovery_sessions')
+      .select('session_date, duration_min, modality')
+      .eq('user_id', user.id)
+      .gte('session_date', plan.start_date)
+      .lte('session_date', plan.end_date)
+      .order('session_date', { ascending: true }),
   ]);
 
   const config = (plan.config || {}) as JsonRecord;
@@ -59,7 +66,7 @@ export default async function TrainingPlanDetailPage({
   const weeklyTracking = asStringArray(config.weekly_tracking);
   const weeklyTemplate = Array.isArray(plan.weekly_template) ? (plan.weekly_template as JsonRecord[]) : [];
 
-  const progress = buildProgress(plannedWorkouts || [], workoutLogs || [], bodyMetrics || []);
+  const progress = buildProgress(plannedWorkouts || [], workoutLogs || [], bodyMetrics || [], recoverySessions || []);
 
   return (
     <main className="max-w-6xl mx-auto space-y-6 p-4 sm:p-6">
@@ -118,6 +125,7 @@ export default async function TrainingPlanDetailPage({
         <MetricCard label="Strength Days" value={`${progress.completedStrength}/${progress.plannedStrength}`} sub="Completed vs planned" />
         <MetricCard label="RHR Trend" value={progress.rhrTrendLabel} sub="Start to latest within block" />
         <MetricCard label="HRV Trend" value={progress.hrvTrendLabel} sub="Start to latest within block" />
+        <MetricCard label="Recovery Work" value={`${progress.recoverySessions}`} sub={`${progress.recoveryMinutes} min logged in plan window`} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
@@ -161,7 +169,8 @@ export default async function TrainingPlanDetailPage({
                     <th className="pb-2 pr-4">Done</th>
                     <th className="pb-2 pr-4">Adherence</th>
                     <th className="pb-2 pr-4">Z2 Min</th>
-                    <th className="pb-2">Strength</th>
+                    <th className="pb-2 pr-4">Strength</th>
+                    <th className="pb-2">Recovery</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -172,7 +181,8 @@ export default async function TrainingPlanDetailPage({
                       <td className="py-3 pr-4 text-slate-700">{row.completed}</td>
                       <td className="py-3 pr-4 text-slate-700">{row.adherence}%</td>
                       <td className="py-3 pr-4 text-slate-700">{row.zone2Minutes}</td>
-                      <td className="py-3 text-slate-700">{row.strengthCompleted}/{row.strengthPlanned}</td>
+                      <td className="py-3 pr-4 text-slate-700">{row.strengthCompleted}/{row.strengthPlanned}</td>
+                      <td className="py-3 text-slate-700">{row.recoverySessions}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -323,10 +333,12 @@ function asStringArray(value: unknown): string[] {
 function buildProgress(
   plannedWorkouts: Array<Record<string, unknown>>,
   workoutLogs: Array<Record<string, unknown>>,
-  bodyMetrics: Array<Record<string, unknown>>
+  bodyMetrics: Array<Record<string, unknown>>,
+  recoverySessions: Array<Record<string, unknown>>
 ) {
   const completedPlannedIds = new Set<string>();
   let zone2Minutes = 0;
+  let recoveryMinutes = 0;
   const weeklyMap = new Map<number, {
     week: number;
     planned: number;
@@ -334,12 +346,13 @@ function buildProgress(
     zone2Minutes: number;
     strengthPlanned: number;
     strengthCompleted: number;
+    recoverySessions: number;
   }>();
 
   for (const planned of plannedWorkouts) {
     const week = Number(planned.week_number) || 1;
     if (!weeklyMap.has(week)) {
-      weeklyMap.set(week, { week, planned: 0, completed: 0, zone2Minutes: 0, strengthPlanned: 0, strengthCompleted: 0 });
+      weeklyMap.set(week, { week, planned: 0, completed: 0, zone2Minutes: 0, strengthPlanned: 0, strengthCompleted: 0, recoverySessions: 0 });
     }
     const bucket = weeklyMap.get(week)!;
     bucket.planned += 1;
@@ -358,7 +371,7 @@ function buildProgress(
 
     const week = matchWorkoutToWeek(log, plannedWorkouts);
     if (!weeklyMap.has(week)) {
-      weeklyMap.set(week, { week, planned: 0, completed: 0, zone2Minutes: 0, strengthPlanned: 0, strengthCompleted: 0 });
+      weeklyMap.set(week, { week, planned: 0, completed: 0, zone2Minutes: 0, strengthPlanned: 0, strengthCompleted: 0, recoverySessions: 0 });
     }
     const bucket = weeklyMap.get(week)!;
     bucket.completed += 1;
@@ -376,6 +389,16 @@ function buildProgress(
     String(row.workout_type || '').toLowerCase().includes('strength')
   ).length;
 
+  for (const session of recoverySessions) {
+    const week = matchRecoveryToWeek(session, plannedWorkouts);
+    if (!weeklyMap.has(week)) {
+      weeklyMap.set(week, { week, planned: 0, completed: 0, zone2Minutes: 0, strengthPlanned: 0, strengthCompleted: 0, recoverySessions: 0 });
+    }
+    const bucket = weeklyMap.get(week)!;
+    bucket.recoverySessions += 1;
+    recoveryMinutes += Number(session.duration_min || 0);
+  }
+
   const rhrSeries = bodyMetrics.filter((row) => typeof row.resting_hr === 'number');
   const hrvSeries = bodyMetrics.filter((row) => typeof row.hrv_ms === 'number');
   const weightSeries = bodyMetrics.filter((row) => typeof row.weight_lbs === 'number');
@@ -391,6 +414,8 @@ function buildProgress(
     zone2Minutes: Math.round(zone2Minutes),
     plannedStrength,
     completedStrength,
+    recoverySessions: recoverySessions.length,
+    recoveryMinutes: Math.round(recoveryMinutes),
     rhrTrendLabel: trendLabel(rhrSeries, 'resting_hr', 'bpm'),
     hrvTrendLabel: trendLabel(hrvSeries, 'hrv_ms', 'ms'),
     weightTrendLabel: trendLabel(weightSeries, 'weight_lbs', 'lb'),
@@ -405,6 +430,16 @@ function buildProgress(
         zone2Minutes: Math.round(row.zone2Minutes),
       })),
   };
+}
+
+function matchRecoveryToWeek(
+  session: Record<string, unknown>,
+  plannedWorkouts: Array<Record<string, unknown>>
+) {
+  const sessionDate = typeof session.session_date === 'string' ? session.session_date : null;
+  if (!sessionDate) return 1;
+  const byDate = plannedWorkouts.find((row) => row.scheduled_date === sessionDate);
+  return byDate?.week_number != null ? Number(byDate.week_number) || 1 : 1;
 }
 
 function matchWorkoutToWeek(

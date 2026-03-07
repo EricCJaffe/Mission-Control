@@ -242,6 +242,99 @@ export type PlannedWorkout = {
   status: PlannedWorkoutStatus;
 };
 
+export type HydrationLog = {
+  id: string;
+  user_id: string;
+  log_date: string;
+  intake_oz: number;
+  output_oz: number;
+  net_balance_oz: number;
+  workout_minutes: number;
+  sweat_level: 'low' | 'moderate' | 'high';
+  sodium_mg: number | null;
+  potassium_mg: number | null;
+  symptoms: string[];
+  vitals_context: Record<string, unknown>;
+  notes: string | null;
+};
+
+export type HydrationTarget = {
+  id: string;
+  user_id: string;
+  base_target_oz: number;
+  min_target_oz: number;
+  max_target_oz: number;
+  workout_adjustment_per_hour_oz: number;
+  heat_adjustment_oz: number;
+  reminder_enabled: boolean;
+  alert_weight_gain_lbs: number;
+  notes: string | null;
+};
+
+export type NutritionLog = {
+  id: string;
+  user_id: string;
+  logged_at: string;
+  meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'drink' | 'meal';
+  food_name: string;
+  serving_size: string | null;
+  calories: number | null;
+  protein_g: number | null;
+  fiber_g: number | null;
+  sodium_mg: number | null;
+  potassium_mg: number | null;
+  phosphorus_mg: number | null;
+  food_rating: 'green' | 'yellow' | 'red';
+  notes: string | null;
+};
+
+export type NutritionTarget = {
+  id: string;
+  user_id: string;
+  sodium_max_mg: number;
+  potassium_target_mg: number;
+  phosphorus_max_mg: number;
+  protein_target_g: number;
+  fiber_target_g: number;
+  calorie_target: number | null;
+  pattern: 'mediterranean' | 'dash' | 'mediterranean_dash' | 'cardiac_ckd';
+  notes: string | null;
+};
+
+export type RecoveryModality =
+  | 'sauna'
+  | 'cold_plunge'
+  | 'stretching'
+  | 'mobility';
+
+export type RecoveryTimingContext =
+  | 'pre_workout'
+  | 'post_workout'
+  | 'standalone'
+  | 'morning'
+  | 'afternoon'
+  | 'evening';
+
+export type RecoverySession = {
+  id: string;
+  user_id: string;
+  session_date: string;
+  modality: RecoveryModality;
+  duration_min: number;
+  temperature_f: number | null;
+  rounds: number | null;
+  timing_context: RecoveryTimingContext;
+  linked_workout_id: string | null;
+  perceived_recovery: number | null;
+  energy_before: number | null;
+  energy_after: number | null;
+  soreness_before: number | null;
+  soreness_after: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 // ============================================================
 // ADVANCED METRICS — Readiness, Strain, Efficiency, etc.
 // ============================================================

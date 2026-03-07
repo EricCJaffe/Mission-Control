@@ -5,7 +5,7 @@
 // ============================================================
 
 import { callOpenAI } from '@/lib/openai';
-import { buildAISystemPrompt, type FunctionType } from './health-context';
+import { buildAISystemPrompt } from './health-context';
 import type {
   WorkoutTemplate,
   WorkoutStructureItem,
@@ -286,7 +286,7 @@ Parse the workout description above and return ONLY the JSON structure. No expla
       type: 'strength',
       structure: [],
       estimated_duration_min: 45,
-    } as any;
+    } as Partial<WorkoutTemplate>;
   }
 }
 
@@ -406,7 +406,9 @@ export async function parseWorkoutDescription(params: {
 
   return {
     structure: result.structure ?? [],
-    unmatched_exercises: (result as any).unmatched_exercises ?? [],
+    unmatched_exercises: ('unmatched_exercises' in result && Array.isArray(result.unmatched_exercises))
+      ? result.unmatched_exercises
+      : [],
   };
 }
 
@@ -517,7 +519,37 @@ export async function generateMorningBriefing(params: {
   medications?: Array<{ name: string; type: string; dosage: string; timing: string }>;
   fasting_status?: 'fasting' | 'feeding' | 'unknown';
   fasting_hours?: number | null;
-}): Promise<{ recommendation: string; alerts: string[]; motivation: string }> {
+  hydration?: {
+    intake_oz: number | null;
+    output_oz: number | null;
+    target_oz: number | null;
+    symptoms: string[];
+  } | null;
+  nutrition?: {
+    sodium_mg: number | null;
+    protein_g: number | null;
+    fiber_g: number | null;
+    calorie_estimate: number | null;
+    target_pattern: string | null;
+  } | null;
+  recovery?: {
+    sessions_last_7_days: number;
+    total_minutes_last_7_days: number;
+    last_session: string | null;
+    last_modality: string | null;
+  } | null;
+}): Promise<{
+  recommendation: string;
+  alerts: string[];
+  motivation: string;
+  hydration_focus: string;
+  nutrition_focus: string;
+  recovery_focus: string;
+  daily_tip: string;
+  learning: string;
+  scripture: { reference: string; text: string };
+  fitness_quote: string;
+}> {
   // Use comprehensive health context system
   const system = await buildAISystemPrompt(params.user_id, 'morning_briefing');
   const user = `Generate a morning training briefing. Be concise — max 4 short lines total.
@@ -542,12 +574,25 @@ ${params.recent_bp ? `LATEST BP: ${params.recent_bp.systolic}/${params.recent_bp
 
 ${params.medications && params.medications.length > 0 ? `MORNING MEDICATIONS: ${params.medications.map(m => `${m.name} (${m.dosage})`).join(', ')}` : ''}
 ${params.fasting_status && params.fasting_status !== 'unknown' ? `FASTING STATUS: ${params.fasting_status === 'fasting' ? `Currently fasting (${params.fasting_hours}h)` : 'Feeding window'}` : ''}
+${params.hydration ? `HYDRATION: intake ${params.hydration.intake_oz ?? '?'} oz, output ${params.hydration.output_oz ?? '?'} oz, target ${params.hydration.target_oz ?? '?'} oz, symptoms ${params.hydration.symptoms.join(', ') || 'none'}` : ''}
+${params.nutrition ? `NUTRITION: sodium ${params.nutrition.sodium_mg ?? '?'} mg, protein ${params.nutrition.protein_g ?? '?'} g, fiber ${params.nutrition.fiber_g ?? '?'} g, calories ${params.nutrition.calorie_estimate ?? '?'}, pattern ${params.nutrition.target_pattern ?? 'unknown'}` : ''}
+${params.recovery ? `RECOVERY MODALITIES: ${params.recovery.sessions_last_7_days} sessions over last 7 days, ${params.recovery.total_minutes_last_7_days} total min, last session ${params.recovery.last_session ?? 'none'}${params.recovery.last_modality ? ` (${params.recovery.last_modality})` : ''}` : ''}
 
 Return JSON:
 {
   "recommendation": "1-2 sentence workout recommendation (confirm plan or suggest modification)",
   "alerts": ["array of short alert strings, empty if none"],
-  "motivation": "one motivational/progress note referencing a recent trend or milestone"
+  "motivation": "one motivational/progress note referencing a recent trend or milestone",
+  "hydration_focus": "1 sentence hydration focus for today",
+  "nutrition_focus": "1 sentence nutrition focus for today",
+  "recovery_focus": "1 sentence on recovery modalities or mobility focus for today",
+  "daily_tip": "1 practical tip based on health.md / current status",
+  "learning": "1 short health learning for today related to HF, eGFR, recovery, BP, meds, etc.",
+  "scripture": {
+    "reference": "reference only",
+    "text": "exact short verse text or excerpt"
+  },
+  "fitness_quote": "one short fitness quote"
 }
 Return ONLY the JSON.`;
 
@@ -556,8 +601,61 @@ Return ONLY the JSON.`;
   try {
     return JSON.parse(result);
   } catch {
-    return { recommendation: result, alerts: [], motivation: '' };
+    const fallback = dailyInspiration();
+    return {
+      recommendation: result,
+      alerts: [],
+      motivation: '',
+      hydration_focus: '',
+      nutrition_focus: '',
+      recovery_focus: '',
+      daily_tip: '',
+      learning: '',
+      scripture: fallback.scripture,
+      fitness_quote: fallback.fitness_quote,
+    };
   }
+}
+
+function dailyInspiration() {
+  const themes = [
+    {
+      name: 'encouragement',
+      scripture: { reference: 'Isaiah 40:31', text: 'Those who hope in the Lord will renew their strength.' },
+      quote: 'Consistency compounds faster than intensity.',
+    },
+    {
+      name: 'endurance',
+      scripture: { reference: 'Hebrews 12:1', text: 'Let us run with perseverance the race marked out for us.' },
+      quote: 'Endurance is built by repeating the right effort when novelty wears off.',
+    },
+    {
+      name: 'discipline',
+      scripture: { reference: '1 Corinthians 9:27', text: 'I discipline my body and keep it under control.' },
+      quote: 'Fitness improves when discipline becomes ordinary.',
+    },
+    {
+      name: 'healing',
+      scripture: { reference: 'Jeremiah 30:17', text: 'I will restore you to health and heal your wounds.' },
+      quote: 'Recovery is not passive; it is strategic rebuilding.',
+    },
+    {
+      name: 'strength',
+      scripture: { reference: 'Psalm 73:26', text: 'My flesh and my heart may fail, but God is the strength of my heart.' },
+      quote: 'Strength is calm power repeated with control.',
+    },
+    {
+      name: 'stewardship',
+      scripture: { reference: 'Proverbs 4:23', text: 'Above all else, guard your heart, for everything you do flows from it.' },
+      quote: 'Train like a steward of the body you were entrusted with.',
+    },
+  ];
+  const day = new Date().getUTCDate();
+  const theme = themes[day % themes.length];
+  return {
+    scripture: theme.scripture,
+    fitness_quote: theme.quote,
+  };
 }
 
 /**
@@ -642,6 +740,8 @@ export async function generateAppointmentPrep(params: {
   recent_lab_flags: string[];
   recent_imaging_findings: string[];
   recent_genetics_insights: string[];
+  hydration_summary?: string | null;
+  nutrition_summary?: string | null;
 }): Promise<{
   suggested_questions: SuggestedQuestion[];
   changes_summary: ChangeSinceLastVisit[];
@@ -670,6 +770,8 @@ ${params.notable_events.length > 0 ? `- Notable events: ${params.notable_events.
 ${params.recent_lab_flags.length > 0 ? `- Lab flags: ${params.recent_lab_flags.join('; ')}` : ''}
 ${params.recent_imaging_findings.length > 0 ? `- Recent imaging findings: ${params.recent_imaging_findings.join('; ')}` : ''}
 ${params.recent_genetics_insights.length > 0 ? `- Recent genetics synthesis: ${params.recent_genetics_insights.join('; ')}` : ''}
+${params.hydration_summary ? `- Hydration summary: ${params.hydration_summary}` : ''}
+${params.nutrition_summary ? `- Nutrition summary: ${params.nutrition_summary}` : ''}
 
 Return JSON:
 {

@@ -7,9 +7,9 @@ import type { ReactNode } from 'react';
 import {
   Dumbbell, PersonStanding, Zap, Flame, Moon,
   AlertTriangle, AlertCircle,
-  Sunrise, Scale, Heart, FileEdit, History, TrendingUp, Trophy,
-  ClipboardList, FileHeart, Upload, FlaskConical, Pill, CalendarDays,
-  Settings, Footprints, Activity, BedDouble, Gauge, Weight,
+  Sunrise, Scale, Heart, FileEdit, History, Trophy,
+  ClipboardList, FileHeart, FlaskConical, Pill, CalendarDays,
+  Settings, Footprints, Activity, BedDouble, Gauge, Droplets, Utensils, Waves,
   ChevronRight, CalendarPlus, PenLine,
 } from 'lucide-react';
 
@@ -530,6 +530,9 @@ export default function FitnessDashboardClient({
               { href: '/fitness/health/command-center', label: 'Command Center', icon: <Activity size={20} /> },
               { href: '/fitness/health/labs', label: 'Lab Review', icon: <FlaskConical size={20} /> },
               { href: '/fitness/medications', label: 'Medications', icon: <Pill size={20} /> },
+              { href: '/fitness/hydration', label: 'Hydration', icon: <Droplets size={20} /> },
+              { href: '/fitness/nutrition', label: 'Nutrition', icon: <Utensils size={20} /> },
+              { href: '/fitness/recovery', label: 'Recovery', icon: <Waves size={20} /> },
               { href: '/fitness/appointments', label: "Dr's Appointments", icon: <CalendarDays size={20} /> },
             ] as { href: string; label: string; icon: ReactNode }[]).map((link) => (
               <Link
@@ -546,10 +549,6 @@ export default function FitnessDashboardClient({
       </div>
     </div>
   );
-}
-
-function HeartPulseIcon() {
-  return <Heart size={16} className="text-red-400" />;
 }
 
 function MetricCard({

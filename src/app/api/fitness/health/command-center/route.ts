@@ -89,6 +89,19 @@ type Snapshot = {
     latest_panel_date: string | null;
     abnormal_results: string[];
   };
+  hydration: {
+    avg_intake_7d: number | null;
+    avg_output_7d: number | null;
+    target_oz: number | null;
+    alerts: string[];
+  };
+  nutrition: {
+    total_entries_7d: number;
+    avg_sodium_7d: number | null;
+    avg_protein_7d: number | null;
+    avg_fiber_7d: number | null;
+    pattern: string | null;
+  };
   genetics: {
     completed_reports: Array<{ file_name: string; file_type: string; processed_at: string | null }>;
     comprehensive_analysis: Record<string, unknown> | null;
@@ -99,6 +112,18 @@ type Snapshot = {
     summary: string;
     impression: string | null;
   }>;
+  recovery: {
+    sessions_last_14d: number;
+    total_minutes_last_14d: number;
+    modality_counts: Record<string, number>;
+    latest_sessions: Array<{
+      session_date: string;
+      modality: string;
+      duration_min: number;
+      timing_context: string;
+      perceived_recovery: number | null;
+    }>;
+  };
   metrics: {
     latest_weight_lbs: number | null;
     avg_resting_hr_7d: number | null;
@@ -310,8 +335,13 @@ async function loadSnapshot(userId: string): Promise<Snapshot> {
     pendingUpdatesResult,
     { data: medRows },
     { data: panels },
+    { data: hydrationRows },
+    { data: hydrationTargetRow },
+    { data: nutritionRows },
+    { data: nutritionTargetRow },
     { data: imagingRows },
     { data: geneticsRows },
+    { data: recoveryRows },
     { data: readinessRow },
     { data: strainRow },
     { data: formRow },
@@ -345,6 +375,28 @@ async function loadSnapshot(userId: string): Promise<Snapshot> {
       .order('panel_date', { ascending: false })
       .limit(6),
     supabase
+      .from('hydration_logs')
+      .select('log_date, intake_oz, output_oz, symptoms')
+      .eq('user_id', userId)
+      .gte('log_date', sevenDaysAgo.toISOString().slice(0, 10))
+      .order('log_date', { ascending: false }),
+    supabase
+      .from('hydration_targets')
+      .select('base_target_oz, alert_weight_gain_lbs')
+      .eq('user_id', userId)
+      .maybeSingle(),
+    supabase
+      .from('nutrition_logs')
+      .select('logged_at, sodium_mg, protein_g, fiber_g')
+      .eq('user_id', userId)
+      .gte('logged_at', sevenDaysAgo.toISOString())
+      .order('logged_at', { ascending: false }),
+    supabase
+      .from('nutrition_targets')
+      .select('pattern')
+      .eq('user_id', userId)
+      .maybeSingle(),
+    supabase
       .from('health_file_uploads')
       .select('file_name, created_at, analysis_json')
       .eq('user_id', userId)
@@ -359,6 +411,13 @@ async function loadSnapshot(userId: string): Promise<Snapshot> {
       .in('file_type', GENETIC_REPORT_TYPES as unknown as string[])
       .eq('processing_status', 'completed')
       .order('processed_at', { ascending: false }),
+    supabase
+      .from('recovery_sessions')
+      .select('session_date, modality, duration_min, timing_context, perceived_recovery')
+      .eq('user_id', userId)
+      .gte('session_date', fourteenDaysAgoIso())
+      .order('session_date', { ascending: false })
+      .limit(20),
     supabase
       .from('daily_readiness')
       .select('readiness_score, readiness_label')
@@ -476,9 +535,17 @@ async function loadSnapshot(userId: string): Promise<Snapshot> {
       }
     : null;
 
+  const hydrationAlerts = (hydrationRows || []).flatMap((row) => Array.isArray(row.symptoms) ? row.symptoms.map(String) : []).slice(0, 5);
+
   const workoutTypeDistribution: Record<string, number> = {};
   for (const row of workoutRows || []) {
     workoutTypeDistribution[row.workout_type] = (workoutTypeDistribution[row.workout_type] || 0) + 1;
+  }
+
+  const recoveryCounts: Record<string, number> = {};
+  for (const row of recoveryRows || []) {
+    const key = String(row.modality || 'unknown');
+    recoveryCounts[key] = (recoveryCounts[key] || 0) + 1;
   }
 
   return {
@@ -501,6 +568,19 @@ async function loadSnapshot(userId: string): Promise<Snapshot> {
       latest_panel_date: panels?.[0]?.panel_date || null,
       abnormal_results: abnormalResults,
     },
+    hydration: {
+      avg_intake_7d: average(hydrationRows?.map((row) => Number(row.intake_oz || 0))),
+      avg_output_7d: average(hydrationRows?.map((row) => Number(row.output_oz || 0))),
+      target_oz: hydrationTargetRow?.base_target_oz ?? null,
+      alerts: hydrationAlerts,
+    },
+    nutrition: {
+      total_entries_7d: nutritionRows?.length || 0,
+      avg_sodium_7d: average(nutritionRows?.map((row) => Number(row.sodium_mg || 0))),
+      avg_protein_7d: average(nutritionRows?.map((row) => Number(row.protein_g || 0))),
+      avg_fiber_7d: average(nutritionRows?.map((row) => Number(row.fiber_g || 0))),
+      pattern: nutritionTargetRow?.pattern ?? null,
+    },
     genetics: {
       completed_reports: (geneticsRows || []).map((row) => ({
         file_name: row.file_name,
@@ -515,6 +595,18 @@ async function loadSnapshot(userId: string): Promise<Snapshot> {
       summary: typeof row.analysis_json?.summary === 'string' ? row.analysis_json.summary : '',
       impression: typeof row.analysis_json?.impression === 'string' ? row.analysis_json.impression : null,
     })),
+    recovery: {
+      sessions_last_14d: recoveryRows?.length || 0,
+      total_minutes_last_14d: (recoveryRows || []).reduce((sum, row) => sum + Number(row.duration_min || 0), 0),
+      modality_counts: recoveryCounts,
+      latest_sessions: (recoveryRows || []).slice(0, 8).map((row) => ({
+        session_date: row.session_date,
+        modality: row.modality,
+        duration_min: Number(row.duration_min || 0),
+        timing_context: row.timing_context,
+        perceived_recovery: row.perceived_recovery ?? null,
+      })),
+    },
     metrics: {
       latest_weight_lbs: latestWeight,
       avg_resting_hr_7d: avgRestingHr,
@@ -589,8 +681,11 @@ ${JSON.stringify({
   pending_updates: snapshot.pending_updates,
   medications: snapshot.medications,
   labs: snapshot.labs,
+  hydration: snapshot.hydration,
+  nutrition: snapshot.nutrition,
   genetics: snapshot.genetics,
   imaging: snapshot.imaging,
+  recovery: snapshot.recovery,
   metrics: snapshot.metrics,
   training: snapshot.training,
 }, null, 2)}
@@ -601,7 +696,7 @@ Return valid JSON only:
   "top_priorities": ["3-6 items"],
   "what_is_working": ["3-6 items"],
   "risks_to_watch": ["3-6 items"],
-  "cross_domain_connections": ["3-6 items tying together labs/genetics/imaging/training/meds"],
+  "cross_domain_connections": ["3-6 items tying together labs/genetics/imaging/training/meds/recovery"],
   "doctor_conversation_topics": ["3-6 items"],
   "open_questions_for_user": ["0-5 short questions that would improve training or health recommendations"],
   "training_direction": {
@@ -654,8 +749,11 @@ Combined health snapshot:
 ${JSON.stringify({
   medications: snapshot.medications,
   labs: snapshot.labs,
+  hydration: snapshot.hydration,
+  nutrition: snapshot.nutrition,
   genetics: snapshot.genetics,
   imaging: snapshot.imaging,
+  recovery: snapshot.recovery,
   metrics: snapshot.metrics,
   training: snapshot.training,
 }, null, 2)}
@@ -696,6 +794,7 @@ Known user preferences:
 - Strength output should stay framework-level, not exact exercise prescription
 - User rotates treadmill, outdoor, and bike for cardio
 - Strength/cardio split should reflect endurance priority and medical safety
+- Recovery work should be explicit rather than implied when it materially supports adherence and readiness
 
 Current command-center health snapshot:
 ${JSON.stringify(snapshot, null, 2)}
@@ -793,6 +892,7 @@ Rules:
 - Honor the saved intake structure unless the field being regenerated clearly needs a better answer.
 - Keep the plan cardiac-aware and endurance-priority.
 - Respect user defaults: Sunday off, Thursday hard cardio, Saturday long cardio, 3 strength days, 4 cardio days, strength day 45 min, normal cardio 45-60 min, long cardio 90 min.
+- Treat recovery work as a meaningful planning input, not an afterthought.
 - Return valid JSON only, with this exact shape:
 {
   "field": "${field}",
@@ -909,4 +1009,10 @@ function average(values: Array<number | null | undefined> | undefined) {
   const filtered = (values || []).filter((value): value is number => typeof value === 'number');
   if (filtered.length === 0) return null;
   return Math.round(filtered.reduce((sum, value) => sum + value, 0) / filtered.length);
+}
+
+function fourteenDaysAgoIso() {
+  const date = new Date();
+  date.setDate(date.getDate() - 13);
+  return date.toISOString().slice(0, 10);
 }

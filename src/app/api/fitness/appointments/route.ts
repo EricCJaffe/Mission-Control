@@ -108,14 +108,40 @@ export async function PUT(req: Request) {
       .order('created_at', { ascending: false })
       .limit(10);
 
-    const { data: imagingReports } = await supabase
+    const [{ data: imagingReports }, { data: hydrationLogs }, { data: hydrationTarget }, { data: nutritionLogs }, { data: nutritionTarget }] = await Promise.all([
+      supabase
       .from('health_file_uploads')
       .select('file_name, created_at, analysis_json')
       .eq('user_id', user.id)
       .eq('file_type', 'imaging')
       .eq('processing_status', 'completed')
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(5),
+      supabase
+        .from('hydration_logs')
+        .select('log_date, intake_oz, output_oz, symptoms')
+        .eq('user_id', user.id)
+        .gte('log_date', thirtyDaysAgo)
+        .order('log_date', { ascending: false })
+        .limit(7),
+      supabase
+        .from('hydration_targets')
+        .select('base_target_oz')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+      supabase
+        .from('nutrition_logs')
+        .select('logged_at, sodium_mg, protein_g, fiber_g')
+        .eq('user_id', user.id)
+        .gte('logged_at', `${thirtyDaysAgo}T00:00:00`)
+        .order('logged_at', { ascending: false })
+        .limit(20),
+      supabase
+        .from('nutrition_targets')
+        .select('pattern')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+    ]);
 
     let geneticsInsights: string[] = [];
     try {
@@ -171,6 +197,14 @@ export async function PUT(req: Request) {
     const elevatedDays = bpReadings?.filter(r =>
       r.flag_level && !['normal'].includes(r.flag_level)
     ).length ?? 0;
+
+    const hydrationSummary = hydrationLogs && hydrationLogs.length > 0
+      ? `avg intake ${Math.round(hydrationLogs.reduce((sum, row) => sum + (Number(row.intake_oz) || 0), 0) / hydrationLogs.length)} oz vs target ${hydrationTarget?.base_target_oz ?? 'unknown'} oz; recent symptoms ${hydrationLogs.flatMap((row) => Array.isArray(row.symptoms) ? row.symptoms.map(String) : []).slice(0, 3).join(', ') || 'none'}`
+      : null;
+
+    const nutritionSummary = nutritionLogs && nutritionLogs.length > 0
+      ? `pattern ${nutritionTarget?.pattern ?? 'unknown'}; avg sodium ${Math.round(nutritionLogs.reduce((sum, row) => sum + (Number(row.sodium_mg) || 0), 0) / nutritionLogs.length)} mg, avg protein ${Math.round(nutritionLogs.reduce((sum, row) => sum + (Number(row.protein_g) || 0), 0) / nutritionLogs.length)} g, avg fiber ${Math.round(nutritionLogs.reduce((sum, row) => sum + (Number(row.fiber_g) || 0), 0) / nutritionLogs.length)} g`
+      : null;
 
     // Normalize medication names for AI prompt
     const normalizedMeds: Medication[] = (meds ?? []).map((m) => {
@@ -228,6 +262,8 @@ export async function PUT(req: Request) {
           return `${report.file_name}: ${summary}`;
         }),
         recent_genetics_insights: geneticsInsights,
+        hydration_summary: hydrationSummary,
+        nutrition_summary: nutritionSummary,
       });
 
       console.log('[AppointmentPrep] AI returned:', {

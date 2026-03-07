@@ -183,6 +183,10 @@ Full plan: `docs/GENETICS_MULTI_REPORT_PLAN.md`
 - [x] Plan scheduling bridge (framework days can now be instantiated into `planned_workouts` for calendar use)
 - [x] Better plan intake intelligence (field-level AI re-suggest, richer schedule constraints, confirm/edit before generation)
 - [x] `health_document_changes` schema cleanup / normalization migration
+- [x] Recovery modality tracking: sauna, cold plunge, stretching, and mobility as structured recovery inputs
+  - Recovery module added with structured session logging, AI insights, and morning-briefing integration
+  - Mobility can still live in workout / planned-workout patterns for longer sessions; fast recovery logging now exists separately
+  - Recovery modalities now feed readiness, morning briefing, command center, and health context
 
 ---
 

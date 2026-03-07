@@ -18,7 +18,7 @@ export async function GET() {
   const today = new Date().toISOString().slice(0, 10);
 
   // Parallel data fetching
-  const [metricsRes, formRes, bpRes, profileRes, todayPlanRes, weekLogsRes, sleepHistoryRes, prsRes, medicationsRes, fastingRes] = await Promise.all([
+  const [metricsRes, formRes, bpRes, profileRes, todayPlanRes, weekLogsRes, sleepHistoryRes, prsRes, medicationsRes, fastingRes, hydrationLogRes, hydrationTargetRes, nutritionLogsRes, nutritionTargetRes, recoveryRes] = await Promise.all([
     supabase.from('body_metrics')
       .select('resting_hr, hrv_ms, body_battery, sleep_score, sleep_duration_min, stress_avg, training_readiness')
       .eq('user_id', user.id).order('metric_date', { ascending: false }).limit(1).maybeSingle(),
@@ -64,6 +64,30 @@ export async function GET() {
       .order('fast_start', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase.from('hydration_logs')
+      .select('intake_oz, output_oz, symptoms')
+      .eq('user_id', user.id)
+      .eq('log_date', today)
+      .maybeSingle(),
+    supabase.from('hydration_targets')
+      .select('base_target_oz')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+    supabase.from('nutrition_logs')
+      .select('calories, protein_g, fiber_g, sodium_mg')
+      .eq('user_id', user.id)
+      .gte('logged_at', `${today}T00:00:00`)
+      .lte('logged_at', `${today}T23:59:59`),
+    supabase.from('nutrition_targets')
+      .select('pattern')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+    supabase.from('recovery_sessions')
+      .select('session_date, modality, duration_min')
+      .eq('user_id', user.id)
+      .gte('session_date', getWeekAgo(today))
+      .order('session_date', { ascending: false })
+      .limit(10),
   ]);
 
   const metrics = metricsRes.data;
@@ -76,6 +100,11 @@ export async function GET() {
   const recentPrs = prsRes.data ?? [];
   const medications = medicationsRes.data ?? [];
   const fastingLog = fastingRes.data;
+  const hydrationLog = hydrationLogRes.data;
+  const hydrationTarget = hydrationTargetRes.data;
+  const nutritionLogs = nutritionLogsRes.data ?? [];
+  const nutritionTarget = nutritionTargetRes.data;
+  const recoverySessions = recoveryRes.data ?? [];
 
   // Calculate readiness
   const sleepTarget = profile?.sleep_target_min ?? 450;
@@ -154,6 +183,16 @@ export async function GET() {
     return timing.includes('morning') || timing.includes('am') || timing.includes('daily');
   });
 
+  const nutritionSummary = nutritionLogs.reduce(
+    (acc, row) => ({
+      sodium_mg: acc.sodium_mg + (row.sodium_mg || 0),
+      protein_g: acc.protein_g + (row.protein_g || 0),
+      fiber_g: acc.fiber_g + (row.fiber_g || 0),
+      calorie_estimate: acc.calorie_estimate + (row.calories || 0),
+    }),
+    { sodium_mg: 0, protein_g: 0, fiber_g: 0, calorie_estimate: 0 }
+  );
+
   // Generate AI briefing (now with health context system)
   const briefing = await generateMorningBriefing({
     user_id: user.id, // NEW: passes user ID for health context loading
@@ -187,6 +226,25 @@ export async function GET() {
     })),
     fasting_status: fastingStatus,
     fasting_hours: fastingHours,
+    hydration: {
+      intake_oz: hydrationLog?.intake_oz ?? null,
+      output_oz: hydrationLog?.output_oz ?? null,
+      target_oz: hydrationTarget?.base_target_oz ?? 96,
+      symptoms: Array.isArray(hydrationLog?.symptoms) ? hydrationLog.symptoms.map(String) : [],
+    },
+    nutrition: {
+      sodium_mg: nutritionSummary.sodium_mg || null,
+      protein_g: nutritionSummary.protein_g || null,
+      fiber_g: nutritionSummary.fiber_g || null,
+      calorie_estimate: nutritionSummary.calorie_estimate || null,
+      target_pattern: nutritionTarget?.pattern ?? 'mediterranean_dash',
+    },
+    recovery: {
+      sessions_last_7_days: recoverySessions.length,
+      total_minutes_last_7_days: recoverySessions.reduce((sum, row) => sum + Number(row.duration_min || 0), 0),
+      last_session: recoverySessions[0]?.session_date ?? null,
+      last_modality: recoverySessions[0]?.modality ?? null,
+    },
   });
 
   return NextResponse.json({
@@ -207,6 +265,25 @@ export async function GET() {
       planned: plannedCount,
       completed: completedCount,
       compliance: `${completedCount}/${plannedCount}`,
+    },
+    hydration: {
+      intake_oz: hydrationLog?.intake_oz ?? null,
+      output_oz: hydrationLog?.output_oz ?? null,
+      target_oz: hydrationTarget?.base_target_oz ?? 96,
+      symptoms: Array.isArray(hydrationLog?.symptoms) ? hydrationLog.symptoms.map(String) : [],
+    },
+    nutrition: {
+      sodium_mg: nutritionSummary.sodium_mg || null,
+      protein_g: nutritionSummary.protein_g || null,
+      fiber_g: nutritionSummary.fiber_g || null,
+      calorie_estimate: nutritionSummary.calorie_estimate || null,
+      target_pattern: nutritionTarget?.pattern ?? 'mediterranean_dash',
+    },
+    recovery: {
+      sessions_last_7_days: recoverySessions.length,
+      total_minutes_last_7_days: recoverySessions.reduce((sum, row) => sum + Number(row.duration_min || 0), 0),
+      last_session: recoverySessions[0]?.session_date ?? null,
+      last_modality: recoverySessions[0]?.modality ?? null,
     },
     briefing,
     days_since_bp_reading: daysSinceBP,

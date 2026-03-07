@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const tagsInput = String(form.get("tags") || "").trim();
   const tags = tagsInput ? parseTags(tagsInput) : [];
 
-  await supabase
+  const primary = await supabase
     .from("notes")
     .update({
       title,
@@ -34,6 +34,18 @@ export async function POST(req: Request) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
+
+  if (primary.error?.message?.includes("column \"status\" of relation \"notes\" does not exist")) {
+    await supabase
+      .from("notes")
+      .update({
+        title,
+        content_md: content,
+        tags,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+  }
 
   return NextResponse.redirect(new URL(`/notes/${id}`, req.url));
 }

@@ -15,20 +15,8 @@ export async function GET() {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  // Check if we already calculated today's readiness
-  const { data: existing } = await supabase
-    .from('daily_readiness')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('calc_date', today)
-    .maybeSingle();
-
-  if (existing) {
-    return NextResponse.json(existing);
-  }
-
   // Gather inputs from various tables
-  const [metricsRes, formRes, bpRes, profileRes, weatherRes, last7MetricsRes] = await Promise.all([
+  const [metricsRes, formRes, bpRes, profileRes, weatherRes, last7MetricsRes, recoveryRes] = await Promise.all([
     // Latest body metrics
     supabase
       .from('body_metrics')
@@ -67,6 +55,13 @@ export async function GET() {
       .eq('user_id', user.id)
       .order('metric_date', { ascending: false })
       .limit(7),
+    supabase
+      .from('recovery_sessions')
+      .select('session_date, modality, duration_min, perceived_recovery, energy_before, energy_after')
+      .eq('user_id', user.id)
+      .gte('session_date', recentDate(3))
+      .order('session_date', { ascending: false })
+      .limit(8),
   ]);
 
   const metrics = metricsRes.data;
@@ -74,6 +69,7 @@ export async function GET() {
   const bpReadings = bpRes.data ?? [];
   const profile = profileRes.data;
   const last7 = last7MetricsRes.data ?? [];
+  const recoverySessions = recoveryRes.data ?? [];
 
   if (!metrics) {
     return NextResponse.json({ error: 'No metrics data available for readiness calculation' }, { status: 404 });
@@ -115,6 +111,11 @@ export async function GET() {
   };
 
   const result = calculateReadinessScore(inputs);
+  const recoveryAdjustment = calculateRecoveryAdjustment(recoverySessions);
+  if (recoveryAdjustment.delta !== 0) {
+    result.score = Math.max(0, Math.min(100, result.score + recoveryAdjustment.delta));
+    result.recommendation = `${result.recommendation} ${recoveryAdjustment.message}`.trim();
+  }
 
   // Persist
   await supabase.from('daily_readiness').upsert({
@@ -130,7 +131,11 @@ export async function GET() {
     form_score: result.factors.find(f => f.name === 'Form (TSB)')?.score,
     bp_score: result.factors.find(f => f.name === 'Blood Pressure')?.score,
     weather_score: result.factors.find(f => f.name === 'Weather')?.score,
-    inputs: inputs as unknown as Record<string, unknown>,
+    inputs: {
+      ...(inputs as unknown as Record<string, unknown>),
+      recovery_adjustment: recoveryAdjustment,
+      recent_recovery_sessions: recoverySessions,
+    },
     recommendation: result.recommendation,
   }, { onConflict: 'user_id,calc_date' });
 
@@ -145,4 +150,60 @@ async function fetchWeatherSafe(): Promise<{ heat_index_f: number } | null> {
   } catch {
     return null;
   }
+}
+
+function recentDate(daysBack: number) {
+  const date = new Date();
+  date.setDate(date.getDate() - daysBack);
+  return date.toISOString().slice(0, 10);
+}
+
+function calculateRecoveryAdjustment(sessions: Array<Record<string, unknown>>) {
+  if (sessions.length === 0) {
+    return {
+      delta: -2,
+      message: 'No recent recovery work logged, so readiness is being scored slightly more conservatively.',
+    };
+  }
+
+  const totalMinutes = sessions.reduce((sum, session) => sum + (Number(session.duration_min) || 0), 0);
+  const avgPerceivedRecovery = average(
+    sessions.map((session) => {
+      const value = Number(session.perceived_recovery);
+      return Number.isFinite(value) ? value : null;
+    })
+  );
+  const avgEnergyDelta = average(
+    sessions.map((session) => {
+      const before = Number(session.energy_before);
+      const after = Number(session.energy_after);
+      if (!Number.isFinite(before) || !Number.isFinite(after)) return null;
+      return after - before;
+    })
+  );
+
+  if (sessions.length >= 2 && totalMinutes >= 40 && ((avgPerceivedRecovery ?? 0) >= 7 || (avgEnergyDelta ?? 0) >= 1)) {
+    return {
+      delta: 3,
+      message: 'Recent recovery work is supporting readiness, so the score gets a modest positive adjustment.',
+    };
+  }
+
+  if (sessions.length >= 1 && totalMinutes >= 20) {
+    return {
+      delta: 1,
+      message: 'Recent recovery work is being counted as a small positive readiness signal.',
+    };
+  }
+
+  return {
+    delta: 0,
+    message: '',
+  };
+}
+
+function average(values: Array<number | null>) {
+  const filtered = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  if (filtered.length === 0) return null;
+  return filtered.reduce((sum, value) => sum + value, 0) / filtered.length;
 }

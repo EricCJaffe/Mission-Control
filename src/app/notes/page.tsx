@@ -15,10 +15,25 @@ export default async function NotesPage() {
   const user = userData.user;
   if (!user) return null;
 
-  const { data: notes, error } = await supabase
+  let notes: Array<Record<string, unknown>> | null = null;
+  let error: { message: string } | null = null;
+
+  const primary = await supabase
     .from("notes")
     .select("id,title,tags,updated_at,created_at,status")
     .order("updated_at", { ascending: false });
+
+  if (primary.error?.message?.includes("column notes.status does not exist")) {
+    const fallback = await supabase
+      .from("notes")
+      .select("id,title,tags,updated_at,created_at")
+      .order("updated_at", { ascending: false });
+    notes = (fallback.data || []).map((note) => ({ ...note, status: null }));
+    error = fallback.error;
+  } else {
+    notes = primary.data;
+    error = primary.error;
+  }
 
   return (
     <main className="pt-4 md:pt-8">
@@ -60,14 +75,14 @@ export default async function NotesPage() {
       <div className="mt-6 grid gap-4">
         {(notes || []).map((note) => (
           <Link
-            key={note.id}
-            href={`/notes/${note.id}`}
+            key={String(note.id)}
+            href={`/notes/${String(note.id)}`}
             className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
-            <div className="text-base font-semibold">{note.title}</div>
+            <div className="text-base font-semibold">{String(note.title || "Untitled")}</div>
             <div className="mt-1 text-xs text-slate-500">
-              Status: {note.status || "inbox"} · Tags: {formatTags(note.tags)} · Updated:{" "}
-              {note.updated_at ? new Date(note.updated_at).toLocaleString() : "n/a"}
+              Status: {String(note.status || "inbox")} · Tags: {formatTags((note.tags as string[] | string | null) ?? null)} · Updated:{" "}
+              {note.updated_at ? new Date(String(note.updated_at)).toLocaleString() : "n/a"}
             </div>
           </Link>
         ))}

@@ -15,11 +15,27 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
   const user = userData.user;
   if (!user) return null;
 
-  const { data: note, error } = await supabase
+  let note: Record<string, unknown> | null = null;
+  let error: { message: string } | null = null;
+
+  const primary = await supabase
     .from("notes")
     .select("id,title,content_md,tags,updated_at,created_at,status")
     .eq("id", id)
     .single();
+
+  if (primary.error?.message?.includes("column notes.status does not exist")) {
+    const fallback = await supabase
+      .from("notes")
+      .select("id,title,content_md,tags,updated_at,created_at")
+      .eq("id", id)
+      .single();
+    note = fallback.data ? { ...fallback.data, status: null } : null;
+    error = fallback.error;
+  } else {
+    note = primary.data;
+    error = primary.error;
+  }
 
   const { data: attachments } = await supabase
     .from("attachments")
@@ -49,7 +65,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
       <div className="mt-4 flex flex-wrap gap-3">
         <a
           className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm"
-          href={`/notes/${note.id}/export`}
+          href={`/notes/${String(note.id)}/export`}
         >
           Download Markdown
         </a>
@@ -67,7 +83,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
         <h2 className="text-sm font-semibold">Attachments</h2>
         <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data" data-progress="true" data-toast="Attachment uploading">
           <input type="hidden" name="scope_type" value="note" />
-          <input type="hidden" name="scope_id" value={note.id} />
+          <input type="hidden" name="scope_id" value={String(note.id)} />
           <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="file" type="file" />
           <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
             Upload Attachment
@@ -99,20 +115,20 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
       </section>
 
       <form className="mt-6 grid gap-4" action="/notes/update" method="post" data-toast="Note saved">
-        <input type="hidden" name="id" value={note.id} />
+        <input type="hidden" name="id" value={String(note.id)} />
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <label className="text-xs uppercase tracking-wide text-slate-500">Title</label>
           <input
             className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
             name="title"
-            defaultValue={note.title || ""}
+            defaultValue={String(note.title || "")}
             required
           />
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <label className="text-xs uppercase tracking-wide text-slate-500">Status</label>
-          <select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" name="status" defaultValue={note.status || "inbox"}>
+          <select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" name="status" defaultValue={String(note.status || "inbox")}>
             <option value="inbox">Inbox</option>
             <option value="in_process">In Process</option>
             <option value="review">Review</option>
@@ -124,7 +140,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
           <input
             className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
             name="tags"
-            defaultValue={formatTags(note.tags)}
+            defaultValue={formatTags((note.tags as string[] | string | null) ?? null)}
             placeholder="comma-separated"
           />
         </div>
@@ -134,7 +150,7 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
           <textarea
             className="mt-2 min-h-[320px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm"
             name="content"
-            defaultValue={note.content_md || ""}
+            defaultValue={String(note.content_md || "")}
           />
         </div>
 

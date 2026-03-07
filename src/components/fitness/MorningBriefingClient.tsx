@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { HeartPulse, Dumbbell, Zap, Pill, UtensilsCrossed } from 'lucide-react';
+import { HeartPulse, Dumbbell, Zap, Pill, UtensilsCrossed, Droplets, Apple, BookOpen, Quote, Waves } from 'lucide-react';
 
 type Medication = {
   id: string;
@@ -90,7 +90,23 @@ const readinessCircleBg = {
 
 export default function MorningBriefingClient(props: Props) {
   const { date, metrics, form, latestBP, profile, todayPlan, readiness, strain, daysSinceBP, medications, fastingStatus, fastingHours } = props;
-  const [aiBriefing, setAiBriefing] = useState<{ recommendation: string; alerts: string[]; motivation: string } | null>(null);
+  const [aiBriefing, setAiBriefing] = useState<{
+    recommendation: string;
+    alerts: string[];
+    motivation: string;
+    hydration_focus: string;
+    nutrition_focus: string;
+    recovery_focus: string;
+    daily_tip: string;
+    learning: string;
+    scripture?: { reference: string; text: string };
+    fitness_quote?: string;
+  } | null>(null);
+  const [briefingMeta, setBriefingMeta] = useState<{
+    hydration?: { intake_oz: number | null; output_oz: number | null; target_oz: number | null; symptoms: string[] };
+    nutrition?: { sodium_mg: number | null; protein_g: number | null; fiber_g: number | null; calorie_estimate: number | null; target_pattern: string | null };
+    recovery?: { sessions_last_7_days: number; total_minutes_last_7_days: number; last_session: string | null; last_modality: string | null };
+  } | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
 
   const dateObj = new Date(date + 'T12:00:00');
@@ -104,6 +120,11 @@ export default function MorningBriefingClient(props: Props) {
         if (res.ok) {
           const data = await res.json();
           setAiBriefing(data.briefing);
+          setBriefingMeta({
+            hydration: data.hydration,
+            nutrition: data.nutrition,
+            recovery: data.recovery,
+          });
         }
       } catch { /* non-critical */ }
       setLoadingBriefing(false);
@@ -118,8 +139,6 @@ export default function MorningBriefingClient(props: Props) {
 
   const rhrBaseline = profile?.rhr_baseline ?? 72;
   const hrvBaseline = profile?.hrv_baseline ?? 35;
-  const sleepTarget = profile?.sleep_target_min ?? 450;
-
   return (
     <div className="mx-auto max-w-xl space-y-4">
       {/* Header */}
@@ -300,19 +319,85 @@ export default function MorningBriefingClient(props: Props) {
         </div>
       )}
       {aiBriefing && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">AI Coach</h2>
-          <p className="text-sm">{aiBriefing.recommendation}</p>
-          {aiBriefing.motivation && (
-            <p className="text-xs text-slate-500 italic">{aiBriefing.motivation}</p>
-          )}
-          {aiBriefing.alerts.length > 0 && (
-            <div className="space-y-1">
-              {aiBriefing.alerts.map((alert, i) => (
-                <p key={i} className="text-xs text-amber-700">{alert}</p>
-              ))}
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">AI Coach</h2>
+            <p className="text-sm">{aiBriefing.recommendation}</p>
+            {aiBriefing.motivation && (
+              <p className="text-xs text-slate-500 italic">{aiBriefing.motivation}</p>
+            )}
+            {aiBriefing.alerts.length > 0 && (
+              <div className="space-y-1">
+                {aiBriefing.alerts.map((alert, i) => (
+                  <p key={i} className="text-xs text-amber-700">{alert}</p>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Droplets className="h-4 w-4 text-blue-600" />
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Hydration</h2>
+              </div>
+              <p className="mt-2 text-sm text-slate-700">{aiBriefing.hydration_focus || 'Stay consistent with fluids and monitor symptoms.'}</p>
+              {briefingMeta?.hydration && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Intake {briefingMeta.hydration.intake_oz ?? '—'} oz · Target {briefingMeta.hydration.target_oz ?? '—'} oz
+                </p>
+              )}
             </div>
-          )}
+            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Apple className="h-4 w-4 text-emerald-600" />
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Nutrition</h2>
+              </div>
+              <p className="mt-2 text-sm text-slate-700">{aiBriefing.nutrition_focus || 'Favor cardiac- and kidney-aware choices today.'}</p>
+              {briefingMeta?.nutrition && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Sodium {briefingMeta.nutrition.sodium_mg ?? '—'} mg · Protein {briefingMeta.nutrition.protein_g ?? '—'} g
+                </p>
+              )}
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Waves className="h-4 w-4 text-cyan-600" />
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Recovery</h2>
+              </div>
+              <p className="mt-2 text-sm text-slate-700">{aiBriefing.recovery_focus || 'Use recovery work deliberately, not randomly.'}</p>
+              {briefingMeta?.recovery && (
+                <p className="mt-2 text-xs text-slate-500">
+                  {briefingMeta.recovery.sessions_last_7_days} sessions · {briefingMeta.recovery.total_minutes_last_7_days} min · Last {briefingMeta.recovery.last_modality ?? '—'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-indigo-600" />
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Daily Learning</h2>
+            </div>
+            {aiBriefing.daily_tip && <p className="mt-2 text-sm text-slate-700">{aiBriefing.daily_tip}</p>}
+            {aiBriefing.learning && <p className="mt-2 text-xs text-slate-500">{aiBriefing.learning}</p>}
+          </div>
+
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Quote className="h-4 w-4 text-violet-600" />
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Inspiration</h2>
+            </div>
+            {aiBriefing.scripture?.text ? (
+              <div className="mt-2 text-sm text-slate-700">
+                <p className="italic">&ldquo;{aiBriefing.scripture.text}&rdquo;</p>
+                <p className="mt-1 text-xs text-slate-500">{aiBriefing.scripture.reference}</p>
+              </div>
+            ) : null}
+            {aiBriefing.fitness_quote ? (
+              <p className="mt-3 text-xs text-slate-500">{aiBriefing.fitness_quote}</p>
+            ) : null}
+          </div>
         </div>
       )}
 

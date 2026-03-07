@@ -17,6 +17,19 @@ type Snapshot = {
     latest_panel_date: string | null;
     abnormal_results: string[];
   };
+  hydration: {
+    avg_intake_7d: number | null;
+    avg_output_7d: number | null;
+    target_oz: number | null;
+    alerts: string[];
+  };
+  nutrition: {
+    total_entries_7d: number;
+    avg_sodium_7d: number | null;
+    avg_protein_7d: number | null;
+    avg_fiber_7d: number | null;
+    pattern: string | null;
+  };
   genetics: {
     completed_reports: Array<{ file_name: string; file_type: string; processed_at: string | null }>;
     comprehensive_analysis: Record<string, unknown> | null;
@@ -182,6 +195,8 @@ export default function HealthCommandCenterClient() {
       { label: 'Genetics Reports', value: String(snapshot.genetics.completed_reports.length), icon: <Brain className="h-4 w-4" /> },
       { label: 'Imaging Reports', value: String(snapshot.imaging.length), icon: <Activity className="h-4 w-4" /> },
       { label: 'Active Meds / Supps', value: `${snapshot.medications.medications.length}/${snapshot.medications.supplements.length}`, icon: <Pill className="h-4 w-4" /> },
+      { label: 'Hydration Avg (7d)', value: snapshot.hydration.avg_intake_7d != null ? `${snapshot.hydration.avg_intake_7d} oz` : '—', icon: <Activity className="h-4 w-4" /> },
+      { label: 'Nutrition Entries (7d)', value: String(snapshot.nutrition.total_entries_7d), icon: <ClipboardPlus className="h-4 w-4" /> },
       { label: 'Pending health.md Updates', value: String(snapshot.pending_updates.count), icon: <FileHeart className="h-4 w-4" /> },
       { label: 'Avg RHR (7d)', value: snapshot.metrics.avg_resting_hr_7d != null ? String(snapshot.metrics.avg_resting_hr_7d) : '—', icon: <Sparkles className="h-4 w-4" /> },
     ];

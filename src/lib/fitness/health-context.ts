@@ -15,7 +15,9 @@ export type FunctionType =
   | 'medication_review'
   | 'supplement_recommendation'
   | 'supplement_interaction_check'
+  | 'hydration_advice'
   | 'nutrition_advice'
+  | 'recovery_advice'
   | 'fasting_guidance'
   | 'fasting_advisor'
   | 'methylation_analysis'
@@ -28,7 +30,7 @@ interface HealthContext {
   persona: string | null;
   soul: string | null;
   health: string | null;
-  medications: Array<Record<string, any>>;
+  medications: Array<Record<string, unknown>>;
   comprehensiveGenetics: {
     generated_at: string | null;
     summary: string | null;
@@ -41,6 +43,27 @@ interface HealthContext {
     summary: string;
     impression: string | null;
   }>;
+  recentRecovery: Array<{
+    session_date: string;
+    modality: string;
+    duration_min: number;
+    timing_context: string;
+    perceived_recovery: number | null;
+    energy_before: number | null;
+    energy_after: number | null;
+  }>;
+  hydrationSummary: {
+    avg_intake_7d: number | null;
+    avg_output_7d: number | null;
+    target_oz: number | null;
+    recent_symptoms: string[];
+  } | null;
+  nutritionSummary: {
+    sodium_avg_7d: number | null;
+    protein_avg_7d: number | null;
+    fiber_avg_7d: number | null;
+    pattern: string | null;
+  } | null;
   recentMetrics: {
     rhr: number | null;
     hrv: number | null;
@@ -81,6 +104,8 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
   const persona = docs?.find(d => d.title === 'persona')?.content || null;
   const soul = docs?.find(d => d.title === 'soul')?.content || null;
   const health = healthDoc?.content || null;
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
   // Load active medications
   const { data: meds } = await supabase
@@ -97,6 +122,40 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
     .eq('processing_status', 'completed')
     .order('created_at', { ascending: false })
     .limit(3);
+
+  const { data: recoverySessions } = await supabase
+    .from('recovery_sessions')
+    .select('session_date, modality, duration_min, timing_context, perceived_recovery, energy_before, energy_after')
+    .eq('user_id', userId)
+    .order('session_date', { ascending: false })
+    .limit(8);
+
+  const sevenDaysAgoIso = sevenDaysAgo.toISOString().split('T')[0];
+
+  const [{ data: hydrationLogs }, { data: hydrationTarget }, { data: nutritionLogs }, { data: nutritionTarget }] = await Promise.all([
+    supabase
+      .from('hydration_logs')
+      .select('intake_oz, output_oz, symptoms, log_date')
+      .eq('user_id', userId)
+      .gte('log_date', sevenDaysAgoIso)
+      .order('log_date', { ascending: false }),
+    supabase
+      .from('hydration_targets')
+      .select('base_target_oz')
+      .eq('user_id', userId)
+      .maybeSingle(),
+    supabase
+      .from('nutrition_logs')
+      .select('protein_g, fiber_g, sodium_mg, logged_at')
+      .eq('user_id', userId)
+      .gte('logged_at', sevenDaysAgo.toISOString())
+      .order('logged_at', { ascending: false }),
+    supabase
+      .from('nutrition_targets')
+      .select('pattern')
+      .eq('user_id', userId)
+      .maybeSingle(),
+  ]);
 
   let comprehensiveGenetics: HealthContext['comprehensiveGenetics'] = null;
   try {
@@ -120,10 +179,6 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
   } catch {
     comprehensiveGenetics = null;
   }
-
-  // Load last 7 days of key metrics
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
   const { data: bodyMetrics } = await supabase
     .from('body_metrics')
@@ -231,6 +286,31 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
       summary: typeof upload.analysis_json?.summary === 'string' ? upload.analysis_json.summary : '',
       impression: typeof upload.analysis_json?.impression === 'string' ? upload.analysis_json.impression : null,
     })),
+    recentRecovery: (recoverySessions || []).map((session) => ({
+      session_date: session.session_date,
+      modality: session.modality,
+      duration_min: Number(session.duration_min || 0),
+      timing_context: session.timing_context,
+      perceived_recovery: typeof session.perceived_recovery === 'number' ? session.perceived_recovery : null,
+      energy_before: typeof session.energy_before === 'number' ? session.energy_before : null,
+      energy_after: typeof session.energy_after === 'number' ? session.energy_after : null,
+    })),
+    hydrationSummary: hydrationLogs && hydrationLogs.length > 0
+      ? {
+          avg_intake_7d: Math.round(hydrationLogs.reduce((sum, row) => sum + (Number(row.intake_oz) || 0), 0) / hydrationLogs.length),
+          avg_output_7d: Math.round(hydrationLogs.reduce((sum, row) => sum + (Number(row.output_oz) || 0), 0) / hydrationLogs.length),
+          target_oz: hydrationTarget?.base_target_oz ?? null,
+          recent_symptoms: hydrationLogs.flatMap((row) => Array.isArray(row.symptoms) ? row.symptoms.map(String) : []).slice(0, 5),
+        }
+      : null,
+    nutritionSummary: nutritionLogs && nutritionLogs.length > 0
+      ? {
+          sodium_avg_7d: Math.round(nutritionLogs.reduce((sum, row) => sum + (Number(row.sodium_mg) || 0), 0) / nutritionLogs.length),
+          protein_avg_7d: Math.round(nutritionLogs.reduce((sum, row) => sum + (Number(row.protein_g) || 0), 0) / nutritionLogs.length),
+          fiber_avg_7d: Math.round(nutritionLogs.reduce((sum, row) => sum + (Number(row.fiber_g) || 0), 0) / nutritionLogs.length),
+          pattern: nutritionTarget?.pattern ?? null,
+        }
+      : null,
     recentMetrics: {
       rhr: avgRHR,
       hrv: avgHRV,
@@ -454,6 +534,17 @@ You are performing an 8-category supplement interaction safety check:
 
 Return: SAFE / CAUTION / CONTRAINDICATED with detailed explanation for each category.
 `,
+    hydration_advice: `
+You are providing hydration advice for a user with stable HFrEF and mild CKD. Consider:
+- Daily intake target should usually stay in a moderate range, not "more is always better"
+- Watch for fluid overload signals: weight gain, edema, dyspnea, rising BP
+- Also watch for dehydration signals: higher creatinine, thirst, dizziness, dark urine, reduced exercise tolerance
+- Exercise adjustments: more fluids and sodium after long/hot sessions, but keep recommendations pragmatic and kidney-aware
+- Medication context: Carvedilol and Losartan can interact with hydration status and BP response
+- Labs matter: eGFR, creatinine, hematocrit, sodium, potassium if available
+
+Always frame recommendations as cardiac-aware and kidney-aware. If symptoms suggest overload or significant dehydration, recommend talking to the cardiologist / physician.
+`,
     nutrition_advice: `
 You are providing nutrition advice for a cardiac patient. Consider:
 - Mediterranean diet transition (current: protein bars/shakes/chicken/beef/rice/veggies)
@@ -466,6 +557,18 @@ You are providing nutrition advice for a cardiac patient. Consider:
 - Anti-inflammatory: berries, leafy greens, turmeric
 
 Practical, actionable suggestions. Acknowledge current diet is simple and functional.
+`,
+    recovery_advice: `
+You are analyzing sauna, cold plunge, stretching, and mobility as recovery tools for a cardiac patient with mild CKD.
+Consider:
+- Recovery modalities should support the training plan, not add hidden stress
+- Sauna may support relaxation and circulation, but watch hydration, BP response, and heat tolerance on beta-blockers
+- Cold plunge should be conservative and symptom-aware; avoid framing it as universally beneficial
+- Stretching and mobility are usually low-risk and valuable when they improve movement quality, stiffness, and recovery adherence
+- Look for timing patterns: post-workout vs. evening vs. standalone
+- Tie guidance back to RHR, HRV, sleep, readiness, soreness, and recent strain
+
+Keep recommendations conservative, practical, and safety-aware.
 `,
     fasting_guidance: `
 You are advising on fasting protocol. User goal: 24-hour fast, 1x/week. Consider:
@@ -690,6 +793,36 @@ export async function buildAISystemPrompt(
       prompt += `- Genetics priorities: ${context.comprehensiveGenetics.top_priorities.join('; ')}\n`;
     }
     prompt += `\n`;
+  }
+
+  if (context.recentRecovery.length > 0) {
+    prompt += `━━━ RECENT RECOVERY WORK ━━━\n`;
+    context.recentRecovery.forEach((session) => {
+      prompt += `- ${session.session_date}: ${session.modality} for ${session.duration_min} min (${session.timing_context})`;
+      if (session.perceived_recovery != null) prompt += `, perceived recovery ${session.perceived_recovery}/10`;
+      if (session.energy_before != null && session.energy_after != null) prompt += `, energy ${session.energy_before}->${session.energy_after}`;
+      prompt += `\n`;
+    });
+    prompt += `\n`;
+  }
+
+  if (context.hydrationSummary) {
+    prompt += `━━━ HYDRATION SUMMARY ━━━\n`;
+    prompt += `- Avg intake (7d): ${context.hydrationSummary.avg_intake_7d ?? 'N/A'} oz\n`;
+    prompt += `- Avg output (7d): ${context.hydrationSummary.avg_output_7d ?? 'N/A'} oz\n`;
+    prompt += `- Target: ${context.hydrationSummary.target_oz ?? 'N/A'} oz\n`;
+    if (context.hydrationSummary.recent_symptoms.length > 0) {
+      prompt += `- Recent symptoms: ${context.hydrationSummary.recent_symptoms.join(', ')}\n`;
+    }
+    prompt += `\n`;
+  }
+
+  if (context.nutritionSummary) {
+    prompt += `━━━ NUTRITION SUMMARY ━━━\n`;
+    prompt += `- Avg sodium (7d): ${context.nutritionSummary.sodium_avg_7d ?? 'N/A'} mg\n`;
+    prompt += `- Avg protein (7d): ${context.nutritionSummary.protein_avg_7d ?? 'N/A'} g\n`;
+    prompt += `- Avg fiber (7d): ${context.nutritionSummary.fiber_avg_7d ?? 'N/A'} g\n`;
+    prompt += `- Pattern: ${context.nutritionSummary.pattern ?? 'N/A'}\n\n`;
   }
 
   // Recent metrics (last 7 days)

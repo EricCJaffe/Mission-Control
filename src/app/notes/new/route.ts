@@ -22,7 +22,8 @@ export async function POST(req: Request) {
 
   if (!title) return NextResponse.redirect(new URL("/notes", req.url));
 
-  const { data: inserted } = await supabase
+  let inserted: { id: string } | null = null;
+  const primary = await supabase
     .from("notes")
     .insert({
       user_id: user.id,
@@ -33,6 +34,22 @@ export async function POST(req: Request) {
     })
     .select("id")
     .single();
+
+  if (primary.error?.message?.includes("column \"status\" of relation \"notes\" does not exist")) {
+    const fallback = await supabase
+      .from("notes")
+      .insert({
+        user_id: user.id,
+        title,
+        tags,
+        content_md: "",
+      })
+      .select("id")
+      .single();
+    inserted = fallback.data;
+  } else {
+    inserted = primary.data;
+  }
 
   if (inserted?.id) {
     return NextResponse.redirect(new URL(`/notes/${inserted.id}`, req.url));
