@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { GENETIC_REPORT_TYPES, GENETIC_REPORT_LABELS, GeneticReportType } from '@/lib/fitness/genetics-processor';
+import { GENETIC_REPORT_TYPES, GENETIC_REPORT_LABELS, type GeneticReportType } from '@/lib/fitness/genetic-report-types';
 
 export async function GET(request: NextRequest) {
   void request;
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all completed/needs_review uploads across all 6 genetic report types
-    const uploadColumns = 'id, file_name, file_type, processing_status, error_message, file_path, processed_at, uploaded_at';
+    const uploadColumns = 'id, file_name, file_type, processing_status, error_message, file_path, processed_at, created_at';
     const { data: uploads } = await supabase
       .from('health_file_uploads')
       .select(uploadColumns)
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
         file_type_label: GENETIC_REPORT_LABELS[upload.file_type as GeneticReportType] || upload.file_type,
         file_path: upload.file_path,
         processing_status: upload.processing_status,
-        upload_date: upload.uploaded_at,
+        upload_date: upload.created_at,
         processed_at: upload.processed_at,
         analysis,
         marker_count: fileMarkers.length,

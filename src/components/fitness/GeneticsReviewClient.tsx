@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Dna, AlertTriangle, AlertCircle, Info, Check, Trash2, Loader2, Sparkles, ArrowLeft, Leaf, Dumbbell, Stethoscope, Pill, UtensilsCrossed, MessageSquare } from 'lucide-react';
+import { Dna, AlertTriangle, AlertCircle, Info, Check, Trash2, Loader2, Sparkles, ArrowLeft, Dumbbell, Stethoscope, Pill, UtensilsCrossed, MessageSquare } from 'lucide-react';
 
 type GeneticMarker = {
   id: string;
@@ -20,6 +20,7 @@ type FileUpload = {
   file_type: string;
   processing_status: string;
   uploaded_at?: string;
+  created_at?: string;
 };
 
 type GeneExplanation = {
@@ -97,6 +98,7 @@ const RISK_STYLES = {
 
 export default function GeneticsReviewClient({ pendingUploads, completedUploads }: Props) {
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [selectedUpload, setSelectedUpload] = useState<FileUpload | null>(null);
   const [markers, setMarkers] = useState<GeneticMarker[]>([]);
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -134,7 +136,10 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
     try {
       const res = await fetch(`/api/fitness/health/genetics?file_id=${fileId}`);
       const data = await res.json();
+      const upload = [...pendingUploads, ...completedUploads].find(u => u.id === fileId) || data.fileUpload || null;
+      setSelectedUpload(upload);
       setMarkers(data.markers || []);
+      setAnalysis(data.analysis || null);
       setSelectedFileId(fileId);
     } catch {
       setError('Failed to load markers');
@@ -179,7 +184,9 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
         method: 'DELETE',
       });
       setSelectedFileId(null);
+      setSelectedUpload(null);
       setMarkers([]);
+      setAnalysis(null);
       window.location.reload();
     } catch {
       setError('Failed to delete');
@@ -189,15 +196,14 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
   };
 
   // Detail view
-  if (selectedFileId && markers.length > 0) {
-    const selectedUpload = [...pendingUploads, ...completedUploads].find(u => u.id === selectedFileId);
+  if (selectedFileId && selectedUpload) {
     const isPending = pendingUploads.some(u => u.id === selectedFileId);
 
     return (
       <div className="space-y-6">
         {/* Back button */}
         <button
-          onClick={() => { setSelectedFileId(null); setMarkers([]); setAnalysis(null); }}
+          onClick={() => { setSelectedFileId(null); setSelectedUpload(null); setMarkers([]); setAnalysis(null); }}
           className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
         >
           <ArrowLeft className="h-4 w-4" /> Back to list
@@ -207,10 +213,12 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold">{selectedUpload?.file_name || 'Methylation Report'}</h2>
+              <h2 className="text-lg font-semibold">{selectedUpload?.file_name || 'Genetic Report'}</h2>
               <p className="text-sm text-slate-500">
                 {markers.length} SNPs extracted
-                {selectedUpload?.uploaded_at ? ` \u2022 Uploaded ${new Date(selectedUpload.uploaded_at).toLocaleDateString()}` : ''}
+                {(selectedUpload?.uploaded_at || selectedUpload?.created_at)
+                  ? ` \u2022 Uploaded ${new Date(selectedUpload.uploaded_at || selectedUpload.created_at!).toLocaleDateString()}`
+                  : ''}
               </p>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -221,102 +229,112 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
           </div>
         </div>
 
-        {/* Risk Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-                <Info className="h-5 w-5 text-green-600" />
+        {markers.length > 0 && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                  <Info className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-green-700">{riskSummary.normal}</p>
+                  <p className="text-xs text-green-600">Normal</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xl font-bold text-green-700">{riskSummary.normal}</p>
-                <p className="text-xs text-green-600">Normal</p>
+            </div>
+            <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100">
+                  <AlertCircle className="h-5 w-5 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-yellow-700">{riskSummary.moderate}</p>
+                  <p className="text-xs text-yellow-600">Moderate</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-red-700">{riskSummary.high}</p>
+                  <p className="text-xs text-red-600">High Risk</p>
+                </div>
               </div>
             </div>
           </div>
-          <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100">
-                <AlertCircle className="h-5 w-5 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-yellow-700">{riskSummary.moderate}</p>
-                <p className="text-xs text-yellow-600">Moderate</p>
-              </div>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-red-700">{riskSummary.high}</p>
-                <p className="text-xs text-red-600">High Risk</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Rich AI Analysis (after confirm) */}
         {analysis && (
           <AnalysisDisplay analysis={analysis} />
         )}
 
-        {/* Markers by Gene */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-slate-900">Raw SNP Data</h3>
-          {groupedByGene.map(([gene, geneMarkers]) => (
-            <div key={gene} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Dna className="h-5 w-5 text-blue-600" />
-                  <h3 className="text-lg font-semibold text-slate-900">{gene}</h3>
-                  <span className="ml-auto text-xs text-slate-500">
-                    {geneMarkers.length} SNP{geneMarkers.length !== 1 ? 's' : ''}
-                  </span>
+        {markers.length > 0 ? (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">Raw SNP Data</h3>
+            {groupedByGene.map(([gene, geneMarkers]) => (
+              <div key={gene} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+                <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Dna className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold text-slate-900">{gene}</h3>
+                    <span className="ml-auto text-xs text-slate-500">
+                      {geneMarkers.length} SNP{geneMarkers.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {geneMarkers.map((marker) => {
-                  const riskStyle = marker.risk_level
-                    ? RISK_STYLES[marker.risk_level]
-                    : RISK_STYLES.normal;
+                <div className="divide-y divide-slate-100">
+                  {geneMarkers.map((marker) => {
+                    const riskStyle = marker.risk_level
+                      ? RISK_STYLES[marker.risk_level]
+                      : RISK_STYLES.normal;
 
-                  return (
-                    <div key={marker.id} className="p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-mono text-sm font-medium text-slate-900">
-                          {marker.snp_id}
-                        </span>
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${riskStyle.bg} ${riskStyle.border} ${riskStyle.text} border`}
-                        >
-                          {riskStyle.icon}
-                          {marker.risk_level || 'unknown'}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500">Genotype:</span>
-                          <span className="font-mono text-sm font-medium text-slate-700">
-                            {marker.genotype}
+                    return (
+                      <div key={marker.id} className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="font-mono text-sm font-medium text-slate-900">
+                            {marker.snp_id}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${riskStyle.bg} ${riskStyle.border} ${riskStyle.text} border`}
+                          >
+                            {riskStyle.icon}
+                            {marker.risk_level || 'unknown'}
                           </span>
                         </div>
-                        {marker.clinical_significance && (
-                          <div className="text-sm text-slate-700">
-                            <span className="font-medium">Notes: </span>
-                            {marker.clinical_significance}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">Genotype:</span>
+                            <span className="font-mono text-sm font-medium text-slate-700">
+                              {marker.genotype}
+                            </span>
                           </div>
-                        )}
+                          {marker.clinical_significance && (
+                            <div className="text-sm text-slate-700">
+                              <span className="font-medium">Notes: </span>
+                              {marker.clinical_significance}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Structured Report Review</h3>
+            <p className="text-sm text-slate-600">
+              This report stores structured findings and AI analysis rather than individual rows in `genetic_markers`.
+              Review the analysis below and confirm it to move the report forward.
+            </p>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex gap-3">
@@ -421,7 +439,7 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
       {pendingUploads.length === 0 && completedUploads.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 p-8 text-center">
           <Dna className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-          <p className="text-sm text-slate-500">No methylation reports uploaded yet.</p>
+          <p className="text-sm text-slate-500">No genetic reports uploaded yet.</p>
           <p className="text-xs text-slate-400 mt-1">
             Upload a methylation or genetic report to see extracted SNP data here.
           </p>

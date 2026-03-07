@@ -640,6 +640,8 @@ export async function generateAppointmentPrep(params: {
   notable_events: string[];
   medications: Medication[];
   recent_lab_flags: string[];
+  recent_imaging_findings: string[];
+  recent_genetics_insights: string[];
 }): Promise<{
   suggested_questions: SuggestedQuestion[];
   changes_summary: ChangeSinceLastVisit[];
@@ -666,6 +668,8 @@ RECENT DATA:
 - Cardiac efficiency: ${params.cardiac_efficiency_trend ? `${params.cardiac_efficiency_trend.start.toFixed(3)} → ${params.cardiac_efficiency_trend.end.toFixed(3)} (${params.cardiac_efficiency_trend.type})` : 'insufficient data'}
 ${params.notable_events.length > 0 ? `- Notable events: ${params.notable_events.join('; ')}` : ''}
 ${params.recent_lab_flags.length > 0 ? `- Lab flags: ${params.recent_lab_flags.join('; ')}` : ''}
+${params.recent_imaging_findings.length > 0 ? `- Recent imaging findings: ${params.recent_imaging_findings.join('; ')}` : ''}
+${params.recent_genetics_insights.length > 0 ? `- Recent genetics synthesis: ${params.recent_genetics_insights.join('; ')}` : ''}
 
 Return JSON:
 {

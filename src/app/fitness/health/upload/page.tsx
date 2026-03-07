@@ -2,6 +2,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import HealthFileUploadClient from '@/components/fitness/HealthFileUploadClient';
 import { AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,9 +25,9 @@ export default async function HealthFileUploadPage() {
   // Get recent uploads
   const { data: recentUploads } = await supabase
     .from('health_file_uploads')
-    .select('id, file_type, file_name, uploaded_at, processing_status')
+    .select('id, file_type, file_name, created_at, processing_status')
     .eq('user_id', userData.user.id)
-    .order('uploaded_at', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(10);
 
   return (
@@ -37,6 +38,11 @@ export default async function HealthFileUploadPage() {
           Upload lab reports, methylation reports, doctor notes, and imaging results.
           AI will extract and analyze the data automatically.
         </p>
+        <div className="mt-3">
+          <Link href="/fitness/health/imaging" className="text-sm text-blue-600 hover:underline">
+            View Imaging Analyses →
+          </Link>
+        </div>
       </div>
 
       {!healthDoc && (
@@ -49,7 +55,10 @@ export default async function HealthFileUploadPage() {
 
       <HealthFileUploadClient
         healthDocExists={!!healthDoc}
-        recentUploads={recentUploads || []}
+        recentUploads={(recentUploads || []).map((upload) => ({
+          ...upload,
+          uploaded_at: upload.created_at,
+        }))}
       />
     </div>
   );

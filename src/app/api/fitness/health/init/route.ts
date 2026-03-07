@@ -20,19 +20,55 @@ export async function POST() {
   const userId = userData.user.id;
 
   try {
-    // Check if health document already exists
-    const { data: existing } = await supabase
+    // First look for a current health document.
+    const { data: existingCurrent } = await supabase
       .from('health_documents')
-      .select('id')
+      .select('id, version, created_at')
       .eq('user_id', userId)
       .eq('is_current', true)
       .single();
 
-    if (existing) {
+    if (existingCurrent) {
       return NextResponse.json({
         error: 'Health document already exists',
         message: 'Health profile has already been initialized. Use the update endpoint to modify it.'
       }, { status: 400 });
+    }
+
+    // Legacy installs may have one health document with is_current=false because of an
+    // older schema/index mismatch. Reactivate that row instead of inserting a duplicate.
+    const { data: legacyDoc } = await supabase
+      .from('health_documents')
+      .select('id, version, created_at')
+      .eq('user_id', userId)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (legacyDoc) {
+      const { error: reactivateError } = await supabase
+        .from('health_documents')
+        .update({ is_current: true })
+        .eq('id', legacyDoc.id)
+        .eq('user_id', userId);
+
+      if (reactivateError) {
+        console.error('Failed to reactivate legacy health document:', reactivateError);
+        return NextResponse.json({
+          error: 'Failed to reactivate health document',
+          details: reactivateError.message,
+        }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Existing health profile reactivated successfully',
+        document: {
+          id: legacyDoc.id,
+          version: legacyDoc.version,
+          created_at: legacyDoc.created_at,
+        },
+      });
     }
 
     // Skip embedding generation for now - vector extension might not be enabled
@@ -113,10 +149,25 @@ export async function GET() {
 
   const { data: healthDoc } = await supabase
     .from('health_documents')
-    .select('id, version, created_at, updated_at, is_current')
+    .select('id, version, created_at, is_current')
     .eq('user_id', userId)
     .eq('is_current', true)
     .single();
+
+  if (!healthDoc) {
+    const { data: legacyDoc } = await supabase
+      .from('health_documents')
+      .select('id, version, created_at, is_current')
+      .eq('user_id', userId)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return NextResponse.json({
+      exists: !!legacyDoc,
+      document: legacyDoc || null,
+    });
+  }
 
   return NextResponse.json({
     exists: !!healthDoc,

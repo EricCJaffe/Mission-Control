@@ -45,6 +45,25 @@ export async function POST(req: NextRequest) {
     console.log(`[Approve Updates] ${action}ing ${update_ids.length} updates for user ${user.id}`);
 
     if (action === 'approve') {
+      const { error: approveError } = await supabase
+        .from('health_doc_pending_updates')
+        .update({
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: 'user',
+        })
+        .in('id', update_ids)
+        .eq('user_id', user.id)
+        .in('status', ['pending', 'approved']);
+
+      if (approveError) {
+        console.error('Error approving updates:', approveError);
+        return NextResponse.json(
+          { ok: false, error: 'Failed to mark updates as approved' },
+          { status: 500 }
+        );
+      }
+
       // Apply updates using HealthDocUpdater
       const updater = new HealthDocUpdater(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -70,7 +89,11 @@ export async function POST(req: NextRequest) {
       // Reject updates - mark as rejected in database
       const { error: rejectError } = await supabase
         .from('health_doc_pending_updates')
-        .update({ status: 'rejected' })
+        .update({
+          status: 'rejected',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: 'user',
+        })
         .in('id', update_ids)
         .eq('user_id', user.id); // Security: only update user's own updates
 

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Sparkles } from 'lucide-react';
+import { Download, Sparkles } from 'lucide-react';
 import RichTextEditor from '@/components/RichTextEditor';
 
 type PlanRow = {
@@ -38,6 +38,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, activePlanId }: Props) {
+  void activePlanId;
   const router = useRouter();
   const [plans, setPlans] = useState(initial);
   const [showCreate, setShowCreate] = useState(false);
@@ -52,6 +53,7 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
   const [aiWeeks, setAiWeeks] = useState('8');
   const [aiSessionsPerWeek, setAiSessionsPerWeek] = useState('4');
   const [aiFocusAreas, setAiFocusAreas] = useState<string[]>([]);
+  const [aiStartDate, setAiStartDate] = useState(new Date().toISOString().slice(0, 10));
 
   // Form state
   const [name, setName] = useState('');
@@ -142,6 +144,7 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
         body: JSON.stringify({
           goal: aiGoal,
           weeks: parseInt(aiWeeks),
+          start_date: aiStartDate,
           sessions_per_week: parseInt(aiSessionsPerWeek),
           focus_areas: aiFocusAreas,
         }),
@@ -155,6 +158,7 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
         setAiWeeks('8');
         setAiSessionsPerWeek('4');
         setAiFocusAreas([]);
+        setAiStartDate(new Date().toISOString().slice(0, 10));
         router.refresh();
       } else {
         setError(data.error || 'Failed to generate plan');
@@ -289,6 +293,16 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
           </div>
 
           <div>
+            <label className="text-xs text-purple-700 block mb-1 font-medium">Start Date</label>
+            <input
+              type="date"
+              value={aiStartDate}
+              onChange={e => setAiStartDate(e.target.value)}
+              className="rounded-xl border border-purple-200 px-3 py-2.5 text-sm w-full bg-white"
+            />
+          </div>
+
+          <div>
             <label className="text-xs text-purple-700 block mb-1 font-medium">Sessions per Week</label>
             <select value={aiSessionsPerWeek} onChange={e => setAiSessionsPerWeek(e.target.value)}
               className="rounded-xl border border-purple-200 px-3 py-2.5 text-sm w-full bg-white">
@@ -347,7 +361,9 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
           <h2 className="text-sm font-semibold text-slate-600 mb-2">Active Plan</h2>
           <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-slate-800">{activePlan.name}</h3>
+              <Link href={`/fitness/plans/${activePlan.id}`} className="font-semibold text-slate-800 hover:text-blue-700 hover:underline">
+                {activePlan.name}
+              </Link>
               <span className="text-xs bg-green-100 text-green-800 rounded-full px-2.5 py-0.5 font-medium">Active</span>
             </div>
             <p className="text-sm text-slate-500">
@@ -361,6 +377,15 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
             <div className="flex gap-2 mt-3">
               <button onClick={() => handleStatusToggle(activePlan)}
                 className="text-xs text-slate-400 hover:text-slate-600">Mark Complete</button>
+              <a
+                href={`/api/fitness/plans/report?id=${activePlan.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+              >
+                <Download className="h-3.5 w-3.5" />
+                PDF
+              </a>
             </div>
           </div>
 
@@ -391,7 +416,9 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
               <div key={plan.id} className="px-5 py-3 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-slate-800">{plan.name}</p>
+                    <Link href={`/fitness/plans/${plan.id}`} className="text-sm font-medium text-slate-800 hover:text-blue-700 hover:underline">
+                      {plan.name}
+                    </Link>
                     <span className={`text-xs rounded-full px-2 py-0.5 font-medium ${STATUS_COLORS[plan.status] ?? 'bg-slate-100 text-slate-600'}`}>
                       {plan.status}
                     </span>
@@ -402,6 +429,15 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={`/api/fitness/plans/report?id=${plan.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    PDF
+                  </a>
                   {plan.status !== 'active' && (
                     <button onClick={() => handleStatusToggle(plan)}
                       className="text-xs text-blue-500 hover:text-blue-700">Activate</button>

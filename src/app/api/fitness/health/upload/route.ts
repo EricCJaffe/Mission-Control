@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { processLabReportUnpdf } from '@/lib/fitness/lab-processor-unpdf';
-import { processGeneticReport, isGeneticReportType } from '@/lib/fitness/genetics-processor';
+import { processGeneticReport } from '@/lib/fitness/genetics-processor';
+import {
+  detectGeneticReportTypeFromFilename,
+  isGeneticReportType,
+} from '@/lib/fitness/genetic-report-types';
 
 /**
  * Upload health documents (lab reports, methylation reports, doctor notes, imaging)
@@ -22,15 +26,21 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File;
-    const fileType = formData.get('file_type') as string;
+    const requestedFileType = formData.get('file_type') as string;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    if (!fileType) {
+    if (!requestedFileType) {
       return NextResponse.json({ error: 'File type is required' }, { status: 400 });
     }
+
+    const autoDetectedType = detectGeneticReportTypeFromFilename(file.name);
+    const fileType =
+      requestedFileType === 'other' && autoDetectedType
+        ? autoDetectedType
+        : requestedFileType;
 
     // Validate file size (max 10 MB)
     const maxSize = 10 * 1024 * 1024;
@@ -53,7 +63,7 @@ export async function POST(req: Request) {
 
     // Upload to Supabase Storage
     const fileBuffer = await file.arrayBuffer();
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('health-files')
       .upload(storagePath, fileBuffer, {
         contentType: file.type,

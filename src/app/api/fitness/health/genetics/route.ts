@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { refreshGeneticAnalysis, isGeneticReportType, GENETIC_REPORT_LABELS } from '@/lib/fitness/genetics-processor';
+import { refreshGeneticAnalysis } from '@/lib/fitness/genetics-processor';
+import { GENETIC_REPORT_LABELS, isGeneticReportType } from '@/lib/fitness/genetic-report-types';
 
 /**
  * GET - Fetch genetic markers for a specific file upload
@@ -42,6 +43,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     fileUpload,
+    analysis: fileUpload?.analysis_json || null,
     markers: markers || [],
   });
 }

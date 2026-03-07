@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
+import { GENETIC_REPORT_TYPES } from '@/lib/fitness/genetic-report-types';
 
 export async function GET() {
   try {
@@ -10,12 +11,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check health_file_uploads for methylation reports
+    // Check health_file_uploads for supported genetic reports
     const { data: files, error: filesError } = await supabase
       .from('health_file_uploads')
       .select('*')
       .eq('user_id', user.id)
-      .eq('file_type', 'methylation_report')
+      .in('file_type', GENETIC_REPORT_TYPES as unknown as string[])
       .order('created_at', { ascending: false });
 
     // Check genetic_markers
@@ -33,8 +34,10 @@ export async function GET() {
       markers_error: markersError?.message,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Debug error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }, { status: 500 });
   }
 }

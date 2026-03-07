@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { generateAppointmentPrep } from '@/lib/fitness/ai';
+import type { Medication } from '@/lib/fitness/types';
 
 export async function GET() {
   const supabase = await supabaseServer();
@@ -107,6 +108,36 @@ export async function PUT(req: Request) {
       .order('created_at', { ascending: false })
       .limit(10);
 
+    const { data: imagingReports } = await supabase
+      .from('health_file_uploads')
+      .select('file_name, created_at, analysis_json')
+      .eq('user_id', user.id)
+      .eq('file_type', 'imaging')
+      .eq('processing_status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    let geneticsInsights: string[] = [];
+    try {
+      const { data: geneticsSummary } = await supabase.rpc('get_genetics_comprehensive_analysis', {
+        p_user_id: user.id,
+      });
+      if (geneticsSummary?.found && geneticsSummary.analysis) {
+        const overall = typeof geneticsSummary.analysis?.overall_genetic_profile === 'string'
+          ? geneticsSummary.analysis.overall_genetic_profile
+          : null;
+        const cardiac = typeof geneticsSummary.analysis?.cardiac_genetic_profile === 'string'
+          ? geneticsSummary.analysis.cardiac_genetic_profile
+          : null;
+        const topPriorities = Array.isArray(geneticsSummary.analysis?.top_priorities)
+          ? geneticsSummary.analysis.top_priorities.filter((item: unknown): item is string => typeof item === 'string').slice(0, 3)
+          : [];
+        geneticsInsights = [overall, cardiac, ...topPriorities].filter((item): item is string => Boolean(item));
+      }
+    } catch {
+      geneticsInsights = [];
+    }
+
     // Get workout compliance
     const { data: planned } = await supabase
       .from('planned_workouts')
@@ -142,11 +173,32 @@ export async function PUT(req: Request) {
     ).length ?? 0;
 
     // Normalize medication names for AI prompt
-    const normalizedMeds = (meds ?? []).map((m: Record<string, unknown>) => ({
-      ...m,
-      name: m.name || m.medication_name || 'Unknown',
-      type: m.type || m.medication_type || 'prescription',
-    }));
+    const normalizedMeds: Medication[] = (meds ?? []).map((m) => {
+      const rawType = String(m.type || m.medication_type || 'prescription');
+      const type: Medication['type'] =
+        rawType === 'supplement' || rawType === 'otc' || rawType === 'prescription'
+          ? rawType
+          : 'prescription';
+
+      return {
+        id: m.id,
+        user_id: m.user_id,
+        name: String(m.name || m.medication_name || 'Unknown'),
+        type,
+        dosage: m.dosage ?? null,
+        frequency: m.frequency ?? null,
+        timing: m.timing ?? null,
+        prescribing_doctor: m.prescribing_doctor ?? null,
+        purpose: m.purpose ?? null,
+        known_interactions: m.known_interactions ?? null,
+        side_effects_experienced: m.side_effects_experienced ?? null,
+        active: m.active ?? true,
+        start_date: m.start_date ?? null,
+        end_date: m.end_date ?? null,
+        ai_review: m.ai_review ?? null,
+        last_reviewed_at: m.last_reviewed_at ?? null,
+      };
+    });
 
     console.log('[AppointmentPrep] Generating prep with:', {
       medsCount: normalizedMeds.length,
@@ -167,8 +219,15 @@ export async function PUT(req: Request) {
         training_compliance_pct: compliancePct,
         cardiac_efficiency_trend: null,
         notable_events: [],
-        medications: normalizedMeds as Record<string, unknown>[],
+        medications: normalizedMeds,
         recent_lab_flags: labFlags?.map(f => `${f.test_name}: ${f.flag}`) ?? [],
+        recent_imaging_findings: (imagingReports || []).map((report) => {
+          const summary = typeof report.analysis_json?.summary === 'string'
+            ? report.analysis_json.summary
+            : 'Imaging report available';
+          return `${report.file_name}: ${summary}`;
+        }),
+        recent_genetics_insights: geneticsInsights,
       });
 
       console.log('[AppointmentPrep] AI returned:', {

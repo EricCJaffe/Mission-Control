@@ -32,12 +32,25 @@ export async function GET(req: Request) {
   }
 
   // Fetch current version
-  const { data: document, error } = await supabase
+  let { data: document, error } = await supabase
     .from('health_documents')
     .select('*')
     .eq('user_id', userData.user.id)
     .eq('is_current', true)
     .single();
+
+  if (!document) {
+    const fallback = await supabase
+      .from('health_documents')
+      .select('*')
+      .eq('user_id', userData.user.id)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    document = fallback.data;
+    error = fallback.error;
+  }
 
   if (error || !document) {
     return NextResponse.json({ error: 'Health document not found' }, { status: 404 });

@@ -29,6 +29,18 @@ interface HealthContext {
   soul: string | null;
   health: string | null;
   medications: Array<Record<string, any>>;
+  comprehensiveGenetics: {
+    generated_at: string | null;
+    summary: string | null;
+    top_priorities: string[];
+    cardiac_profile: string | null;
+  } | null;
+  recentImaging: Array<{
+    file_name: string;
+    created_at: string;
+    summary: string;
+    impression: string | null;
+  }>;
   recentMetrics: {
     rhr: number | null;
     hrv: number | null;
@@ -76,6 +88,38 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
     .select('*')
     .eq('user_id', userId)
     .eq('active', true);
+
+  const { data: imagingUploads } = await supabase
+    .from('health_file_uploads')
+    .select('file_name, created_at, analysis_json')
+    .eq('user_id', userId)
+    .eq('file_type', 'imaging')
+    .eq('processing_status', 'completed')
+    .order('created_at', { ascending: false })
+    .limit(3);
+
+  let comprehensiveGenetics: HealthContext['comprehensiveGenetics'] = null;
+  try {
+    const { data } = await supabase.rpc('get_genetics_comprehensive_analysis', {
+      p_user_id: userId,
+    });
+    if (data?.found && data.analysis) {
+      comprehensiveGenetics = {
+        generated_at: typeof data.generated_at === 'string' ? data.generated_at : null,
+        summary: typeof data.analysis?.overall_genetic_profile === 'string'
+          ? data.analysis.overall_genetic_profile
+          : null,
+        top_priorities: Array.isArray(data.analysis?.top_priorities)
+          ? data.analysis.top_priorities.filter((item: unknown): item is string => typeof item === 'string')
+          : [],
+        cardiac_profile: typeof data.analysis?.cardiac_genetic_profile === 'string'
+          ? data.analysis.cardiac_genetic_profile
+          : null,
+      };
+    }
+  } catch {
+    comprehensiveGenetics = null;
+  }
 
   // Load last 7 days of key metrics
   const sevenDaysAgo = new Date();
@@ -180,6 +224,13 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
     soul,
     health,
     medications: meds || [],
+    comprehensiveGenetics,
+    recentImaging: (imagingUploads || []).map((upload) => ({
+      file_name: upload.file_name,
+      created_at: upload.created_at,
+      summary: typeof upload.analysis_json?.summary === 'string' ? upload.analysis_json.summary : '',
+      impression: typeof upload.analysis_json?.impression === 'string' ? upload.analysis_json.impression : null,
+    })),
     recentMetrics: {
       rhr: avgRHR,
       hrv: avgHRV,
@@ -611,6 +662,33 @@ export async function buildAISystemPrompt(
       const medDosage = med.dosage || '';
       prompt += `- **${medName}** (${medType}): ${medDosage}, ${med.frequency || ''}, ${med.timing || ''}\n  Purpose: ${med.purpose || med.indication || ''}\n`;
     });
+    prompt += `\n`;
+  }
+
+  if (context.recentImaging.length > 0) {
+    prompt += `━━━ RECENT IMAGING FINDINGS ━━━\n`;
+    context.recentImaging.forEach((imaging) => {
+      prompt += `- ${new Date(imaging.created_at).toLocaleDateString()}: ${imaging.file_name}\n`;
+      if (imaging.summary) prompt += `  Summary: ${imaging.summary}\n`;
+      if (imaging.impression) prompt += `  Impression: ${imaging.impression}\n`;
+    });
+    prompt += `\n`;
+  }
+
+  if (context.comprehensiveGenetics) {
+    prompt += `━━━ COMPREHENSIVE GENETICS SYNTHESIS ━━━\n`;
+    if (context.comprehensiveGenetics.generated_at) {
+      prompt += `- Generated: ${new Date(context.comprehensiveGenetics.generated_at).toLocaleDateString()}\n`;
+    }
+    if (context.comprehensiveGenetics.summary) {
+      prompt += `- Overall profile: ${context.comprehensiveGenetics.summary}\n`;
+    }
+    if (context.comprehensiveGenetics.cardiac_profile) {
+      prompt += `- Cardiac genetics profile: ${context.comprehensiveGenetics.cardiac_profile}\n`;
+    }
+    if (context.comprehensiveGenetics.top_priorities.length > 0) {
+      prompt += `- Genetics priorities: ${context.comprehensiveGenetics.top_priorities.join('; ')}\n`;
+    }
     prompt += `\n`;
   }
 

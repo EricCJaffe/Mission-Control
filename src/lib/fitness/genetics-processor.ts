@@ -5,30 +5,10 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { buildAISystemPrompt } from './health-context';
 import { extractText } from 'unpdf';
-
-export const GENETIC_REPORT_TYPES = [
-  'methylation_report',
-  'genetics_neurotransmitter',
-  'genetics_detox',
-  'genetics_mitochondrial',
-  'genetics_hormone',
-  'genetics_nutrition',
-] as const;
-
-export type GeneticReportType = typeof GENETIC_REPORT_TYPES[number];
-
-export function isGeneticReportType(type: string): type is GeneticReportType {
-  return GENETIC_REPORT_TYPES.includes(type as GeneticReportType);
-}
-
-export const GENETIC_REPORT_LABELS: Record<GeneticReportType, string> = {
-  methylation_report: 'Methylation & SNP Report',
-  genetics_neurotransmitter: 'Neurotransmitter Genetics',
-  genetics_detox: 'Detoxification Genetics',
-  genetics_mitochondrial: 'Mitochondrial Function',
-  genetics_hormone: 'Hormone & Endocrine Genetics',
-  genetics_nutrition: 'Nutritional Genomics',
-};
+import {
+  GENETIC_REPORT_LABELS,
+  type GeneticReportType,
+} from './genetic-report-types';
 
 // ─── Extraction prompts per report type ──────────────────────────────────────
 

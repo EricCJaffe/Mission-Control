@@ -527,6 +527,7 @@ export default function FitnessDashboardClient({
             {([
               { href: '/fitness/metrics', label: 'Body Metrics', icon: <Scale size={20} /> },
               { href: '/fitness/health/view', label: 'Health Profile', icon: <FileHeart size={20} /> },
+              { href: '/fitness/health/command-center', label: 'Command Center', icon: <Activity size={20} /> },
               { href: '/fitness/health/labs', label: 'Lab Review', icon: <FlaskConical size={20} /> },
               { href: '/fitness/medications', label: 'Medications', icon: <Pill size={20} /> },
               { href: '/fitness/appointments', label: "Dr's Appointments", icon: <CalendarDays size={20} /> },

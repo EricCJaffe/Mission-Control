@@ -17,6 +17,8 @@ export type UpdateTrigger =
   | 'lab_upload'
   | 'metric_shift'
   | 'methylation_upload'
+  | 'genetics_comprehensive'
+  | 'imaging_upload'
   | 'appointment_notes'
   | 'manual_edit'
   | 'ai_recommendation'
@@ -147,6 +149,14 @@ export class HealthDocUpdater {
 
       case 'methylation_upload':
         updates.push(...(await this.detectMethylationUpdates(userId, triggerData)));
+        break;
+
+      case 'genetics_comprehensive':
+        updates.push(...(await this.detectComprehensiveGeneticsUpdates(userId, triggerData)));
+        break;
+
+      case 'imaging_upload':
+        updates.push(...(await this.detectImagingUpdates(userId, triggerData)));
         break;
 
       case 'bp_reading':
@@ -323,6 +333,115 @@ export class HealthDocUpdater {
           trigger_data: triggerData,
           confidence: 'high',
           priority: 7,
+        });
+      }
+    }
+
+    return updates;
+  }
+
+  private async detectComprehensiveGeneticsUpdates(userId: string, triggerData: any): Promise<SectionUpdate[]> {
+    const updates: SectionUpdate[] = [];
+    const healthDoc = await this.loadCurrentHealthDoc(userId);
+    if (!healthDoc) return updates;
+
+    const currentGenetic = this.extractSection(healthDoc, 9);
+    if (currentGenetic) {
+      const proposedGenetic = await this.generateGeneticSection(userId, triggerData);
+      if (proposedGenetic && proposedGenetic !== currentGenetic) {
+        updates.push({
+          section_number: 9,
+          section_name: 'Genetic / Methylation',
+          current_content: currentGenetic,
+          proposed_content: proposedGenetic,
+          reason: 'Comprehensive genetics synthesis generated and should update section 9',
+          trigger: 'genetics_comprehensive',
+          trigger_data: triggerData,
+          confidence: 'high',
+          priority: 8,
+        });
+      }
+    }
+
+    const currentPriorities = this.extractSection(healthDoc, 11);
+    if (currentPriorities) {
+      const proposedPriorities = await this.generateHealthPrioritiesFromGenetics(userId, triggerData);
+      if (proposedPriorities && proposedPriorities !== currentPriorities) {
+        updates.push({
+          section_number: 11,
+          section_name: 'Health Priorities',
+          current_content: currentPriorities,
+          proposed_content: proposedPriorities,
+          reason: 'Comprehensive genetics synthesis changed overall priorities and doctor discussion focus',
+          trigger: 'genetics_comprehensive',
+          trigger_data: triggerData,
+          confidence: 'medium',
+          priority: 7,
+        });
+      }
+    }
+
+    return updates;
+  }
+
+  /**
+   * Detect imaging-related updates
+   */
+  private async detectImagingUpdates(userId: string, triggerData: any): Promise<SectionUpdate[]> {
+    const updates: SectionUpdate[] = [];
+    const healthDoc = await this.loadCurrentHealthDoc(userId);
+    if (!healthDoc) return updates;
+
+    const currentMedicalHistory = this.extractSection(healthDoc, 1);
+    if (currentMedicalHistory) {
+      const proposedMedicalHistory = await this.generateMedicalHistoryFromImaging(userId, triggerData);
+      if (proposedMedicalHistory && proposedMedicalHistory !== currentMedicalHistory) {
+        updates.push({
+          section_number: 1,
+          section_name: 'Medical History',
+          current_content: currentMedicalHistory,
+          proposed_content: proposedMedicalHistory,
+          reason: `${triggerData?.study_title || 'Imaging study'} added to cardiac history`,
+          trigger: 'imaging_upload',
+          trigger_data: triggerData,
+          confidence: 'high',
+          priority: 10,
+        });
+      }
+    }
+
+    const currentBaselines = this.extractSection(healthDoc, 6);
+    if (currentBaselines) {
+      const proposedBaselines = await this.generateVitalBaselinesFromImaging(userId, triggerData);
+      if (proposedBaselines && proposedBaselines !== currentBaselines) {
+        updates.push({
+          section_number: 6,
+          section_name: 'Vital Baselines & Targets',
+          current_content: currentBaselines,
+          proposed_content: proposedBaselines,
+          reason: `${triggerData?.study_title || 'Imaging study'} updated objective cardiac function metrics`,
+          trigger: 'imaging_upload',
+          trigger_data: triggerData,
+          confidence: 'high',
+          priority: 10,
+        });
+      }
+    }
+
+    const currentPriorities = this.extractSection(healthDoc, 11);
+    if (currentPriorities) {
+      const proposedPriorities = await this.generateHealthPrioritiesFromImaging(userId, triggerData);
+      if (proposedPriorities && proposedPriorities !== currentPriorities) {
+        updates.push({
+          section_number: 11,
+          section_name: 'Health Priorities',
+          current_content: currentPriorities,
+          proposed_content: proposedPriorities,
+          reason: 'Imaging findings changed overall cardiac priorities and discussion focus',
+          trigger: 'imaging_upload',
+          trigger_data: triggerData,
+          confidence: 'medium',
+          priority: 8,
         });
       }
     }
@@ -778,6 +897,125 @@ Return ONLY section content starting with "## 11. Health Priorities".`;
     }
   }
 
+  private async generateMedicalHistoryFromImaging(userId: string, triggerData?: any): Promise<string> {
+    try {
+      const systemPrompt = await buildAISystemPrompt(userId, 'health_doc_update');
+      const userPrompt = `Update the "Medical History" section (§1) of health.md using this imaging report analysis.
+
+Imaging metadata:
+${JSON.stringify({
+  study_title: triggerData?.study_title,
+  modality: triggerData?.modality,
+  exam_date: triggerData?.exam_date,
+  facility: triggerData?.facility,
+  ordering_clinician: triggerData?.ordering_clinician,
+}, null, 2)}
+
+Imaging analysis:
+${JSON.stringify(triggerData?.imaging_analysis || {}, null, 2)}
+
+Requirements:
+- Integrate the findings into cardiac history accurately.
+- Preserve existing relevant history.
+- Call out materially important findings such as LVEF, wall motion abnormalities, scar/infarct burden, and absence of acute valvular pathology.
+- Return ONLY section content starting with "## 1. Medical History".`;
+
+      const content = await callOpenAI({
+        model: DEFAULT_MODEL,
+        system: systemPrompt,
+        user: userPrompt,
+      });
+
+      return content.trim();
+    } catch (error) {
+      console.error('Error generating medical history from imaging:', error);
+      return '## 1. Medical History\n\n(Error generating imaging-based medical history update - please update manually)';
+    }
+  }
+
+  private async generateVitalBaselinesFromImaging(userId: string, triggerData?: any): Promise<string> {
+    try {
+      const systemPrompt = await buildAISystemPrompt(userId, 'health_doc_update');
+      const userPrompt = `Update the "Vital Baselines & Targets" section (§6) of health.md using this imaging report analysis.
+
+Imaging analysis:
+${JSON.stringify(triggerData?.imaging_analysis || {}, null, 2)}
+
+Requirements:
+- Update any quantified cardiac function values that belong in baselines (especially Ejection Fraction).
+- Keep targets unchanged unless imaging findings clearly justify wording changes in clinical notes.
+- Mention the date/source of the updated baseline in the clinical note where relevant.
+- Return ONLY section content starting with "## 6. Vital Baselines & Targets".`;
+
+      const content = await callOpenAI({
+        model: DEFAULT_MODEL,
+        system: systemPrompt,
+        user: userPrompt,
+      });
+
+      return content.trim();
+    } catch (error) {
+      console.error('Error generating vital baselines from imaging:', error);
+      return '## 6. Vital Baselines & Targets\n\n(Error generating imaging-based baselines update - please update manually)';
+    }
+  }
+
+  private async generateHealthPrioritiesFromImaging(userId: string, triggerData?: any): Promise<string> {
+    try {
+      const systemPrompt = await buildAISystemPrompt(userId, 'health_doc_update');
+      const userPrompt = `Update the "Health Priorities" section (§11) of health.md using this imaging report analysis.
+
+Imaging analysis:
+${JSON.stringify(triggerData?.imaging_analysis || {}, null, 2)}
+
+Focus on:
+- reduced ejection fraction / systolic dysfunction
+- scar burden / remote infarct significance
+- monitoring and discussion priorities for upcoming cardiology care
+
+Return ONLY section content starting with "## 11. Health Priorities".`;
+
+      const content = await callOpenAI({
+        model: DEFAULT_MODEL,
+        system: systemPrompt,
+        user: userPrompt,
+      });
+
+      return content.trim();
+    } catch (error) {
+      console.error('Error generating priorities from imaging:', error);
+      return '## 11. Health Priorities\n\n(Error generating imaging-based priorities update - please update manually)';
+    }
+  }
+
+  private async generateHealthPrioritiesFromGenetics(userId: string, triggerData?: any): Promise<string> {
+    try {
+      const systemPrompt = await buildAISystemPrompt(userId, 'health_doc_update');
+      const userPrompt = `Update the "Health Priorities" section (§11) of health.md using this comprehensive genetics synthesis.
+
+Comprehensive genetics synthesis:
+${JSON.stringify(triggerData?.comprehensive_analysis || triggerData || {}, null, 2)}
+
+Focus on:
+- cross-system patterns that matter clinically
+- supplementation / recovery / monitoring priorities that affect more than one system
+- any genetics-informed discussion points for upcoming doctors visits
+
+Return ONLY section content starting with "## 11. Health Priorities".`;
+
+      const content = await callOpenAI({
+        model: DEFAULT_MODEL,
+        system: systemPrompt,
+        user: userPrompt,
+      });
+
+      return content.trim();
+    } catch (error) {
+      console.error('Error generating priorities from genetics:', error);
+      return '## 11. Health Priorities\n\n(Error generating genetics-based priorities update - please update manually)';
+    }
+  }
+
   /**
    * Create diff between current and proposed content
    */
@@ -881,7 +1119,7 @@ Return ONLY section content starting with "## 11. Health Priorities".`;
       .select('*')
       .in('id', updateIds)
       .eq('user_id', userId)
-      .eq('status', 'approved');
+      .in('status', ['pending', 'approved']);
 
     if (loadError || !updates || updates.length === 0) {
       console.error('Failed to load approved updates:', loadError);
@@ -957,7 +1195,16 @@ Return ONLY section content starting with "## 11. Health Priorities".`;
     if (primaryTrigger === 'manual_edit') changeType = 'manual_edit';
     else if (primaryTrigger === 'ai_recommendation') changeType = 'ai_update';
     else if (primaryTrigger === 'appointment_notes') changeType = 'appointment_prep';
-    else if (['medication_change', 'lab_upload', 'metric_shift', 'methylation_upload'].includes(primaryTrigger)) {
+    else if ([
+      'medication_change',
+      'lab_upload',
+      'metric_shift',
+      'methylation_upload',
+      'genetics_comprehensive',
+      'imaging_upload',
+      'bp_reading',
+      'workout_logged',
+    ].includes(primaryTrigger)) {
       changeType = primaryTrigger;
     } else {
       // Default fallback for any unmapped trigger types

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { refreshGeneticAnalysis, isGeneticReportType } from '@/lib/fitness/genetics-processor';
+import { refreshGeneticAnalysis } from '@/lib/fitness/genetics-processor';
+import { isGeneticReportType } from '@/lib/fitness/genetic-report-types';
 
 /**
  * POST /api/fitness/health/genetics/[fileId]/refresh

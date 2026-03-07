@@ -13,12 +13,24 @@ export default async function HealthInitPage() {
   }
 
   // Check if health.md already exists
-  const { data: healthDoc } = await supabase
+  let { data: healthDoc } = await supabase
     .from('health_documents')
     .select('id, version, created_at')
     .eq('user_id', userData.user.id)
     .eq('is_current', true)
     .single();
+
+  if (!healthDoc) {
+    const { data: legacyDoc } = await supabase
+      .from('health_documents')
+      .select('id, version, created_at')
+      .eq('user_id', userData.user.id)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    healthDoc = legacyDoc;
+  }
 
   // Check if medications have been seeded
   const { count: medsCount } = await supabase

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { GENETIC_REPORT_TYPES, GENETIC_REPORT_LABELS, GeneticReportType } from '@/lib/fitness/genetics-processor';
+import { GENETIC_REPORT_TYPES, GENETIC_REPORT_LABELS, type GeneticReportType } from '@/lib/fitness/genetic-report-types';
 import { buildAISystemPrompt } from '@/lib/fitness/health-context';
+import { HealthDocUpdater } from '@/lib/fitness/health-doc-updater';
 
 /**
  * GET - Load saved comprehensive genetics analysis
@@ -153,6 +154,32 @@ export async function POST() {
       p_file_ids: reportSummaries.map(r => r.file_id),
       p_report_types: reportSummaries.map(r => r.report_type),
     });
+
+    try {
+      const updater = new HealthDocUpdater(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      const updates = await updater.detectUpdates(userId, 'genetics_comprehensive', {
+        comprehensive_analysis: finalAnalysis,
+        report_types: reportSummaries.map(r => r.report_type),
+        report_names: reportSummaries.map(r => r.file_name),
+      });
+      if (updates.length > 0) {
+        const { data: recentUpdates } = await supabase
+          .from('health_doc_pending_updates')
+          .select('section_number')
+          .eq('user_id', userId)
+          .eq('status', 'pending');
+        const recentSections = new Set((recentUpdates || []).map(row => row.section_number));
+        const newUpdates = updates.filter(update => !recentSections.has(update.section_number));
+        if (newUpdates.length > 0) {
+          await updater.savePendingUpdates(userId, newUpdates);
+        }
+      }
+    } catch (updateError) {
+      console.error('Failed to enqueue health.md genetics updates:', updateError);
+    }
 
     return NextResponse.json({
       success: true,

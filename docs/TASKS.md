@@ -1,6 +1,6 @@
 # Tasks
 
-**Last Updated:** March 6, 2026
+**Last Updated:** March 7, 2026
 
 ## 📍 CURRENT STATUS
 
@@ -156,6 +156,13 @@ Full plan: `docs/GENETICS_MULTI_REPORT_PLAN.md`
     - `src/components/fitness/LabDashboardClient.tsx` (updated methylation tab display)
   - Note: Health.md Section 9 auto-update still pending (separate task)
 
+### Comprehensive Genetics Follow-Through
+- [x] **Comprehensive genetics analysis now feeds downstream systems**
+  - Relevant findings from the comprehensive genetics report now queue `health.md` updates
+  - Comprehensive genetics findings now influence cardiologist appointment prep question generation
+  - Comprehensive genetics findings now appear in broader dashboard-level health context
+  - Per-report genetics analysis remains intact while cross-report synthesis now influences overall decision-making
+
 ### Workout Log Button Visibility
 - [x] **✅ RESOLVED: Floating action button added to fitness dashboard**
   - Full workout logger exists at `/fitness/log` (template selection, build-on-fly, drag-and-drop, sets, RPE)
@@ -172,6 +179,10 @@ Full plan: `docs/GENETICS_MULTI_REPORT_PLAN.md`
 - [x] Supplement stack analyzer ("Review My Stack")
 - [ ] Garmin OAuth full automation (manual FIT import works) — skipped for now
 - [x] AI plan generation (auto-generate training plans from historical data)
+- [x] Plan progress tracking (goal vs actuals, adherence, zone 2, RHR/HRV/weight, strength-day completion)
+- [x] Plan scheduling bridge (framework days can now be instantiated into `planned_workouts` for calendar use)
+- [x] Better plan intake intelligence (field-level AI re-suggest, richer schedule constraints, confirm/edit before generation)
+- [x] `health_document_changes` schema cleanup / normalization migration
 
 ---
 

@@ -2,6 +2,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import GeneticsReviewClient from '@/components/fitness/GeneticsReviewClient';
 import { Dna } from 'lucide-react';
+import { GENETIC_REPORT_TYPES } from '@/lib/fitness/genetic-report-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,23 +15,25 @@ export default async function GeneticsReviewPage() {
   }
 
   // Use explicit column list to avoid PostgREST schema cache issues
-  const uploadColumns = 'id, file_name, file_type, processing_status, error_message, file_path';
+  const uploadColumns = 'id, file_name, file_type, processing_status, error_message, file_path, created_at';
 
-  // Get methylation uploads needing review
+  // Get genetic uploads needing review across all supported report types.
   const { data: pendingUploads } = await supabase
     .from('health_file_uploads')
     .select(uploadColumns)
     .eq('user_id', userData.user.id)
-    .eq('file_type', 'methylation_report')
-    .eq('processing_status', 'needs_review');
+    .in('file_type', GENETIC_REPORT_TYPES as unknown as string[])
+    .eq('processing_status', 'needs_review')
+    .order('created_at', { ascending: false });
 
-  // Get completed methylation uploads
+  // Get completed genetic uploads
   const { data: completedUploads } = await supabase
     .from('health_file_uploads')
     .select(uploadColumns)
     .eq('user_id', userData.user.id)
-    .eq('file_type', 'methylation_report')
+    .in('file_type', GENETIC_REPORT_TYPES as unknown as string[])
     .eq('processing_status', 'completed')
+    .order('created_at', { ascending: false })
     .limit(10);
 
   return (
@@ -46,7 +49,7 @@ export default async function GeneticsReviewPage() {
           </a>
         </div>
         <p className="text-gray-600">
-          Review AI-extracted SNP data from methylation reports before confirming.
+          Review AI-extracted SNP data from methylation and genetic reports before confirming.
         </p>
       </div>
 

@@ -28,6 +28,9 @@ export async function POST(req: NextRequest) {
       weeks = 8,
       sessions_per_week = 4,
       focus_areas = [], // ['upper', 'lower', 'cardio']
+      context_notes = '',
+      start_date,
+      plan_preferences = {},
     } = body;
 
     if (!goal) {
@@ -199,20 +202,59 @@ CURRENT STATUS:
 - Form (TSB): ${form ? `${Math.round(form.form_tsb)} (${form.form_status})` : 'Unknown'}
 - CTL: ${form?.fitness_ctl || '?'}, ATL: ${form?.fatigue_atl || '?'}
 
-REQUIREMENTS:
-1. Use my proven exercises (top 10-15 from history)
-2. Progressive overload based on my current max weights
-3. Periodization: Base → Build → Peak phases
-4. Honor my medication timing and cardiac constraints (see health context)
-5. Include deload weeks (every 3-4 weeks)
-6. Balance with readiness/recovery patterns
-7. Account for current form (TSB status)
+${typeof context_notes === 'string' && context_notes.trim().length > 0 ? `ADDITIONAL CONTEXT TO HONOR:
+${context_notes.trim()}
+
+` : ''}REQUIREMENTS:
+1. Use any additional context above to steer plan design if it conflicts with generic defaults
+2. Use my proven exercises (top 10-15 from history)
+3. Progressive overload based on my current max weights
+4. Periodization: Base → Build → Peak phases
+5. Honor my medication timing and cardiac constraints (see health context)
+6. Include deload weeks (every 3-4 weeks)
+7. Balance with readiness/recovery patterns
+8. Account for current form (TSB status)
+9. If the goal or focus areas imply both strength and cardio, include both in the weekly template rather than collapsing to one modality
+10. Prefer framework-level day prescriptions when exact exercise detail is not necessary
+11. If schedule preferences are provided, reflect them directly in the weekly framework
+
+PLAN PREFERENCES:
+${JSON.stringify(plan_preferences, null, 2)}
 
 Return a JSON training plan with this structure:
 {
   "plan_name": "Descriptive plan name",
   "goal": "${goal}",
   "weeks": ${weeks},
+  "executive_summary": "2-4 paragraphs covering what we are doing, why, and how this block fits the health picture",
+  "primary_objective": "Single sentence primary objective",
+  "secondary_objectives": ["3-5 secondary objectives"],
+  "target_metrics": [
+    {
+      "metric": "Resting HR",
+      "current": "74 bpm",
+      "target": "70-72 bpm",
+      "why": "Why this matters over the 12-week block"
+    }
+  ],
+  "weekly_framework": [
+    {
+      "day_name": "Monday",
+      "session_type": "Strength Day",
+      "purpose": "Maintain or build strength while cardio remains primary",
+      "duration_min": 45,
+      "notes": "Framework only"
+    }
+  ],
+  "day_type_guidance": [
+    {
+      "type": "Zone 2 Cardio",
+      "description": "What this day is for",
+      "intensity_guidance": "HR / RPE / effort notes",
+      "duration_guidance": "Typical duration",
+      "examples": ["Treadmill", "Outdoor walk", "Bike"]
+    }
+  ],
   "phases": [
     {
       "phase_name": "Base Building",
@@ -242,7 +284,18 @@ Return a JSON training plan with this structure:
     }
   ],
   "progression_notes": "How to progress each week",
-  "deload_weeks": [4, 8]
+  "deload_weeks": [4, 8],
+  "weekly_tracking": [
+    "Adherence %",
+    "Zone 2 minutes",
+    "Completed strength days"
+  ],
+  "schedule_constraints": {
+    "off_day": "Sunday",
+    "hard_day": "Thursday",
+    "long_day": "Saturday",
+    "allow_double_day": true
+  }
 }
 
 Use only exercises from my history. Return ONLY valid JSON.`;
@@ -255,26 +308,55 @@ Use only exercises from my history. Return ONLY valid JSON.`;
 
     let planData;
     try {
-      planData = JSON.parse(result);
-    } catch (parseError) {
-      console.error('Failed to parse AI plan response:', result);
-      return NextResponse.json({ error: 'AI returned invalid plan format' }, { status: 500 });
+      planData = extractPlanJson(result);
+    } catch {
+      try {
+        const repaired = await repairPlanJson(result);
+        planData = extractPlanJson(repaired);
+      } catch {
+        console.error('Failed to parse AI plan response:', result);
+        return NextResponse.json({ error: 'AI returned invalid plan format' }, { status: 500 });
+      }
     }
+
+    if (!planData?.plan_name || !Array.isArray(planData?.weekly_template)) {
+      return NextResponse.json({ error: 'AI returned incomplete plan format' }, { status: 500 });
+    }
+
+    const normalizedStartDate =
+      typeof start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(start_date)
+        ? start_date
+        : new Date().toISOString().slice(0, 10);
+    const endDate = new Date(`${normalizedStartDate}T12:00:00`);
+    endDate.setDate(endDate.getDate() + weeks * 7);
 
     // Save the generated plan to database
     const { data: savedPlan, error: savePlanError } = await supabase
       .from('training_plans')
       .insert({
         user_id: user.id,
-        plan_name: planData.plan_name,
-        goal: planData.goal,
-        start_date: new Date().toISOString().slice(0, 10),
-        end_date: new Date(Date.now() + weeks * 7 * 86400000).toISOString().slice(0, 10),
-        weekly_structure: planData.weekly_template,
+        name: planData.plan_name,
+        start_date: normalizedStartDate,
+        end_date: endDate.toISOString().slice(0, 10),
+        cycle_weeks: weeks,
+        plan_type: planData.goal || goal,
+        weekly_template: planData.weekly_template,
         config: {
+          goal: planData.goal || goal,
+          executive_summary: planData.executive_summary || null,
+          primary_objective: planData.primary_objective || null,
+          secondary_objectives: planData.secondary_objectives || [],
+          target_metrics: planData.target_metrics || [],
+          weekly_framework: planData.weekly_framework || [],
+          day_type_guidance: planData.day_type_guidance || [],
           phases: planData.phases,
           deload_weeks: planData.deload_weeks,
           progression_notes: planData.progression_notes,
+          weekly_tracking: planData.weekly_tracking || [],
+          schedule_constraints: planData.schedule_constraints || (plan_preferences && typeof plan_preferences === 'object' ? (plan_preferences as Record<string, unknown>).schedule_constraints || null : null),
+          focus_areas,
+          context_notes: typeof context_notes === 'string' ? context_notes : '',
+          plan_preferences,
         },
         status: 'draft',
         ai_generated: true,
@@ -299,4 +381,33 @@ Use only exercises from my history. Return ONLY valid JSON.`;
       { status: 500 }
     );
   }
+}
+
+function extractPlanJson(raw: string): Record<string, unknown> {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/```json\s*([\s\S]*?)\s*```/i);
+  if (fenced) {
+    return JSON.parse(fenced[1]);
+  }
+
+  const start = trimmed.indexOf('{');
+  const end = trimmed.lastIndexOf('}');
+  if (start !== -1 && end !== -1 && end > start) {
+    return JSON.parse(trimmed.slice(start, end + 1));
+  }
+
+  return JSON.parse(trimmed);
+}
+
+async function repairPlanJson(raw: string) {
+  const repairPrompt = `Convert the following model output into valid JSON only. Do not add commentary. Preserve the intended structure for a training plan.
+
+MODEL OUTPUT:
+${raw}`;
+
+  return callOpenAI({
+    model: 'gpt-4o-mini',
+    system: 'You repair malformed JSON. Return only valid JSON.',
+    user: repairPrompt,
+  });
 }

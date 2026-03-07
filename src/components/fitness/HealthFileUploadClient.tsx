@@ -1,6 +1,24 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import {
+  detectGeneticReportTypeFromFilename,
+  GENETIC_REPORT_LABELS,
+  isGeneticReportType,
+} from '@/lib/fitness/genetic-report-types';
+
+const FILE_TYPE_LABELS: Record<string, string> = {
+  lab_report: 'Lab Report',
+  methylation_report: GENETIC_REPORT_LABELS.methylation_report,
+  genetics_neurotransmitter: GENETIC_REPORT_LABELS.genetics_neurotransmitter,
+  genetics_detox: GENETIC_REPORT_LABELS.genetics_detox,
+  genetics_mitochondrial: GENETIC_REPORT_LABELS.genetics_mitochondrial,
+  genetics_hormone: GENETIC_REPORT_LABELS.genetics_hormone,
+  genetics_nutrition: GENETIC_REPORT_LABELS.genetics_nutrition,
+  doctor_notes: 'Doctor Notes',
+  imaging: 'Imaging',
+  other: 'Other',
+};
 
 interface HealthFileUploadClientProps {
   healthDocExists: boolean;
@@ -20,13 +38,26 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
   const [progress, setProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [autoDetectNote, setAutoDetectNote] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setSelectedFiles(Array.from(e.target.files));
+      const files = Array.from(e.target.files);
+      setSelectedFiles(files);
       setError(null);
       setSuccess(null);
+
+      if (files.length === 1) {
+        const detectedType = detectGeneticReportTypeFromFilename(files[0].name);
+        if (detectedType && fileType !== detectedType) {
+          setFileType(detectedType);
+          setAutoDetectNote(`Auto-selected "${FILE_TYPE_LABELS[detectedType]}" based on file name.`);
+          return;
+        }
+      }
+
+      setAutoDetectNote(null);
     }
   };
 
@@ -49,14 +80,25 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
     try {
       let successCount = 0;
       let failCount = 0;
+      let uploadedLab = false;
+      let uploadedGenetics = false;
 
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
         setProgress(`Uploading file ${i + 1}/${selectedFiles.length}: ${file.name}`);
 
+        const detectedType = detectGeneticReportTypeFromFilename(file.name);
+        const uploadType =
+          fileType === 'other' && detectedType
+            ? detectedType
+            : fileType;
+
+        if (uploadType === 'lab_report') uploadedLab = true;
+        if (isGeneticReportType(uploadType)) uploadedGenetics = true;
+
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('file_type', fileType);
+        formData.append('file_type', uploadType);
 
         const response = await fetch('/api/fitness/health/upload', {
           method: 'POST',
@@ -84,10 +126,9 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
         }
 
         // Redirect to appropriate review page based on file type
-        const GENETIC_TYPES = ['methylation_report','genetics_neurotransmitter','genetics_detox','genetics_mitochondrial','genetics_hormone','genetics_nutrition'];
-        if (fileType === 'lab_report') {
+        if (uploadedLab && !uploadedGenetics) {
           setTimeout(() => { window.location.href = '/fitness/health/labs'; }, 2000);
-        } else if (GENETIC_TYPES.includes(fileType)) {
+        } else if (uploadedGenetics) {
           setTimeout(() => { window.location.href = '/fitness/genetics/review'; }, 2000);
         } else {
           setTimeout(() => { window.location.reload(); }, 2000);
@@ -114,21 +155,7 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
     }
   };
 
-  const getFileTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      lab_report: 'Lab Report',
-      methylation_report: 'Methylation & SNP',
-      genetics_neurotransmitter: 'Neurotransmitter',
-      genetics_detox: 'Detoxification',
-      genetics_mitochondrial: 'Mitochondrial',
-      genetics_hormone: 'Hormone Genetics',
-      genetics_nutrition: 'Nutritional Genomics',
-      doctor_notes: 'Doctor Notes',
-      imaging: 'Imaging',
-      other: 'Other',
-    };
-    return labels[type] || type;
-  };
+  const getFileTypeLabel = (type: string) => FILE_TYPE_LABELS[type] || type;
 
   return (
     <div className="space-y-6">
@@ -151,12 +178,12 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
               <option value="lab_report">Lab Report (PDF)</option>
             </optgroup>
             <optgroup label="Genetic Reports">
-              <option value="methylation_report">Methylation &amp; SNP Report</option>
-              <option value="genetics_neurotransmitter">Neurotransmitter Genetics Panel</option>
-              <option value="genetics_detox">Detoxification Genetics Panel</option>
-              <option value="genetics_mitochondrial">Mitochondrial Function Panel</option>
-              <option value="genetics_hormone">Hormone &amp; Endocrine Genetics Panel</option>
-              <option value="genetics_nutrition">Nutritional Genomics Panel</option>
+              <option value="methylation_report">{GENETIC_REPORT_LABELS.methylation_report}</option>
+              <option value="genetics_neurotransmitter">{GENETIC_REPORT_LABELS.genetics_neurotransmitter}</option>
+              <option value="genetics_detox">{GENETIC_REPORT_LABELS.genetics_detox}</option>
+              <option value="genetics_mitochondrial">{GENETIC_REPORT_LABELS.genetics_mitochondrial}</option>
+              <option value="genetics_hormone">{GENETIC_REPORT_LABELS.genetics_hormone}</option>
+              <option value="genetics_nutrition">{GENETIC_REPORT_LABELS.genetics_nutrition}</option>
             </optgroup>
             <optgroup label="Other Documents">
               <option value="doctor_notes">Doctor Notes (PDF)</option>
@@ -183,15 +210,18 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
           <p className="mt-2 text-sm text-gray-500">
             {fileType === 'lab_report' && 'Upload up to 5 lab reports at once. AI will auto-extract panel metadata (lab, date, provider) and all test results. You\'ll review and confirm the extracted data.'}
             {fileType === 'methylation_report' && 'Upload your main methylation/SNP report. AI extracts variants (MTHFR, COMT, VDR, etc.) and generates a full supplement, dietary, and lifestyle analysis.'}
-            {fileType === 'genetics_neurotransmitter' && 'Upload your neurotransmitter genetics panel. AI analyzes dopamine, serotonin, GABA, and other brain chemical pathway variants.'}
-            {fileType === 'genetics_detox' && 'Upload your detoxification genetics panel. AI analyzes Phase I/II detox enzyme variants and their impact on toxin clearance and medication processing.'}
-            {fileType === 'genetics_mitochondrial' && 'Upload your mitochondrial function panel. AI analyzes energy production, oxidative stress, and cellular resilience variants.'}
+            {fileType === 'genetics_neurotransmitter' && 'Best match for Stride sleep reports. AI analyzes neurotransmitter, dopamine, serotonin, GABA, and related brain chemistry pathway variants.'}
+            {fileType === 'genetics_detox' && 'Best match for Stride skin reports. AI analyzes detoxification, oxidative stress, and toxin-processing pathway variants.'}
+            {fileType === 'genetics_mitochondrial' && 'Best match for Stride fitness reports. AI analyzes mitochondrial energy production, recovery, oxidative stress, and exercise resilience variants.'}
             {fileType === 'genetics_hormone' && 'Upload your hormone/endocrine genetics panel. AI analyzes estrogen, testosterone, cortisol, and thyroid pathway variants.'}
-            {fileType === 'genetics_nutrition' && 'Upload your nutritional genomics panel. AI analyzes nutrient absorption variants (Vitamin D, B12, omega-3, iron, etc.) and tailors supplement recommendations.'}
+            {fileType === 'genetics_nutrition' && 'Best match for Stride nutrition reports. AI analyzes nutrient absorption variants (Vitamin D, B12, omega-3, iron, etc.) and tailors supplement recommendations.'}
             {fileType === 'doctor_notes' && 'Upload notes from doctor visits for reference.'}
             {fileType === 'imaging' && 'Upload imaging reports (echo, CT, MRI, etc.).'}
-            {fileType === 'other' && 'Upload any other health-related documents.'}
+            {fileType === 'other' && 'Upload any other health-related documents. Genetic files with obvious names like "sleep", "skin", "fitness", "nutrition", or "methylation" will auto-map to the matching genetics type.'}
           </p>
+          {autoDetectNote && (
+            <p className="mt-2 text-sm text-blue-600">{autoDetectNote}</p>
+          )}
         </div>
 
         {/* Selected Files */}
@@ -202,7 +232,14 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
             </p>
             <ul className="text-sm text-blue-700 space-y-1">
               {selectedFiles.map((file, idx) => (
-                <li key={idx}>• {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</li>
+                <li key={idx}>
+                  • {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                  {detectGeneticReportTypeFromFilename(file.name) && (
+                    <span className="ml-2 text-blue-800">
+                      → {FILE_TYPE_LABELS[detectGeneticReportTypeFromFilename(file.name)!]}
+                    </span>
+                  )}
+                </li>
               ))}
             </ul>
           </div>
@@ -270,16 +307,16 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
             <a href="/fitness/health/labs" className="text-blue-600 hover:underline">Lab Review</a>
           </li>
           <li>
-            <strong className="text-gray-800">Methylation Reports:</strong> Use the same upload button - just select "Methylation/Genetic Report"
-            from the dropdown. AI extracts SNP data (MTHFR, COMT, VDR, etc.) and generates supplement implications
+            <strong className="text-gray-800">Stride Genetics Reports:</strong> Files named with <code className="rounded bg-white px-1 py-0.5 text-xs">methylation</code>, <code className="rounded bg-white px-1 py-0.5 text-xs">sleep</code>, <code className="rounded bg-white px-1 py-0.5 text-xs">skin</code>, <code className="rounded bg-white px-1 py-0.5 text-xs">fitness</code>, or <code className="rounded bg-white px-1 py-0.5 text-xs">nutrition</code>
+            auto-map to the matching genetics category. You can still override the type manually if needed.
           </li>
           <li>
             <strong className="text-gray-800">Processing Time:</strong> Lab reports take 30-60 seconds each. Batch uploads
             have 2-second gaps (OpenAI rate limiting)
           </li>
           <li>
-            <strong className="text-gray-800">Review Required:</strong> You'll review and confirm all AI-extracted data before
-            it's finalized. Lab reports redirect to review page automatically
+            <strong className="text-gray-800">Review Required:</strong> You&apos;ll review and confirm all AI-extracted data before
+            it&apos;s finalized. Lab reports redirect to review page automatically
           </li>
         </ul>
       </div>
