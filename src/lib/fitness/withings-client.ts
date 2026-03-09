@@ -145,7 +145,7 @@ export class WithingsClient {
   }
 
   async getActivitySummaries(startDate: string, endDate: string): Promise<ActivityRecord[]> {
-    const response = await this.authedRequest<{ activities?: ActivityRecord[] }>('/v2/user', {
+    const response = await this.authedRequest<{ activities?: ActivityRecord[] }>('/v2/measure', {
       action: 'getactivity',
       startdateymd: startDate,
       enddateymd: endDate,
@@ -206,7 +206,9 @@ export class WithingsClient {
 
     const payload = parseJsonSafely<WithingsEnvelope<T>>(raw);
     if (payload.status !== 0 || !payload.body) {
-      throw new Error(payload.error || `Withings API request failed with status ${payload.status}`);
+      throw new Error(
+        payload.error || `Withings API request failed for ${path} (${params.action || 'unknown action'}) with status ${payload.status}`
+      );
     }
 
     return payload.body;
