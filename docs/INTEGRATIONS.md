@@ -1,49 +1,48 @@
 # Integrations
 
-## External APIs
+## External Services
 - Supabase
-  - Purpose: authentication, relational data, and file storage.
-  - Auth/config: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-- OpenAI Responses API (`https://api.openai.com/v1/responses`)
-  - Purpose: writing assistant/chat, chapter outline generation, bulk edit suggestions, chapter placement/suggestion/review helpers, fitness AI (workout builder, morning briefing, lab analysis).
-  - Auth: `OPENAI_API_KEY` (server-only) and optional `OPENAI_MODEL`, `OPENAI_EMBEDDING_MODEL`.
-  - Integration helpers: `src/lib/openai.ts`, `src/lib/fitness/ai.ts`, `src/lib/ai/embeddings.ts`.
-- OpenWeather API (`https://api.openweathermap.org/data/2.5/`)
-  - Purpose: current weather and forecasts for fitness outdoor workout planning.
-  - Auth: `OPENWEATHER_API_KEY` (server-only).
-  - Integration helper: `src/lib/weather.ts`.
-  - API route: `/api/fitness/weather`.
+  - Purpose: auth, relational data, RLS, storage, signed URLs, migrations.
+  - Auth/config: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+  - Used across app data, health files, workout photos, and persisted AI outputs.
+- OpenAI Responses API
+  - Purpose: writing assistant flows, health/fitness analysis, morning briefing, genetics, imaging, command center, training plans, hydration, nutrition, and appointment prep.
+  - Auth: `OPENAI_API_KEY`.
+  - Optional overrides: `OPENAI_MODEL`, `OPENAI_EMBEDDING_MODEL`.
+  - Helpers: `src/lib/openai.ts`, `src/lib/fitness/ai.ts`, `src/lib/ai/embeddings.ts`.
+- OpenWeather API
+  - Purpose: weather-aware fitness planning.
+  - Auth: `OPENWEATHER_API_KEY`.
+  - Helper: `src/lib/weather.ts`.
+  - Route: `/api/fitness/weather`.
+- Vercel
+  - Purpose: hosting, builds, environment management.
+  - Project: `mission-control`.
+  - Local sync: `vercel env pull .env.local`.
 
-## Webhooks
-- No inbound webhook integrations were found in this repository.
+## Data Import Integrations
+- Withings export import
+  - Status: implemented.
+  - UI: `/fitness/settings/withings`.
+  - Helper: `src/lib/fitness/withings-import.ts`.
+- Garmin CSV/FIT import
+  - Status: implemented.
+  - UI: `/fitness/settings/garmin/mass-import` and related import flows.
+  - Helper: `src/lib/fitness/garmin-import.ts`.
+  - Open gap: Garmin OAuth/live sync is not implemented.
 
-## Internal/Local Integrations
+## Health/Storage Integrations
+- Supabase Storage bucket `health-files`
+  - Used for lab PDFs, genetics reports, imaging references, and signed URL viewing.
+- Supabase Storage workout photo handling
+  - Used by workout history session photo uploads.
+
+## Internal Integrations
 - Local vault filesystem integration (`vault/`)
-  - Knowledge export/import and note export-to-vault routes write/read markdown files on disk.
-- macOS `textutil` integration in `scripts/import_book_from_rtf.mjs`
-  - Used to convert RTF input to text before inserting book/chapter data.
+  - Used for export/import flows in knowledge/notes features.
+- macOS `textutil`
+  - Used by `scripts/import_book_from_rtf.mjs`.
 
-## Data Import Integrations (Implemented)
-- Withings Health Mate Export
-  - Purpose: Import historical health data (BP, weight, sleep, activity) from Withings Health Mate CSV exports.
-  - Status: ✅ Fully implemented with UI at `/fitness/settings/withings`.
-  - Integration helper: `src/lib/fitness/withings-import.ts`.
-  - Components: `WithingsImportForm.tsx`.
-  - API route: `/api/fitness/withings/cleanup` for duplicate handling.
-  - Tables: `bp_readings`, `body_metrics`, `sleep_logs`, `daily_summaries`.
-  - Migration: `20260228300000_withings_import_schema.sql`.
-- Garmin Connect Export
-  - Purpose: Import historical activities and health data from Garmin Connect CSV exports.
-  - Status: ✅ Implemented with mass import UI at `/fitness/settings/garmin/mass-import`.
-  - Integration helper: `src/lib/fitness/garmin-import.ts`.
-  - Components: `GarminMassImportForm.tsx`.
-  - API routes: `/api/fitness/garmin/mass-import`, `/api/fitness/garmin/fix-distances`.
-  - Tables: `workout_logs`, `cardio_logs`, `body_metrics`, `sleep_logs`.
-  - Supports: Activities CSV, DailySummaries CSV, weight CSV, sleep CSV.
-
-## Planned Integrations (Not Yet Implemented)
-- Garmin Connect OAuth API (Live Sync)
-  - Purpose: Real-time sync activities from Garmin devices (watches, bike computers).
-  - Status: Manual CSV import works; OAuth client not implemented.
-  - Would require: Garmin Health API credentials, OAuth flow implementation.
-  - Tables ready: `workout_logs.garmin_activity_id` for deduplication.
+## Not Implemented
+- Garmin Connect OAuth live sync
+- Email notification provider for pending `health.md` updates

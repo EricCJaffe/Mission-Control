@@ -1,47 +1,47 @@
 # Workflows
 
-## Local Dev
-- Install deps: `npm install`
+## Local Development
+- Install dependencies: `npm install`
 - Start dev server: `npm run dev`
-- Build: `npm run build`
-- Serve production build: `npm run start`
-
-## Tests and Lint
-- Test: not configured in `package.json`.
-- Watch: not configured in `package.json`.
 - Lint: `npm run lint`
+- Type check: `npx tsc --noEmit`
+- Production build: `npm run build`
+- Serve production build locally: `npm run start`
 
-## Data and Content Utilities
-- Initialize standard docs context files:
-  - `bash scripts/init-context.sh`
-- Import an RTF manuscript into the books module:
-  - `node scripts/import_book_from_rtf.mjs <path-to-rtf> [email]`
-  - Requires env vars: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
-  - Uses macOS `textutil` command (script dependency)
-- Backup all books to markdown files:
-  - `npm run backup:books`
-  - Exports all books with chapters to backup files
+## Git Workflow
+- Active release branch: `main`
+- Before pushing, run at minimum:
+  - `npm run build`
+  - targeted lint if the change set is narrow, or `npm run lint` if broad
+- `.claude/` stays local-only and should not be committed.
 
-## Supabase Schema Workflow
-- Migrations are stored in `supabase/migrations/`.
-- Apply migrations via Supabase CLI: `supabase db push`
-- Fitness module migration helper: `npm run db:migrate:fitness` (applies fitness tables via Node script)
-
-### Calendar scheduled workouts workflow
-- Source of truth: `planned_workouts`.
-- Derived view: `calendar_events` rows with `alignment_tag = planned_workout:<id>`.
-- Sync mechanism: Postgres trigger function `sync_planned_workout_to_calendar()`.
-- Timezone: interpret `(scheduled_date + scheduled_time)` in **America/New_York** (ET), then store as `timestamptz`.
-- UX expectation:
-  - Click planned workout = **Start** (`/fitness/log?planned_workout_id=<id>`)
-  - Small **Edit** opens modal that PATCHes `/api/fitness/planned-workouts` (date/time/title)
-- If migration history mismatches occur, use:
-  - `supabase migration list`
+## Supabase Workflow
+- Migrations live in `supabase/migrations/`
+- Apply pending migrations: `supabase db push`
+- Inspect alignment: `supabase migration list`
+- If history diverges:
   - `supabase migration repair --status applied <ids...>`
   - `supabase db pull`
   - `supabase db push`
 
-## Deploy
-- Primary deploy path in repo: `npm run build` then `npm run start`.
-- Hosting note: root `README.md` references Vercel as an option.
-- Runtime note: routes that write to local filesystem (`/knowledge/export`, `/notes/[id]/export-vault`) require writable server filesystem.
+## Vercel Workflow
+- Link project once with `vercel link`
+- Pull environment locally with `vercel env pull .env.local`
+- Production deploys build from GitHub `main`
+- If local build passes and Vercel fails, compare the deployed commit SHA first
+
+## Calendar / Planned Workout Workflow
+- Source of truth: `planned_workouts`
+- Derived calendar rows: `calendar_events` with `alignment_tag = planned_workout:<id>`
+- Sync uses database triggers
+- Scheduled times are interpreted in `America/New_York`
+
+## Health File Workflow
+- Uploads land in Supabase Storage and `health_file_uploads`
+- Genetics, labs, and imaging flow into analysis routes and downstream health context
+- Signed URL retrieval is used for source-PDF viewing
+
+## Planning Workflow
+- Health command center builds a persisted synthesis snapshot
+- Suggested `health.md` updates are queued through the review workflow
+- Training plans can be generated from AI-prepared intake, exported to PDF, and scheduled into planned workouts

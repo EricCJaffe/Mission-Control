@@ -1,45 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mission Control
 
-## Getting Started
+Mission Control is a personal operating system built with Next.js, Supabase, and OpenAI. It combines planning, notes, calendar, books, sermons, and a deep fitness and health stack in one app.
 
-First, run the development server:
+## Stack
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- Supabase Auth, Postgres, RLS, Storage
+- OpenAI for writing and health/performance insights
+- Vercel for deployment
 
+## Core Modules
+- Dashboard, tasks, goals, reviews, calendar, notes
+- Book writer and sermon builder
+- Fitness dashboard, workout logger, templates, plans, history, PRs, equipment
+- Health intelligence: `health.md`, labs, genetics, imaging, medications, appointments, morning briefing
+- Recovery, hydration, nutrition, readiness, and command-center analysis
+
+## Current Status
+- `main` is the active branch
+- Vercel project linked: `mission-control`
+- Supabase project linked: `npxirjaawlpubrtjovpy`
+- Production build is currently passing
+- Major fitness/health workflows are live, including genetics multi-report analysis, command center, training plans, hydration, nutrition, and recovery tracking
+
+## Local Setup
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npx tsc --noEmit
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Required Environment
+Create `.env.local` with:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `OPENAI_API_KEY`
+- `ENCRYPT_KEY`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Optional:
+- `OPENAI_MODEL`
+- `OPENAI_EMBEDDING_MODEL`
+- `OPENWEATHER_API_KEY`
+- `ADMIN_EMAIL`
+- `GARMIN_EMAIL`
+- `GARMIN_PASSWORD`
 
-## Learn More
+## Documentation
+Start with:
+- `AGENTS.md`
+- `CLAUDE.md`
+- `docs/README.md`
+- `docs/TASKS.md`
+- `docs/RELEASES.md`
+- `docs/SESSION-CHANGELOG.md`
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
+- Local production check: `npm run build`
+- Vercel is the primary deploy target
+- Pull envs locally with `vercel env pull .env.local`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Schema Notes
-
-- Added migration `supabase/migrations/20260220183000_dashboard_alignment.sql` to support dashboard alignment and quick action fields on `dashboard_scores`.
-- Added migration `supabase/migrations/20260220191500_dashboard_today_tables.sql` to support daily priorities, anchors, calendar events, and monthly reviews.
-
-## TODO
-
-- If you want a custom Soul narrative (beyond the default scaffold), provide the text and we will update the `soul` note.
+## Remaining Open Backlog
+- Garmin OAuth automation
+- Email notifications for pending `health.md` updates
