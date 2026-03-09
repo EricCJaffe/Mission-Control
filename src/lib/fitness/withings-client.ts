@@ -149,7 +149,6 @@ export class WithingsClient {
       action: 'getactivity',
       startdateymd: startDate,
       enddateymd: endDate,
-      data_fields: 'steps,distance,calories,totalcalories,elevation,hr_average,hr_min,hr_max,timezone',
     });
 
     return response.activities || [];
