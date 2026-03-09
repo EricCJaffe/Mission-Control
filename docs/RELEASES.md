@@ -7,7 +7,11 @@
 
 ## Latest Changes (Rolling)
 
-### March 9, 2026 — Health Platform Expansion + Documentation Refresh
+### March 9, 2026 — Withings OAuth Integration + Health Platform Expansion
+- Added Withings OAuth/API integration with encrypted token storage, status, manual sync, disconnect flow, and legacy CSV fallback.
+- Added new Withings database tables for connection state and sync logs.
+- Added recent-data backfill and incremental sync logic for blood pressure, body composition, sleep, and daily summaries.
+- Wired Withings sync into downstream `health.md` update detection through existing health-context and pending-update flows.
 - Added hydration module phase 1 and phase 2: targets, logs, reminders, trend visuals, overload/dehydration alerting, AI insights, and health-context integration.
 - Added nutrition module phase 1 and phase 2: meal suggestions, logging, search/barcode-style lookup, grocery-list persistence, quiz/gamification, and downstream AI integration.
 - Added recovery module for sauna, cold plunge, stretching, and mobility with AI insights and readiness weighting.

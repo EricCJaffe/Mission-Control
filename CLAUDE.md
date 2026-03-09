@@ -55,8 +55,12 @@ Required:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `OPENAI_API_KEY`
 - `ENCRYPT_KEY`
+- `WITHINGS_CLIENT_ID`
+- `WITHINGS_CLIENT_SECRET`
+- `WITHINGS_CALLBACK_URL`
 
 Optional:
+- `WITHINGS_API_BASE_URL`
 - `OPENAI_MODEL`
 - `OPENAI_EMBEDDING_MODEL`
 - `OPENWEATHER_API_KEY`
@@ -74,12 +78,14 @@ Optional:
 - Health command center with persisted analysis and PDF export
 - Training plan system with AI intake, detail view, PDF export, progress tracking, and scheduling bridge
 - Hydration, nutrition, and recovery modules with AI-driven insights
+- Withings OAuth/manual sync for health metrics with legacy CSV fallback
 - Morning briefing with hydration, nutrition, recovery, scripture, fitness quote, and daily learning
 - Notes schema cleanup, Turbopack root pinning, broad doc hygiene
 
 ### Open
 - Garmin OAuth full automation
 - Email notifications for pending `health.md` updates
+- Withings webhook subscriptions
 
 ## Documentation Hygiene
 When changes ship, update:

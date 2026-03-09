@@ -9,6 +9,7 @@
 - Docs Status: ✅ Refreshed to match shipped state
 
 ## Recently Shipped
+- Withings OAuth/API integration with encrypted token storage, sync status, manual sync, disconnect flow, and legacy CSV fallback
 - Genetics multi-report dashboard with six report types and comprehensive synthesis
 - Source PDF viewer for labs and genetics
 - Health command center with persisted analysis, queued `health.md` updates, and PDF export
@@ -23,13 +24,18 @@
 ## Open Product Tasks
 ### High Priority
 - [ ] Garmin OAuth full automation
-  - Manual import flows work today.
-  - OAuth/live sync is still not implemented.
+  - CSV and FIT import flows work today.
+  - Garmin OAuth/live sync is still not implemented.
 
 ### Medium Priority
 - [ ] Email notifications for pending `health.md` updates
   - Health update detection, review, and approval exist.
   - Outbound notification delivery still needs to be added.
+
+### Deferred
+- [ ] Withings webhook subscriptions / background incremental sync
+  - OAuth connect and manual sync are implemented.
+  - Notification subscriptions and automatic push-based refresh are phase 2.
 
 ## Operational Notes
 - `.claude/` stays local-only and untracked.

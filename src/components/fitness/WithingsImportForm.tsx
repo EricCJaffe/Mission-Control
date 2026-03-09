@@ -3,12 +3,38 @@
 import { useState } from 'react';
 import { Download, Trash2, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
+type DomainResult = {
+  imported: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+};
+
+type ImportResponse = {
+  results?: {
+    bp?: DomainResult;
+    weight?: DomainResult;
+    dailyAggregates?: DomainResult;
+    sleep?: DomainResult;
+  };
+  summary?: {
+    totalImported: number;
+    totalUpdated: number;
+    totalSkipped: number;
+    totalErrors: number;
+  };
+};
+
+type CleanupResponse = {
+  deleted: number;
+};
+
 export default function WithingsImportForm() {
   const [exportPath, setExportPath] = useState('/Users/ericjaffe/Downloads/withings');
   const [importing, setImporting] = useState(false);
   const [cleaning, setCleaning] = useState(false);
-  const [results, setResults] = useState<any>(null);
-  const [cleanupResult, setCleanupResult] = useState<any>(null);
+  const [results, setResults] = useState<ImportResponse | null>(null);
+  const [cleanupResult, setCleanupResult] = useState<CleanupResponse | null>(null);
 
   async function handleImport() {
     if (!exportPath.trim()) {
@@ -33,8 +59,8 @@ export default function WithingsImportForm() {
       }
 
       setResults(data);
-    } catch (error: any) {
-      alert(`Import failed: ${error.message}`);
+    } catch (error) {
+      alert(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setImporting(false);
     }
@@ -60,8 +86,8 @@ export default function WithingsImportForm() {
       }
 
       setCleanupResult(data);
-    } catch (error: any) {
-      alert(`Cleanup failed: ${error.message}`);
+    } catch (error) {
+      alert(`Cleanup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setCleaning(false);
     }
@@ -120,34 +146,42 @@ export default function WithingsImportForm() {
             <ResultRow
               label="Blood Pressure Readings"
               imported={results.results?.bp?.imported || 0}
+              updated={results.results?.bp?.updated || 0}
               skipped={results.results?.bp?.skipped || 0}
               errors={results.results?.bp?.errors || 0}
             />
             <ResultRow
               label="Body Composition Entries"
               imported={results.results?.weight?.imported || 0}
+              updated={results.results?.weight?.updated || 0}
               skipped={results.results?.weight?.skipped || 0}
               errors={results.results?.weight?.errors || 0}
             />
             <ResultRow
               label="Daily Activity Summaries"
               imported={results.results?.dailyAggregates?.imported || 0}
+              updated={results.results?.dailyAggregates?.updated || 0}
               skipped={results.results?.dailyAggregates?.skipped || 0}
               errors={results.results?.dailyAggregates?.errors || 0}
             />
             <ResultRow
               label="Sleep Logs"
               imported={results.results?.sleep?.imported || 0}
+              updated={results.results?.sleep?.updated || 0}
               skipped={results.results?.sleep?.skipped || 0}
               errors={results.results?.sleep?.errors || 0}
             />
           </div>
 
           <div className="mt-6 rounded-lg bg-slate-50 p-4">
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-4 gap-4 text-center">
               <div>
                 <p className="text-2xl font-bold text-green-600">{results.summary?.totalImported || 0}</p>
                 <p className="text-sm text-slate-600">Imported</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-blue-600">{results.summary?.totalUpdated || 0}</p>
+                <p className="text-sm text-slate-600">Updated</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-400">{results.summary?.totalSkipped || 0}</p>
@@ -203,11 +237,13 @@ export default function WithingsImportForm() {
 function ResultRow({
   label,
   imported,
+  updated,
   skipped,
   errors,
 }: {
   label: string;
   imported: number;
+  updated: number;
   skipped: number;
   errors: number;
 }) {
@@ -228,6 +264,7 @@ function ResultRow({
       </div>
       <div className="flex items-center gap-4 text-sm">
         <span className="text-green-600">{imported} imported</span>
+        <span className="text-blue-600">{updated} updated</span>
         <span className="text-slate-400">{skipped} skipped</span>
         {errors > 0 && <span className="text-red-600">{errors} errors</span>}
       </div>

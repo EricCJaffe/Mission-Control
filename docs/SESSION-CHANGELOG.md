@@ -10,10 +10,22 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+- 2026-03-09 22:10 ET — Withings OAuth/API sync implementation
+  - What changed:
+    - Added Withings OAuth connect/start, callback, status, sync, disconnect, and webhook-placeholder routes.
+    - Added `withings_connections` and `withings_sync_logs` tables plus encrypted token handling.
+    - Added shared Withings normalizers so CSV and API sync use the same dedupe/upsert behavior.
+    - Reworked `/fitness/settings/withings` into a connection/sync screen with legacy CSV import retained below it.
+    - Applied the Withings migration to remote Supabase and refreshed docs/env/workflow references.
+  - Why:
+    - The app needed to move from filesystem-only Withings import to a real API-backed sync flow.
+  - Follow-ups:
+    - Add Withings webhook subscriptions and background incremental sync later.
+
 - 2026-03-09 18:45 ET — Documentation refresh and repo alignment
   - What changed:
     - Updated `README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/README.md`, `docs/TASKS.md`, `docs/RELEASES.md`, `docs/INTEGRATIONS.md`, `docs/ENVIRONMENT.md`, `docs/WORKFLOWS.md`, and `docs/BACKLOG.md`.
-    - Marked only Garmin OAuth and email notifications as open product backlog items.
+    - Marked only Garmin OAuth and email notifications as open product backlog items at that point.
     - Documented that `~/Mission-Control` is the active synced repo and `.claude/` remains local-only.
   - Why:
     - The docs had fallen behind the shipped March 6-9 health platform work.
@@ -44,12 +56,3 @@ Purpose: quick chronological notes so future sessions can see what changed witho
     - Genetic and imaging data needed to affect the broader decision-making system, not stay isolated.
   - Follow-ups:
     - Keep doctor-prep prompts aligned with newer health context additions.
-
-- 2026-02-28 20:45 ET — Calendar scheduled workouts editing + timezone fix
-  - What changed:
-    - Fixed `planned_workouts` to `calendar_events` sync timezone handling for America/New_York.
-    - Reworked scheduled workout editing to go through the source `planned_workouts` modal flow.
-  - Why:
-    - Editing derived calendar rows was causing non-persistent edits and duplicates.
-  - Follow-ups:
-    - Keep Supabase migration history aligned across environments.

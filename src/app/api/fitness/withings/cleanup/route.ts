@@ -40,10 +40,10 @@ export async function DELETE() {
       deleted: deletedWorkouts?.length || 0,
       message: `Removed ${deletedWorkouts?.length || 0} Withings workout imports`,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Withings cleanup error:', error);
     return NextResponse.json(
-      { error: 'Cleanup failed', details: error.message },
+      { error: 'Cleanup failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

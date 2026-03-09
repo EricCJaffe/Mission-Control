@@ -30,6 +30,13 @@
 - Production deploys build from GitHub `main`
 - If local build passes and Vercel fails, compare the deployed commit SHA first
 
+## Withings Workflow
+- Configure a Withings developer app with the callback URL registered in `WITHINGS_CALLBACK_URL`
+- Connect from `/fitness/settings/withings`
+- First sync uses `initial` mode; later manual syncs use `incremental`
+- Legacy CSV import remains available in the same screen for historical backfill
+- Webhook subscription is not part of the current workflow
+
 ## Calendar / Planned Workout Workflow
 - Source of truth: `planned_workouts`
 - Derived calendar rows: `calendar_events` with `alignment_tag = planned_workout:<id>`

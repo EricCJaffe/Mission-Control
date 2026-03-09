@@ -37,8 +37,8 @@ export default async function AthleteSettingsPage() {
               <Download className="h-6 w-6 text-blue-600" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-slate-800">Withings Import</h3>
-              <p className="text-sm text-slate-500">Import BP, weight, body composition from Health Mate export</p>
+              <h3 className="font-semibold text-slate-800">Withings Sync</h3>
+              <p className="text-sm text-slate-500">Connect or import BP, weight, body composition, sleep, and daily health metrics</p>
             </div>
           </Link>
 

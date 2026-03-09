@@ -16,14 +16,14 @@ Mission Control is a personal operating system built with Next.js, Supabase, and
 - Book writer and sermon builder
 - Fitness dashboard, workout logger, templates, plans, history, PRs, equipment
 - Health intelligence: `health.md`, labs, genetics, imaging, medications, appointments, morning briefing
-- Recovery, hydration, nutrition, readiness, and command-center analysis
+- Recovery, hydration, nutrition, readiness, command-center analysis, and Withings sync
 
 ## Current Status
 - `main` is the active branch
 - Vercel project linked: `mission-control`
 - Supabase project linked: `npxirjaawlpubrtjovpy`
 - Production build is currently passing
-- Major fitness/health workflows are live, including genetics multi-report analysis, command center, training plans, hydration, nutrition, and recovery tracking
+- Major fitness/health workflows are live, including Withings API sync, genetics multi-report analysis, command center, training plans, hydration, nutrition, and recovery tracking
 
 ## Local Setup
 ```bash
@@ -43,8 +43,12 @@ Create `.env.local` with:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `OPENAI_API_KEY`
 - `ENCRYPT_KEY`
+- `WITHINGS_CLIENT_ID`
+- `WITHINGS_CLIENT_SECRET`
+- `WITHINGS_CALLBACK_URL`
 
 Optional:
+- `WITHINGS_API_BASE_URL`
 - `OPENAI_MODEL`
 - `OPENAI_EMBEDDING_MODEL`
 - `OPENWEATHER_API_KEY`
@@ -69,3 +73,4 @@ Start with:
 ## Remaining Open Backlog
 - Garmin OAuth automation
 - Email notifications for pending `health.md` updates
+- Withings webhook subscriptions

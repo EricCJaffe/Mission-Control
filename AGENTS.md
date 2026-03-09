@@ -60,8 +60,12 @@ Required env vars:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `OPENAI_API_KEY`
 - `ENCRYPT_KEY`
+- `WITHINGS_CLIENT_ID`
+- `WITHINGS_CLIENT_SECRET`
+- `WITHINGS_CALLBACK_URL`
 
 Optional:
+- `WITHINGS_API_BASE_URL`
 - `OPENAI_MODEL`
 - `OPENAI_EMBEDDING_MODEL`
 - `OPENWEATHER_API_KEY`
@@ -82,9 +86,11 @@ When code changes, update:
 ## Current Priorities / Known Gaps
 - Garmin OAuth is still not implemented.
 - Email notifications for pending `health.md` updates are still not implemented.
+- Withings webhooks are not implemented yet.
 - `.claude/` remains local-only.
 
 ## Current Shipped Health/Fitness Scope
+- Withings OAuth/manual health-metric sync with legacy CSV fallback
 - Genetics multi-report analysis with comprehensive synthesis
 - Imaging ingestion and analysis
 - Health command center with persisted synthesis and PDF export
