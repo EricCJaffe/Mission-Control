@@ -228,6 +228,16 @@ function domainSupport(domain: CoreFlourishingDomain, score: number) {
   return DOMAIN_SUPPORT[domain].needs_attention;
 }
 
+export function enrichDomainScorePresentation(domainScore: FlourishingDomainScore): FlourishingDomainScore {
+  const support = domainSupport(domainScore.domain, domainScore.score);
+  return {
+    ...domainScore,
+    summary: domainScore.summary || domainMessage(domainScore.label, domainScore.score),
+    scripture: domainScore.scripture ?? { reference: support.reference, text: support.text },
+    tips: Array.isArray(domainScore.tips) && domainScore.tips.length > 0 ? domainScore.tips : support.tips,
+  };
+}
+
 function calculateComparison(current: number, previous: number | null, average90d: number | null) {
   return {
     delta_from_previous: previous == null ? null : round(current - previous),

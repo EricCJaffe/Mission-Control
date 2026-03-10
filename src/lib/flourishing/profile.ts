@@ -1,5 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { DEFAULT_FLOURISHING_QUESTIONS, DEFAULT_QUESTION_SET_VERSION } from './questions';
+import { enrichDomainScorePresentation } from './scoring';
 import type {
   AssessmentQuestion,
   CoreFlourishingDomain,
@@ -58,7 +59,7 @@ export async function getLatestFlourishingProfile(userId: string): Promise<Flour
     latest_assessment_id: data.latest_assessment_id,
     flourishing_index: data.flourishing_index,
     display_index: data.display_index,
-    domain_scores: (data.domain_scores as FlourishingProfile['domain_scores']) ?? [],
+    domain_scores: (((data.domain_scores as FlourishingProfile['domain_scores']) ?? []).map(enrichDomainScorePresentation)),
     strongest_domains: (data.strongest_domains as CoreFlourishingDomain[]) ?? [],
     growth_domains: (data.growth_domains as CoreFlourishingDomain[]) ?? [],
     overall_message: data.overall_message,
@@ -188,7 +189,7 @@ function normalizeAssessmentRow(row: {
   coaching: Partial<FlourishingCoachingPayload> | null;
   created_at: string;
 }): FlourishingAssessmentResult {
-  const domainScores = Array.isArray(row.domain_scores) ? row.domain_scores : [];
+  const domainScores = (Array.isArray(row.domain_scores) ? row.domain_scores : []).map(enrichDomainScorePresentation);
   return {
     id: row.id,
     assessment_type: row.assessment_type,
