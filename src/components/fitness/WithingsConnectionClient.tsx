@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, Link2, RefreshCw, ShieldAlert, CheckCircle2, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import WithingsImportForm from './WithingsImportForm';
 
@@ -189,10 +190,10 @@ export default function WithingsConnectionClient() {
         </div>
 
         <div className="mt-6 grid gap-3 md:grid-cols-4">
-          <CountCard label="Body metrics" value={status?.summary.bodyMetrics ?? 0} />
-          <CountCard label="BP readings" value={status?.summary.bloodPressure ?? 0} />
-          <CountCard label="Sleep logs" value={status?.summary.sleepLogs ?? 0} />
-          <CountCard label="Daily summaries" value={status?.summary.dailySummaries ?? 0} />
+          <CountCard label="Body metrics" value={status?.summary.bodyMetrics ?? 0} href="/fitness/trends" />
+          <CountCard label="BP readings" value={status?.summary.bloodPressure ?? 0} href="/fitness/bp" />
+          <CountCard label="Sleep logs" value={status?.summary.sleepLogs ?? 0} href="/fitness/sleep" />
+          <CountCard label="Daily summaries" value={status?.summary.dailySummaries ?? 0} href="/fitness/metrics" />
         </div>
 
         {status?.lastError && (
@@ -209,10 +210,10 @@ export default function WithingsConnectionClient() {
             <h3 className="text-lg font-semibold">Latest Sync Summary</h3>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <SyncDomainCard label="Blood pressure" stats={syncResults.bp} />
-            <SyncDomainCard label="Body metrics" stats={syncResults.weight} />
-            <SyncDomainCard label="Sleep" stats={syncResults.sleep} />
-            <SyncDomainCard label="Daily summaries" stats={syncResults.dailyAggregates} />
+            <SyncDomainCard label="Blood pressure" stats={syncResults.bp} href="/fitness/bp" />
+            <SyncDomainCard label="Body metrics" stats={syncResults.weight} href="/fitness/trends" />
+            <SyncDomainCard label="Sleep" stats={syncResults.sleep} href="/fitness/sleep" />
+            <SyncDomainCard label="Daily summaries" stats={syncResults.dailyAggregates} href="/fitness/metrics" />
           </div>
           {queuedUpdates != null && (
             <p className="mt-4 text-sm text-slate-600">
@@ -256,18 +257,18 @@ function MetricCard({ label, value, icon }: { label: string; value: string; icon
   );
 }
 
-function CountCard({ label, value }: { label: string; value: number }) {
+function CountCard({ label, value, href }: { label: string; value: number; href: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 p-4 text-center">
+    <Link href={href} className="rounded-xl border border-slate-200 p-4 text-center transition hover:border-blue-300 hover:bg-blue-50/50">
       <p className="text-2xl font-bold text-slate-900">{value}</p>
       <p className="text-sm text-slate-500">{label}</p>
-    </div>
+    </Link>
   );
 }
 
-function SyncDomainCard({ label, stats }: { label: string; stats: { imported: number; updated: number; skipped: number; errors: number } }) {
+function SyncDomainCard({ label, stats, href }: { label: string; stats: { imported: number; updated: number; skipped: number; errors: number }; href: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 p-4">
+    <Link href={href} className="rounded-xl border border-slate-200 p-4 transition hover:border-blue-300 hover:bg-blue-50/50">
       <p className="font-semibold text-slate-900">{label}</p>
       <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-slate-600">
         <span>{stats.imported} imported</span>
@@ -275,6 +276,6 @@ function SyncDomainCard({ label, stats }: { label: string; stats: { imported: nu
         <span>{stats.skipped} skipped</span>
         <span>{stats.errors} errors</span>
       </div>
-    </div>
+    </Link>
   );
 }
