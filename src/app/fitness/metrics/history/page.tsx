@@ -14,8 +14,13 @@ export const metadata = {
   description: 'Historical body metrics tracking',
 };
 
-export default async function MetricsHistoryPage() {
+type PageProps = {
+  searchParams?: Promise<{ metric?: string; range?: string }>;
+};
+
+export default async function MetricsHistoryPage({ searchParams }: PageProps) {
   const supabase = await supabaseServer();
+  const params = searchParams ? await searchParams : undefined;
 
   const {
     data: { user },
@@ -25,7 +30,6 @@ export default async function MetricsHistoryPage() {
     redirect('/login');
   }
 
-  // Fetch ALL metrics (no date filter - all-time data)
   const { data: metrics, error } = await supabase
     .from('body_metrics')
     .select('*')
@@ -45,7 +49,11 @@ export default async function MetricsHistoryPage() {
         </p>
       </div>
 
-      <MetricsHistoryClient metrics={metrics || []} />
+      <MetricsHistoryClient
+        metrics={metrics || []}
+        initialMetric={params?.metric}
+        initialRange={params?.range}
+      />
     </div>
   );
 }

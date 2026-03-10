@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useCallback } from 'react';
 import { bpFlagTailwindClass } from '@/lib/fitness/alerts';
 import type { BPFlagLevel } from '@/lib/fitness/types';
@@ -52,6 +53,8 @@ type Props = {
   formHistory: FormRow[];
 };
 
+type MetricKey = 'weight_lbs' | 'body_fat_pct' | 'muscle_mass_lbs' | 'bone_mass_lbs' | 'hydration_lbs';
+
 const COMPLIANCE_BG: Record<string, string> = {
   green: 'bg-green-500',
   yellow: 'bg-yellow-400',
@@ -76,6 +79,20 @@ function Sparkline({ values, color = '#3b82f6', height = 40 }: { values: number[
       <polyline fill="none" stroke={color} strokeWidth="2" points={pts} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
+}
+
+function getMetricValues(metrics: BodyMetricRow[], key: MetricKey): number[] {
+  return metrics.map((metric) => metric[key]).filter((value): value is number => typeof value === 'number');
+}
+
+function getMetricDelta(metrics: BodyMetricRow[], key: MetricKey): { latest: number | null; change30d: number | null } {
+  const values = getMetricValues(metrics, key);
+  if (values.length === 0) return { latest: null, change30d: null };
+  if (values.length === 1) return { latest: values[0], change30d: 0 };
+  return {
+    latest: values[values.length - 1],
+    change30d: Math.round((values[values.length - 1] - values[0]) * 10) / 10,
+  };
 }
 
 export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadings: initialBp, workoutLogs: initialWorkouts, formHistory: initialForm }: Props) {
@@ -104,11 +121,6 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
 
   const rhrValues = bodyMetrics.filter((m) => m.resting_hr != null).map((m) => m.resting_hr!);
   const hrvValues = bodyMetrics.filter((m) => m.hrv_ms != null).map((m) => m.hrv_ms!);
-  const weightValues = bodyMetrics.filter((m) => m.weight_lbs != null).map((m) => m.weight_lbs!);
-  const bodyFatValues = bodyMetrics.filter((m) => m.body_fat_pct != null).map((m) => m.body_fat_pct!);
-  const muscleValues = bodyMetrics.filter((m) => m.muscle_mass_lbs != null).map((m) => m.muscle_mass_lbs!);
-  const boneValues = bodyMetrics.filter((m) => m.bone_mass_lbs != null).map((m) => m.bone_mass_lbs!);
-  const hydrationValues = bodyMetrics.filter((m) => m.hydration_lbs != null).map((m) => m.hydration_lbs!);
   const ctlValues = formHistory.filter((f) => f.fitness_ctl != null).map((f) => f.fitness_ctl!);
   const atlValues = formHistory.filter((f) => f.fatigue_atl != null).map((f) => f.fatigue_atl!);
   const tsbValues = formHistory.filter((f) => f.form_tsb != null).map((f) => f.form_tsb!);
@@ -120,20 +132,22 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
 
   const latestRhr = rhrValues[rhrValues.length - 1];
   const latestHrv = hrvValues[hrvValues.length - 1];
-  const latestWeight = weightValues[weightValues.length - 1];
-  const latestBodyFat = bodyFatValues[bodyFatValues.length - 1];
-  const latestMuscle = muscleValues[muscleValues.length - 1];
-  const latestBone = boneValues[boneValues.length - 1];
-  const latestHydration = hydrationValues[hydrationValues.length - 1];
   const latestTsb = tsbValues[tsbValues.length - 1];
   const latestForm = formHistory[formHistory.length - 1];
 
   const rangeDays = Math.round((new Date(dateRange.endDate).getTime() - new Date(dateRange.startDate).getTime()) / 86400000);
   const rangeLabel = rangeDays <= 7 ? '7d' : rangeDays <= 30 ? '30d' : rangeDays <= 60 ? '60d' : rangeDays <= 90 ? '90d' : rangeDays <= 180 ? '6mo' : rangeDays <= 365 ? '1yr' : 'all';
 
+  const compositionCards: Array<{ key: MetricKey; label: string; unit: string; color: string; href: string; note: string }> = [
+    { key: 'weight_lbs', label: 'Weight', unit: 'lbs', color: '#8b5cf6', href: '/fitness/metrics/history?metric=weight&range=30d', note: 'Withings scale trend' },
+    { key: 'body_fat_pct', label: 'Body Fat', unit: '%', color: '#f97316', href: '/fitness/metrics/history?metric=body_fat_pct&range=30d', note: '30d body composition change' },
+    { key: 'muscle_mass_lbs', label: 'Muscle Mass', unit: 'lbs', color: '#10b981', href: '/fitness/metrics/history?metric=muscle_mass_lbs&range=30d', note: 'Withings lean-mass trend' },
+    { key: 'bone_mass_lbs', label: 'Bone Mass', unit: 'lbs', color: '#6366f1', href: '/fitness/metrics/history?metric=bone_mass_lbs&range=30d', note: 'Withings body composition' },
+    { key: 'hydration_lbs', label: 'Hydration', unit: 'lbs', color: '#06b6d4', href: '/fitness/metrics/history?metric=hydration_lbs&range=30d', note: 'Withings body water trend' },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Date range filter */}
       <DateRangeFilter value={dateRange} onChange={handleDateRangeChange} storageKey="trends" />
 
       {loading && (
@@ -142,7 +156,6 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
         </div>
       )}
 
-      {/* Summary row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label={`Workouts (${rangeLabel})`} value={String(workoutLogs.length)} />
         <StatCard label="Total Volume" value={`${Math.round(totalVolume / 60)}h`} />
@@ -164,13 +177,12 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
         </div>
       </div>
 
-      {/* Cardiac metrics charts */}
       <div className="grid gap-4 md:grid-cols-2">
         <TrendCard
           title="Resting HR"
           subtitle={latestRhr ? `Latest: ${latestRhr} bpm` : 'No data'}
           target="Target < 70 bpm"
-          note={latestRhr != null && latestRhr < 70 ? '✓ At target' : undefined}
+          note={latestRhr != null && latestRhr < 70 ? 'Garmin source · at target' : 'Garmin source'}
         >
           <Sparkline values={rhrValues} color="#ef4444" />
         </TrendCard>
@@ -178,17 +190,9 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
         <TrendCard
           title="HRV"
           subtitle={latestHrv ? `Latest: ${latestHrv} ms` : 'No data'}
-          note="Higher is better"
+          note="Garmin source"
         >
           <Sparkline values={hrvValues} color="#10b981" />
-        </TrendCard>
-
-        <TrendCard
-          title="Weight"
-          subtitle={latestWeight ? `Latest: ${latestWeight} lbs` : 'No data'}
-          note="Withings scale trend"
-        >
-          <Sparkline values={weightValues} color="#8b5cf6" />
         </TrendCard>
 
         <TrendCard
@@ -210,75 +214,71 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
             <span className="text-green-500">— Form (TSB)</span>
           </div>
         </TrendCard>
+
+        {bpReadings.length > 0 ? (
+          <TrendCard
+            title="Blood Pressure"
+            subtitle={`${bpReadings[bpReadings.length - 1]?.systolic}/${bpReadings[bpReadings.length - 1]?.diastolic} (latest)`}
+          >
+            <div>
+              <Sparkline values={bpReadings.map((r) => r.systolic)} color="#ef4444" />
+              <div className="opacity-60">
+                <Sparkline values={bpReadings.map((r) => r.diastolic)} color="#f97316" />
+              </div>
+              <div className="flex gap-4 mt-1 text-xs">
+                <span className="text-red-500">— Systolic</span>
+                <span className="text-orange-500">— Diastolic</span>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(['normal', 'elevated', 'high_stage1', 'high_stage2', 'crisis'] as BPFlagLevel[]).map((flag) => {
+                const count = bpReadings.filter((r) => r.flag_level === flag).length;
+                if (!count) return null;
+                return (
+                  <span key={flag} className={`text-xs rounded-full px-2 py-0.5 border font-medium ${bpFlagTailwindClass(flag)}`}>
+                    {flag.replace(/_/g, ' ')}: {count}
+                  </span>
+                );
+              })}
+            </div>
+          </TrendCard>
+        ) : (
+          <TrendCard title="Blood Pressure" subtitle="No data">
+            <div className="text-sm text-slate-400">No blood-pressure readings in the selected range.</div>
+          </TrendCard>
+        )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <TrendCard
-          title="Body Fat"
-          subtitle={latestBodyFat != null ? `Latest: ${latestBodyFat}%` : 'No data'}
-          note="Withings body composition"
-        >
-          <Sparkline values={bodyFatValues} color="#f97316" />
-        </TrendCard>
-
-        <TrendCard
-          title="Detailed Body Composition"
-          subtitle={[
-            latestMuscle != null ? `Muscle ${latestMuscle} lbs` : null,
-            latestBone != null ? `Bone ${latestBone} lbs` : null,
-            latestHydration != null ? `Hydration ${latestHydration} lbs` : null,
-          ].filter(Boolean).join(' · ') || 'No data'}
-          note="Withings-derived"
-        >
-          <div className="space-y-2">
-            <Sparkline values={muscleValues} color="#10b981" />
-            <div className="opacity-70">
-              <Sparkline values={boneValues} color="#6366f1" />
-            </div>
-            <div className="opacity-70">
-              <Sparkline values={hydrationValues} color="#06b6d4" />
-            </div>
-            <div className="flex gap-4 mt-1 text-xs">
-              <span className="text-emerald-500">— Muscle</span>
-              <span className="text-indigo-500">— Bone</span>
-              <span className="text-cyan-500">— Hydration</span>
-            </div>
-          </div>
-        </TrendCard>
-      </div>
-
-      {/* BP trend */}
-      {bpReadings.length > 0 && (
-        <TrendCard
-          title="Blood Pressure"
-          subtitle={`${bpReadings[bpReadings.length - 1]?.systolic}/${bpReadings[bpReadings.length - 1]?.diastolic} (latest)`}
-        >
+      <div>
+        <div className="mb-3 flex items-center justify-between">
           <div>
-            <Sparkline values={bpReadings.map((r) => r.systolic)} color="#ef4444" />
-            <div className="opacity-60">
-              <Sparkline values={bpReadings.map((r) => r.diastolic)} color="#f97316" />
-            </div>
-            <div className="flex gap-4 mt-1 text-xs">
-              <span className="text-red-500">— Systolic</span>
-              <span className="text-orange-500">— Diastolic</span>
-            </div>
+            <h2 className="text-lg font-semibold text-slate-800">Body Composition</h2>
+            <p className="text-sm text-slate-500">Each card links to a filtered history view with its own trend.</p>
           </div>
-          {/* Flag summary */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(['normal','elevated','high_stage1','high_stage2','crisis'] as BPFlagLevel[]).map((flag) => {
-              const count = bpReadings.filter((r) => r.flag_level === flag).length;
-              if (!count) return null;
-              return (
-                <span key={flag} className={`text-xs rounded-full px-2 py-0.5 border font-medium ${bpFlagTailwindClass(flag)}`}>
-                  {flag.replace(/_/g, ' ')}: {count}
-                </span>
-              );
-            })}
-          </div>
-        </TrendCard>
-      )}
+          <Link href="/fitness/metrics/history?range=30d" className="text-sm font-medium text-blue-600 hover:text-blue-800">
+            View all history
+          </Link>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {compositionCards.map((card) => {
+            const summary = getMetricDelta(bodyMetrics, card.key);
+            return (
+              <Link key={card.key} href={card.href} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
+                <div className="mb-2">
+                  <p className="text-sm font-semibold text-slate-700">{card.label}</p>
+                  <p className="text-xs text-slate-500">{summary.latest != null ? `Latest: ${summary.latest} ${card.unit}` : 'No data'}</p>
+                  <p className={`text-xs font-medium ${summary.change30d == null ? 'text-slate-400' : summary.change30d > 0 ? 'text-emerald-600' : summary.change30d < 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                    {summary.change30d == null ? 'No 30d delta' : `${summary.change30d > 0 ? '+' : ''}${summary.change30d} ${card.unit} over 30d`}
+                  </p>
+                  <p className="text-xs text-slate-400">{card.note}</p>
+                </div>
+                <Sparkline values={getMetricValues(bodyMetrics, card.key)} color={card.color} height={52} />
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
-      {/* Workout log table */}
       {workoutLogs.length > 0 && (
         <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
