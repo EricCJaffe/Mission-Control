@@ -527,6 +527,8 @@ export default function FitnessDashboardClient({
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {([
               { href: '/fitness/metrics', label: 'Body Metrics', icon: <Scale size={20} /> },
+              { href: '/fitness/body-composition', label: 'Body Composition', icon: <Scale size={20} /> },
+              { href: '/fitness/metrics/history?metric=body_fat_pct&range=90d', label: 'Body Comp History', icon: <History size={20} /> },
               { href: '/fitness/health/view', label: 'Health Profile', icon: <FileHeart size={20} /> },
               { href: '/fitness/health/command-center', label: 'Command Center', icon: <Activity size={20} /> },
               { href: '/fitness/health/labs', label: 'Lab Review', icon: <FlaskConical size={20} /> },

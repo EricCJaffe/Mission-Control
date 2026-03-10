@@ -218,11 +218,11 @@ export default function HealthCommandCenterClient() {
         throw new Error(data.error || 'Failed to load saved analysis');
       }
       if (data.found) {
-        setSnapshot(data.snapshot);
-        setAnalysis(data.analysis);
+        setSnapshot(normalizeSnapshot(data.snapshot));
+        setAnalysis(normalizeAnalysis(data.analysis));
         setGeneratedAt(data.generated_at || null);
         if (data.analysis?.last_follow_up) {
-          setFollowUp(data.analysis.last_follow_up);
+          setFollowUp(normalizeFollowUp(data.analysis.last_follow_up));
           setQuestion(data.analysis.last_follow_up.question || '');
         }
         if (data.analysis?.last_plan_intake) {
@@ -250,8 +250,8 @@ export default function HealthCommandCenterClient() {
       if (!res.ok || !data.ok) {
         throw new Error(data.error || 'Failed to generate comprehensive analysis');
       }
-      setSnapshot(data.snapshot);
-      setAnalysis(data.analysis);
+      setSnapshot(normalizeSnapshot(data.snapshot));
+      setAnalysis(normalizeAnalysis(data.analysis));
       setGeneratedAt(data.generated_at || new Date().toISOString());
       setFollowUp(null);
     } catch (err) {
@@ -276,14 +276,14 @@ export default function HealthCommandCenterClient() {
       if (!res.ok || !data.ok) {
         throw new Error(data.error || 'Failed to answer follow-up question');
       }
-      setSnapshot(data.snapshot);
-      setFollowUp(data.follow_up);
+      setSnapshot(normalizeSnapshot(data.snapshot));
+      setFollowUp(normalizeFollowUp(data.follow_up));
       setQuestion(value);
       setAnalysis((prev) => prev ? {
         ...prev,
         last_follow_up: {
           question: value,
-          ...data.follow_up,
+          ...normalizeFollowUp(data.follow_up),
           generated_at: new Date().toISOString(),
         },
       } : prev);
@@ -337,7 +337,7 @@ export default function HealthCommandCenterClient() {
       if (!res.ok || !data.ok) {
         throw new Error(data.error || 'Failed to prepare plan intake');
       }
-      setSnapshot(data.snapshot);
+      setSnapshot(normalizeSnapshot(data.snapshot));
       setPlanIntake(normalizePlanIntake(data.plan_intake));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to prepare plan intake');
@@ -847,6 +847,154 @@ function normalizePlanIntake(input: Partial<PlanIntake> | null | undefined): Pla
     },
     notes_for_generation: input?.notes_for_generation || '',
     generated_at: input?.generated_at,
+  };
+}
+
+function normalizeFollowUp(input: Partial<FollowUp> | null | undefined): FollowUp {
+  return {
+    answer: typeof input?.answer === 'string' ? input.answer : '',
+    recommended_plan: {
+      goal: typeof input?.recommended_plan?.goal === 'string' ? input.recommended_plan.goal : 'hybrid',
+      weeks: typeof input?.recommended_plan?.weeks === 'number' ? input.recommended_plan.weeks : 12,
+      sessions_per_week: typeof input?.recommended_plan?.sessions_per_week === 'number' ? input.recommended_plan.sessions_per_week : 4,
+      focus_areas: Array.isArray(input?.recommended_plan?.focus_areas) ? input.recommended_plan.focus_areas.map(String) : [],
+      why: typeof input?.recommended_plan?.why === 'string' ? input.recommended_plan.why : '',
+    },
+  };
+}
+
+function normalizeSnapshot(input: Partial<Snapshot> | null | undefined): Snapshot {
+  return {
+    pending_updates: {
+      count: typeof input?.pending_updates?.count === 'number' ? input.pending_updates.count : 0,
+    },
+    medications: {
+      total: typeof input?.medications?.total === 'number' ? input.medications.total : 0,
+      medications: Array.isArray(input?.medications?.medications) ? input.medications.medications.map((item) => ({
+        name: String(item?.name || ''),
+        type: String(item?.type || ''),
+        timing: item?.timing == null ? null : String(item.timing),
+      })) : [],
+      supplements: Array.isArray(input?.medications?.supplements) ? input.medications.supplements.map((item) => ({
+        name: String(item?.name || ''),
+        type: String(item?.type || ''),
+        timing: item?.timing == null ? null : String(item.timing),
+      })) : [],
+    },
+    labs: {
+      confirmed_panels: typeof input?.labs?.confirmed_panels === 'number' ? input.labs.confirmed_panels : 0,
+      latest_panel_date: input?.labs?.latest_panel_date == null ? null : String(input.labs.latest_panel_date),
+      abnormal_results: Array.isArray(input?.labs?.abnormal_results) ? input.labs.abnormal_results.map(String) : [],
+    },
+    hydration: {
+      avg_intake_7d: typeof input?.hydration?.avg_intake_7d === 'number' ? input.hydration.avg_intake_7d : null,
+      avg_output_7d: typeof input?.hydration?.avg_output_7d === 'number' ? input.hydration.avg_output_7d : null,
+      target_oz: typeof input?.hydration?.target_oz === 'number' ? input.hydration.target_oz : null,
+      alerts: Array.isArray(input?.hydration?.alerts) ? input.hydration.alerts.map(String) : [],
+    },
+    nutrition: {
+      total_entries_7d: typeof input?.nutrition?.total_entries_7d === 'number' ? input.nutrition.total_entries_7d : 0,
+      avg_sodium_7d: typeof input?.nutrition?.avg_sodium_7d === 'number' ? input.nutrition.avg_sodium_7d : null,
+      avg_protein_7d: typeof input?.nutrition?.avg_protein_7d === 'number' ? input.nutrition.avg_protein_7d : null,
+      avg_fiber_7d: typeof input?.nutrition?.avg_fiber_7d === 'number' ? input.nutrition.avg_fiber_7d : null,
+      pattern: input?.nutrition?.pattern == null ? null : String(input.nutrition.pattern),
+    },
+    genetics: {
+      completed_reports: Array.isArray(input?.genetics?.completed_reports) ? input.genetics.completed_reports.map((item) => ({
+        file_name: String(item?.file_name || ''),
+        file_type: String(item?.file_type || ''),
+        processed_at: item?.processed_at == null ? null : String(item.processed_at),
+      })) : [],
+      comprehensive_analysis: input?.genetics?.comprehensive_analysis ?? null,
+    },
+    imaging: Array.isArray(input?.imaging) ? input.imaging.map((item) => ({
+      file_name: String(item?.file_name || ''),
+      created_at: String(item?.created_at || ''),
+      summary: String(item?.summary || ''),
+      impression: item?.impression == null ? null : String(item.impression),
+    })) : [],
+    metrics: {
+      latest_weight_lbs: typeof input?.metrics?.latest_weight_lbs === 'number' ? input.metrics.latest_weight_lbs : null,
+      avg_resting_hr_7d: typeof input?.metrics?.avg_resting_hr_7d === 'number' ? input.metrics.avg_resting_hr_7d : null,
+      avg_hrv_7d: typeof input?.metrics?.avg_hrv_7d === 'number' ? input.metrics.avg_hrv_7d : null,
+      avg_sleep_hours_7d: typeof input?.metrics?.avg_sleep_hours_7d === 'number' ? input.metrics.avg_sleep_hours_7d : null,
+      latest_bp_avg_30d: input?.metrics?.latest_bp_avg_30d && typeof input.metrics.latest_bp_avg_30d.systolic === 'number' && typeof input.metrics.latest_bp_avg_30d.diastolic === 'number'
+        ? input.metrics.latest_bp_avg_30d
+        : null,
+      readiness: {
+        score: typeof input?.metrics?.readiness?.score === 'number' ? input.metrics.readiness.score : null,
+        label: input?.metrics?.readiness?.label == null ? null : String(input.metrics.readiness.label),
+      },
+      strain: {
+        score: typeof input?.metrics?.strain?.score === 'number' ? input.metrics.strain.score : null,
+        level: input?.metrics?.strain?.level == null ? null : String(input.metrics.strain.level),
+      },
+      form: {
+        tsb: typeof input?.metrics?.form?.tsb === 'number' ? input.metrics.form.tsb : null,
+        status: input?.metrics?.form?.status == null ? null : String(input.metrics.form.status),
+        ctl: typeof input?.metrics?.form?.ctl === 'number' ? input.metrics.form.ctl : null,
+        atl: typeof input?.metrics?.form?.atl === 'number' ? input.metrics.form.atl : null,
+      },
+    },
+    training: {
+      active_plan: input?.training?.active_plan
+        ? {
+            id: String(input.training.active_plan.id || ''),
+            name: String(input.training.active_plan.name || ''),
+            goal: input.training.active_plan.goal == null ? null : String(input.training.active_plan.goal),
+            start_date: String(input.training.active_plan.start_date || ''),
+            end_date: String(input.training.active_plan.end_date || ''),
+          }
+        : null,
+      last_workout: input?.training?.last_workout
+        ? {
+            date: String(input.training.last_workout.date || ''),
+            type: String(input.training.last_workout.type || ''),
+            duration_minutes: typeof input.training.last_workout.duration_minutes === 'number' ? input.training.last_workout.duration_minutes : null,
+            tss: typeof input.training.last_workout.tss === 'number' ? input.training.last_workout.tss : null,
+          }
+        : null,
+      ninety_day_summary: {
+        total_workouts: typeof input?.training?.ninety_day_summary?.total_workouts === 'number' ? input.training.ninety_day_summary.total_workouts : 0,
+        avg_sessions_per_week: typeof input?.training?.ninety_day_summary?.avg_sessions_per_week === 'number' ? input.training.ninety_day_summary.avg_sessions_per_week : 0,
+        avg_duration_minutes: typeof input?.training?.ninety_day_summary?.avg_duration_minutes === 'number' ? input.training.ninety_day_summary.avg_duration_minutes : 0,
+        avg_tss: typeof input?.training?.ninety_day_summary?.avg_tss === 'number' ? input.training.ninety_day_summary.avg_tss : 0,
+        workout_type_distribution: input?.training?.ninety_day_summary?.workout_type_distribution ?? {},
+      },
+    },
+  };
+}
+
+function normalizeAnalysis(input: Partial<Analysis> | null | undefined): Analysis {
+  return {
+    executive_summary: typeof input?.executive_summary === 'string' ? input.executive_summary : '',
+    top_priorities: Array.isArray(input?.top_priorities) ? input.top_priorities.map(String) : [],
+    what_is_working: Array.isArray(input?.what_is_working) ? input.what_is_working.map(String) : [],
+    risks_to_watch: Array.isArray(input?.risks_to_watch) ? input.risks_to_watch.map(String) : [],
+    cross_domain_connections: Array.isArray(input?.cross_domain_connections) ? input.cross_domain_connections.map(String) : [],
+    doctor_conversation_topics: Array.isArray(input?.doctor_conversation_topics) ? input.doctor_conversation_topics.map(String) : [],
+    open_questions_for_user: Array.isArray(input?.open_questions_for_user) ? input.open_questions_for_user.map(String) : [],
+    training_direction: {
+      overall_recommendation: typeof input?.training_direction?.overall_recommendation === 'string' ? input.training_direction.overall_recommendation : '',
+      best_next_block: typeof input?.training_direction?.best_next_block === 'string' ? input.training_direction.best_next_block : 'hybrid',
+      rationale: Array.isArray(input?.training_direction?.rationale) ? input.training_direction.rationale.map(String) : [],
+      guardrails: Array.isArray(input?.training_direction?.guardrails) ? input.training_direction.guardrails.map(String) : [],
+    },
+    suggested_health_doc_updates: Array.isArray(input?.suggested_health_doc_updates) ? input.suggested_health_doc_updates.map((update) => ({
+      section_number: Number(update?.section_number || 0),
+      section_name: String(update?.section_name || ''),
+      current_content: String(update?.current_content || ''),
+      proposed_content: String(update?.proposed_content || ''),
+      reason: String(update?.reason || ''),
+      confidence: update?.confidence === 'high' || update?.confidence === 'medium' || update?.confidence === 'low' ? update.confidence : 'medium',
+      priority: Number(update?.priority || 0),
+    })) : [],
+    last_follow_up: input?.last_follow_up ? {
+      question: String(input.last_follow_up.question || ''),
+      answer: String(input.last_follow_up.answer || ''),
+      recommended_plan: normalizeFollowUp(input.last_follow_up).recommended_plan,
+      generated_at: String(input.last_follow_up.generated_at || ''),
+    } : undefined,
   };
 }
 
