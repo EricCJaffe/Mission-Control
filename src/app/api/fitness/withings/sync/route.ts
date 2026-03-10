@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { decryptWithingsTokens, encryptWithingsTokens } from '@/lib/fitness/withings-tokens';
 import { WithingsSyncService, type WithingsSyncMode } from '@/lib/fitness/withings-sync-service';
 import { HealthDocUpdater, type UpdateTrigger } from '@/lib/fitness/health-doc-updater';
+import { MetricShiftDetector } from '@/lib/fitness/metric-shift-detector';
 import type { SectionUpdate } from '@/lib/fitness/health-doc-updater';
 
 export const dynamic = 'force-dynamic';
@@ -157,15 +158,24 @@ async function triggerHealthDocFollowThrough(
   }
 
   if (results.weight.imported + results.weight.updated + results.sleep.imported + results.sleep.updated + results.dailyAggregates.imported + results.dailyAggregates.updated > 0) {
-    triggerSummaries.push({
-      trigger: 'metric_shift',
-      data: {
-        source: 'withings_api',
-        body_count: results.weight.imported + results.weight.updated,
-        sleep_count: results.sleep.imported + results.sleep.updated,
-        daily_count: results.dailyAggregates.imported + results.dailyAggregates.updated,
-      },
-    });
+    const detector = new MetricShiftDetector(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const shifts = await detector.detectShifts(userId);
+
+    if (shifts.length > 0) {
+      triggerSummaries.push({
+        trigger: 'metric_shift',
+        data: {
+          source: 'withings_api',
+          shifts,
+          body_count: results.weight.imported + results.weight.updated,
+          sleep_count: results.sleep.imported + results.sleep.updated,
+          daily_count: results.dailyAggregates.imported + results.dailyAggregates.updated,
+        },
+      });
+    }
   }
 
   for (const item of triggerSummaries) {

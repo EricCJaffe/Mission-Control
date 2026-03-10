@@ -190,7 +190,7 @@ export default function WithingsConnectionClient() {
         </div>
 
         <div className="mt-6 grid gap-3 md:grid-cols-4">
-          <CountCard label="Body metrics" value={status?.summary.bodyMetrics ?? 0} href="/fitness/trends" />
+          <CountCard label="Body metrics" value={status?.summary.bodyMetrics ?? 0} href="/fitness/body-composition" />
           <CountCard label="BP readings" value={status?.summary.bloodPressure ?? 0} href="/fitness/bp" />
           <CountCard label="Sleep logs" value={status?.summary.sleepLogs ?? 0} href="/fitness/sleep" />
           <CountCard label="Daily summaries" value={status?.summary.dailySummaries ?? 0} href="/fitness/metrics" />
@@ -211,7 +211,7 @@ export default function WithingsConnectionClient() {
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <SyncDomainCard label="Blood pressure" stats={syncResults.bp} href="/fitness/bp" />
-            <SyncDomainCard label="Body metrics" stats={syncResults.weight} href="/fitness/trends" />
+            <SyncDomainCard label="Body metrics" stats={syncResults.weight} href="/fitness/body-composition" />
             <SyncDomainCard label="Sleep" stats={syncResults.sleep} href="/fitness/sleep" />
             <SyncDomainCard label="Daily summaries" stats={syncResults.dailyAggregates} href="/fitness/metrics" />
           </div>

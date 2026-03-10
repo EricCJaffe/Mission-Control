@@ -284,14 +284,26 @@ export class HealthDocUpdater {
     const updates: SectionUpdate[] = [];
     const healthDoc = await this.loadCurrentHealthDoc(userId);
     if (!healthDoc) return updates;
+    const shifts = triggerData?.shifts || [];
+    const shiftLabel = (metric: string) => {
+      switch (metric) {
+        case 'rhr': return 'RHR';
+        case 'bp_systolic': return 'Systolic BP';
+        case 'bp_diastolic': return 'Diastolic BP';
+        case 'weight': return 'Weight';
+        case 'hrv': return 'HRV';
+        case 'body_fat': return 'Body Fat';
+        case 'muscle_mass': return 'Muscle Mass';
+        default: return metric;
+      }
+    };
 
     // Section 6: Vital Baselines & Targets
     const currentBaselines = this.extractSection(healthDoc, 6);
     if (currentBaselines) {
       const proposedBaselines = await this.generateVitalBaselinesSection(userId, triggerData);
       if (proposedBaselines && proposedBaselines !== currentBaselines) {
-        const shifts = triggerData?.shifts || [];
-        const shiftDescription = shifts.map((s: any) => `${s.metric.toUpperCase()}: ${s.old_value} → ${s.new_value}`).join(', ');
+        const shiftDescription = shifts.map((s: any) => `${shiftLabel(s.metric)}: ${s.old_value} → ${s.new_value}`).join(', ');
 
         updates.push({
           section_number: 6,
@@ -303,6 +315,30 @@ export class HealthDocUpdater {
           trigger_data: triggerData,
           confidence: 'medium',
           priority: 6,
+        });
+      }
+    }
+
+    // Section 11: Health Priorities for meaningful body-composition shifts
+    const relevantPriorityShifts = shifts.filter((shift: any) =>
+      ['weight', 'body_fat', 'muscle_mass'].includes(shift.metric) &&
+      ['high', 'medium'].includes(shift.significance)
+    );
+
+    const currentPriorities = this.extractSection(healthDoc, 11);
+    if (currentPriorities && relevantPriorityShifts.length > 0) {
+      const proposedPriorities = await this.generateHealthPrioritiesFromMetricShifts(userId, { shifts: relevantPriorityShifts });
+      if (proposedPriorities && proposedPriorities !== currentPriorities) {
+        updates.push({
+          section_number: 11,
+          section_name: 'Health Priorities',
+          current_content: currentPriorities,
+          proposed_content: proposedPriorities,
+          reason: `Composition-related shifts detected: ${relevantPriorityShifts.map((s: any) => shiftLabel(s.metric)).join(', ')}`,
+          trigger: 'metric_shift',
+          trigger_data: { shifts: relevantPriorityShifts },
+          confidence: 'medium',
+          priority: 7,
         });
       }
     }
@@ -894,6 +930,34 @@ Return ONLY section content starting with "## 11. Health Priorities".`;
     } catch (error) {
       console.error('Error generating post-appointment priorities section:', error);
       return '## 11. Health Priorities\n\n(Error generating post-appointment priorities update - please update manually)';
+    }
+  }
+
+  private async generateHealthPrioritiesFromMetricShifts(userId: string, triggerData?: any): Promise<string> {
+    try {
+      const systemPrompt = await buildAISystemPrompt(userId, 'health_doc_update');
+      const userPrompt = `Update the "Health Priorities" section (§11) of health.md using these recent body-composition and metric shifts.
+
+Metric shifts:
+${JSON.stringify(triggerData?.shifts || [], null, 2)}
+
+Focus on:
+1. Which changes matter most over the next 30-90 days
+2. Whether fat loss, lean-mass preservation, hydration consistency, or symptom monitoring should be emphasized
+3. Clear actions that fit a cardiac-aware endurance-priority program
+
+Return ONLY section content starting with "## 11. Health Priorities".`;
+
+      const content = await callOpenAI({
+        model: DEFAULT_MODEL,
+        system: systemPrompt,
+        user: userPrompt,
+      });
+
+      return content.trim();
+    } catch (error) {
+      console.error('Error generating health priorities from metric shifts:', error);
+      return '## 11. Health Priorities\n\n(Error generating metric-shift priorities update - please update manually)';
     }
   }
 

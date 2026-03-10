@@ -166,6 +166,7 @@ const TABS = [
   { href: '/fitness/metrics', label: 'Metrics' },
   { href: '/fitness/bp', label: 'BP' },
   { href: '/fitness/trends', label: 'Trends' },
+  { href: '/fitness/body-composition', label: 'Body Comp' },
   { href: '/fitness/history', label: 'History' },
   { href: '/fitness/labs', label: 'Labs' },
 ];
@@ -399,10 +400,10 @@ export default function FitnessDashboardClient({
 
         {/* Weight / Body Comp mini card */}
         {latestMetrics?.weight_lbs ? (
-          <Link href="/fitness/trends" className="rounded-2xl border border-green-100 bg-green-50/30 p-4 shadow-sm hover:shadow transition-shadow">
+          <Link href="/fitness/body-composition" className="rounded-2xl border border-green-100 bg-green-50/30 p-4 shadow-sm hover:shadow transition-shadow">
             <p className="text-xs text-green-600 font-medium flex items-center gap-1 mb-1"><Scale size={14} /> Weight</p>
             <p className="text-2xl font-bold tabular-nums text-green-900">{latestMetrics.weight_lbs.toFixed(1)}<span className="text-sm text-green-500"> lbs</span></p>
-            <p className="text-xs text-green-600 mt-0.5">View trends →</p>
+            <p className="text-xs text-green-600 mt-0.5">Body composition →</p>
           </Link>
         ) : (
           <Link href="/fitness/trends" className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 hover:border-slate-400 transition-colors flex flex-col items-center justify-center gap-1">

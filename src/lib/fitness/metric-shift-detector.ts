@@ -8,7 +8,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 export type MetricShift = {
-  metric: 'rhr' | 'bp_systolic' | 'bp_diastolic' | 'weight' | 'hrv';
+  metric: 'rhr' | 'bp_systolic' | 'bp_diastolic' | 'weight' | 'hrv' | 'body_fat' | 'muscle_mass';
   old_value: number;
   new_value: number;
   change: number;
@@ -51,6 +51,13 @@ export class MetricShiftDetector {
     // Check HRV shift (>10% change)
     const hrvShift = await this.detectHRVShift(userId);
     if (hrvShift) shifts.push(hrvShift);
+
+    // Check body composition shifts
+    const bodyFatShift = await this.detectBodyFatShift(userId);
+    if (bodyFatShift) shifts.push(bodyFatShift);
+
+    const muscleMassShift = await this.detectMuscleMassShift(userId);
+    if (muscleMassShift) shifts.push(muscleMassShift);
 
     return shifts;
   }
@@ -296,4 +303,115 @@ export class MetricShiftDetector {
 
     return null;
   }
+
+  /**
+   * Detect body-fat shift (>1.5 percentage points or >8% relative change)
+   */
+  private async detectBodyFatShift(userId: string): Promise<MetricShift | null> {
+    const supabase = this.getClient();
+
+    const endDate = new Date();
+    const startRecent = new Date(endDate);
+    startRecent.setDate(startRecent.getDate() - 30);
+
+    const startBaseline = new Date(endDate);
+    startBaseline.setDate(startBaseline.getDate() - 60);
+    const endBaseline = new Date(endDate);
+    endBaseline.setDate(endBaseline.getDate() - 30);
+
+    const { data: recentData } = await supabase
+      .from('body_metrics')
+      .select('body_fat_pct')
+      .eq('user_id', userId)
+      .gte('metric_date', startRecent.toISOString().split('T')[0])
+      .lte('metric_date', endDate.toISOString().split('T')[0])
+      .not('body_fat_pct', 'is', null);
+
+    const { data: baselineData } = await supabase
+      .from('body_metrics')
+      .select('body_fat_pct')
+      .eq('user_id', userId)
+      .gte('metric_date', startBaseline.toISOString().split('T')[0])
+      .lt('metric_date', endBaseline.toISOString().split('T')[0])
+      .not('body_fat_pct', 'is', null);
+
+    if (!recentData || recentData.length < 4 || !baselineData || baselineData.length < 4) {
+      return null;
+    }
+
+    const recentAvg = recentData.reduce((sum, m) => sum + (m.body_fat_pct || 0), 0) / recentData.length;
+    const baselineAvg = baselineData.reduce((sum, m) => sum + (m.body_fat_pct || 0), 0) / baselineData.length;
+    const change = recentAvg - baselineAvg;
+    const percentChange = (change / baselineAvg) * 100;
+
+    if (Math.abs(change) > 1.5 || Math.abs(percentChange) > 8) {
+      return {
+        metric: 'body_fat',
+        old_value: Math.round(baselineAvg * 10) / 10,
+        new_value: Math.round(recentAvg * 10) / 10,
+        change: Math.round(change * 10) / 10,
+        percent_change: Math.round(percentChange * 10) / 10,
+        reason: `Body fat ${change > 0 ? 'increased' : 'decreased'} by ${Math.abs(Math.round(change * 10) / 10)} percentage points`,
+        significance: Math.abs(change) > 2.5 ? 'high' : 'medium',
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Detect muscle-mass shift (>3 lbs)
+   */
+  private async detectMuscleMassShift(userId: string): Promise<MetricShift | null> {
+    const supabase = this.getClient();
+
+    const endDate = new Date();
+    const startRecent = new Date(endDate);
+    startRecent.setDate(startRecent.getDate() - 30);
+
+    const startBaseline = new Date(endDate);
+    startBaseline.setDate(startBaseline.getDate() - 60);
+    const endBaseline = new Date(endDate);
+    endBaseline.setDate(endBaseline.getDate() - 30);
+
+    const { data: recentData } = await supabase
+      .from('body_metrics')
+      .select('muscle_mass_lbs')
+      .eq('user_id', userId)
+      .gte('metric_date', startRecent.toISOString().split('T')[0])
+      .lte('metric_date', endDate.toISOString().split('T')[0])
+      .not('muscle_mass_lbs', 'is', null);
+
+    const { data: baselineData } = await supabase
+      .from('body_metrics')
+      .select('muscle_mass_lbs')
+      .eq('user_id', userId)
+      .gte('metric_date', startBaseline.toISOString().split('T')[0])
+      .lt('metric_date', endBaseline.toISOString().split('T')[0])
+      .not('muscle_mass_lbs', 'is', null);
+
+    if (!recentData || recentData.length < 4 || !baselineData || baselineData.length < 4) {
+      return null;
+    }
+
+    const recentAvg = recentData.reduce((sum, m) => sum + (m.muscle_mass_lbs || 0), 0) / recentData.length;
+    const baselineAvg = baselineData.reduce((sum, m) => sum + (m.muscle_mass_lbs || 0), 0) / baselineData.length;
+    const change = recentAvg - baselineAvg;
+    const percentChange = (change / baselineAvg) * 100;
+
+    if (Math.abs(change) > 3) {
+      return {
+        metric: 'muscle_mass',
+        old_value: Math.round(baselineAvg * 10) / 10,
+        new_value: Math.round(recentAvg * 10) / 10,
+        change: Math.round(change * 10) / 10,
+        percent_change: Math.round(percentChange * 10) / 10,
+        reason: `Muscle mass ${change > 0 ? 'increased' : 'decreased'} by ${Math.abs(Math.round(change * 10) / 10)} lbs`,
+        significance: Math.abs(change) > 5 ? 'high' : 'medium',
+      };
+    }
+
+    return null;
+  }
+
 }
