@@ -4,6 +4,9 @@ import type {
   AssessmentQuestion,
   CoreFlourishingDomain,
   FlourishingAssessmentResult,
+  FlourishingCoachingPayload,
+  FlourishingDomainCoaching,
+  FlourishingDomainScore,
   FlourishingProfile,
   FlourishingResponseMap,
   PersonaUpdateProposal,
@@ -73,16 +76,7 @@ export async function getFlourishingHistory(userId: string, limit = 12): Promise
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    assessment_type: row.assessment_type,
-    question_set_version: row.question_set_version,
-    responses: (row.responses as FlourishingResponseMap) ?? {},
-    domain_scores: row.domain_scores,
-    interpretation: row.interpretation,
-    coaching: row.coaching,
-    created_at: row.created_at,
-  }));
+  return (data ?? []).map(normalizeAssessmentRow);
 }
 
 export async function getFlourishingAssessment(userId: string, assessmentId: string): Promise<FlourishingAssessmentResult | null> {
@@ -95,16 +89,7 @@ export async function getFlourishingAssessment(userId: string, assessmentId: str
     .maybeSingle();
 
   if (!data) return null;
-  return {
-    id: data.id,
-    assessment_type: data.assessment_type,
-    question_set_version: data.question_set_version,
-    responses: (data.responses as FlourishingResponseMap) ?? {},
-    domain_scores: data.domain_scores,
-    interpretation: data.interpretation,
-    coaching: data.coaching,
-    created_at: data.created_at,
-  };
+  return normalizeAssessmentRow(data);
 }
 
 export async function getPendingPersonaProposals(userId: string) {
@@ -158,4 +143,60 @@ export async function savePersonaProposals(userId: string, assessmentId: string,
       reason: proposal.reason,
       confidence: proposal.confidence,
     })));
+}
+
+function normalizeDomainCoaching(
+  coaching: Partial<FlourishingDomainCoaching> | undefined,
+  domainScores: FlourishingDomainScore[]
+): FlourishingDomainCoaching {
+  const domain = coaching?.domain ?? domainScores[0]?.domain ?? 'relational';
+  const score = domainScores.find((item) => item.domain === domain);
+  return {
+    domain,
+    insight_summary: coaching?.insight_summary ?? score?.summary ?? 'No additional domain insight available yet.',
+    current_data_points: Array.isArray(coaching?.current_data_points) ? coaching!.current_data_points.slice(0, 4) : [],
+    growth_focus: coaching?.growth_focus ?? 'Stay attentive to the next faithful growth edge here.',
+    reflection_questions: Array.isArray(coaching?.reflection_questions) ? coaching!.reflection_questions.slice(0, 3) : [],
+    journaling_prompts: Array.isArray(coaching?.journaling_prompts) ? coaching!.journaling_prompts.slice(0, 3) : [],
+    encouraging_statement: coaching?.encouraging_statement ?? 'Receive grace and take the next faithful step.',
+  };
+}
+
+function normalizeCoachingPayload(
+  coaching: Partial<FlourishingCoachingPayload> | null | undefined,
+  domainScores: FlourishingDomainScore[]
+): FlourishingCoachingPayload {
+  const provided = Array.isArray(coaching?.domain_coaching) ? coaching!.domain_coaching : [];
+  const byDomain = new Map(provided.map((item) => [item.domain, normalizeDomainCoaching(item, domainScores)]));
+  const domainCoaching = domainScores.map((score) => byDomain.get(score.domain) ?? normalizeDomainCoaching({ domain: score.domain }, domainScores));
+
+  return {
+    executive_summary: coaching?.executive_summary ?? 'No executive summary available yet.',
+    narrative_summary: coaching?.narrative_summary ?? coaching?.executive_summary ?? 'No narrative summary available yet.',
+    domain_coaching: domainCoaching,
+    persona_update_proposals: Array.isArray(coaching?.persona_update_proposals) ? coaching!.persona_update_proposals : [],
+  };
+}
+
+function normalizeAssessmentRow(row: {
+  id: string;
+  assessment_type: FlourishingAssessmentResult['assessment_type'];
+  question_set_version: number;
+  responses: unknown;
+  domain_scores: FlourishingDomainScore[];
+  interpretation: FlourishingAssessmentResult['interpretation'];
+  coaching: Partial<FlourishingCoachingPayload> | null;
+  created_at: string;
+}): FlourishingAssessmentResult {
+  const domainScores = Array.isArray(row.domain_scores) ? row.domain_scores : [];
+  return {
+    id: row.id,
+    assessment_type: row.assessment_type,
+    question_set_version: row.question_set_version,
+    responses: (row.responses as FlourishingResponseMap) ?? {},
+    domain_scores: domainScores,
+    interpretation: row.interpretation,
+    coaching: normalizeCoachingPayload(row.coaching, domainScores),
+    created_at: row.created_at,
+  };
 }
