@@ -11,6 +11,10 @@ type BodyMetricRow = {
   hrv_ms: number | null;
   body_battery: number | null;
   weight_lbs: number | null;
+  body_fat_pct: number | null;
+  muscle_mass_lbs: number | null;
+  bone_mass_lbs: number | null;
+  hydration_lbs: number | null;
   sleep_score: number | null;
   vo2_max: number | null;
 };
@@ -101,6 +105,10 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
   const rhrValues = bodyMetrics.filter((m) => m.resting_hr != null).map((m) => m.resting_hr!);
   const hrvValues = bodyMetrics.filter((m) => m.hrv_ms != null).map((m) => m.hrv_ms!);
   const weightValues = bodyMetrics.filter((m) => m.weight_lbs != null).map((m) => m.weight_lbs!);
+  const bodyFatValues = bodyMetrics.filter((m) => m.body_fat_pct != null).map((m) => m.body_fat_pct!);
+  const muscleValues = bodyMetrics.filter((m) => m.muscle_mass_lbs != null).map((m) => m.muscle_mass_lbs!);
+  const boneValues = bodyMetrics.filter((m) => m.bone_mass_lbs != null).map((m) => m.bone_mass_lbs!);
+  const hydrationValues = bodyMetrics.filter((m) => m.hydration_lbs != null).map((m) => m.hydration_lbs!);
   const ctlValues = formHistory.filter((f) => f.fitness_ctl != null).map((f) => f.fitness_ctl!);
   const atlValues = formHistory.filter((f) => f.fatigue_atl != null).map((f) => f.fatigue_atl!);
   const tsbValues = formHistory.filter((f) => f.form_tsb != null).map((f) => f.form_tsb!);
@@ -113,6 +121,10 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
   const latestRhr = rhrValues[rhrValues.length - 1];
   const latestHrv = hrvValues[hrvValues.length - 1];
   const latestWeight = weightValues[weightValues.length - 1];
+  const latestBodyFat = bodyFatValues[bodyFatValues.length - 1];
+  const latestMuscle = muscleValues[muscleValues.length - 1];
+  const latestBone = boneValues[boneValues.length - 1];
+  const latestHydration = hydrationValues[hydrationValues.length - 1];
   const latestTsb = tsbValues[tsbValues.length - 1];
   const latestForm = formHistory[formHistory.length - 1];
 
@@ -138,6 +150,20 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
         <StatCard label="Form / TSB" value={latestTsb != null ? String(Math.round(latestTsb)) : '—'} sub={latestForm?.form_status ?? undefined} />
       </div>
 
+      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-700">Source Of Truth</h2>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className="rounded-xl border border-cyan-100 bg-cyan-50/60 p-4">
+            <div className="text-sm font-semibold text-slate-800">Withings</div>
+            <p className="mt-1 text-sm text-slate-600">Weight, body fat, muscle mass, bone mass, hydration, and blood-pressure/sleep detail imports.</p>
+          </div>
+          <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+            <div className="text-sm font-semibold text-slate-800">Garmin</div>
+            <p className="mt-1 text-sm text-slate-600">Resting HR, HRV, body battery, sleep score, VO2 max, and training-readiness style metrics.</p>
+          </div>
+        </div>
+      </div>
+
       {/* Cardiac metrics charts */}
       <div className="grid gap-4 md:grid-cols-2">
         <TrendCard
@@ -160,6 +186,7 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
         <TrendCard
           title="Weight"
           subtitle={latestWeight ? `Latest: ${latestWeight} lbs` : 'No data'}
+          note="Withings scale trend"
         >
           <Sparkline values={weightValues} color="#8b5cf6" />
         </TrendCard>
@@ -181,6 +208,41 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
             <span className="text-blue-500">— Fitness (CTL)</span>
             <span className="text-red-500">— Fatigue (ATL)</span>
             <span className="text-green-500">— Form (TSB)</span>
+          </div>
+        </TrendCard>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <TrendCard
+          title="Body Fat"
+          subtitle={latestBodyFat != null ? `Latest: ${latestBodyFat}%` : 'No data'}
+          note="Withings body composition"
+        >
+          <Sparkline values={bodyFatValues} color="#f97316" />
+        </TrendCard>
+
+        <TrendCard
+          title="Detailed Body Composition"
+          subtitle={[
+            latestMuscle != null ? `Muscle ${latestMuscle} lbs` : null,
+            latestBone != null ? `Bone ${latestBone} lbs` : null,
+            latestHydration != null ? `Hydration ${latestHydration} lbs` : null,
+          ].filter(Boolean).join(' · ') || 'No data'}
+          note="Withings-derived"
+        >
+          <div className="space-y-2">
+            <Sparkline values={muscleValues} color="#10b981" />
+            <div className="opacity-70">
+              <Sparkline values={boneValues} color="#6366f1" />
+            </div>
+            <div className="opacity-70">
+              <Sparkline values={hydrationValues} color="#06b6d4" />
+            </div>
+            <div className="flex gap-4 mt-1 text-xs">
+              <span className="text-emerald-500">— Muscle</span>
+              <span className="text-indigo-500">— Bone</span>
+              <span className="text-cyan-500">— Hydration</span>
+            </div>
           </div>
         </TrendCard>
       </div>

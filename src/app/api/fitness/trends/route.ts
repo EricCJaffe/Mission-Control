@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   ] = await Promise.all([
     supabase
       .from('body_metrics')
-      .select('metric_date, resting_hr, hrv_ms, body_battery, weight_lbs, sleep_score, vo2_max')
+      .select('metric_date, resting_hr, hrv_ms, body_battery, weight_lbs, body_fat_pct, muscle_mass_lbs, bone_mass_lbs, hydration_lbs, sleep_score, vo2_max')
       .eq('user_id', user.id)
       .gte('metric_date', startDate)
       .lte('metric_date', endDate)

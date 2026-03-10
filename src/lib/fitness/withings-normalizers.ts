@@ -93,7 +93,7 @@ export async function upsertBloodPressureFromMeasureGroup(
 
   const { data: existing } = await supabase
     .from('bp_readings')
-    .select('id, systolic, diastolic, pulse')
+    .select('id, systolic, diastolic, pulse, source')
     .eq('user_id', userId)
     .gte('reading_date', lower)
     .lte('reading_date', upper)
@@ -104,6 +104,10 @@ export async function upsertBloodPressureFromMeasureGroup(
     const { error } = await supabase.from('bp_readings').insert(payload);
     if (error) throw error;
     return 'imported';
+  }
+
+  if (existing.source !== 'Withings') {
+    return 'skipped';
   }
 
   if (shallowEqualSubset(existing, payload, ['systolic', 'diastolic', 'pulse'])) {
@@ -163,6 +167,10 @@ export async function upsertBodyMetricsFromMeasureGroup(
     return 'imported';
   }
 
+  if (existing.weight_source !== 'Withings') {
+    return 'skipped';
+  }
+
   if (shallowEqualSubset(existing, payload, ['weight_lbs', 'body_fat_pct', 'muscle_mass_lbs', 'bone_mass_lbs', 'hydration_lbs', 'bmi', 'weight_source'])) {
     return 'skipped';
   }
@@ -210,6 +218,8 @@ export async function upsertDailySummaryFromActivity(
     const { error } = await supabase.from('daily_summaries').insert(payload);
     if (error) throw error;
     result = 'imported';
+  } else if (existing.source !== 'Withings') {
+    result = 'skipped';
   } else if (!shallowEqualSubset(existing, payload, ['total_steps', 'distance_miles', 'floors_climbed', 'total_calories', 'active_calories', 'resting_hr', 'min_hr', 'max_hr', 'source'])) {
     const { error } = await supabase.from('daily_summaries').upsert(payload, {
       onConflict: 'user_id,summary_date',
@@ -217,22 +227,6 @@ export async function upsertDailySummaryFromActivity(
     });
     if (error) throw error;
     result = 'updated';
-  }
-
-  if (payload.resting_hr != null) {
-    const { error: bodyMetricError } = await supabase.from('body_metrics').upsert({
-      user_id: userId,
-      metric_date: summaryDate,
-      resting_hr: payload.resting_hr,
-      withings_data: activity,
-    }, {
-      onConflict: 'user_id,metric_date',
-      ignoreDuplicates: false,
-    });
-
-    if (bodyMetricError) {
-      throw bodyMetricError;
-    }
   }
 
   return result;
@@ -289,6 +283,10 @@ export async function upsertSleepFromSeries(
     const { error } = await supabase.from('sleep_logs').insert(payload);
     if (error) throw error;
     return 'imported';
+  }
+
+  if (existing.source !== 'Withings') {
+    return 'skipped';
   }
 
   if (shallowEqualSubset(existing, payload, ['total_sleep_seconds', 'light_sleep_seconds', 'deep_sleep_seconds', 'rem_sleep_seconds', 'awake_seconds', 'avg_hr', 'min_hr', 'max_hr', 'duration_to_sleep_seconds', 'duration_to_wake_seconds', 'wake_up_count', 'snoring_seconds', 'avg_respiration', 'source'])) {
