@@ -63,6 +63,9 @@ export type FlourishingInterpretation = {
 
 export type FlourishingDomainCoaching = {
   domain: CoreFlourishingDomain;
+  insight_summary: string;
+  current_data_points: string[];
+  growth_focus: string;
   reflection_questions: string[];
   journaling_prompts: string[];
   encouraging_statement: string;

@@ -27,6 +27,15 @@ function extractJson(raw: string) {
 function fallbackCoaching(domainScores: FlourishingDomainScore[], overallMessage: string): FlourishingCoachingPayload {
   const domain_coaching: FlourishingDomainCoaching[] = domainScores.map((item) => ({
     domain: item.domain,
+    insight_summary: `Current assessment read: ${item.summary}`,
+    current_data_points: [
+      `Score: ${item.display_score}/10`,
+      item.delta_from_previous != null ? `Change since previous: ${item.delta_from_previous > 0 ? '+' : ''}${item.delta_from_previous}` : 'No previous assessment comparison yet',
+      item.average_90d != null ? `90-day average: ${item.average_90d}` : '90-day baseline not established yet',
+    ],
+    growth_focus: item.score >= 8
+      ? `Protect this strength and turn it into steady stewardship rather than drift or complacency.`
+      : `There is still room to grow here through one concrete, repeatable next step.`,
     reflection_questions: [
       `What is strengthening ${item.label.toLowerCase()} right now?`,
       `What is draining ${item.label.toLowerCase()} right now?`,
@@ -89,6 +98,11 @@ export async function generateFlourishingCoaching(params: {
 
   const user = `Build a flourishing coaching payload using this context.
 
+Use the sources distinctly:
+- persona.md = enduring identity, mission, values, calling, priorities, constraints
+- soul.md = current inner life, emotional weather, relational strain, what restores or drains
+- health.md = body-level reality, medical constraints, baselines, medications, training and recovery context
+
 Current domain scores:
 ${JSON.stringify(domainSummary, null, 2)}
 
@@ -112,6 +126,9 @@ Return JSON with this shape:
   "domain_coaching": [
     {
       "domain": "relational",
+      "insight_summary": "2-4 sentence domain-specific interpretation grounded in the supplied context",
+      "current_data_points": ["short bullet", "short bullet", "short bullet"],
+      "growth_focus": "1-2 sentence explanation of the next growth edge even if the score is strong",
       "reflection_questions": ["...", "...", "..."],
       "journaling_prompts": ["...", "...", "..."],
       "encouraging_statement": "..."
@@ -131,6 +148,8 @@ Return JSON with this shape:
 Rules:
 - Generate coaching for all six core domains.
 - Emphasize domains below 6.0.
+- Even strong domains must still receive specific insight, maintenance guidance, and a growth edge.
+- Use health.md heavily for physical_brain, soul.md heavily for mental_emotional and relational, and persona.md heavily for work_money_time, meaning_purpose_calling, and faith_spiritual.
 - If a domain is 8.0+, focus on stewardship, maintenance, and helping others.
 - Persona proposals should only cover sections that clearly need adjustment based on the assessment.
 - Do not output commentary outside JSON.`;
@@ -142,6 +161,9 @@ Rules:
       narrative_summary?: string;
       domain_coaching?: Array<{
         domain: CoreFlourishingDomain;
+        insight_summary?: string;
+        current_data_points?: string[];
+        growth_focus?: string;
         reflection_questions?: string[];
         journaling_prompts?: string[];
         encouraging_statement?: string;
@@ -159,6 +181,9 @@ Rules:
       ?.filter((item) => item && item.domain)
       .map((item) => ({
         domain: item.domain,
+        insight_summary: item.insight_summary ?? 'No additional AI summary was returned for this domain.',
+        current_data_points: (item.current_data_points ?? []).slice(0, 4),
+        growth_focus: item.growth_focus ?? 'Stay attentive to the next faithful growth edge here.',
         reflection_questions: (item.reflection_questions ?? []).slice(0, 3),
         journaling_prompts: (item.journaling_prompts ?? []).slice(0, 3),
         encouraging_statement: item.encouraging_statement ?? 'Receive grace and take the next faithful step.',

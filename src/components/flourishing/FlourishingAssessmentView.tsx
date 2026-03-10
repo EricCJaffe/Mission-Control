@@ -108,6 +108,7 @@ export default function FlourishingAssessmentView({
         {assessment.domain_scores.map((domain) => {
           const Icon = DOMAIN_ICONS[domain.domain];
           const colors = DOMAIN_COLORS[domain.domain];
+          const coaching = assessment.coaching.domain_coaching.find((item) => item.domain === domain.domain);
           return (
             <article key={domain.domain} className={`rounded-[26px] border border-slate-200 bg-gradient-to-br ${colors.panel} p-5 shadow-sm`}>
               <div className="flex items-start justify-between gap-3">
@@ -125,6 +126,22 @@ export default function FlourishingAssessmentView({
                 </div>
               </div>
               <p className="mt-4 text-sm text-slate-700">{domain.summary}</p>
+              {coaching && (
+                <div className="mt-4 rounded-2xl bg-white/80 p-4 ring-1 ring-slate-200">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">AI Insight</div>
+                  <p className="mt-2 text-sm text-slate-700">{coaching.insight_summary}</p>
+                  {coaching.current_data_points.length > 0 && (
+                    <ul className="mt-3 space-y-1 text-sm text-slate-600">
+                      {coaching.current_data_points.map((point) => (
+                        <li key={point}>• {point}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    <span className="font-medium text-slate-900">Growth edge:</span> {coaching.growth_focus}
+                  </div>
+                </div>
+              )}
               {domain.scripture && (
                 <div className="mt-4 rounded-2xl bg-white/80 p-4 ring-1 ring-slate-200">
                   <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Scripture</div>
@@ -155,6 +172,7 @@ export default function FlourishingAssessmentView({
             <div key={coaching.domain} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="text-base font-semibold text-slate-900">{assessment.domain_scores.find((item) => item.domain === coaching.domain)?.label ?? coaching.domain}</div>
               <p className="mt-2 text-sm text-slate-700">{coaching.encouraging_statement}</p>
+              <p className="mt-3 text-sm text-slate-600">{coaching.insight_summary}</p>
               <div className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Reflection Questions</div>
               <ul className="mt-2 space-y-2 text-sm text-slate-700">
                 {coaching.reflection_questions.map((question) => <li key={question}>• {question}</li>)}

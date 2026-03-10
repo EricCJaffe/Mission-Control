@@ -47,6 +47,7 @@ export default function FlourishingClient({
   const [assessmentType, setAssessmentType] = useState<'monthly' | 'adhoc'>('monthly');
   const [activeTab, setActiveTab] = useState<'overview' | 'assess' | 'history' | 'persona'>('overview');
   const [submitting, setSubmitting] = useState(false);
+  const [refreshingInsights, setRefreshingInsights] = useState(false);
   const [result, setResult] = useState<FlourishingAssessmentResult | null>(latestAssessment);
   const [proposalRows, setProposalRows] = useState(pendingPersonaProposals);
   const [selectedAssessment, setSelectedAssessment] = useState<FlourishingAssessmentResult | null>(latestAssessment);
@@ -99,6 +100,33 @@ export default function FlourishingClient({
     setProposalRows((prev) => prev.filter((item) => !ids.includes(item.id)));
   }
 
+  async function refreshInsights() {
+    const assessmentId = selectedAssessment?.id || result?.id || latestAssessment?.id;
+    if (!assessmentId) return;
+    setRefreshingInsights(true);
+    try {
+      const res = await fetch('/api/flourishing/assessments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'refresh_insights', assessment_id: assessmentId }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.error || 'Failed to refresh flourishing insights');
+        return;
+      }
+      setResult(data.assessment);
+      setSelectedAssessment(data.assessment);
+      const current = await fetch('/api/flourishing/current').then((response) => response.json());
+      setProposalRows(current.pending_persona_proposals || []);
+    } catch (error) {
+      console.error(error);
+      alert('Failed to refresh flourishing insights');
+    } finally {
+      setRefreshingInsights(false);
+    }
+  }
+
   const overviewAssessment = selectedAssessment || result || latestAssessment;
 
   return (
@@ -112,7 +140,7 @@ export default function FlourishingClient({
             </div>
             <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-900">A brighter view of how life is actually going.</h1>
             <p className="mt-3 max-w-2xl text-base text-slate-700">
-              This assessment blends spiritual, relational, emotional, physical, stewardship, and calling awareness into one review-centered snapshot. It reads from your persona and health context, then proposes refined updates rather than overwriting them silently.
+              This assessment blends spiritual, relational, emotional, physical, stewardship, and calling awareness into one review-centered snapshot. It reads the three core files distinctly: `persona.md` for enduring identity and mission, `soul.md` for present inner-life and relational weather, and `health.md` for body-level reality and constraints.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -167,6 +195,24 @@ export default function FlourishingClient({
               <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Persona Proposals</div>
               <div className="mt-3 text-4xl font-semibold text-slate-900">{proposalRows.length}</div>
             </div>
+          </section>
+
+          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Source Files</div>
+                <div className="mt-2 text-lg font-semibold text-slate-900">How the three core files now drive flourishing</div>
+                <div className="mt-2 grid gap-2 text-sm text-slate-700 md:grid-cols-3">
+                  <div><span className="font-medium text-slate-900">persona.md:</span> identity, mission, priorities, calling, stewardship direction</div>
+                  <div><span className="font-medium text-slate-900">soul.md:</span> emotional weather, relationship strain, what restores and drains, prayer-facing honesty</div>
+                  <div><span className="font-medium text-slate-900">health.md:</span> body stewardship, medical constraints, baselines, recovery, training context</div>
+                </div>
+              </div>
+              <button onClick={refreshInsights} disabled={!overviewAssessment || refreshingInsights} className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+                {refreshingInsights ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Refresh Insights
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-slate-500">Refresh regenerates AI insights and persona proposals from the latest `persona.md`, `soul.md`, `health.md`, and review context without changing the stored numeric scores.</p>
           </section>
 
           {!overviewAssessment ? (
