@@ -68,9 +68,10 @@ Optional:
 - `GARMIN_EMAIL`
 - `GARMIN_PASSWORD`
 
-## Current Status (March 9, 2026)
+## Current Status (March 10, 2026)
 ### Shipped
 - Full fitness module: logging, templates, plans, metrics, PRs, trends, equipment, history
+- Flourishing module with review-centered assessments, current profile, historical trends, AI coaching, and persona proposal review/apply flow
 - Health intelligence: `health.md`, meds, labs, appointments, cardiologist prep/report, imaging
 - Health.md approval/update workflow with versioning and review
 - Genetics multi-report dashboard with six report types and comprehensive synthesis

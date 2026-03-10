@@ -13,6 +13,7 @@ Mission Control is a personal operating system built with Next.js, Supabase, and
 
 ## Core Modules
 - Dashboard, tasks, goals, reviews, calendar, notes
+- Flourishing assessments, trends, coaching, and persona review proposals
 - Book writer and sermon builder
 - Fitness dashboard, workout logger, templates, plans, history, PRs, equipment
 - Health intelligence: `health.md`, labs, genetics, imaging, medications, appointments, morning briefing

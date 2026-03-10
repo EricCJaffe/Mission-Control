@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const prompt = typeof body?.prompt === "string" ? body.prompt : "";
   const mode = typeof body?.mode === "string" ? body.mode : "summary";
 
-  const [personaResult, soulResult] = await Promise.all([
+  const [personaResult, soulResult, flourishingResult] = await Promise.all([
     supabase
       .from("notes")
       .select("content_md")
@@ -29,17 +29,25 @@ export async function POST(req: Request) {
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("flourishing_profiles")
+      .select("display_index,overall_message,strongest_domains,growth_domains")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
 
   const persona = personaResult.data?.content_md || "";
   const soul = soulResult.data?.content_md || "";
+  const flourishing = flourishingResult.data
+    ? `Flourishing Index: ${flourishingResult.data.display_index ?? 'N/A'}/10\nSummary: ${flourishingResult.data.overall_message ?? 'N/A'}\nStrongest: ${(flourishingResult.data.strongest_domains || []).join(', ')}\nGrowth: ${(flourishingResult.data.growth_domains || []).join(', ')}`
+    : "";
 
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
       {
         ok: false,
         error: "OPENAI_API_KEY not configured",
-        context: { personaLength: persona.length, soulLength: soul.length },
+        context: { personaLength: persona.length, soulLength: soul.length, flourishingLength: flourishing.length },
         hint: "Set OPENAI_API_KEY on the server to enable responses.",
       },
       { status: 501 }
@@ -50,11 +58,11 @@ export async function POST(req: Request) {
   try {
     responseText = await callOpenAI({
       model: process.env.OPENAI_MODEL || "gpt-5.2",
-      system: `You are an assistant aligned to the persona and soul context.\nPersona:\n${persona}\nSoul:\n${soul}`,
+      system: `You are an assistant aligned to the persona, soul, and flourishing context.\nPersona:\n${persona}\nSoul:\n${soul}\nFlourishing:\n${flourishing}`,
       user: `Mode: ${mode}\nPrompt: ${prompt}`,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "ai_error" }, { status: 500 });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "ai_error" }, { status: 500 });
   }
 
   return NextResponse.json({
@@ -65,6 +73,7 @@ export async function POST(req: Request) {
     context: {
       personaLength: persona.length,
       soulLength: soul.length,
+      flourishingLength: flourishing.length,
     },
   });
 }

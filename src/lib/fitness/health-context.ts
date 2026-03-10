@@ -64,6 +64,12 @@ interface HealthContext {
     fiber_avg_7d: number | null;
     pattern: string | null;
   } | null;
+  flourishing: {
+    flourishing_index: number | null;
+    overall_message: string | null;
+    strongest_domains: string[];
+    growth_domains: string[];
+  } | null;
   recentMetrics: {
     rhr: number | null;
     hrv: number | null;
@@ -179,6 +185,12 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
   } catch {
     comprehensiveGenetics = null;
   }
+
+  const { data: flourishingProfile } = await supabase
+    .from('flourishing_profiles')
+    .select('flourishing_index, overall_message, strongest_domains, growth_domains')
+    .eq('user_id', userId)
+    .maybeSingle();
 
   const { data: bodyMetrics } = await supabase
     .from('body_metrics')
@@ -309,6 +321,14 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
           protein_avg_7d: Math.round(nutritionLogs.reduce((sum, row) => sum + (Number(row.protein_g) || 0), 0) / nutritionLogs.length),
           fiber_avg_7d: Math.round(nutritionLogs.reduce((sum, row) => sum + (Number(row.fiber_g) || 0), 0) / nutritionLogs.length),
           pattern: nutritionTarget?.pattern ?? null,
+        }
+      : null,
+    flourishing: flourishingProfile
+      ? {
+          flourishing_index: typeof flourishingProfile.flourishing_index === 'number' ? flourishingProfile.flourishing_index : null,
+          overall_message: typeof flourishingProfile.overall_message === 'string' ? flourishingProfile.overall_message : null,
+          strongest_domains: Array.isArray(flourishingProfile.strongest_domains) ? flourishingProfile.strongest_domains.map(String) : [],
+          growth_domains: Array.isArray(flourishingProfile.growth_domains) ? flourishingProfile.growth_domains.map(String) : [],
         }
       : null,
     recentMetrics: {
@@ -754,6 +774,21 @@ export async function buildAISystemPrompt(
     prompt += `━━━ HEALTH PROFILE (health.md) ━━━\n${context.health}\n\n`;
   } else {
     prompt += `━━━ HEALTH PROFILE ━━━\n⚠️ WARNING: health.md not initialized. Using minimal context.\n\n`;
+  }
+
+  if (context.flourishing) {
+    prompt += `━━━ FLOURISHING PROFILE ━━━\n`;
+    prompt += `- Flourishing index: ${context.flourishing.flourishing_index ?? 'N/A'}/10\n`;
+    if (context.flourishing.overall_message) {
+      prompt += `- Summary: ${context.flourishing.overall_message}\n`;
+    }
+    if (context.flourishing.strongest_domains.length > 0) {
+      prompt += `- Strongest domains: ${context.flourishing.strongest_domains.join(', ')}\n`;
+    }
+    if (context.flourishing.growth_domains.length > 0) {
+      prompt += `- Growth domains: ${context.flourishing.growth_domains.join(', ')}\n`;
+    }
+    prompt += `\n`;
   }
 
   // Active medications

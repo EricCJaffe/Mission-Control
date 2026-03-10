@@ -7,6 +7,15 @@
 
 ## Latest Changes (Rolling)
 
+### March 10, 2026 — Flourishing Module + Persona Review Flow
+- Added `/flourishing` and `/flourishing/[assessmentId]` with a colorful assessment/results/history experience.
+- Added versioned flourishing question sets, persisted assessments, and a current flourishing profile in Supabase.
+- Added equal-weight scoring across six core domains with separate overall well-being sentiment handling.
+- Added persisted AI coaching output with reflection questions, journaling prompts, and executive summary.
+- Added `persona_pending_updates` and review/apply/reject routes so flourishing can suggest `persona.md` updates without silent edits.
+- Added flourishing summary cards and links on the dashboard and reviews screens.
+- Extended shared AI context to include the latest flourishing state.
+
 ### March 9, 2026 — Withings OAuth Integration + Health Platform Expansion
 - Added Withings OAuth/API integration with encrypted token storage, status, manual sync, disconnect flow, and legacy CSV fallback.
 - Added new Withings database tables for connection state and sync logs.

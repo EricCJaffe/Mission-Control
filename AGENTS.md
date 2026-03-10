@@ -91,6 +91,7 @@ When code changes, update:
 
 ## Current Shipped Health/Fitness Scope
 - Withings OAuth/manual health-metric sync with legacy CSV fallback
+- Flourishing module with colorful assessments, historical scoring, AI coaching, and persona proposal review/apply flow
 - Genetics multi-report analysis with comprehensive synthesis
 - Imaging ingestion and analysis
 - Health command center with persisted synthesis and PDF export

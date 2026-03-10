@@ -52,3 +52,10 @@
 - Health command center builds a persisted synthesis snapshot
 - Suggested `health.md` updates are queued through the review workflow
 - Training plans can be generated from AI-prepared intake, exported to PDF, and scheduled into planned workouts
+
+## Flourishing Workflow
+- Run a monthly or ad hoc flourishing assessment from `/flourishing`
+- Scores are persisted to history and rolled into the current flourishing profile
+- AI coaching is stored with each completed assessment
+- Persona suggestions are queued in a separate review/apply flow instead of auto-editing `persona.md`
+- Dashboard and reviews surfaces show the current flourishing summary

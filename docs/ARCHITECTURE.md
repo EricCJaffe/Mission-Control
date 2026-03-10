@@ -19,6 +19,7 @@
 ## Domain Modules
 - Core planning: projects, tasks, notes, dashboard scores.
 - Alignment planning: daily priorities, anchors, calendar events, monthly reviews.
+- Flourishing: versioned assessment question sets, persisted results/current profile, AI coaching payloads, and persona update proposals.
 - Goals + SOP: goal cycles/goals/goal-task links and SOP docs/checks.
 - Book writer: books, chapters, versions, comments/proposals, milestones, uploads, research notes, AI chat threads/messages, chapter chunks, book proposals.
 - Attachments: scoped file uploads/downloads for notes/tasks/books via storage + metadata table.
@@ -27,6 +28,7 @@
 - Shared OpenAI helper in `src/lib/openai.ts`.
 - AI routes:
   - `/api/ai/*` for chat/retrieve/patch/outline workflows.
+  - `/api/flourishing/*` for flourishing assessments, scoring, coaching persistence, and persona proposal review.
   - `/books/ai/*` and comment-review routes for manuscript operations.
 - Retrieval scaffolding stores chapter chunks with `vector(1536)` embeddings (`chapter_chunks`).
 - `/api/ai` root route remains scaffold-oriented; other book/ai routes make direct OpenAI calls.

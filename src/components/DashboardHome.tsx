@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 
 function formatTime(value: string) {
@@ -47,6 +48,7 @@ export default async function DashboardHome() {
   const [
     scoresResult,
     alignmentResult,
+    flourishingResult,
     prioritiesResult,
     anchorsResult,
     eventsResult,
@@ -65,6 +67,11 @@ export default async function DashboardHome() {
       .select("id,alignment_score,alignment_status,drift_flags,period_start")
       .order("period_start", { ascending: false })
       .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("flourishing_profiles")
+      .select("display_index,strongest_domains,growth_domains,overall_message,updated_at")
+      .eq("user_id", user.id)
       .maybeSingle(),
     supabase
       .from("daily_priorities")
@@ -108,6 +115,7 @@ export default async function DashboardHome() {
   const bodyScore = scoreRow?.body ?? "";
 
   const alignment = alignmentResult.data;
+  const flourishing = flourishingResult.data;
   const alignmentStatus = alignmentLabel(
     alignment?.alignment_status,
     alignment?.alignment_score,
@@ -202,6 +210,42 @@ export default async function DashboardHome() {
         </form>
       </section>
 
+      <section className="mt-6 overflow-hidden rounded-[28px] border border-amber-100 bg-gradient-to-br from-rose-50 via-amber-50 to-sky-50 p-5 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-[0.3em] text-amber-700">
+              Flourishing
+            </div>
+            <div className="mt-2 text-2xl font-semibold">Whole-Life Snapshot</div>
+            <div className="mt-1 text-sm text-slate-600">
+              A review-centered score across spiritual, relational, emotional, physical, stewardship, and calling domains.
+            </div>
+          </div>
+          <Link className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm" href="/flourishing">
+            Open Flourishing
+          </Link>
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-4">
+          <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Current Index</div>
+            <div className="mt-2 text-4xl font-semibold text-slate-900">{flourishing?.display_index ?? "—"}</div>
+          </div>
+          <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Strongest</div>
+            <div className="mt-2 text-sm text-slate-700">{flourishing?.strongest_domains?.join(", ") || "Run an assessment"}</div>
+          </div>
+          <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Growth Edge</div>
+            <div className="mt-2 text-sm text-slate-700">{flourishing?.growth_domains?.join(", ") || "Run an assessment"}</div>
+          </div>
+          <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Last Message</div>
+            <div className="mt-2 text-sm text-slate-700">{flourishing?.overall_message || "No flourishing assessment yet."}</div>
+          </div>
+        </div>
+      </section>
+
       <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
@@ -213,9 +257,9 @@ export default async function DashboardHome() {
               What’s behind, what’s due, and what restores alignment.
             </div>
           </div>
-          <a className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm" href="/reviews/new">
+          <Link className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm" href="/reviews/new">
             Run Monthly Survey
-          </a>
+          </Link>
         </div>
 
         <div className="mt-4 grid gap-4 md:grid-cols-3">
