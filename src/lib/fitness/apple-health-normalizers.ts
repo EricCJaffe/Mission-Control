@@ -38,12 +38,19 @@ export type HAEMetricSample = {
   Min?: number;
   Max?: number;
   source?: string;
-  inBed?: number;    // sleep-specific (minutes)
-  asleep?: number;
-  awake?: number;
-  deep?: number;
-  core?: number;
-  rem?: number;
+  // Sleep-specific fields (aggregated format)
+  inBed?: number;       // minutes in bed
+  asleep?: number;      // minutes asleep
+  totalSleep?: number;  // minutes total sleep
+  awake?: number;       // minutes awake
+  deep?: number;        // minutes deep sleep
+  core?: number;        // minutes core/light sleep
+  rem?: number;         // minutes REM sleep
+  sleepStart?: string;  // ISO date string
+  sleepEnd?: string;    // ISO date string
+  // Blood pressure
+  systolic?: number;
+  diastolic?: number;
 };
 
 export type HAEMetric = {
@@ -52,16 +59,27 @@ export type HAEMetric = {
   data: HAEMetricSample[];
 };
 
+// Health Auto Export v2 nested value type
+type HAEQtyUnits = { qty: number; units: string };
+type HAEHRSummary = { min?: HAEQtyUnits; avg?: HAEQtyUnits; max?: HAEQtyUnits };
+
 export type HAEWorkout = {
+  id?: string;
   name: string;
   start: string;
   end: string;
-  duration?: number;         // minutes
-  activeEnergy?: number;     // kcal
-  distance?: number;         // miles or km depending on export settings
+  duration?: number;                // seconds in v2, minutes in v1
+  location?: string;
+  // v1 flat fields
+  activeEnergy?: number;
+  distance?: number;
   distanceUnit?: string;
   avgHeartRate?: number;
   maxHeartRate?: number;
+  // v2 nested fields
+  activeEnergyBurned?: HAEQtyUnits;
+  distanceObj?: HAEQtyUnits;        // mapped from JSON key "distance" when it's an object
+  heartRate?: HAEHRSummary;
   source?: string;
 };
 
@@ -94,8 +112,15 @@ export async function importAppleHealthExport(
   };
 
   // Process workouts (always accepted from any source — you wear one device per activity)
-  for (const workout of workouts) {
+  for (const rawWorkout of workouts) {
     try {
+      // Normalize v2 nested fields: distance may be an object {qty, units}
+      const workout = { ...rawWorkout } as HAEWorkout;
+      const dist = rawWorkout.distance as unknown;
+      if (dist && typeof dist === 'object' && 'qty' in (dist as Record<string, unknown>)) {
+        workout.distanceObj = dist as { qty: number; units: string };
+        workout.distance = undefined;
+      }
       const result = await upsertWorkoutFromAppleHealth(supabase, userId, workout);
       results.workouts[result]++;
     } catch {
@@ -215,8 +240,10 @@ async function upsertWorkoutFromAppleHealth(
   if (overlap) return 'skipped'; // Workout already recorded from another source
 
   const workoutType = mapAppleWorkoutType(workout.name);
-  const durationMinutes = workout.duration
-    ? Math.round(workout.duration)
+  // v2 duration is in seconds, v1 is in minutes; detect by checking if value > 300 (5 min)
+  const rawDuration = workout.duration;
+  const durationMinutes = rawDuration
+    ? rawDuration > 300 ? Math.round(rawDuration / 60) : Math.round(rawDuration)
     : workout.end
       ? Math.round((new Date(workout.end).getTime() - workoutDate.getTime()) / 60000)
       : null;
@@ -235,11 +262,18 @@ async function upsertWorkoutFromAppleHealth(
 
   // Add cardio details if applicable
   if (['Running', 'Cycling', 'Swimming', 'Walking'].includes(workoutType)) {
-    const distanceMiles = workout.distance
-      ? workout.distanceUnit?.toLowerCase() === 'km'
-        ? workout.distance * 0.621371
-        : workout.distance
+    // Handle both v1 flat fields and v2 nested objects
+    const rawDistance = workout.distance ?? workout.distanceObj?.qty ?? null;
+    const distanceUnits = workout.distanceUnit ?? workout.distanceObj?.units ?? 'mi';
+    const distanceMiles = rawDistance
+      ? distanceUnits.toLowerCase() === 'km'
+        ? rawDistance * 0.621371
+        : rawDistance
       : null;
+
+    const avgHR = workout.avgHeartRate ?? workout.heartRate?.avg?.qty ?? null;
+    const maxHR = workout.maxHeartRate ?? workout.heartRate?.max?.qty ?? null;
+    const calories = workout.activeEnergy ?? workout.activeEnergyBurned?.qty ?? null;
 
     await supabase.from('cardio_logs').insert({
       workout_log_id: (await supabase
@@ -250,9 +284,9 @@ async function upsertWorkoutFromAppleHealth(
         .single()).data?.id,
       activity_type: workoutType,
       distance_miles: distanceMiles ? parseFloat(distanceMiles.toFixed(2)) : null,
-      avg_hr: workout.avgHeartRate ? Math.round(workout.avgHeartRate) : null,
-      max_hr: workout.maxHeartRate ? Math.round(workout.maxHeartRate) : null,
-      calories: workout.activeEnergy ? Math.round(workout.activeEnergy) : null,
+      avg_hr: avgHR ? Math.round(avgHR) : null,
+      max_hr: maxHR ? Math.round(maxHR) : null,
+      calories: calories ? Math.round(calories) : null,
     }).catch(() => {
       // Non-critical — workout was already logged
     });
@@ -271,7 +305,7 @@ async function upsertSleepFromAppleHealth(
   if (!sample.date) return 'skipped';
 
   const sleepDate = sample.date.split('T')[0];
-  const totalSleepMinutes = sample.asleep ?? sample.qty ?? 0;
+  const totalSleepMinutes = sample.totalSleep ?? sample.asleep ?? sample.qty ?? 0;
   if (totalSleepMinutes <= 0) return 'skipped';
 
   const totalSleepSeconds = Math.round(totalSleepMinutes * 60);
@@ -279,8 +313,8 @@ async function upsertSleepFromAppleHealth(
   const payload = {
     user_id: userId,
     sleep_date: sleepDate,
-    sleep_start: sample.date,
-    sleep_end: sample.date, // Will be calculated from duration if not available
+    sleep_start: sample.sleepStart ?? sample.date,
+    sleep_end: sample.sleepEnd ?? sample.date,
     total_sleep_seconds: totalSleepSeconds,
     deep_sleep_seconds: sample.deep ? Math.round(sample.deep * 60) : null,
     light_sleep_seconds: sample.core ? Math.round(sample.core * 60) : null,
