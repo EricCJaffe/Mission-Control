@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import UiFeedbackProvider from "@/components/UiFeedbackProvider";
+import ChatWidget from "@/components/ChatWidget";
 
 type AppShellProps = {
   userEmail: string | null;
@@ -70,6 +71,7 @@ export default function AppShell({ userEmail, children }: AppShellProps) {
         >
           {sidebarCollapsed ? "Expand Menu" : "Collapse Menu"}
         </button>
+        <ChatWidget />
       </div>
     </UiFeedbackProvider>
   );
