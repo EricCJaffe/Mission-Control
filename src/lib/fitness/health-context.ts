@@ -333,7 +333,7 @@ You are reviewing the user's medication and supplement regimen. This can be trig
 Return a JSON object with these fields:
 {
   "overall_assessment": "SAFE | CAUTION | CONCERN",
-  "summary": "Brief 2-3 sentence summary of the review",
+  "summary": "Comprehensive plain-text summary (5-8 sentences). Cover the overall safety profile, key interactions or concerns, notable strengths of the regimen, any gaps, and a closing note to discuss changes with the cardiologist. Write in natural prose, not JSON or bullet points.",
   "interactions": [
     {
       "severity": "HIGH | MEDIUM | LOW",

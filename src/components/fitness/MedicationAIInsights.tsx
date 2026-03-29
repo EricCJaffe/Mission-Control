@@ -32,14 +32,14 @@ type AIReview = {
 };
 
 type Props = {
-  onTestNewSupplement: () => void;
+  onAddNew: () => void;
   savedReview?: AIReview | null;
   lastReviewedAt?: string | null;
   triggerRefresh?: number; // Incrementing this prop triggers a refresh
 };
 
 export default function MedicationAIInsights({
-  onTestNewSupplement,
+  onAddNew,
   savedReview,
   lastReviewedAt,
   triggerRefresh = 0,
@@ -94,6 +94,32 @@ export default function MedicationAIInsights({
     }
   }
 
+  // Clean up summary text — handle raw JSON, escaped strings, or structured objects
+  function formatSummary(raw: unknown): string {
+    if (!raw) return '';
+    if (typeof raw === 'object') {
+      // If AI returned an object instead of a string, flatten to readable text
+      return Object.entries(raw as Record<string, unknown>)
+        .map(([key, val]) => {
+          const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          return `${label}: ${String(val)}`;
+        })
+        .join('\n');
+    }
+    let text = String(raw);
+    // Strip wrapping JSON artifacts if the AI returned stringified JSON
+    try {
+      const parsed = JSON.parse(text);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return formatSummary(parsed);
+      }
+      return String(parsed);
+    } catch {
+      // Not JSON — good, just clean it up
+    }
+    return text;
+  }
+
   const assessmentColor = {
     SAFE: 'text-green-700 bg-green-50 border-green-200',
     CAUTION: 'text-yellow-700 bg-yellow-50 border-yellow-200',
@@ -115,10 +141,10 @@ export default function MedicationAIInsights({
         </div>
         <div className="flex gap-2">
           <button
-            onClick={onTestNewSupplement}
-            className="px-4 py-2 rounded-lg border border-blue-200 text-sm font-medium text-blue-600 hover:bg-blue-50 min-h-[40px]"
+            onClick={onAddNew}
+            className="px-4 py-2 rounded-lg border border-blue-200 text-sm font-medium text-blue-600 hover:bg-blue-50 min-h-[44px]"
           >
-            Test New Supplement
+            Add New Medication or Supplement
           </button>
           <button
             onClick={loadReview}
@@ -163,8 +189,10 @@ export default function MedicationAIInsights({
               {review.overall_assessment === 'CAUTION' && <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
               {review.overall_assessment === 'CONCERN' && <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
               <div className="flex-1">
-                <p className="font-semibold mb-1">Overall Assessment: {review.overall_assessment}</p>
-                <p className="text-sm">{review.summary}</p>
+                <p className="font-semibold mb-2">Overall Assessment: {review.overall_assessment}</p>
+                <div className="text-sm whitespace-pre-line leading-relaxed">
+                  {formatSummary(review.summary)}
+                </div>
               </div>
             </div>
           </div>

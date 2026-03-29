@@ -49,6 +49,7 @@ type SearchResult = {
 
 export default function SupplementProposal({ onClose, onAdd }: Props) {
   const [name, setName] = useState('');
+  const [itemType, setItemType] = useState<'supplement' | 'prescription' | 'otc'>('supplement');
   const [dosage, setDosage] = useState('');
   const [purpose, setPurpose] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
@@ -126,7 +127,7 @@ export default function SupplementProposal({ onClose, onAdd }: Props) {
         body: JSON.stringify({
           proposedMedication: {
             name: name.trim(),
-            type: 'supplement',
+            type: itemType,
             dosage: dosage.trim() || 'Standard dose',
             purpose: purpose.trim() || 'General health',
           },
@@ -147,10 +148,10 @@ export default function SupplementProposal({ onClose, onAdd }: Props) {
     }
   }
 
-  function handleAddSupplement() {
+  function handleAddItem() {
     onAdd({
       name: name.trim(),
-      type: 'supplement',
+      type: itemType,
       dosage: dosage.trim() || '',
       purpose: purpose.trim() || '',
       ai_review: review || undefined,
@@ -173,10 +174,10 @@ export default function SupplementProposal({ onClose, onAdd }: Props) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-slate-900">Test New Supplement</h3>
+          <h3 className="text-lg font-semibold text-slate-900">Add New Medication or Supplement</h3>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            className="text-slate-400 hover:text-slate-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <X className="w-5 h-5" />
           </button>
@@ -190,16 +191,43 @@ export default function SupplementProposal({ onClose, onAdd }: Props) {
 
         {/* Input Form */}
         <div className="space-y-4 mb-6">
+          {/* Type Selector */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Supplement Name *
+              Type *
+            </label>
+            <div className="flex gap-2">
+              {([
+                { value: 'prescription', label: 'Prescription' },
+                { value: 'otc', label: 'OTC' },
+                { value: 'supplement', label: 'Supplement' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setItemType(opt.value)}
+                  className={`flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px] ${
+                    itemType === opt.value
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Name *
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Cortisol Manager, Multivitamin"
+                placeholder="e.g., Farxiga, Cortisol Manager, Multivitamin"
                 className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoFocus
               />
@@ -217,7 +245,7 @@ export default function SupplementProposal({ onClose, onAdd }: Props) {
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              For complex supplements, click the search button to find ingredients
+              Click the search button to look up ingredient and interaction details
             </p>
           </div>
 
@@ -375,7 +403,7 @@ export default function SupplementProposal({ onClose, onAdd }: Props) {
             <div className="flex gap-3 pt-4 border-t border-slate-200">
               {review.overall_assessment === 'SAFE' && (
                 <button
-                  onClick={handleAddSupplement}
+                  onClick={handleAddItem}
                   className="flex-1 rounded-lg bg-green-600 text-white font-medium px-4 py-2.5 hover:bg-green-700 min-h-[44px]"
                 >
                   Add to My Regimen
@@ -383,7 +411,7 @@ export default function SupplementProposal({ onClose, onAdd }: Props) {
               )}
               {review.overall_assessment !== 'SAFE' && (
                 <button
-                  onClick={handleAddSupplement}
+                  onClick={handleAddItem}
                   className="flex-1 rounded-lg bg-yellow-600 text-white font-medium px-4 py-2.5 hover:bg-yellow-700 min-h-[44px]"
                 >
                   Add Anyway (Proceed with Caution)

@@ -217,7 +217,7 @@ export default function MedicationsClient({
 
       {/* AI Medication Insights */}
       <MedicationAIInsights
-        onTestNewSupplement={() => setShowSupplementProposal(true)}
+        onAddNew={() => setShowSupplementProposal(true)}
         savedReview={initialReview}
         lastReviewedAt={initialReviewedAt}
         triggerRefresh={refreshTrigger}
