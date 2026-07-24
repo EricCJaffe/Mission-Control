@@ -12,6 +12,11 @@ import {
   type ProgramPlan,
   type PlannedDay,
 } from '../src/lib/fitness/program-rules';
+import {
+  normalizeGoal,
+  toProgramPlan,
+  validateGeneratedPlan,
+} from '../src/lib/fitness/plan-validation';
 
 let pass = 0;
 let fail = 0;
@@ -207,6 +212,103 @@ check('hybrid runs both families',
     const r = validateProgram({ goal: 'hybrid', weekly_template: [mk(1, [['chest']])] });
     return r.findings.some(f => f.rule === '72-hour') && r.findings.some(f => f.rule.startsWith('3-5-'));
   })());
+
+console.log('\n--- plan-validation adapter (raw model output -> ProgramPlan) ---');
+
+const EXERCISE_LIB = [
+  { id: 'ex-bench', name: 'Bench Press', category: 'push', muscle_groups: ['chest', 'triceps'], is_compound: true },
+  { id: 'ex-row', name: 'Barbell Row', category: 'pull', muscle_groups: ['back', 'biceps'], is_compound: true },
+];
+
+check('normalizeGoal: exact match', normalizeGoal('strength') === 'strength');
+check('normalizeGoal: "Fat Loss" -> fat_loss', normalizeGoal('Fat Loss') === 'fat_loss');
+check('normalizeGoal: "muscle size" -> hypertrophy', normalizeGoal('muscle size') === 'hypertrophy');
+check('normalizeGoal: unknown -> hybrid (conservative)', normalizeGoal('vibes') === 'hybrid');
+check('normalizeGoal: null -> hybrid', normalizeGoal(null) === 'hybrid');
+
+// Muscle groups absent from model output must be resolved from the library,
+// otherwise the 72-hour rule silently degrades to "cannot verify".
+const libResolved = toProgramPlan(
+  { weekly_template: [{ day_number: 1, exercises: [{ exercise_id: 'ex-bench', exercise_name: 'Bench Press', sets: 3 }] }] },
+  { goal: 'hypertrophy', weeks: 4, exercises: EXERCISE_LIB }
+);
+check('muscle groups resolved from exercise library',
+  libResolved.weekly_template[0].exercises?.[0].muscle_groups?.includes('chest') === true,
+  libResolved.weekly_template[0].exercises?.[0]);
+check('category resolved from library', libResolved.weekly_template[0].exercises?.[0].category === 'push');
+
+// Missing day_number must not collapse every day onto the same index.
+const noDayNumbers = toProgramPlan(
+  { weekly_template: [{ exercises: [{ exercise_name: 'A' }] }, { exercises: [{ exercise_name: 'B' }] }] },
+  { goal: 'strength' }
+);
+check('missing day_number falls back to position',
+  noDayNumbers.weekly_template.map(d => d.day_number).join(',') === '1,2',
+  noDayNumbers.weekly_template.map(d => d.day_number));
+
+// Free-text progression_notes must NOT satisfy the structured overload rule.
+const prose = toProgramPlan(
+  { weekly_template: [], progression_notes: 'Add a bit of weight each week' },
+  { goal: 'strength' }
+);
+check('prose progression_notes does not count as declared progression', prose.progression === undefined);
+check('...and therefore still fails the overload rule',
+  validateProgram(prose).findings.some(f => f.rule === 'progressive-overload' && f.severity === 'error'));
+
+const structured = toProgramPlan(
+  { weekly_template: [], progression: { mechanisms: ['load', 'reps'], cadence_weeks: 2 } },
+  { goal: 'strength' }
+);
+check('structured progression is accepted', structured.progression?.mechanisms.length === 2);
+
+// Unknown mechanisms are dropped rather than trusted.
+const bogus = toProgramPlan(
+  { weekly_template: [], progression: { mechanisms: ['load', 'vibes', 'Range Of Motion'], cadence_weeks: 2 } },
+  { goal: 'strength' }
+);
+check('unknown mechanisms dropped, known ones normalised',
+  JSON.stringify(bogus.progression?.mechanisms) === '["load","range_of_motion"]', bogus.progression);
+
+// Malformed input must not throw — the model can return anything.
+let threw = false;
+try {
+  toProgramPlan({ weekly_template: 'not an array', deload_weeks: 'nope', progression: 5 } as never, { goal: 'strength' });
+  toProgramPlan({}, { goal: undefined });
+  toProgramPlan({ weekly_template: [null, 3, { exercises: [null, 'x'] }] } as never, { goal: 'strength' });
+} catch { threw = true; }
+check('malformed model output does not throw', !threw);
+
+// Exercises with neither id nor name are dropped, not turned into ghosts.
+const ghosts = toProgramPlan(
+  { weekly_template: [{ day_number: 1, exercises: [{ sets: 3 }, { exercise_name: 'Real' }] }] },
+  { goal: 'strength' }
+);
+check('nameless exercises dropped', ghosts.weekly_template[0].exercises?.length === 1);
+
+// String numerics from the model are coerced.
+const stringy = toProgramPlan(
+  { weekly_template: [{ day_number: '2', exercises: [{ exercise_name: 'A', sets: '4', rest_seconds: '180', rir: '2' }] }] },
+  { goal: 'strength' }
+);
+const sEx = stringy.weekly_template[0].exercises?.[0];
+check('numeric strings coerced', stringy.weekly_template[0].day_number === 2 && sEx?.sets === 4 && sEx?.rir === 2, sEx);
+
+// End-to-end: a realistic bad plan produces actionable findings.
+const e2e = validateGeneratedPlan(
+  {
+    goal: 'hypertrophy',
+    weekly_template: [
+      { day_number: 1, day_label: 'Push', exercises: [{ exercise_id: 'ex-bench', sets: 4, target_reps: '8-10', rir: 2 }] },
+    ],
+    progression_notes: 'get stronger',
+  },
+  { goal: 'hypertrophy', weeks: 8, exercises: EXERCISE_LIB }
+);
+check('e2e: bad plan fails', !e2e.report.passed);
+check('e2e: flags 72-hour gap', e2e.report.findings.some(f => f.rule === '72-hour'));
+check('e2e: flags missing progression', e2e.report.findings.some(f => f.rule === 'progressive-overload'));
+check('e2e: flags push-only imbalance', e2e.report.findings.some(f => f.rule === 'push-pull-balance'));
+check('e2e: every finding carries a remedy', e2e.report.findings.every(f => f.remedy.length > 10));
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);
