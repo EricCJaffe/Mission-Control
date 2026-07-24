@@ -3,13 +3,31 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { calculateReadinessScore } from '@/lib/fitness/readiness';
 import { calculateSleepDebt } from '@/lib/fitness/sleep-debt';
 import { generateMorningBriefing } from '@/lib/fitness/ai';
+import { readAiCache, writeAiCache } from '@/lib/fitness/ai-cache';
 import type { ReadinessInputs } from '@/lib/fitness/types';
 
+/** Derived from the generator so the cache shape cannot drift from it. */
+type GeneratedBriefing = Awaited<ReturnType<typeof generateMorningBriefing>>;
+type CachedBriefing = { briefing: GeneratedBriefing; date: string };
+
 /**
- * GET /api/fitness/morning-briefing — Generate the daily morning briefing
- * Combines readiness, sleep, plan, weather, weekly progress into one view
+ * GET  — returns readiness/sleep/plan/weekly data plus the LAST GENERATED
+ *        briefing text. Never calls OpenAI, so opening the page is free.
+ * POST — same, but regenerates the briefing text and caches it.
+ *
+ * The split exists because this route used to call OpenAI on every GET while a
+ * useEffect fired it on mount, so each page view billed a fresh request for
+ * text that had usually not changed.
  */
 export async function GET() {
+  return buildMorningBriefing({ regenerate: false });
+}
+
+export async function POST() {
+  return buildMorningBriefing({ regenerate: true });
+}
+
+async function buildMorningBriefing({ regenerate }: { regenerate: boolean }) {
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -193,8 +211,20 @@ export async function GET() {
     { sodium_mg: 0, protein_g: 0, fiber_g: 0, calorie_estimate: 0 }
   );
 
-  // Generate AI briefing (now with health context system)
-  const briefing = await generateMorningBriefing({
+  // On GET, serve the last generated briefing and skip OpenAI entirely.
+  // Only an explicit POST spends tokens.
+  let briefing: GeneratedBriefing | null = null;
+  let briefingGeneratedAt: string | null = null;
+  let briefingIsStale = false;
+
+  if (!regenerate) {
+    const cached = await readAiCache<CachedBriefing>(supabase, user.id, 'morning_briefing');
+    briefing = cached.payload?.briefing ?? null;
+    briefingGeneratedAt = cached.generated_at;
+    // The briefing is about today; anything generated on an earlier date is stale.
+    briefingIsStale = cached.found && cached.payload?.date !== today;
+  } else {
+    briefing = await generateMorningBriefing({
     user_id: user.id, // NEW: passes user ID for health context loading
     readiness_score: readiness.score,
     readiness_label: readiness.label,
@@ -245,7 +275,15 @@ export async function GET() {
       last_session: recoverySessions[0]?.session_date ?? null,
       last_modality: recoverySessions[0]?.modality ?? null,
     },
-  });
+    });
+
+    briefingGeneratedAt = await writeAiCache<CachedBriefing>(
+      supabase,
+      user.id,
+      'morning_briefing',
+      { briefing, date: today }
+    );
+  }
 
   return NextResponse.json({
     date: today,
@@ -286,6 +324,9 @@ export async function GET() {
       last_modality: recoverySessions[0]?.modality ?? null,
     },
     briefing,
+    briefing_generated_at: briefingGeneratedAt,
+    /** True when a cached briefing exists but was generated on an earlier day. */
+    briefing_stale: briefingIsStale,
     days_since_bp_reading: daysSinceBP,
   });
 }
