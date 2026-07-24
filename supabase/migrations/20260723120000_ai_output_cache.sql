@@ -8,6 +8,14 @@
 -- already uses, generalised so each new AI surface does not need its own table.
 --
 -- cache_key namespaces the payload (e.g. 'morning_briefing', 'metrics_analytics').
+--
+-- Deliberately NO helper functions. RLS below is the whole access-control story
+-- and the app reads/writes this table directly with the user-scoped client.
+-- A SECURITY DEFINER function taking p_user_id would bypass RLS and, because
+-- Supabase exposes RPCs to any authenticated caller, would let one user read
+-- another's cached health text by passing their uuid. Plain table access also
+-- avoids the PostgREST function schema-cache failures this project has hit
+-- before (see docs/METHYLATION_BUG.md).
 
 CREATE TABLE IF NOT EXISTS public.ai_output_cache (
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -27,59 +35,3 @@ CREATE POLICY "ai_output_cache_owner"
   ON public.ai_output_cache FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
-
-CREATE INDEX IF NOT EXISTS ai_output_cache_user_key_idx
-  ON public.ai_output_cache(user_id, cache_key);
-
-CREATE OR REPLACE FUNCTION public.upsert_ai_output_cache(
-  p_user_id uuid,
-  p_cache_key text,
-  p_payload jsonb
-)
-RETURNS timestamptz
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_generated_at timestamptz;
-BEGIN
-  INSERT INTO public.ai_output_cache (user_id, cache_key, payload, generated_at, updated_at)
-  VALUES (p_user_id, p_cache_key, p_payload, now(), now())
-  ON CONFLICT (user_id, cache_key) DO UPDATE
-  SET payload = EXCLUDED.payload,
-      generated_at = now(),
-      updated_at = now()
-  RETURNING generated_at INTO v_generated_at;
-
-  RETURN v_generated_at;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.get_ai_output_cache(
-  p_user_id uuid,
-  p_cache_key text
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_row public.ai_output_cache%ROWTYPE;
-BEGIN
-  SELECT * INTO v_row
-  FROM public.ai_output_cache
-  WHERE user_id = p_user_id AND cache_key = p_cache_key;
-
-  IF NOT FOUND THEN
-    RETURN jsonb_build_object('found', false);
-  END IF;
-
-  RETURN jsonb_build_object(
-    'found', true,
-    'payload', v_row.payload,
-    'generated_at', v_row.generated_at
-  );
-END;
-$$;

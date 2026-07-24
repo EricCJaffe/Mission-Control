@@ -8,6 +8,11 @@
 // fired in a useEffect, so merely opening a page billed a request and
 // regenerated text that had not changed. Reading is free and explicit
 // regeneration is a POST.
+//
+// Access control is RLS on the table (auth.uid() = user_id), enforced because
+// callers pass the user-scoped Supabase client. `userId` is used only to fill
+// the column on write — it is NOT the security boundary, so a caller cannot
+// read another user's cache by passing a different uuid.
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -29,13 +34,18 @@ export async function readAiCache<T>(
   userId: string,
   key: CacheKey
 ): Promise<CachedOutput<T>> {
-  const { data, error } = await supabase.rpc('get_ai_output_cache', {
-    p_user_id: userId,
-    p_cache_key: key,
-  });
+  const { data, error } = await supabase
+    .from('ai_output_cache')
+    .select('payload, generated_at')
+    .eq('user_id', userId)
+    .eq('cache_key', key)
+    .maybeSingle();
 
-  if (error || !data?.found) {
-    if (error) console.error(`[ai-cache] read failed for ${key}:`, error.message);
+  if (error) {
+    console.error(`[ai-cache] read failed for ${key}:`, error.message);
+    return { found: false, payload: null, generated_at: null };
+  }
+  if (!data) {
     return { found: false, payload: null, generated_at: null };
   }
 
@@ -59,16 +69,27 @@ export async function writeAiCache<T>(
   key: CacheKey,
   payload: T
 ): Promise<string | null> {
-  const { data, error } = await supabase.rpc('upsert_ai_output_cache', {
-    p_user_id: userId,
-    p_cache_key: key,
-    p_payload: payload,
-  });
+  const generatedAt = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from('ai_output_cache')
+    .upsert(
+      {
+        user_id: userId,
+        cache_key: key,
+        payload,
+        generated_at: generatedAt,
+        updated_at: generatedAt,
+      },
+      { onConflict: 'user_id,cache_key' }
+    )
+    .select('generated_at')
+    .maybeSingle();
 
   if (error) {
     console.error(`[ai-cache] write failed for ${key}:`, error.message);
     return null;
   }
 
-  return (data as string) ?? null;
+  return (data?.generated_at as string) ?? generatedAt;
 }
