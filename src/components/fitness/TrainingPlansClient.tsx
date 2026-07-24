@@ -27,6 +27,10 @@ type FrequencyNote = {
   reason: string;
   adjusted: boolean;
 };
+type CoverageTargeted = {
+  addressed: Array<{ attribute: string; label: string }>;
+  stillMissing: Array<{ attribute: string; label: string }>;
+};
 
 type PlanRow = {
   id: string;
@@ -73,6 +77,7 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
   const [aiGenerating, setAiGenerating] = useState(false);
   const [ruleReport, setRuleReport] = useState<RuleReport | null>(null);
   const [frequencyNote, setFrequencyNote] = useState<FrequencyNote | null>(null);
+  const [coverageTargeted, setCoverageTargeted] = useState<CoverageTargeted | null>(null);
   const [aiGoal, setAiGoal] = useState('strength');
   const [aiWeeks, setAiWeeks] = useState('8');
   const [aiSessionsPerWeek, setAiSessionsPerWeek] = useState('4');
@@ -180,6 +185,14 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
         // instead of silently accepting a plan that breaks its own goal's rules.
         setRuleReport(data.rule_report ?? null);
         setFrequencyNote(data.frequency?.adjusted ? data.frequency : null);
+        // Only worth showing when there were gaps to target in the first place.
+        setCoverageTargeted(
+          data.coverage_targeted &&
+            (data.coverage_targeted.addressed.length > 0 ||
+              data.coverage_targeted.stillMissing.length > 0)
+            ? data.coverage_targeted
+            : null
+        );
         setShowAIGen(false);
         // Reset AI form
         setAiGoal('strength');
@@ -226,6 +239,37 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
               </p>
             </div>
             <button onClick={() => setFrequencyNote(null)} className="text-xs text-blue-500 hover:text-blue-700">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Which neglected movement attributes this plan actually works back in,
+          verified against the same coverage mapping the coverage page uses —
+          not just what the prompt was asked to do. */}
+      {coverageTargeted && (
+        <div className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-3">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              {coverageTargeted.addressed.length > 0 && (
+                <p className="text-sm text-purple-900">
+                  <span className="font-medium">Works back in:</span>{' '}
+                  {coverageTargeted.addressed.map(a => a.label).join(' · ')}
+                </p>
+              )}
+              {coverageTargeted.stillMissing.length > 0 && (
+                <p className="mt-1 text-sm text-purple-800">
+                  <span className="font-medium">Still not addressed:</span>{' '}
+                  {coverageTargeted.stillMissing.map(a => a.label).join(' · ')} — regenerate or add
+                  it by hand if it matters.
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => setCoverageTargeted(null)}
+              className="text-xs text-purple-500 hover:text-purple-700"
+            >
               Dismiss
             </button>
           </div>
@@ -399,8 +443,14 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
                 <option value="hypertrophy">Hypertrophy</option>
                 <option value="endurance">Endurance</option>
                 <option value="hybrid">Hybrid</option>
+                <option value="longevity">Longevity (well-rounded)</option>
                 <option value="maintenance">Maintenance</option>
               </select>
+              {aiGoal === 'longevity' && (
+                <p className="mt-1 text-xs text-purple-700">
+                  Builds toward whatever movement attributes your training has been neglecting.
+                </p>
+              )}
             </div>
             <div>
               <label className="text-xs text-purple-700 block mb-1 font-medium">Duration</label>

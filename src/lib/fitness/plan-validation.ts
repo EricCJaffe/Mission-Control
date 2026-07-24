@@ -13,6 +13,7 @@
 
 import {
   validateProgram,
+  parseRepRange,
   type ProgramPlan,
   type PlannedDay,
   type PlannedExercise,
@@ -20,14 +21,28 @@ import {
   type RuleReport,
   type TrainingGoal,
 } from './program-rules';
+import {
+  resistanceAttributes,
+  CADENCE,
+  type CoverageAttribute,
+} from './coverage';
 
-/** Exercise metadata used to resolve muscle groups the model did not inline. */
+/**
+ * Exercise metadata used to resolve muscle groups the model did not inline, and
+ * — when present — to check whether a plan addresses coverage gaps. The coverage
+ * fields are optional so callers that do not need gap-checking can omit them.
+ */
 export type ExerciseMeta = {
   id: string;
   name?: string | null;
   category?: string | null;
   muscle_groups?: string[] | null;
   is_compound?: boolean | null;
+  velocity_intent?: string | null;
+  movement_planes?: string[] | null;
+  is_unilateral?: boolean | null;
+  trains_balance?: boolean | null;
+  trains_mobility?: boolean | null;
 };
 
 const KNOWN_GOALS: TrainingGoal[] = [
@@ -202,4 +217,68 @@ export function validateGeneratedPlan(
 ): { report: RuleReport; normalized: ProgramPlan } {
   const normalized = toProgramPlan(planData, opts);
   return { report: validateProgram(normalized), normalized };
+}
+
+// ---------- Coverage-gap check ----------
+
+export type CoverageGapResult = {
+  /** Gaps this plan would train. */
+  addressed: Array<{ attribute: CoverageAttribute; label: string }>;
+  /** Gaps this plan would still leave untouched. */
+  stillMissing: Array<{ attribute: CoverageAttribute; label: string }>;
+};
+
+/**
+ * Which coverage gaps does a generated plan actually address?
+ *
+ * The plan-generation prompt is *asked* to fill neglected attributes, but asking
+ * is not verifying. This maps every planned exercise to the coverage attributes
+ * it trains — using the SAME mapping the coverage model uses on logged sets — so
+ * a plan cannot claim to fill a gap the coverage page would not later credit.
+ *
+ * A representative rep count is taken from the top of each target_reps range: a
+ * "3-5" prescription is strength, "8-12" is hypertrophy. Cardio days count
+ * toward aerobic base, and toward aerobic capacity when prescribed hard/max.
+ */
+export function checkCoverageGaps(
+  plan: ProgramPlan,
+  gaps: CoverageAttribute[],
+  exercises: ExerciseMeta[] = []
+): CoverageGapResult {
+  const byId = new Map<string, ExerciseMeta>();
+  for (const ex of exercises) byId.set(ex.id, ex);
+
+  const trained = new Set<CoverageAttribute>();
+
+  for (const day of plan.weekly_template) {
+    const workoutType = (day.workout_type ?? '').toLowerCase();
+    if (/cardio|run|bike|row|erg|conditioning/.test(workoutType)) {
+      trained.add('aerobic_base');
+      if (day.intensity === 'hard' || day.intensity === 'max') trained.add('aerobic_capacity');
+    }
+
+    for (const ex of day.exercises ?? []) {
+      // Prefer inline metadata, fall back to the library by id.
+      const meta: ExerciseMeta | undefined = {
+        id: ex.exercise_id ?? '',
+        category: ex.category,
+        muscle_groups: ex.muscle_groups,
+        ...(ex.exercise_id ? byId.get(ex.exercise_id) : undefined),
+      };
+      const reps = parseRepRange(ex.target_reps);
+      // Use the top of the range so "3-5" reads as strength, not hypertrophy.
+      const repCount = reps ? reps.max : undefined;
+      for (const attr of resistanceAttributes(repCount, meta)) trained.add(attr);
+    }
+  }
+
+  const addressed: CoverageGapResult['addressed'] = [];
+  const stillMissing: CoverageGapResult['stillMissing'] = [];
+  for (const gap of gaps) {
+    const entry = { attribute: gap, label: CADENCE[gap].label };
+    if (trained.has(gap)) addressed.push(entry);
+    else stillMissing.push(entry);
+  }
+
+  return { addressed, stillMissing };
 }

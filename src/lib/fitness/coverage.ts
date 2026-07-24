@@ -140,16 +140,21 @@ function daysBetween(fromISO: string, toISO: string): number {
 }
 
 /**
- * Which attributes does a single resistance set contribute to?
+ * Which coverage attributes does a resistance effort contribute to?
  * Strength/muscle/endurance come from rep range; the rest come from the
  * exercise's metadata (null metadata contributes nothing, never a false zero).
+ *
+ * Exported because the same mapping is needed to check whether a *planned*
+ * workout would address a coverage gap — planned exercises must resolve to
+ * attributes identically to logged ones, or a plan could claim to fill a gap
+ * the coverage model would not credit.
  */
-function attributesForSet(set: CoverageSet, meta: ExerciseMeta | undefined): CoverageAttribute[] {
+export function resistanceAttributes(
+  reps: number | null | undefined,
+  meta: ExerciseMeta | undefined
+): CoverageAttribute[] {
   const hits: CoverageAttribute[] = [];
-  // Warmups and cooldowns are not a training stimulus for these attributes.
-  if (set.set_type === 'warmup' || set.set_type === 'cooldown') return hits;
 
-  const reps = set.reps;
   if (typeof reps === 'number' && reps > 0) {
     if (reps <= 6) hits.push('strength');
     if (reps >= 6 && reps <= 15) hits.push('muscle_mass');
@@ -167,6 +172,13 @@ function attributesForSet(set: CoverageSet, meta: ExerciseMeta | undefined): Cov
   if (planes.includes('transverse')) hits.push('plane_transverse');
 
   return hits;
+}
+
+/** Attributes a single logged set contributes to (excludes warmup/cooldown). */
+function attributesForSet(set: CoverageSet, meta: ExerciseMeta | undefined): CoverageAttribute[] {
+  // Warmups and cooldowns are not a training stimulus for these attributes.
+  if (set.set_type === 'warmup' || set.set_type === 'cooldown') return [];
+  return resistanceAttributes(set.reps, meta);
 }
 
 function statusFor(
