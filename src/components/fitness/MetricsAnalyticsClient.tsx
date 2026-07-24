@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { AlertCircle, Moon, TrendingUp } from 'lucide-react';
+import { AlertCircle, Moon, TrendingUp, RefreshCw } from 'lucide-react';
 
 type Analysis = {
   sleepHRVCorrelation: {
@@ -31,12 +31,16 @@ export default function MetricsAnalyticsClient() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dataPoints, setDataPoints] = useState<number>(0);
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
 
+  // Loads the SAVED analysis only — a GET never calls OpenAI. Regenerating is
+  // an explicit user action so that opening this page costs nothing.
   useEffect(() => {
-    loadAnalytics();
+    loadSavedAnalytics();
   }, []);
 
-  async function loadAnalytics() {
+  async function loadSavedAnalytics() {
     setLoading(true);
     setError(null);
 
@@ -48,8 +52,9 @@ export default function MetricsAnalyticsClient() {
         throw new Error(data.error || data.message || 'Failed to load analytics');
       }
 
-      setAnalysis(data.analysis);
-      setDataPoints(data.dataPoints);
+      setAnalysis(data.analysis ?? null);
+      setDataPoints(data.dataPoints ?? 0);
+      setGeneratedAt(data.generated_at ?? null);
     } catch (err) {
       console.error('Analytics error:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -58,14 +63,41 @@ export default function MetricsAnalyticsClient() {
     }
   }
 
-  if (loading) {
+  async function regenerateAnalytics() {
+    setGenerating(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/fitness/metrics/analytics', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || data.message || 'Failed to generate analytics');
+      }
+
+      setAnalysis(data.analysis ?? null);
+      setDataPoints(data.dataPoints ?? 0);
+      setGeneratedAt(data.generated_at ?? null);
+    } catch (err) {
+      console.error('Analytics error:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  if (loading || generating) {
     return (
       <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
         <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-        <p className="mt-4 text-slate-600">Analyzing your metrics with AI...</p>
-        <p className="mt-2 text-sm text-slate-500">
-          This may take up to 30 seconds for comprehensive analysis
+        <p className="mt-4 text-slate-600">
+          {generating ? 'Analyzing your metrics with AI...' : 'Loading saved analysis...'}
         </p>
+        {generating && (
+          <p className="mt-2 text-sm text-slate-500">
+            This may take up to 30 seconds for comprehensive analysis
+          </p>
+        )}
       </div>
     );
   }
@@ -77,7 +109,7 @@ export default function MetricsAnalyticsClient() {
         <p className="mb-4 text-red-700">{error}</p>
         <div className="flex gap-3">
           <button
-            onClick={loadAnalytics}
+            onClick={regenerateAnalytics}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
           >
             Retry Analysis
@@ -96,7 +128,17 @@ export default function MetricsAnalyticsClient() {
   if (!analysis) {
     return (
       <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
-        <p className="text-slate-500">No analysis available</p>
+        <p className="text-slate-600">No analysis generated yet.</p>
+        <p className="mt-2 text-sm text-slate-500">
+          Running an analysis calls the AI and uses API credits, so it only happens when you ask.
+        </p>
+        <button
+          onClick={regenerateAnalytics}
+          className="mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          <RefreshCw size={16} />
+          Analyze My Metrics
+        </button>
       </div>
     );
   }
@@ -117,8 +159,22 @@ export default function MetricsAnalyticsClient() {
     <div className="space-y-6">
       {/* Summary */}
       <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-blue-50 to-purple-50 p-6 shadow-sm">
-        <div className="mb-2 text-sm font-medium text-slate-600">
-          Analysis based on {dataPoints} days of data
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-sm font-medium text-slate-600">
+            Analysis based on {dataPoints} days of data
+            {generatedAt && (
+              <span className="ml-2 font-normal text-slate-500">
+                · generated {new Date(generatedAt).toLocaleString()}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={regenerateAnalytics}
+            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-blue-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-white"
+          >
+            <RefreshCw size={14} />
+            Regenerate
+          </button>
         </div>
         <p className="text-lg leading-relaxed text-slate-800">{analysis.summary}</p>
       </div>
@@ -233,7 +289,7 @@ export default function MetricsAnalyticsClient() {
           View Trends
         </Link>
         <button
-          onClick={loadAnalytics}
+          onClick={regenerateAnalytics}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           Refresh Analysis

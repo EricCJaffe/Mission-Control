@@ -3,8 +3,30 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Download, Sparkles } from 'lucide-react';
+import { Download, Sparkles, AlertTriangle, Info, CheckCircle2, CalendarClock } from 'lucide-react';
 import RichTextEditor from '@/components/RichTextEditor';
+
+/** Mirrors RuleReport / FrequencyRecommendation from @/lib/fitness/program-rules. */
+type RuleFinding = {
+  rule: string;
+  severity: 'error' | 'warning' | 'info';
+  summary: string;
+  detail: string;
+  remedy: string;
+};
+type RuleReport = {
+  goal: string;
+  passed: boolean;
+  findings: RuleFinding[];
+  checksPassed: string[];
+};
+type FrequencyNote = {
+  programmed: number;
+  stated: number;
+  observed: number | null;
+  reason: string;
+  adjusted: boolean;
+};
 
 type PlanRow = {
   id: string;
@@ -49,6 +71,8 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
   // AI Generation state
   const [showAIGen, setShowAIGen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [ruleReport, setRuleReport] = useState<RuleReport | null>(null);
+  const [frequencyNote, setFrequencyNote] = useState<FrequencyNote | null>(null);
   const [aiGoal, setAiGoal] = useState('strength');
   const [aiWeeks, setAiWeeks] = useState('8');
   const [aiSessionsPerWeek, setAiSessionsPerWeek] = useState('4');
@@ -152,6 +176,10 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
       const data = await res.json();
       if (data.ok) {
         setPlans(prev => [data.plan, ...prev]);
+        // Deterministic checks run server-side at no token cost. Surface them
+        // instead of silently accepting a plan that breaks its own goal's rules.
+        setRuleReport(data.rule_report ?? null);
+        setFrequencyNote(data.frequency?.adjusted ? data.frequency : null);
         setShowAIGen(false);
         // Reset AI form
         setAiGoal('strength');
@@ -178,6 +206,99 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">
           <p className="text-sm text-red-700">{error}</p>
           <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
+        </div>
+      )}
+
+      {/* Frequency was derived from logged compliance rather than the requested
+          number. Always shown when it differs, so the choice is visible and
+          reversible instead of a silent override. */}
+      {frequencyNote && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+          <div className="flex items-start gap-2">
+            <CalendarClock className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-900">
+                Built for {frequencyNote.programmed} days/week, not {frequencyNote.stated}
+              </p>
+              <p className="mt-0.5 text-xs text-blue-800">{frequencyNote.reason}</p>
+              <p className="mt-1.5 text-xs text-blue-700">
+                Want the full {frequencyNote.stated}? Regenerate — this is a default, not a limit.
+              </p>
+            </div>
+            <button onClick={() => setFrequencyNote(null)} className="text-xs text-blue-500 hover:text-blue-700">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Deterministic program-design checks. Computed server-side with no AI
+          call, so this costs nothing and cannot itself hallucinate. */}
+      {ruleReport && (
+        <div
+          className={`rounded-xl border px-4 py-3 ${
+            ruleReport.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2">
+              {ruleReport.passed ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              )}
+              <div>
+                <p
+                  className={`text-sm font-medium ${
+                    ruleReport.passed ? 'text-emerald-900' : 'text-amber-900'
+                  }`}
+                >
+                  {ruleReport.passed
+                    ? `Plan passes all ${ruleReport.checksPassed.length} program-design checks`
+                    : `${ruleReport.findings.filter(f => f.severity === 'error').length} issue(s) found in this plan`}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-600">
+                  Checked against {ruleReport.goal.replace(/_/g, ' ')} training rules.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setRuleReport(null)}
+              className="text-xs text-slate-500 hover:text-slate-700"
+            >
+              Dismiss
+            </button>
+          </div>
+
+          {ruleReport.findings.length > 0 && (
+            <ul className="mt-3 space-y-2">
+              {ruleReport.findings.map((f, i) => (
+                <li
+                  key={`${f.rule}-${i}`}
+                  className="rounded-lg border border-white bg-white/70 px-3 py-2"
+                >
+                  <div className="flex items-start gap-2">
+                    {f.severity === 'error' ? (
+                      <AlertTriangle className="h-3.5 w-3.5 text-red-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <Info
+                        className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${
+                          f.severity === 'warning' ? 'text-amber-600' : 'text-slate-400'
+                        }`}
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-slate-800">{f.summary}</p>
+                      <p className="mt-0.5 text-xs text-slate-600">{f.detail}</p>
+                      <p className="mt-1 text-xs text-slate-700">
+                        <span className="font-medium">Fix:</span> {f.remedy}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { HeartPulse, Dumbbell, Zap, Pill, UtensilsCrossed, Droplets, Apple, BookOpen, Quote, Waves } from 'lucide-react';
 
 type Medication = {
@@ -108,34 +108,63 @@ export default function MorningBriefingClient(props: Props) {
     recovery?: { sessions_last_7_days: number; total_minutes_last_7_days: number; last_session: string | null; last_modality: string | null };
   } | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
+  const [generatingBriefing, setGeneratingBriefing] = useState(false);
+  const [briefingGeneratedAt, setBriefingGeneratedAt] = useState<string | null>(null);
+  const [briefingStale, setBriefingStale] = useState(false);
 
   const dateObj = new Date(date + 'T12:00:00');
   const dateLabel = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
+  type BriefingPayload = NonNullable<typeof aiBriefing>;
+
+  // useCallback so the load effect below can list it as a dependency without
+  // re-running on every render.
+  const applyBriefing = useCallback((data: {
+    briefing?: BriefingPayload | null;
+    briefing_generated_at?: string | null;
+    briefing_stale?: boolean;
+    hydration?: unknown;
+    nutrition?: unknown;
+    recovery?: unknown;
+  }) => {
+    setAiBriefing(data.briefing ?? null);
+    setBriefingGeneratedAt(data.briefing_generated_at ?? null);
+    setBriefingStale(Boolean(data.briefing_stale));
+    setBriefingMeta({
+      hydration: data.hydration as never,
+      nutrition: data.nutrition as never,
+      recovery: data.recovery as never,
+    });
+  }, []);
+
+  // GET only — returns readiness/hydration/nutrition/recovery plus the LAST
+  // generated briefing text. It never calls OpenAI, so landing on this page is
+  // free; writing a new briefing requires pressing the button below.
   useEffect(() => {
-    async function fetchBriefing() {
+    async function loadSavedBriefing() {
       setLoadingBriefing(true);
       try {
         const res = await fetch('/api/fitness/morning-briefing');
-        if (res.ok) {
-          const data = await res.json();
-          setAiBriefing(data.briefing);
-          setBriefingMeta({
-            hydration: data.hydration,
-            nutrition: data.nutrition,
-            recovery: data.recovery,
-          });
-        }
+        if (res.ok) applyBriefing(await res.json());
       } catch { /* non-critical */ }
       setLoadingBriefing(false);
     }
     if (!readiness) {
-      // Trigger readiness calculation first
-      fetch('/api/fitness/readiness').then(() => fetchBriefing());
+      // Readiness is pure computation, no AI — safe to trigger automatically.
+      fetch('/api/fitness/readiness').then(() => loadSavedBriefing());
     } else {
-      fetchBriefing();
+      loadSavedBriefing();
     }
-  }, [readiness]);
+  }, [readiness, applyBriefing]);
+
+  async function generateBriefing() {
+    setGeneratingBriefing(true);
+    try {
+      const res = await fetch('/api/fitness/morning-briefing', { method: 'POST' });
+      if (res.ok) applyBriefing(await res.json());
+    } catch { /* non-critical */ }
+    setGeneratingBriefing(false);
+  }
 
   const rhrBaseline = profile?.rhr_baseline ?? 72;
   const hrvBaseline = profile?.hrv_baseline ?? 35;
@@ -312,16 +341,52 @@ export default function MorningBriefingClient(props: Props) {
       )}
 
       {/* AI Briefing */}
-      {loadingBriefing && (
+      {(loadingBriefing || generatingBriefing) && (
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm animate-pulse">
           <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
           <div className="h-3 bg-slate-200 rounded w-full"></div>
         </div>
       )}
-      {aiBriefing && (
+
+      {/* No briefing yet — generating one costs API credits, so it is opt-in. */}
+      {!loadingBriefing && !generatingBriefing && !aiBriefing && (
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm text-center">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">AI Coach</h2>
+          <p className="mt-2 text-sm text-slate-600">No briefing generated for today yet.</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Generating one calls the AI and uses API credits.
+          </p>
+          <button
+            onClick={generateBriefing}
+            className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Generate Today&rsquo;s Briefing
+          </button>
+        </div>
+      )}
+
+      {aiBriefing && !generatingBriefing && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">AI Coach</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">AI Coach</h2>
+              <button
+                onClick={generateBriefing}
+                className="inline-flex min-h-[32px] items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+              >
+                Regenerate
+              </button>
+            </div>
+            {briefingStale && (
+              <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                This briefing is from an earlier day. Regenerate for today&rsquo;s numbers.
+              </p>
+            )}
+            {briefingGeneratedAt && (
+              <p className="text-xs text-slate-400">
+                Generated {new Date(briefingGeneratedAt).toLocaleString()}
+              </p>
+            )}
             <p className="text-sm">{aiBriefing.recommendation}</p>
             {aiBriefing.motivation && (
               <p className="text-xs text-slate-500 italic">{aiBriefing.motivation}</p>

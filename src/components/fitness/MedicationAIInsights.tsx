@@ -50,11 +50,15 @@ export default function MedicationAIInsights({
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [stale, setStale] = useState(false);
 
-  // Auto-refresh when triggerRefresh changes
+  // A regimen change marks the existing analysis stale but does NOT re-run it.
+  // Every medication add/edit/toggle/delete used to fire a full AI stack review
+  // automatically, so routine edits silently spent API credits the user never
+  // asked for. Re-analysis is now always an explicit click.
   useEffect(() => {
     if (triggerRefresh > 0) {
-      loadReview();
+      setStale(true);
     }
   }, [triggerRefresh]);
 
@@ -80,6 +84,7 @@ export default function MedicationAIInsights({
       if (data.ok && data.review) {
         setReview(data.review);
         setReviewedAt(new Date().toISOString());
+        setStale(false);
         setExpanded(false); // Show summary view after refresh
       } else {
         setError(data.error || 'Failed to load review');
@@ -169,6 +174,15 @@ export default function MedicationAIInsights({
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 mb-4">
           <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+      {stale && review && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-4">
+          <p className="text-sm text-amber-800">
+            Your regimen changed since this analysis ran. Press <strong>Refresh Analysis</strong> to
+            re-check interactions.
+          </p>
         </div>
       )}
 
