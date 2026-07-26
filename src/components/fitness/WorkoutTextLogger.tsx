@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Wand2, Loader2, AlertTriangle, Check, X } from 'lucide-react';
+import { Wand2, Loader2, AlertTriangle, Check, X, Plus } from 'lucide-react';
+import QuickExerciseCreator from './QuickExerciseCreator';
 
 /** Mirrors ParsedWorkout / ParsedExercise from @/lib/fitness/workout-text-parser. */
 type ParsedSet = {
@@ -40,6 +41,8 @@ export default function WorkoutTextLogger() {
   const [saving, setSaving] = useState(false);
   const [parsed, setParsed] = useState<ParsedWorkout | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Index of the unmatched exercise the user is creating a library entry for.
+  const [creatingFor, setCreatingFor] = useState<number | null>(null);
 
   // Parsing calls the AI, so it happens only on this explicit click — never on
   // mount, and never again while editing the preview below.
@@ -103,6 +106,20 @@ export default function WorkoutTextLogger() {
       });
       return { ...prev, exercises };
     });
+  }
+
+  /** A brand-new library exercise was created — resolve it into the preview. */
+  function resolveWithCreated(exerciseIndex: number, id: string, name: string) {
+    setParsed(prev => {
+      if (!prev) return prev;
+      const exercises = prev.exercises.map((ex, i) =>
+        i === exerciseIndex
+          ? { ...ex, exercise_id: id, matched_name: name, match_confidence: 1 }
+          : ex
+      );
+      return { ...prev, exercises };
+    });
+    setCreatingFor(null);
   }
 
   const unresolved = parsed?.exercises.filter(e => !e.exercise_id) ?? [];
@@ -195,10 +212,10 @@ export default function WorkoutTextLogger() {
                 )}
               </div>
 
-              {/* Unmatched: choose locally rather than re-parsing. */}
+              {/* Unmatched: pick a close match, or create it as a new exercise. */}
               {!ex.exercise_id && (
-                <div className="mt-2">
-                  {ex.candidates.length > 0 ? (
+                <div className="mt-2 space-y-2">
+                  {ex.candidates.length > 0 && (
                     <select
                       onChange={e => e.target.value && pickCandidate(i, e.target.value)}
                       defaultValue=""
@@ -213,11 +230,14 @@ export default function WorkoutTextLogger() {
                         </option>
                       ))}
                     </select>
-                  ) : (
-                    <p className="text-xs text-amber-700">
-                      Nothing in your library resembles this. Add it in the exercise library first.
-                    </p>
                   )}
+                  <button
+                    onClick={() => setCreatingFor(i)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 min-h-[36px]"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Create &ldquo;{ex.raw_name}&rdquo; as a new exercise
+                  </button>
                 </div>
               )}
 
@@ -275,6 +295,14 @@ export default function WorkoutTextLogger() {
             )}
           </div>
         </div>
+      )}
+
+      {creatingFor !== null && parsed && (
+        <QuickExerciseCreator
+          initialName={parsed.exercises[creatingFor]?.raw_name ?? ''}
+          onExerciseCreated={(id, name) => resolveWithCreated(creatingFor, id, name)}
+          onCancel={() => setCreatingFor(null)}
+        />
       )}
     </div>
   );

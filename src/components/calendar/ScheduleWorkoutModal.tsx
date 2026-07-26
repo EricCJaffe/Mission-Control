@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Dumbbell, Sparkles, Loader2 } from 'lucide-react';
+import { X, Dumbbell, Sparkles, Loader2, Plus, AlertTriangle } from 'lucide-react';
+import QuickExerciseCreator from '@/components/fitness/QuickExerciseCreator';
 
 type WorkoutTemplate = {
   id: string;
@@ -39,6 +40,10 @@ export default function ScheduleWorkoutModal({
   const [aiDescription, setAiDescription] = useState('');
   const [aiWorkoutType, setAiWorkoutType] = useState<'strength' | 'cardio' | 'hybrid'>('strength');
   const [isParsingAI, setIsParsingAI] = useState(false);
+  // Exercises the AI mentioned that aren't in the library yet. The build is
+  // blocked until these are created, rather than silently dropped.
+  const [unmatchedExercises, setUnmatchedExercises] = useState<string[]>([]);
+  const [creatingExercise, setCreatingExercise] = useState<string | null>(null);
 
   const handleTemplateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +102,15 @@ export default function ScheduleWorkoutModal({
       }
 
       const parsed = await parseResponse.json();
+
+      // If the AI referenced exercises not in the library, stop and let the user
+      // create them — otherwise they'd be silently dropped from the workout.
+      if (Array.isArray(parsed.unmatched_exercises) && parsed.unmatched_exercises.length > 0) {
+        setUnmatchedExercises(parsed.unmatched_exercises);
+        setIsParsingAI(false);
+        return;
+      }
+      setUnmatchedExercises([]);
 
       // Create a planned workout from the parsed structure
       const response = await fetch('/api/fitness/planned-workouts', {
@@ -332,6 +346,31 @@ export default function ScheduleWorkoutModal({
               />
             </div>
 
+            {unmatchedExercises.length > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                <p className="flex items-center gap-1.5 text-sm font-medium text-amber-900">
+                  <AlertTriangle className="h-4 w-4" />
+                  Not in your library yet
+                </p>
+                <p className="text-xs text-amber-800">
+                  Create these so they&rsquo;re saved, then press Create Workout again.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {unmatchedExercises.map((nm) => (
+                    <button
+                      key={nm}
+                      type="button"
+                      onClick={() => setCreatingExercise(nm)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 min-h-[36px]"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      {nm}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -361,6 +400,21 @@ export default function ScheduleWorkoutModal({
           </form>
         )}
       </div>
+
+      {creatingExercise !== null && (
+        <QuickExerciseCreator
+          initialName={creatingExercise}
+          onExerciseCreated={(_id, name) => {
+            // Drop it from the unmatched list; a re-run of Create Workout will
+            // now match it. Compare loosely since the AI's spelling may differ.
+            setUnmatchedExercises((prev) =>
+              prev.filter((n) => n.toLowerCase() !== creatingExercise.toLowerCase() && n.toLowerCase() !== name.toLowerCase())
+            );
+            setCreatingExercise(null);
+          }}
+          onCancel={() => setCreatingExercise(null)}
+        />
+      )}
     </div>
   );
 }

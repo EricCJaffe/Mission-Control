@@ -4,23 +4,27 @@ import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 
 type Props = {
-  onExerciseCreated: (exerciseId: string, exerciseName: string) => void;
+  onExerciseCreated: (exerciseId: string, exerciseName: string, category: string) => void;
   onCancel: () => void;
+  /** Pre-fill the name (used when creating a not-yet-existing exercise inline). */
+  initialName?: string;
 };
 
+// Must match the exercises.category CHECK constraint exactly (lowercased by the
+// API). 'Other' is intentionally absent — the DB rejects it, so offering it
+// silently failed every create that kept the default.
 const CATEGORIES = [
+  'Legs',
   'Push',
   'Pull',
-  'Legs',
   'Core',
   'Cardio',
   'Mobility',
-  'Other'
 ];
 
-export default function QuickExerciseCreator({ onExerciseCreated, onCancel }: Props) {
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState('Other');
+export default function QuickExerciseCreator({ onExerciseCreated, onCancel, initialName = '' }: Props) {
+  const [name, setName] = useState(initialName);
+  const [category, setCategory] = useState('Legs');
   const [equipment, setEquipment] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,10 +54,10 @@ export default function QuickExerciseCreator({ onExerciseCreated, onCancel }: Pr
       const data = await res.json();
 
       if (data.ok && data.exercise) {
-        onExerciseCreated(data.exercise.id, data.exercise.name);
+        onExerciseCreated(data.exercise.id, data.exercise.name, data.exercise.category);
         // Reset form
         setName('');
-        setCategory('Other');
+        setCategory('Legs');
         setEquipment('');
       } else {
         setError(data.error || 'Failed to create exercise');

@@ -924,12 +924,13 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     return e.name.toLowerCase().includes(q) || e.category.toLowerCase().includes(q);
   });
 
-  function handleExerciseCreated(exerciseId: string, exerciseName: string) {
-    // Add the new exercise to local list
+  function handleExerciseCreated(exerciseId: string, exerciseName: string, category: string) {
+    // Add the new exercise to local list, using the category the DB actually
+    // stored so it groups correctly if the picker is reopened.
     const newExercise: ExerciseRow = {
       id: exerciseId,
       name: exerciseName,
-      category: 'Other',
+      category: category || 'legs',
       equipment: null,
       muscle_groups: [],
       is_compound: false,
