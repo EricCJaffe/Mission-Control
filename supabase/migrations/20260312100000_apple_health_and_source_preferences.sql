@@ -48,3 +48,25 @@ create policy "Users can manage own apple health imports"
   on apple_health_imports for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ============================================================================
+-- Widen source CHECK constraints to accept 'Apple Health'.
+--
+-- daily_summaries.source and sleep_logs.source were created (in the Withings
+-- migration) with CHECK lists that predate Apple Health. The normalizer writes
+-- source = 'Apple Health', which would fail those constraints and silently
+-- abort every daily-summary and sleep import. Drop and recreate them to include
+-- Apple Health (and Apple Watch, for consistency). Idempotent.
+-- ============================================================================
+
+alter table public.daily_summaries drop constraint if exists daily_summaries_source_check;
+alter table public.daily_summaries
+  add constraint daily_summaries_source_check
+  check (source in ('manual', 'Withings', 'Garmin', 'Apple Watch', 'Apple Health'));
+
+alter table public.sleep_logs drop constraint if exists sleep_logs_source_check;
+alter table public.sleep_logs
+  add constraint sleep_logs_source_check
+  check (source in ('manual', 'Withings', 'Garmin', 'Apple Watch', 'Apple Health'));
+
+notify pgrst, 'reload schema';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Upload, CheckCircle2, AlertCircle, Clock, Activity, Moon, Footprints } from 'lucide-react';
+import { Upload, CheckCircle2, Clock, Activity, Moon, Footprints } from 'lucide-react';
 import Link from 'next/link';
 
 type ImportLog = {
@@ -180,6 +180,9 @@ export default function AppleHealthImportClient() {
       )}
 
       {/* Import history */}
+      {loading && history.length === 0 && (
+        <p className="text-sm text-slate-400">Loading import history…</p>
+      )}
       {history.length > 0 && (
         <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-2">

@@ -29,6 +29,23 @@ export function emptyStats(): DomainSyncStats {
   return { imported: 0, updated: 0, skipped: 0, errors: 0 };
 }
 
+// Health Auto Export names metrics inconsistently across versions — some builds
+// send snake_case ("step_count"), others spaced ("Step Count"), a few use "+"
+// ("walking + running distance") or "&". Canonicalise so a naming change on
+// Apple's or HAE's side cannot silently drop an entire metric domain.
+function normKey(s: string): string {
+  return s.toLowerCase().replace(/[_+]/g, ' ').replace(/&/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** First metric whose (normalised) name matches any of the given aliases. */
+function pickMetric(map: Map<string, HAEMetric>, ...names: string[]): HAEMetric | undefined {
+  for (const n of names) {
+    const m = map.get(normKey(n));
+    if (m) return m;
+  }
+  return undefined;
+}
+
 // ── Types for Health Auto Export JSON ────────────────────────────────
 
 export type HAEMetricSample = {
@@ -128,14 +145,15 @@ export async function importAppleHealthExport(
     }
   }
 
-  // Group metrics by name for processing
+  // Group metrics by canonical name (see normKey above).
   const metricMap = new Map<string, HAEMetric>();
   for (const metric of metrics) {
-    metricMap.set(metric.name.toLowerCase(), metric);
+    metricMap.set(normKey(metric.name), metric);
   }
+  const getMetric = (...names: string[]) => pickMetric(metricMap, ...names);
 
   // Process sleep
-  const sleepMetric = metricMap.get('sleep analysis');
+  const sleepMetric = getMetric('sleep analysis');
   if (sleepMetric && isSourceAllowed(prefs.sleep_source, 'Apple Health')) {
     for (const sample of sleepMetric.data) {
       try {
@@ -161,7 +179,7 @@ export async function importAppleHealthExport(
   }
 
   // Process body metrics (weight)
-  const weightMetric = metricMap.get('weight') ?? metricMap.get('body mass');
+  const weightMetric = getMetric('weight', 'body mass', 'weight body mass', 'body mass weight');
   if (weightMetric && isSourceAllowed(prefs.body_metrics_source, 'Apple Health')) {
     for (const sample of weightMetric.data) {
       try {
@@ -174,7 +192,7 @@ export async function importAppleHealthExport(
   }
 
   // Process resting HR into body_metrics if preferred
-  const rhrMetric = metricMap.get('resting heart rate');
+  const rhrMetric = getMetric('resting heart rate');
   if (rhrMetric && isSourceAllowed(prefs.resting_hr_source, 'Apple Health')) {
     for (const sample of rhrMetric.data) {
       try {
@@ -186,7 +204,7 @@ export async function importAppleHealthExport(
   }
 
   // Process HRV into body_metrics if preferred
-  const hrvMetric = metricMap.get('heart rate variability') ?? metricMap.get('hrv');
+  const hrvMetric = getMetric('heart rate variability', 'hrv', 'heart rate variability sdnn');
   if (hrvMetric && isSourceAllowed(prefs.hrv_source, 'Apple Health')) {
     for (const sample of hrvMetric.data) {
       try {
@@ -275,21 +293,27 @@ async function upsertWorkoutFromAppleHealth(
     const maxHR = workout.maxHeartRate ?? workout.heartRate?.max?.qty ?? null;
     const calories = workout.activeEnergy ?? workout.activeEnergyBurned?.qty ?? null;
 
-    await supabase.from('cardio_logs').insert({
-      workout_log_id: (await supabase
-        .from('workout_logs')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('external_id', externalId)
-        .single()).data?.id,
+    const { data: parentLog } = await supabase
+      .from('workout_logs')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('external_id', externalId)
+      .single();
+
+    // Non-critical: if the cardio detail insert fails, the parent workout was
+    // still logged. Await and ignore rather than .catch() (the query builder is
+    // thenable but does not expose .catch in its types).
+    const { error: cardioErr } = await supabase.from('cardio_logs').insert({
+      workout_log_id: parentLog?.id,
       activity_type: workoutType,
       distance_miles: distanceMiles ? parseFloat(distanceMiles.toFixed(2)) : null,
       avg_hr: avgHR ? Math.round(avgHR) : null,
       max_hr: maxHR ? Math.round(maxHR) : null,
       calories: calories ? Math.round(calories) : null,
-    }).catch(() => {
-      // Non-critical — workout was already logged
     });
+    if (cardioErr) {
+      // Non-critical — proceed.
+    }
   }
 
   return 'imported';
@@ -371,7 +395,7 @@ function buildDailyMap(metricMap: Map<string, HAEMetric>): Map<string, DailySumm
     return entry;
   }
 
-  const steps = metricMap.get('step count') ?? metricMap.get('steps');
+  const steps = pickMetric(metricMap, 'step count', 'steps');
   if (steps) {
     for (const s of steps.data) {
       if (!s.date || s.qty == null) continue;
@@ -380,7 +404,7 @@ function buildDailyMap(metricMap: Map<string, HAEMetric>): Map<string, DailySumm
     }
   }
 
-  const distance = metricMap.get('walking + running distance') ?? metricMap.get('distance walking running');
+  const distance = pickMetric(metricMap, 'walking + running distance', 'distance walking running', 'walking running distance');
   if (distance) {
     for (const s of distance.data) {
       if (!s.date || s.qty == null) continue;
@@ -391,7 +415,7 @@ function buildDailyMap(metricMap: Map<string, HAEMetric>): Map<string, DailySumm
     }
   }
 
-  const floors = metricMap.get('flights climbed');
+  const floors = pickMetric(metricMap, 'flights climbed', 'flights');
   if (floors) {
     for (const s of floors.data) {
       if (!s.date || s.qty == null) continue;
@@ -400,7 +424,7 @@ function buildDailyMap(metricMap: Map<string, HAEMetric>): Map<string, DailySumm
     }
   }
 
-  const activeCal = metricMap.get('active energy') ?? metricMap.get('active energy burned');
+  const activeCal = pickMetric(metricMap, 'active energy', 'active energy burned');
   if (activeCal) {
     for (const s of activeCal.data) {
       if (!s.date || s.qty == null) continue;
@@ -409,7 +433,7 @@ function buildDailyMap(metricMap: Map<string, HAEMetric>): Map<string, DailySumm
     }
   }
 
-  const basalCal = metricMap.get('basal energy burned') ?? metricMap.get('resting energy');
+  const basalCal = pickMetric(metricMap, 'basal energy burned', 'resting energy', 'basal energy');
   if (basalCal) {
     for (const s of basalCal.data) {
       if (!s.date || s.qty == null) continue;
