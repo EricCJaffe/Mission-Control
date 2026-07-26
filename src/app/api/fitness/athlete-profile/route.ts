@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { calculatePowerZones } from '@/lib/fitness/power-zones';
+import { calculateSeasonalHRZones } from '@/lib/fitness/hr-zones';
 
 /**
  * GET /api/fitness/athlete-profile — Get or create athlete profile
@@ -22,14 +23,15 @@ export async function GET() {
     return NextResponse.json(profile);
   }
 
-  // Create default profile
+  // Create default profile with seasonally-adjusted HR zones
+  const { zones: defaultZones } = calculateSeasonalHRZones(155);
   const { data: newProfile, error } = await supabase
     .from('athlete_profile')
     .insert({
       user_id: user.id,
       max_hr_ceiling: 155,
       lactate_threshold_hr: 140,
-      hr_zones: { z1: [100, 115], z2: [115, 133], z3: [133, 145], z4: [145, 155] },
+      hr_zones: defaultZones,
       sleep_target_min: 450,
       beta_blocker_multiplier: 1.15,
       medications: [{ name: 'Carvedilol', dose: '12.5mg', frequency: '2x daily' }],
@@ -53,6 +55,12 @@ export async function PUT(req: Request) {
   const updates: Record<string, unknown> = { ...body, updated_at: new Date().toISOString() };
   if (body.ftp_watts && body.ftp_watts > 0) {
     updates.power_zones = calculatePowerZones(body.ftp_watts);
+  }
+
+  // Auto-recalculate HR zones when max_hr_ceiling changes (seasonal adjustment applied)
+  if (body.max_hr_ceiling && body.max_hr_ceiling > 0) {
+    const { zones } = calculateSeasonalHRZones(body.max_hr_ceiling);
+    updates.hr_zones = zones;
   }
 
   const { data: profile, error } = await supabase

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { RefreshCw, Sun, Snowflake, Leaf, CloudSun } from 'lucide-react';
 
 type Profile = {
   max_hr_ceiling: number;
@@ -25,11 +26,31 @@ type GarminStatus = {
   lastSync: string | null;
 };
 
+type SeasonalInfo = {
+  base_max_hr: number;
+  effective_max_hr: number;
+  seasonal: { season: string; label: string; adjustment_bpm: number; reason: string };
+  new_zones: { z1: [number, number]; z2: [number, number]; z3: [number, number]; z4: [number, number] };
+  changed: boolean;
+};
+
+const SEASON_ICONS: Record<string, typeof Sun> = {
+  summer: Sun,
+  winter: Snowflake,
+  spring: Leaf,
+  fall: CloudSun,
+};
+
+const ZONE_COLORS = ['#16a34a', '#2563eb', '#d97706', '#dc2626'];
+const ZONE_NAMES = ['Recovery', 'Endurance', 'Tempo', 'Threshold'];
+
 export default function AthleteProfileClient({ profile }: { profile: Profile | null }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [garminStatus, setGarminStatus] = useState<GarminStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [recalibratingHrZones, setRecalibratingHrZones] = useState(false);
+  const [seasonalInfo, setSeasonalInfo] = useState<SeasonalInfo | null>(null);
   const [recalibratingZones, setRecalibratingZones] = useState(false);
   const [recalibrationResult, setRecalibrationResult] = useState<{
     season: string;
@@ -56,7 +77,33 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
 
   useEffect(() => {
     fetchGarminStatus();
+    fetchSeasonalInfo();
   }, []);
+
+  // Read-only preview — GET never persists. Writing happens only via handleRecalibrateHrZones.
+  async function fetchSeasonalInfo() {
+    try {
+      const res = await fetch('/api/fitness/athlete-profile/recalibrate-zones');
+      if (res.ok) setSeasonalInfo(await res.json());
+    } catch (error) {
+      console.error('Failed to fetch seasonal HR info:', error);
+    }
+  }
+
+  async function handleRecalibrateHrZones() {
+    setRecalibratingHrZones(true);
+    try {
+      const res = await fetch('/api/fitness/athlete-profile/recalibrate-zones', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to recalibrate HR zones');
+      setSeasonalInfo(data);
+      window.location.reload();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to recalibrate HR zones');
+    } finally {
+      setRecalibratingHrZones(false);
+    }
+  }
 
   async function fetchGarminStatus() {
     try {
@@ -163,8 +210,55 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
           <Field label="Lactate Threshold HR" value={lthr} onChange={v => setLthr(Number(v) || 140)} type="number" unit="bpm" />
           <Field label="Beta-Blocker Multiplier" value={betaMultiplier} onChange={v => setBetaMultiplier(Number(v) || 1.15)} type="number" step="0.05" />
         </div>
-        <div className="text-xs text-slate-400">
-          HR Zones (auto-calculated): Z1 {profile?.hr_zones?.z1?.[0] ?? 100}–{profile?.hr_zones?.z1?.[1] ?? 115}, Z2 {profile?.hr_zones?.z2?.[0] ?? 115}–{profile?.hr_zones?.z2?.[1] ?? 133}, Z3 {profile?.hr_zones?.z3?.[0] ?? 133}–{profile?.hr_zones?.z3?.[1] ?? 145}, Z4 {profile?.hr_zones?.z4?.[0] ?? 145}–{maxHr}
+        <div className="mt-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500">HR Zones (auto-calculated)</span>
+            <button
+              onClick={handleRecalibrateHrZones}
+              disabled={recalibratingHrZones}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 min-h-[28px] disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3 w-3 ${recalibratingHrZones ? 'animate-spin' : ''}`} />
+              Recalibrate
+            </button>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            {(['z1', 'z2', 'z3', 'z4'] as const).map((z, i) => (
+              <div key={z} className="rounded-lg p-2 text-center" style={{ backgroundColor: `${ZONE_COLORS[i]}10`, border: `1px solid ${ZONE_COLORS[i]}30` }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: ZONE_COLORS[i] }}>
+                  Z{i + 1} {ZONE_NAMES[i]}
+                </div>
+                <div className="text-sm font-bold text-slate-700 mt-0.5">
+                  {profile?.hr_zones?.[z]?.[0] ?? '–'}–{profile?.hr_zones?.[z]?.[1] ?? '–'}
+                </div>
+                <div className="text-[10px] text-slate-400">bpm</div>
+              </div>
+            ))}
+          </div>
+          {seasonalInfo && (() => {
+            const SeasonIcon = SEASON_ICONS[seasonalInfo.seasonal.season] || Sun;
+            return (
+              <div className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs ${
+                seasonalInfo.seasonal.adjustment_bpm < 0
+                  ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                  : 'bg-slate-50 border border-slate-200 text-slate-600'
+              }`}>
+                <SeasonIcon className="h-4 w-4 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-medium">
+                    {seasonalInfo.seasonal.label}
+                    {seasonalInfo.seasonal.adjustment_bpm !== 0 && (
+                      <> · ceiling {seasonalInfo.seasonal.adjustment_bpm > 0 ? '+' : ''}{seasonalInfo.seasonal.adjustment_bpm} bpm → {seasonalInfo.effective_max_hr}</>
+                    )}
+                  </div>
+                  <div className="mt-0.5 opacity-80">{seasonalInfo.seasonal.reason}</div>
+                  {seasonalInfo.changed && (
+                    <div className="mt-1 font-medium">Saved zones are out of date — tap Recalibrate to apply.</div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </section>
 

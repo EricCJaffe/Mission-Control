@@ -142,7 +142,7 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
               className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
             <select value={category} onChange={e => setCategory(e.target.value as ExerciseCategory)}
               className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm">
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
             </select>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
@@ -189,7 +189,7 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
                           className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
                         <select value={editCategory} onChange={ev => setEditCategory(ev.target.value as ExerciseCategory)}
                           className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
-                          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                          {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                         </select>
                         <input value={editEquipment} onChange={ev => setEditEquipment(ev.target.value)} placeholder="Equipment"
                           className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
