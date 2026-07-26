@@ -169,6 +169,9 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   const router = useRouter();
   const [mode, setMode] = useState<WorkoutMode>('select');
   const [loggerMode, setLoggerMode] = useState<LoggerMode>('template');
+  // Live = a workout happening now (timer counts up). Log = entering a workout
+  // you already finished (no live timer; you type the duration).
+  const [isLive, setIsLive] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateRow | null>(null);
   const [workoutType, setWorkoutType] = useState<string>('strength');
   const [blocks, setBlocks] = useState<ExerciseBlock[]>([]);
@@ -221,14 +224,16 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   }, [todayPlan, templates]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (mode === 'logging' || mode === 'cardio') {
+    // Only run the live clock for an in-progress workout. When logging a past
+    // one, the duration is typed in instead.
+    if ((mode === 'logging' || mode === 'cardio') && isLive) {
       if (!timerStartRef.current) timerStartRef.current = Date.now();
       const interval = setInterval(() => {
         setElapsedSeconds(Math.floor((Date.now() - (timerStartRef.current ?? Date.now())) / 1000));
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [mode]);
+  }, [mode, isLive]);
 
   function formatElapsed(secs: number) {
     const h = Math.floor(secs / 3600);
@@ -780,6 +785,23 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     }
   };
 
+  // Abandon the in-progress workout without saving and return to the start
+  // screen. Confirms first because it discards everything entered.
+  function cancelWorkout() {
+    const hasWork = blocks.length > 0 || duration !== '' || (cardioData.distance_miles ?? 0) > 0;
+    if (hasWork && !window.confirm('Cancel this workout? Nothing will be saved.')) return;
+    setBlocks([]);
+    setDuration('');
+    setSessionNotes('');
+    setRpeSession('');
+    setCardioData({ activity_type: 'run' });
+    setElapsedSeconds(0);
+    timerStartRef.current = null;
+    setShowAIBuilder(false);
+    setError(null);
+    setMode('select');
+  }
+
   const saveWorkout = () => {
     // Count incomplete sets
     const incompleteSets = blocks.reduce((count, block) => {
@@ -975,7 +997,29 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         )}
 
         <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">Start Workout</h2>
+          <h2 className="text-sm font-semibold text-slate-700 mb-3">
+            {isLive ? 'Start Workout' : 'Log Workout'}
+          </h2>
+
+          {/* Start (live) vs Log (already done) */}
+          <div className="mb-4 flex gap-1 rounded-xl border-2 border-slate-300 bg-white p-1">
+            <button
+              onClick={() => setIsLive(true)}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors min-h-[40px] ${
+                isLive ? 'bg-lime-500 text-white' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Start — live timer
+            </button>
+            <button
+              onClick={() => setIsLive(false)}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors min-h-[40px] ${
+                !isLive ? 'bg-lime-500 text-white' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Log — already done
+            </button>
+          </div>
 
           {/* Mode Tabs */}
           <div className="mb-4">
@@ -1104,7 +1148,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             disabled={loggerMode === 'template' && !selectedTemplate && !repeatData && !todayPlan}
             className="w-full rounded-xl bg-slate-800 text-white text-sm font-semibold py-3 hover:bg-slate-700 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {repeatData ? 'Repeat Workout' : loggerMode === 'ai' ? 'Build with AI' : 'Start Workout'}
+            {repeatData ? 'Repeat Workout' : loggerMode === 'ai' ? 'Build with AI' : isLive ? 'Start Workout' : 'Log Workout'}
           </button>
         </div>
 
@@ -1208,15 +1252,19 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       ? ((Number(cardioData.distance_miles) / Number(duration)) * 60).toFixed(1)
       : null;
 
-    // Live stats for the pinned header — mirrors the strength screen.
+    // Live stats for the pinned header — mirrors the strength screen. When live,
+    // the first cell is the running clock; when logging a past session it shows
+    // the typed duration (entered in the Duration field below).
+    const timeStat = isLive
+      ? { label: 'Time', value: formatElapsed(elapsedSeconds) }
+      : { label: 'Minutes', value: duration !== '' ? String(duration) : '—' };
     const cardioStats: Array<{ label: string; value: string }> = isMobility
       ? [
-          { label: 'Time', value: formatElapsed(elapsedSeconds) },
-          { label: 'Minutes', value: duration !== '' ? String(duration) : '—' },
+          timeStat,
           { label: 'Effort', value: rpeSession !== '' ? String(rpeSession) : '—' },
         ]
       : [
-          { label: 'Time', value: formatElapsed(elapsedSeconds) },
+          timeStat,
           { label: 'Distance (mi)', value: cardioData.distance_miles ? String(cardioData.distance_miles) : '—' },
           isBiking
             ? { label: 'Speed (mph)', value: String(cardioData.avg_speed_mph ?? calculatedSpeed ?? '—') }
@@ -1233,7 +1281,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         )}
         {/* Live stats — same pinned dark instrument panel as the strength screen. */}
         <div className="sticky top-2 z-20 rounded-2xl bg-slate-900 px-4 py-3 shadow-lg">
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className={`grid ${cardioStats.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2 text-center`}>
             {cardioStats.map((stat) => (
               <div key={stat.label}>
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-lime-400">{stat.label}</div>
@@ -1473,7 +1521,16 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
         <button onClick={saveWorkout} disabled={saving}
           className="w-full rounded-xl bg-green-700 text-white text-sm font-semibold py-3 hover:bg-green-800 min-h-[44px] disabled:opacity-50">
-          {saving ? 'Saving...' : 'Complete Workout'}
+          {saving ? 'Saving...' : isLive ? 'Complete Workout' : 'Save Workout'}
+        </button>
+
+        {/* Cancel — abandon the session and return to the start screen */}
+        <button
+          onClick={cancelWorkout}
+          disabled={saving}
+          className="w-full rounded-xl border-2 border-slate-300 bg-white text-sm font-medium text-slate-500 py-2.5 hover:bg-slate-50 hover:text-red-600 min-h-[44px] disabled:opacity-50"
+        >
+          Cancel Workout
         </button>
       </div>
     );
@@ -1673,19 +1730,37 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       )}
 
       {/* Live stats — a dark "instrument panel" that stays pinned while you
-          scroll and log. The one bold element on an otherwise light screen. */}
+          scroll and log. The one bold element on an otherwise light screen.
+          Time counts up live; when logging a past workout, it's a duration you type. */}
       <div className="sticky top-2 z-20 rounded-2xl bg-slate-900 px-4 py-3 shadow-lg">
         <div className="grid grid-cols-3 gap-2 text-center">
-          {[
-            { label: 'Time', value: formatElapsed(elapsedSeconds) },
-            { label: 'Tonnage (lbs)', value: tonnage.toLocaleString() },
-            { label: 'Sets', value: completedSets === totalSets ? `${totalSets}` : `${completedSets}/${totalSets}` },
-          ].map((stat) => (
-            <div key={stat.label}>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-lime-400">{stat.label}</div>
-              <div className="mt-0.5 text-xl font-bold tabular-nums text-white">{stat.value}</div>
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-lime-400">
+              {isLive ? 'Time' : 'Minutes'}
             </div>
-          ))}
+            {isLive ? (
+              <div className="mt-0.5 text-xl font-bold tabular-nums text-white">{formatElapsed(elapsedSeconds)}</div>
+            ) : (
+              <input
+                type="number"
+                inputMode="numeric"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value ? Number(e.target.value) : '')}
+                placeholder="—"
+                className="mt-0.5 w-full bg-transparent text-center text-xl font-bold tabular-nums text-white placeholder:text-slate-500 focus:outline-none"
+              />
+            )}
+          </div>
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-lime-400">Tonnage (lbs)</div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-white">{tonnage.toLocaleString()}</div>
+          </div>
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-lime-400">Sets</div>
+            <div className="mt-0.5 text-xl font-bold tabular-nums text-white">
+              {completedSets === totalSets ? `${totalSets}` : `${completedSets}/${totalSets}`}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1835,7 +1910,16 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
       <button onClick={saveWorkout} disabled={saving || totalSets === 0}
         className="w-full rounded-xl bg-green-700 text-white text-sm font-semibold py-3 hover:bg-green-800 min-h-[44px] disabled:opacity-50">
-        {saving ? 'Saving...' : `Complete Workout (${blocks.length} exercises, ${totalSets} sets)`}
+        {saving ? 'Saving...' : `${isLive ? 'Complete' : 'Save'} Workout (${blocks.length} exercises, ${totalSets} sets)`}
+      </button>
+
+      {/* Cancel — abandon the session and return to the start screen */}
+      <button
+        onClick={cancelWorkout}
+        disabled={saving}
+        className="w-full rounded-xl border-2 border-slate-300 bg-white text-sm font-medium text-slate-500 py-2.5 hover:bg-slate-50 hover:text-red-600 min-h-[44px] disabled:opacity-50"
+      >
+        Cancel Workout
       </button>
 
       <button onClick={() => router.back()}
