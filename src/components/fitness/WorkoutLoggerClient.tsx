@@ -974,7 +974,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           </div>
         )}
 
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Start Workout</h2>
 
           {/* Mode Tabs */}
@@ -1138,14 +1138,14 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         {completionData && (
           <div className="grid grid-cols-2 gap-3">
             {completionData.strain_score != null && (
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
+              <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
                 <p className="text-xs text-slate-500">Workout Strain</p>
                 <p className="text-2xl font-bold">{completionData.strain_score.toFixed(1)}</p>
                 <p className="text-xs text-slate-400">/ 21</p>
               </div>
             )}
             {completionData.cardiac_efficiency && (
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
+              <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
                 <p className="text-xs text-slate-500">Cardiac Efficiency</p>
                 <p className="text-2xl font-bold">{completionData.cardiac_efficiency.efficiency_value.toFixed(3)}</p>
                 <p className="text-xs text-slate-400">{completionData.cardiac_efficiency.efficiency_type}</p>
@@ -1155,7 +1155,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         )}
 
         {completionData?.estimated_1rms && completionData.estimated_1rms.length > 0 && (
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Estimated 1RMs</h3>
             <div className="space-y-1.5">
               {completionData.estimated_1rms.map((e, i) => (
@@ -1245,7 +1245,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
         {/* Mobility-specific simple form */}
         {isMobility ? (
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-700 mb-4">Mobility Session</h2>
             <div className="space-y-3">
               <div>
@@ -1287,7 +1287,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-700 mb-4">Cardio Session</h2>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -1566,7 +1566,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   function renderExerciseBlock(block: ExerciseBlock, showReorder = true) {
     const blockIdx = blocks.findIndex(b => b.id === block.id);
     return (
-      <div key={block.id} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+      <div key={block.id} className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
         {/* Exercise header */}
         <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center gap-2">
           <div className="flex-1">
@@ -1783,13 +1783,13 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
       {/* Plate calculator toggle */}
       <button onClick={() => setShowPlateCalc((v) => !v)}
-        className="w-full text-left rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm hover:bg-white/90">
+        className="w-full text-left rounded-2xl border-2 border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm hover:bg-white/90">
         {showPlateCalc ? '▼' : '▶'} Plate Calculator
       </button>
       {showPlateCalc && <PlateCalculator />}
 
       {/* Session wrap-up */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm space-y-3">
         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Session Summary</h3>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -1862,7 +1862,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       {/* Save as Template modal */}
       {showSaveAsTemplate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="max-w-md w-full rounded-2xl border border-slate-100 bg-white p-6 shadow-lg">
+          <div className="max-w-md w-full rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Save as Template</h3>
             <p className="text-sm text-slate-600 mb-4">
               Give this workout a name to save it as a reusable template.
@@ -1900,7 +1900,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       {/* Incomplete sets warning modal */}
       {showIncompleteWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="max-w-md w-full rounded-2xl border border-slate-100 bg-white p-6 shadow-lg">
+          <div className="max-w-md w-full rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Incomplete Sets</h3>
             <p className="text-sm text-slate-600 mb-4">
               You have <strong>{incompleteSetCount}</strong> set{incompleteSetCount !== 1 ? 's' : ''} marked as incomplete.
