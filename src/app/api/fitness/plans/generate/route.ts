@@ -3,7 +3,8 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { buildAISystemPrompt } from '@/lib/fitness/health-context';
 import { callOpenAI } from '@/lib/openai';
 import { deriveProgrammedFrequency } from '@/lib/fitness/program-rules';
-import { validateGeneratedPlan } from '@/lib/fitness/plan-validation';
+import { validateGeneratedPlan, checkCoverageGaps } from '@/lib/fitness/plan-validation';
+import { computeCoverage, sortByUrgency, type CoverageAttribute } from '@/lib/fitness/coverage';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,10 +77,13 @@ export async function POST(req: NextRequest) {
       .gte('workout_logs.workout_date', ninetyDaysAgo.toISOString())
       .order('workout_logs.workout_date', { ascending: false });
 
-    // Fetch exercises (to get names and categories)
+    // Fetch exercises — includes coverage metadata so the plan can be steered
+    // toward, and checked against, neglected movement attributes.
     const { data: exercises } = await supabase
       .from('exercises')
-      .select('id, name, category, muscle_groups, is_compound, equipment');
+      .select(
+        'id, name, category, muscle_groups, is_compound, equipment, velocity_intent, movement_planes, is_unilateral, trains_balance, trains_mobility'
+      );
 
     // Build exercise frequency map
     const exerciseFrequency = new Map<string, number>();
@@ -180,6 +184,39 @@ export async function POST(req: NextRequest) {
       workoutStats.total_workouts > 0 ? workoutStats.avg_sessions_per_week : null;
     const frequency = deriveProgrammedFrequency(Number(sessions_per_week), observedPerWeek);
 
+    // Compute movement coverage over the last 6 months so the plan can be
+    // steered toward whatever attributes are going neglected — the core of the
+    // longevity case (Galpin): plan for resilience across everything, not for
+    // maxing a few metrics. Reuses the exact engine the coverage page uses.
+    const coverageReport = computeCoverage({
+      sets: (setLogs ?? []).map(s => {
+        const rel = Array.isArray(s.workout_logs) ? s.workout_logs[0] : s.workout_logs;
+        return {
+          exercise_id: s.exercise_id,
+          date: (rel as { workout_date?: string } | null)?.workout_date ?? new Date().toISOString(),
+          reps: s.reps,
+          set_type: s.set_type,
+        };
+      }),
+      cardio: [], // 90-day set history only; the coverage page reads full cardio_logs
+      exercises: (exercises ?? []).map(e => ({
+        id: e.id,
+        category: e.category,
+        velocity_intent: e.velocity_intent,
+        movement_planes: e.movement_planes,
+        is_unilateral: e.is_unilateral,
+        trains_balance: e.trains_balance,
+        trains_mobility: e.trains_mobility,
+      })),
+      referenceDate: new Date().toISOString().slice(0, 10),
+      windowMonths: 6,
+    });
+    // Only surface genuinely neglected, measurable attributes — never 'not_tracked'.
+    const neglected = sortByUrgency(coverageReport.attributes).filter(
+      a => a.status === 'stale' || a.status === 'absent'
+    );
+    const coverageGaps: CoverageAttribute[] = neglected.map(a => a.attribute);
+
     // Build AI system prompt with health context
     const systemPrompt = await buildAISystemPrompt(user.id, 'plan_generation');
 
@@ -216,6 +253,11 @@ CURRENT STATUS:
 - Form (TSB): ${form ? `${Math.round(form.form_tsb)} (${form.form_status})` : 'Unknown'}
 - CTL: ${form?.fitness_ctl || '?'}, ATL: ${form?.fatigue_atl || '?'}
 
+${neglected.length > 0 ? `NEGLECTED MOVEMENT ATTRIBUTES (last 6 months):
+${neglected.map(a => `- ${a.label}: ${a.note}`).join('\n')}
+
+These are training qualities that have gone stale or untrained. ${goal === 'longevity' ? 'This is a LONGEVITY plan — deliberately work these back in; resilience comes from covering all of them, not maxing a few.' : 'Where it does not conflict with the primary goal, include work that addresses these — especially power/speed and non-sagittal-plane movement, which are the most commonly neglected.'} The generated plan is checked against these afterward.
+` : ''}
 ${typeof context_notes === 'string' && context_notes.trim().length > 0 ? `ADDITIONAL CONTEXT TO HONOR:
 ${context_notes.trim()}
 
@@ -369,17 +411,33 @@ Use only exercises from my history. Return ONLY valid JSON.`;
     // Findings are surfaced rather than auto-repaired: a repair pass would mean
     // another billed request the user did not ask for, so regenerating stays an
     // explicit choice.
-    const { report: ruleReport } = validateGeneratedPlan(planData, {
+    const planExerciseMeta = (exercises ?? []).map(e => ({
+      id: e.id,
+      name: e.name,
+      category: e.category,
+      muscle_groups: e.muscle_groups,
+      is_compound: e.is_compound,
+      velocity_intent: e.velocity_intent,
+      movement_planes: e.movement_planes,
+      is_unilateral: e.is_unilateral,
+      trains_balance: e.trains_balance,
+      trains_mobility: e.trains_mobility,
+    }));
+
+    const { report: ruleReport, normalized } = validateGeneratedPlan(planData, {
       goal: planData.goal ?? goal,
       weeks,
-      exercises: (exercises ?? []).map(e => ({
-        id: e.id,
-        name: e.name,
-        category: e.category,
-        muscle_groups: e.muscle_groups,
-        is_compound: e.is_compound,
-      })),
+      exercises: planExerciseMeta,
     });
+
+    // Verify the plan actually addresses the gaps we asked it to. The prompt is
+    // asked to fill neglected attributes, but asking is not verifying — this
+    // maps the generated exercises back through the coverage mapping so the plan
+    // cannot claim to close a gap the coverage page would not credit.
+    const coverageGapResult =
+      coverageGaps.length > 0
+        ? checkCoverageGaps(normalized, coverageGaps, planExerciseMeta)
+        : { addressed: [], stillMissing: [] };
 
     if (!ruleReport.passed) {
       console.warn(
@@ -426,6 +484,7 @@ Use only exercises from my history. Return ONLY valid JSON.`;
           plan_preferences,
           rule_report: ruleReport,
           frequency,
+          coverage_targeted: coverageGapResult,
         },
         status: 'draft',
         ai_generated: true,
@@ -446,6 +505,8 @@ Use only exercises from my history. Return ONLY valid JSON.`;
       rule_report: ruleReport,
       /** Set `adjusted` when programmed frequency differs from what was asked. */
       frequency,
+      /** Which neglected attributes this plan does / does not address. */
+      coverage_targeted: coverageGapResult,
     });
   } catch (error) {
     console.error('Error generating training plan:', error);

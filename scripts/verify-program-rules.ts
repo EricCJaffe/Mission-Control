@@ -16,6 +16,8 @@ import {
   normalizeGoal,
   toProgramPlan,
   validateGeneratedPlan,
+  checkCoverageGaps,
+  type ExerciseMeta as PlanExerciseMeta,
 } from '../src/lib/fitness/plan-validation';
 
 let pass = 0;
@@ -309,6 +311,70 @@ check('e2e: flags 72-hour gap', e2e.report.findings.some(f => f.rule === '72-hou
 check('e2e: flags missing progression', e2e.report.findings.some(f => f.rule === 'progressive-overload'));
 check('e2e: flags push-only imbalance', e2e.report.findings.some(f => f.rule === 'push-pull-balance'));
 check('e2e: every finding carries a remedy', e2e.report.findings.every(f => f.remedy.length > 10));
+
+console.log('\n--- checkCoverageGaps (does the plan address the gaps?) ---');
+{
+  const META: PlanExerciseMeta[] = [
+    { id: 'jump', category: 'legs', velocity_intent: 'power', movement_planes: ['sagittal'] },
+    { id: 'lunge', category: 'legs', is_unilateral: true, trains_balance: true, movement_planes: ['sagittal'] },
+    { id: 'twist', category: 'core', movement_planes: ['transverse'] },
+    { id: 'bench', category: 'push', movement_planes: ['sagittal'] },
+  ];
+
+  // A plan that includes the power exercise addresses a power gap.
+  const withPower = {
+    goal: 'longevity' as const,
+    weekly_template: [
+      { day_number: 1, exercises: [{ exercise_id: 'jump', exercise_name: 'Box Jump', sets: 4, target_reps: '3' }] },
+    ],
+  };
+  const r1 = checkCoverageGaps(withPower, ['power_speed', 'plane_transverse'], META);
+  check('power gap addressed when power exercise present',
+    r1.addressed.some(a => a.attribute === 'power_speed'), r1);
+  check('transverse still missing when no rotation present',
+    r1.stillMissing.some(a => a.attribute === 'plane_transverse'), r1);
+
+  // A cardio day addresses aerobic base; hard cardio addresses capacity.
+  const withCardio = {
+    goal: 'longevity' as const,
+    weekly_template: [
+      { day_number: 1, workout_type: 'Zone 2 Cardio', exercises: [] },
+      { day_number: 2, workout_type: 'cardio intervals', intensity: 'hard' as const, exercises: [] },
+    ],
+  };
+  const r2 = checkCoverageGaps(withCardio, ['aerobic_base', 'aerobic_capacity'], []);
+  check('cardio day addresses aerobic base', r2.addressed.some(a => a.attribute === 'aerobic_base'));
+  check('hard cardio addresses aerobic capacity', r2.addressed.some(a => a.attribute === 'aerobic_capacity'));
+
+  // Rep range at the top of the band decides strength vs hypertrophy.
+  const strengthPlan = {
+    goal: 'strength' as const,
+    weekly_template: [
+      { day_number: 1, exercises: [{ exercise_id: 'bench', exercise_name: 'Bench', sets: 5, target_reps: '3-5' }] },
+    ],
+  };
+  const r3 = checkCoverageGaps(strengthPlan, ['strength', 'muscular_endurance'], META);
+  check('3-5 reps addresses strength gap', r3.addressed.some(a => a.attribute === 'strength'));
+  check('3-5 reps does NOT address endurance gap',
+    r3.stillMissing.some(a => a.attribute === 'muscular_endurance'), r3);
+
+  // No gaps in -> nothing reported.
+  const r4 = checkCoverageGaps(withPower, [], META);
+  check('no gaps -> empty result', r4.addressed.length === 0 && r4.stillMissing.length === 0);
+
+  // Every gap accounted for exactly once.
+  const gaps = ['power_speed', 'balance', 'plane_transverse'] as const;
+  const r5 = checkCoverageGaps(
+    { goal: 'longevity', weekly_template: [
+      { day_number: 1, exercises: [{ exercise_id: 'lunge', exercise_name: 'Lunge', sets: 3, target_reps: '10' }] },
+    ] },
+    [...gaps],
+    META
+  );
+  check('balance addressed via unilateral', r5.addressed.some(a => a.attribute === 'balance'));
+  check('every gap classified exactly once',
+    r5.addressed.length + r5.stillMissing.length === gaps.length, r5);
+}
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);
