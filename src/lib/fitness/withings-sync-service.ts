@@ -10,6 +10,7 @@ import {
 } from './withings-normalizers';
 import { WithingsClient } from './withings-client';
 import type { WithingsTokens } from './withings-tokens';
+import { loadSourcePreferences, isSourceAllowed } from './source-preferences';
 
 export type WithingsSyncMode = 'initial' | 'incremental' | 'manual';
 
@@ -32,23 +33,32 @@ export class WithingsSyncService {
       sleep: emptyDomainSyncStats(),
     };
 
+    const prefs = await loadSourcePreferences(this.supabase, this.userId);
+
     const [measures, activities, sleepSeries] = await Promise.all([
       client.getMeasures(startDate, endDate),
       client.getActivitySummaries(startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]),
       client.getSleepSummary(startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]),
     ]);
 
+    // BP is always from Withings (no preference toggle — only Withings has a cuff)
     for (const group of measures) {
       await this.captureResult(results.bp, async () => upsertBloodPressureFromMeasureGroup(this.supabase, this.userId, group));
-      await this.captureResult(results.weight, async () => upsertBodyMetricsFromMeasureGroup(this.supabase, this.userId, group));
+      if (isSourceAllowed(prefs.body_metrics_source, 'Withings')) {
+        await this.captureResult(results.weight, async () => upsertBodyMetricsFromMeasureGroup(this.supabase, this.userId, group));
+      }
     }
 
-    for (const activity of activities) {
-      await this.captureResult(results.dailyAggregates, async () => upsertDailySummaryFromActivity(this.supabase, this.userId, activity));
+    if (isSourceAllowed(prefs.daily_summary_source, 'Withings')) {
+      for (const activity of activities) {
+        await this.captureResult(results.dailyAggregates, async () => upsertDailySummaryFromActivity(this.supabase, this.userId, activity));
+      }
     }
 
-    for (const series of sleepSeries) {
-      await this.captureResult(results.sleep, async () => upsertSleepFromSeries(this.supabase, this.userId, series));
+    if (isSourceAllowed(prefs.sleep_source, 'Withings')) {
+      for (const series of sleepSeries) {
+        await this.captureResult(results.sleep, async () => upsertSleepFromSeries(this.supabase, this.userId, series));
+      }
     }
 
     return { results, refreshedTokens: client.getTokens() || this.tokens };
