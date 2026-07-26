@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import WorkoutLoggerClient from '@/components/fitness/WorkoutLoggerClient';
 import MedicationTimingCard from '@/components/fitness/MedicationTimingCard';
+import WorkoutTextLogger from '@/components/fitness/WorkoutTextLogger';
 
 export const dynamic = 'force-dynamic';
 
@@ -116,6 +117,9 @@ export default async function LogWorkoutPage({ searchParams }: PageProps) {
       </div>
       <div className="mb-4">
         <MedicationTimingCard />
+      </div>
+      <div className="mb-4">
+        <WorkoutTextLogger />
       </div>
       <WorkoutLoggerClient
         exercises={exercises ?? []}

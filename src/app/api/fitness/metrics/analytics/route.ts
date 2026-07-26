@@ -1,15 +1,45 @@
 /**
  * API Route: Metrics AI Analytics
  *
- * GET /api/fitness/metrics/analytics
- * Analyzes metrics data for correlations, trends, and early warnings
+ * GET  /api/fitness/metrics/analytics — returns the LAST saved analysis. Free.
+ * POST /api/fitness/metrics/analytics — regenerates it. Spends tokens.
+ *
+ * Analyzes metrics data for correlations, trends, and early warnings.
+ *
+ * The GET/POST split exists because this route used to call OpenAI on every
+ * GET while the client fired it from a useEffect on mount, so simply opening
+ * the metrics page billed a request.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { callOpenAI } from '@/lib/openai';
+import { readAiCache, writeAiCache } from '@/lib/fitness/ai-cache';
 
-export async function GET(req: NextRequest) {
+type CachedAnalytics = { analysis: unknown; dataPoints: number };
+
+export async function GET() {
+  const supabase = await supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const cached = await readAiCache<CachedAnalytics>(supabase, user.id, 'metrics_analytics');
+
+  return NextResponse.json({
+    success: true,
+    found: cached.found,
+    analysis: cached.payload?.analysis ?? null,
+    dataPoints: cached.payload?.dataPoints ?? 0,
+    generated_at: cached.generated_at,
+  });
+}
+
+export async function POST() {
   try {
     const supabase = await supabaseServer();
 
@@ -134,10 +164,19 @@ ${JSON.stringify(summary.metrics, null, 2)}
       });
     }
 
+    const generatedAt = await writeAiCache<CachedAnalytics>(
+      supabase,
+      user.id,
+      'metrics_analytics',
+      { analysis, dataPoints: metrics.length }
+    );
+
     return NextResponse.json({
       success: true,
+      found: true,
       analysis,
       dataPoints: metrics.length,
+      generated_at: generatedAt,
     });
   } catch (error) {
     console.error('Metrics analytics error:', error);

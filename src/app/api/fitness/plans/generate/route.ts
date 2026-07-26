@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { buildAISystemPrompt } from '@/lib/fitness/health-context';
 import { callOpenAI } from '@/lib/openai';
+import { deriveProgrammedFrequency } from '@/lib/fitness/program-rules';
+import { validateGeneratedPlan } from '@/lib/fitness/plan-validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -168,12 +170,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Build the plan around what actually gets done, not what was requested.
+    // A four-day plan with one reliably-missed session is worse than a
+    // completed three-day plan: the misses land on the same day each week and
+    // read as failure. Stated frequency acts as a ceiling, and the adjustment
+    // is always reported so the UI can offer an override rather than silently
+    // overriding the user.
+    const observedPerWeek =
+      workoutStats.total_workouts > 0 ? workoutStats.avg_sessions_per_week : null;
+    const frequency = deriveProgrammedFrequency(Number(sessions_per_week), observedPerWeek);
+
     // Build AI system prompt with health context
     const systemPrompt = await buildAISystemPrompt(user.id, 'plan_generation');
 
     const userPrompt = `Generate a ${weeks}-week training plan optimized for my goal: ${goal}.
 
-TARGET: ${sessions_per_week} sessions per week
+TARGET: ${frequency.programmed} sessions per week${
+      frequency.adjusted ? ` (I asked for ${frequency.stated}; ${frequency.reason})` : ''
+    }
 ${focus_areas.length > 0 ? `FOCUS AREAS: ${focus_areas.join(', ')}` : ''}
 
 HISTORICAL DATA (last 90 days):
@@ -217,6 +231,21 @@ ${context_notes.trim()}
 9. If the goal or focus areas imply both strength and cardio, include both in the weekly template rather than collapsing to one modality
 10. Prefer framework-level day prescriptions when exact exercise detail is not necessary
 11. If schedule preferences are provided, reflect them directly in the weekly framework
+12. Fill in "progression" with real values, not prose. Name every lever you
+    actually intend to move (load, reps, sets, range_of_motion, frequency) and a
+    cadence_weeks between 1 and 3. Load alone stalls within about five weeks, so
+    do not list it by itself.
+13. Give every resistance exercise an "rir" (reps in reserve). Working sets
+    should land at 1-3 by the final set; sets stopping 4+ reps short do not
+    generate enough tension to matter.
+14. Set "weekly_activity" to describe the whole week, including non-gym movement
+    — not just the days that appear in weekly_template.
+15. If the goal involves muscle growth, make sure each muscle group is trained
+    at least every third day across the week. The template repeats, so a
+    Saturday session and a Tuesday session count as three days apart.
+
+These are checked programmatically after you respond, and violations are shown
+to the user, so satisfy them literally rather than describing them.
 
 PLAN PREFERENCES:
 ${JSON.stringify(plan_preferences, null, 2)}
@@ -278,12 +307,24 @@ Return a JSON training plan with this structure:
           "target_reps": "8-10",
           "target_weight_pct": 75,
           "rest_seconds": 120,
+          "rir": 2,
           "notes": "Build from 75% of max"
         }
       ]
     }
   ],
   "progression_notes": "How to progress each week",
+  "progression": {
+    "mechanisms": ["load", "reps"],
+    "cadence_weeks": 2,
+    "notes": "Which lever moves first and why"
+  },
+  "weekly_activity": {
+    "active_days": 5,
+    "sweat_days": 3,
+    "hard_days": 2,
+    "long_days": 1
+  },
   "deload_weeks": [4, 8],
   "weekly_tracking": [
     "Adherence %",
@@ -323,6 +364,32 @@ Use only exercises from my history. Return ONLY valid JSON.`;
       return NextResponse.json({ error: 'AI returned incomplete plan format' }, { status: 500 });
     }
 
+    // Check the plan against the program-design rules. This is deterministic —
+    // no second AI call — so it costs nothing and cannot itself hallucinate.
+    // Findings are surfaced rather than auto-repaired: a repair pass would mean
+    // another billed request the user did not ask for, so regenerating stays an
+    // explicit choice.
+    const { report: ruleReport } = validateGeneratedPlan(planData, {
+      goal: planData.goal ?? goal,
+      weeks,
+      exercises: (exercises ?? []).map(e => ({
+        id: e.id,
+        name: e.name,
+        category: e.category,
+        muscle_groups: e.muscle_groups,
+        is_compound: e.is_compound,
+      })),
+    });
+
+    if (!ruleReport.passed) {
+      console.warn(
+        `[plans/generate] plan for user ${user.id} has ${
+          ruleReport.findings.filter(f => f.severity === 'error').length
+        } rule error(s):`,
+        ruleReport.findings.filter(f => f.severity === 'error').map(f => f.summary)
+      );
+    }
+
     const normalizedStartDate =
       typeof start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(start_date)
         ? start_date
@@ -357,6 +424,8 @@ Use only exercises from my history. Return ONLY valid JSON.`;
           focus_areas,
           context_notes: typeof context_notes === 'string' ? context_notes : '',
           plan_preferences,
+          rule_report: ruleReport,
+          frequency,
         },
         status: 'draft',
         ai_generated: true,
@@ -373,6 +442,10 @@ Use only exercises from my history. Return ONLY valid JSON.`;
       ok: true,
       plan: savedPlan,
       plan_data: planData,
+      /** Deterministic program-design check. `passed` is false only on errors. */
+      rule_report: ruleReport,
+      /** Set `adjusted` when programmed frequency differs from what was asked. */
+      frequency,
     });
   } catch (error) {
     console.error('Error generating training plan:', error);
