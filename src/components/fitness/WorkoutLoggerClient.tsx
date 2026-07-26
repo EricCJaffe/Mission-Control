@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { Check, X } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -108,13 +109,19 @@ const SET_TYPE_LABELS: Record<SetType, string> = {
   warmup: 'Warm', working: 'Work', cooldown: 'Cool', drop: 'Drop', failure: 'Fail', amrap: 'AMRAP',
 };
 
-const SET_TYPE_COLORS: Record<SetType, string> = {
-  warmup: 'bg-blue-100 text-blue-700',
-  working: 'bg-slate-800 text-white',
-  cooldown: 'bg-green-100 text-green-700',
-  drop: 'bg-purple-100 text-purple-700',
-  failure: 'bg-red-100 text-red-700',
-  amrap: 'bg-orange-100 text-orange-700',
+// Set-number badge styling by type. Working = the default green; other types
+// recolor the badge so the type is readable at a glance. Tapping cycles type.
+const SET_TYPE_BADGE: Record<SetType, string> = {
+  working: 'border-lime-500 text-slate-800 bg-lime-50',
+  warmup: 'border-amber-400 text-amber-700 bg-amber-50',
+  cooldown: 'border-sky-400 text-sky-700 bg-sky-50',
+  drop: 'border-purple-400 text-purple-700 bg-purple-50',
+  failure: 'border-red-400 text-red-700 bg-red-50',
+  amrap: 'border-orange-400 text-orange-700 bg-orange-50',
+};
+// Short glyph shown on the badge for non-working sets (working shows its number).
+const SET_TYPE_GLYPH: Record<SetType, string> = {
+  working: '', warmup: 'W', cooldown: 'C', drop: 'D', failure: 'F', amrap: 'A',
 };
 
 let blockIdCounter = 0;
@@ -858,6 +865,13 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   };
 
   const totalSets = blocks.reduce((s, b) => s + b.sets.length, 0);
+  // Live tonnage = sum of weight × reps across every set. Blank inputs read 0.
+  const tonnage = blocks.reduce(
+    (sum, b) =>
+      sum + b.sets.reduce((ss, set) => ss + (Number(set.weight_lbs) || 0) * (Number(set.reps) || 0), 0),
+    0
+  );
+  const completedSets = blocks.reduce((s, b) => s + b.sets.filter((set) => set.completed).length, 0);
 
   // ——— Exercise picker (shared by add + swap) ———
   const filteredExercises = localExercises.filter(e => {
@@ -1457,49 +1471,65 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     }
   }
 
+  // One tappable row per set: [type/number badge] [lbs] [reps] [done] [remove].
+  // Compact and thumb-sized for one-handed logging at the gym.
   function renderSetRow(block: ExerciseBlock, s: LoggedSet, setIdx: number) {
+    const typeKeys = Object.keys(SET_TYPE_LABELS) as SetType[];
+    const cycleType = () => {
+      const next = typeKeys[(typeKeys.indexOf(s.set_type) + 1) % typeKeys.length];
+      updateSetInBlock(block.id, setIdx, 'set_type', next);
+    };
     return (
-      <div key={setIdx} className="px-3 py-2">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <span className="text-xs text-slate-400 w-5 text-center">#{setIdx + 1}</span>
-          <div className="flex gap-1 flex-wrap">
-            {(Object.keys(SET_TYPE_LABELS) as SetType[]).map((t) => (
-              <button key={t} onClick={() => updateSetInBlock(block.id, setIdx, 'set_type', t)}
-                className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium min-h-[24px] ${
-                  s.set_type === t ? SET_TYPE_COLORS[t] : 'bg-slate-100 text-slate-400'
-                }`}>
-                {SET_TYPE_LABELS[t]}
-              </button>
-            ))}
-          </div>
-          <button onClick={() => removeSetFromBlock(block.id, setIdx)}
-            className="ml-auto text-slate-300 hover:text-red-400 text-sm leading-none min-h-[24px] min-w-[24px]">
-            ×
-          </button>
-        </div>
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <label className="text-[10px] text-slate-400 block mb-0.5">Weight</label>
-            <input type="number" step="2.5" value={s.weight_lbs}
-              onChange={(e) => updateSetInBlock(block.id, setIdx, 'weight_lbs', e.target.value ? Number(e.target.value) : '')}
-              className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm text-center font-medium" placeholder="lbs" />
-          </div>
-          <div className="flex-1">
-            <label className="text-[10px] text-slate-400 block mb-0.5">Reps</label>
-            <input type="number" value={s.reps}
-              onChange={(e) => updateSetInBlock(block.id, setIdx, 'reps', e.target.value ? Number(e.target.value) : '')}
-              className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm text-center font-medium" placeholder="reps" />
-          </div>
-          <div className="flex flex-col items-center justify-end">
-            <label className="text-[10px] text-slate-400 block mb-1">Done</label>
-            <input
-              type="checkbox"
-              checked={s.completed}
-              onChange={(e) => updateSetInBlock(block.id, setIdx, 'completed', e.target.checked)}
-              className="h-7 w-7 rounded border-2 border-slate-300 text-green-600 focus:ring-2 focus:ring-green-500 cursor-pointer"
-            />
-          </div>
-        </div>
+      <div
+        key={setIdx}
+        className={`grid grid-cols-[2.75rem_1fr_1fr_2.75rem_1.5rem] items-center gap-2 px-3 py-1.5 ${
+          s.completed ? 'bg-lime-50/60' : ''
+        }`}
+      >
+        {/* Set-number badge; tap to cycle set type. Colour encodes the type. */}
+        <button
+          onClick={cycleType}
+          title={`${SET_TYPE_LABELS[s.set_type]} set — tap to change type`}
+          className={`h-11 rounded-lg border-2 text-sm font-bold tabular-nums ${SET_TYPE_BADGE[s.set_type]}`}
+        >
+          {s.set_type === 'working' ? setIdx + 1 : SET_TYPE_GLYPH[s.set_type]}
+        </button>
+        <input
+          type="number"
+          inputMode="decimal"
+          step="2.5"
+          value={s.weight_lbs}
+          onChange={(e) => updateSetInBlock(block.id, setIdx, 'weight_lbs', e.target.value ? Number(e.target.value) : '')}
+          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-1 text-center text-base font-semibold tabular-nums focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
+          placeholder="0"
+        />
+        <input
+          type="number"
+          inputMode="numeric"
+          value={s.reps}
+          onChange={(e) => updateSetInBlock(block.id, setIdx, 'reps', e.target.value ? Number(e.target.value) : '')}
+          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-1 text-center text-base font-semibold tabular-nums focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
+          placeholder="0"
+        />
+        <button
+          onClick={() => updateSetInBlock(block.id, setIdx, 'completed', !s.completed)}
+          aria-pressed={s.completed}
+          title={s.completed ? 'Set done' : 'Mark set done'}
+          className={`flex h-11 w-11 items-center justify-center rounded-lg border-2 transition-colors ${
+            s.completed
+              ? 'border-lime-500 bg-lime-500 text-white'
+              : 'border-slate-200 bg-white text-slate-300 hover:border-lime-400'
+          }`}
+        >
+          <Check className="h-5 w-5" strokeWidth={3} />
+        </button>
+        <button
+          onClick={() => removeSetFromBlock(block.id, setIdx)}
+          title="Remove set"
+          className="flex h-11 w-6 items-center justify-center text-slate-300 hover:text-red-400"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
     );
   }
@@ -1513,7 +1543,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           <div className="flex-1">
             <button
               onClick={() => router.push(`/fitness/exercises/${block.exercise_id}`)}
-              className="text-sm font-semibold text-slate-800 hover:text-blue-600 transition-colors text-left"
+              className="text-base font-bold text-slate-900 hover:text-lime-700 transition-colors text-left"
             >
               {block.exercise_name}
             </button>
@@ -1547,21 +1577,34 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           </div>
         </div>
 
+        {/* Column headers — labelled once, so each set row stays compact */}
+        {block.sets.length > 0 && (
+          <div className="grid grid-cols-[2.75rem_1fr_1fr_2.75rem_1.5rem] items-center gap-2 px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <span className="text-center">Set</span>
+            <span className="text-center">Lbs</span>
+            <span className="text-center">Reps</span>
+            <span className="text-center">Done</span>
+            <span />
+          </div>
+        )}
+
         {/* Sets */}
         <div className="divide-y divide-slate-100">
           {block.sets.map((s, setIdx) => renderSetRow(block, s, setIdx))}
         </div>
 
         {/* Exercise-level RPE */}
-        <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/50">
-          <label className="text-xs text-slate-500 block mb-1.5">Overall RPE for this exercise (1-10)</label>
+        <div className="px-3 py-2.5 border-t border-slate-100 bg-slate-50/50">
+          <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-slate-400">
+            Effort (RPE 1–10)
+          </label>
           <div className="flex gap-1">
             {[...Array(10)].map((_, i) => (
               <button
                 key={i + 1}
                 onClick={() => setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, exercise_rpe: i + 1 } : b))}
-                className={`flex-1 rounded-md py-1.5 text-xs font-medium min-h-[32px] ${
-                  block.exercise_rpe === i + 1 ? 'bg-slate-800 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                className={`min-h-[36px] flex-1 rounded-md text-xs font-semibold tabular-nums ${
+                  block.exercise_rpe === i + 1 ? 'bg-lime-500 text-white' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-100'
                 }`}
               >
                 {i + 1}
@@ -1570,19 +1613,20 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           </div>
         </div>
 
-        {/* Add set + notes */}
-        <div className="px-4 py-2 border-t border-slate-100 flex items-center gap-2">
-          <button onClick={() => addSetToBlock(block.id)}
-            className="text-xs text-blue-600 hover:text-blue-800 font-medium min-h-[32px]">
+        {/* Add set */}
+        <div className="px-3 py-2 border-t border-slate-100">
+          <button
+            onClick={() => addSetToBlock(block.id)}
+            className="flex min-h-[44px] w-full items-center justify-center rounded-lg bg-lime-50 text-sm font-semibold text-lime-700 hover:bg-lime-100"
+          >
             + Add Set
           </button>
-          <div className="flex-1" />
           <input
             type="text"
             value={block.notes}
             onChange={e => updateBlockNotes(block.id, e.target.value)}
-            placeholder="Exercise notes..."
-            className="text-xs border-none bg-transparent text-slate-400 placeholder:text-slate-300 text-right w-40 focus:outline-none"
+            placeholder="Add notes for this exercise…"
+            className="mt-2 w-full border-none bg-transparent px-1 text-xs text-slate-500 placeholder:text-slate-300 focus:outline-none"
           />
         </div>
       </div>
@@ -1599,13 +1643,21 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         </div>
       )}
 
-      {/* Elapsed timer */}
-      <div className="rounded-2xl border border-slate-100 bg-white px-4 py-2.5 shadow-sm flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs text-slate-500">Workout in progress</span>
+      {/* Live stats — a dark "instrument panel" that stays pinned while you
+          scroll and log. The one bold element on an otherwise light screen. */}
+      <div className="sticky top-2 z-20 rounded-2xl bg-slate-900 px-4 py-3 shadow-lg">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {[
+            { label: 'Time', value: formatElapsed(elapsedSeconds) },
+            { label: 'Tonnage (lbs)', value: tonnage.toLocaleString() },
+            { label: 'Sets', value: completedSets === totalSets ? `${totalSets}` : `${completedSets}/${totalSets}` },
+          ].map((stat) => (
+            <div key={stat.label}>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-lime-400">{stat.label}</div>
+              <div className="mt-0.5 text-xl font-bold tabular-nums text-white">{stat.value}</div>
+            </div>
+          ))}
         </div>
-        <span className="text-lg font-bold tabular-nums text-slate-800">{formatElapsed(elapsedSeconds)}</span>
       </div>
 
       {/* Exercise picker overlay */}
