@@ -1,6 +1,5 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import WorkoutLoggerClient from '@/components/fitness/WorkoutLoggerClient';
-import MedicationTimingCard from '@/components/fitness/MedicationTimingCard';
 import WorkoutTextLogger from '@/components/fitness/WorkoutTextLogger';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +22,6 @@ export default async function LogWorkoutPage({ searchParams }: PageProps) {
     { data: templates },
     { data: todayPlan },
     { data: latestMetrics },
-    { data: activeMeds },
   ] = await Promise.all([
     supabase
       .from('exercises')
@@ -56,11 +54,6 @@ export default async function LogWorkoutPage({ searchParams }: PageProps) {
       .order('metric_date', { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase
-      .from('medications')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('active', true),
   ]);
 
   // Fetch repeat workout data if ?repeat=<id> is present
@@ -116,9 +109,6 @@ export default async function LogWorkoutPage({ searchParams }: PageProps) {
         </p>
       </div>
       <div className="mb-4">
-        <MedicationTimingCard />
-      </div>
-      <div className="mb-4">
         <WorkoutTextLogger />
       </div>
       <WorkoutLoggerClient
@@ -126,13 +116,6 @@ export default async function LogWorkoutPage({ searchParams }: PageProps) {
         templates={templates ?? []}
         todayPlan={todayPlan}
         latestMetrics={latestMetrics}
-        activeMeds={(activeMeds ?? []).map((m) => ({
-          id: m.id,
-          name: m.name || m.medication_name || 'Unknown',
-          type: m.type || m.medication_type || 'supplement',
-          timing: m.timing || null,
-          known_interactions: m.known_interactions || null,
-        }))}
         repeatData={repeatData}
         templateId={params.template || null}
       />
