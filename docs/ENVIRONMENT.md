@@ -33,6 +33,8 @@
   - Optional for Garmin-related scripts or future sync work.
 - `GARMIN_PASSWORD`
   - Optional for Garmin-related scripts or future sync work.
+- `APPLE_HEALTH_API_KEY`
+  - Optional shared secret for Health Auto Export REST API automation. When set, the `/api/fitness/apple-health/import` endpoint accepts `X-API-Key` header auth instead of requiring a browser session. Used with `ADMIN_EMAIL` to resolve the user.
 
 ## Secrets Handling
 - Keep secrets in `.env.local`.

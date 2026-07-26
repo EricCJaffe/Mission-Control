@@ -67,6 +67,7 @@ Optional:
 - `ADMIN_EMAIL`
 - `GARMIN_EMAIL`
 - `GARMIN_PASSWORD`
+- `APPLE_HEALTH_API_KEY`
 
 ## Current Status (March 10, 2026)
 ### Shipped

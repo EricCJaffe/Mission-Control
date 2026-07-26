@@ -1,7 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import AthleteProfileClient from '@/components/fitness/AthleteProfileClient';
 import Link from 'next/link';
-import { Download, Activity } from 'lucide-react';
+import { Download, Activity, Watch, Settings2 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +56,20 @@ export default async function AthleteSettingsPage() {
             </div>
           </Link>
 
+          {/* Apple Health */}
+          <Link
+            href="/fitness/settings/apple-health"
+            className="flex items-center gap-4 rounded-xl border border-slate-200 p-4 hover:border-pink-300 hover:bg-pink-50/50 transition-colors"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pink-100">
+              <Watch className="h-6 w-6 text-pink-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-slate-800">Apple Health Import</h3>
+              <p className="text-sm text-slate-500">Import workouts, sleep, and daily metrics from Apple Watch via Health Auto Export</p>
+            </div>
+          </Link>
+
           {/* Garmin FIT Import */}
           <Link
             href="/fitness/settings/garmin/import"
@@ -67,6 +81,19 @@ export default async function AthleteSettingsPage() {
             <div className="flex-1">
               <h3 className="font-semibold text-slate-800">Garmin FIT Import</h3>
               <p className="text-sm text-slate-500">Upload individual FIT files for daily sync</p>
+            </div>
+          </Link>
+          {/* Source Preferences */}
+          <Link
+            href="/fitness/settings/apple-health"
+            className="flex items-center gap-4 rounded-xl border border-slate-200 p-4 hover:border-violet-300 hover:bg-violet-50/50 transition-colors"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100">
+              <Settings2 className="h-6 w-6 text-violet-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-slate-800">Source Preferences</h3>
+              <p className="text-sm text-slate-500">Choose preferred data source per metric category when using multiple devices</p>
             </div>
           </Link>
         </div>
