@@ -89,7 +89,10 @@ export default function MonthView({
   onNavigate,
   onEventClick,
 }: MonthViewProps) {
-  const selectedDateObj = new Date(selectedDate);
+  // Parse at local noon — a bare `new Date('2026-08-01')` is UTC midnight, which
+  // in a negative-offset timezone rolls back to Jul 31 and would both highlight
+  // the wrong cell and open the previous month at a month boundary.
+  const selectedDateObj = new Date(`${selectedDate}T12:00:00`);
   const [year, setYear] = useState(selectedDateObj.getFullYear());
   const [month, setMonth] = useState(selectedDateObj.getMonth());
 

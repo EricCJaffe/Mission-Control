@@ -10,7 +10,6 @@ import {
   isToday,
   parseWorkoutTag,
 } from '@/lib/calendar/date-utils';
-import { useState } from 'react';
 
 // Get color classes based on workout type
 function getWorkoutTypeColors(title: string): { bg: string; text: string; border: string; hoverBg: string } {
@@ -68,16 +67,22 @@ type DayViewProps = {
   events: CalendarEvent[];
   selectedDate: string; // ISO date string
   onEventClick: (event: CalendarEvent) => void;
-  onNavigate: (direction: 'prev' | 'next' | 'today') => void;
+  /** Called with the new ISO date when the user navigates prev/next/today. */
+  onDateChange: (isoDate: string) => void;
 };
 
 export default function DayView({
   events,
   selectedDate,
   onEventClick,
-  onNavigate,
+  onDateChange,
 }: DayViewProps) {
-  const [currentDate, setCurrentDate] = useState(new Date(selectedDate));
+  // Derive the displayed day straight from the selectedDate prop — it is the
+  // single source of truth, kept in sync with the date picker and month-view
+  // clicks. Parse at local noon: `new Date('2026-07-27')` is UTC midnight, which
+  // in a negative-offset timezone rolls back to the 26th and showed the wrong
+  // day. Appending T12:00:00 pins it to the intended local date.
+  const currentDate = new Date(`${selectedDate}T12:00:00`);
   const dateStr = toISODate(currentDate);
   const isTodayDate = isToday(currentDate);
 
@@ -108,23 +113,11 @@ export default function DayView({
     }
   });
 
-  const handlePrev = () => {
-    const newDate = addDays(currentDate, -1);
-    setCurrentDate(newDate);
-    onNavigate('prev');
-  };
-
-  const handleNext = () => {
-    const newDate = addDays(currentDate, 1);
-    setCurrentDate(newDate);
-    onNavigate('next');
-  };
-
-  const handleToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
-    onNavigate('today');
-  };
+  // Navigation updates the parent's selectedDate; the new date flows back down
+  // as a prop, so display and date picker never diverge.
+  const handlePrev = () => onDateChange(toISODate(addDays(currentDate, -1)));
+  const handleNext = () => onDateChange(toISODate(addDays(currentDate, 1)));
+  const handleToday = () => onDateChange(toISODate(new Date()));
 
   // Hours to display (0-23)
   const hours = Array.from({ length: 24 }, (_, i) => i);
