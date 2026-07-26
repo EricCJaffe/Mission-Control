@@ -89,7 +89,7 @@ export default function OneRMProgressionChart({ records }: Props) {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="h-5 w-5 text-blue-600" />
         <h2 className="text-sm font-semibold text-slate-700">1RM Progression</h2>

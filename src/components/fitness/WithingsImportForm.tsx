@@ -96,7 +96,7 @@ export default function WithingsImportForm() {
   return (
     <div className="space-y-6">
       {/* Import Form */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold">Import Data</h2>
 
         <div className="space-y-4">
@@ -139,7 +139,7 @@ export default function WithingsImportForm() {
 
       {/* Import Results */}
       {results && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold">Import Results</h2>
 
           <div className="space-y-3">

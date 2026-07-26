@@ -285,19 +285,19 @@ export default function MetricsHistoryClient({ metrics, initialMetric, initialRa
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
           <div className="text-sm text-slate-600">Total Records</div>
           <div className="text-2xl font-bold">{stats.total}</div>
         </div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
           <div className="text-sm text-slate-600">Avg RHR</div>
           <div className="text-2xl font-bold">{stats.avgRHR || '—'} bpm</div>
         </div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
           <div className="text-sm text-slate-600">Avg HRV</div>
           <div className="text-2xl font-bold">{stats.avgHRV || '—'} ms</div>
         </div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
           <div className="text-sm text-slate-600">Avg Body Battery</div>
           <div className="text-2xl font-bold">{stats.avgBodyBattery || '—'}</div>
         </div>
@@ -331,7 +331,7 @@ export default function MetricsHistoryClient({ metrics, initialMetric, initialRa
         })}
       </div>
 
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap gap-2">
             {(['7d', '30d', '90d', '1y', 'all'] as DateRange[]).map((range) => (
@@ -379,7 +379,7 @@ export default function MetricsHistoryClient({ metrics, initialMetric, initialRa
       </div>
 
       {metricFocus !== 'all' && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold">{METRIC_LABELS[metricFocus]} Trend</h2>
@@ -416,7 +416,7 @@ export default function MetricsHistoryClient({ metrics, initialMetric, initialRa
         </Link>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
         <table className="w-full">
           <thead className="border-b border-slate-200 bg-slate-50">
             <tr>

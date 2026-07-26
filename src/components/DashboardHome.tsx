@@ -158,7 +158,7 @@ export default async function DashboardHome() {
         </div>
       </div>
 
-      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-xs uppercase tracking-[0.3em] text-blue-800">
@@ -246,7 +246,7 @@ export default async function DashboardHome() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-xs uppercase tracking-[0.3em] text-blue-800">
@@ -305,7 +305,7 @@ export default async function DashboardHome() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-xs uppercase tracking-[0.3em] text-blue-800">
@@ -326,7 +326,7 @@ export default async function DashboardHome() {
       </section>
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:col-span-1">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm md:col-span-1">
           <h2 className="text-sm uppercase tracking-widest text-slate-500">Priority Matrix</h2>
           <ul className="mt-4 grid gap-2 text-sm">
             <li className="rounded-xl border border-slate-200 bg-white px-3 py-2">1. God First</li>
@@ -336,7 +336,7 @@ export default async function DashboardHome() {
           </ul>
         </div>
 
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:col-span-2">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm md:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="text-sm uppercase tracking-widest text-slate-500">Today</h2>
             <div className="text-xs text-slate-500">{today.toDateString()}</div>
@@ -347,7 +347,7 @@ export default async function DashboardHome() {
               <div className="font-semibold">Top 3 Priorities</div>
               <div className="mt-2 grid gap-2 text-sm">
                 {priorities.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <div key={item.id} className="flex items-center justify-between gap-2 rounded-lg border-2 border-slate-300 bg-slate-50 px-3 py-2">
                     <div>
                       <div className="font-medium">#{item.rank} {item.title}</div>
                       <div className="text-xs text-slate-500">{item.domain}</div>
@@ -385,7 +385,7 @@ export default async function DashboardHome() {
               <div className="font-semibold">Calendar (Day View)</div>
               <div className="mt-2 grid gap-2 text-sm">
                 {events.map((event) => (
-                  <div key={event.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <div key={event.id} className="rounded-lg border-2 border-slate-300 bg-slate-50 px-3 py-2">
                     <div className="font-medium">{event.title}</div>
                     <div className="text-xs text-slate-500">
                       {formatTime(event.start_at)} - {formatTime(event.end_at)} · {event.event_type}
@@ -425,7 +425,7 @@ export default async function DashboardHome() {
               <div className="font-semibold">Tasks (Must-do)</div>
               <div className="mt-2 grid gap-2 text-sm">
                 {mustDo.map((task) => (
-                  <div key={task.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <div key={task.id} className="rounded-lg border-2 border-slate-300 bg-slate-50 px-3 py-2">
                     <div className="font-medium">{task.title}</div>
                     <div className="text-xs text-slate-500">Due today</div>
                   </div>
@@ -440,7 +440,7 @@ export default async function DashboardHome() {
               <div className="font-semibold">Tasks (Optional)</div>
               <div className="mt-2 grid gap-2 text-sm">
                 {optional.map((task) => (
-                  <div key={task.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <div key={task.id} className="rounded-lg border-2 border-slate-300 bg-slate-50 px-3 py-2">
                     <div className="font-medium">{task.title}</div>
                     <div className="text-xs text-slate-500">No due date today</div>
                   </div>
@@ -480,7 +480,7 @@ export default async function DashboardHome() {
         <form className="grid gap-4 md:grid-cols-3" action="/dashboard/update" method="post">
           <input type="hidden" name="score_id" value={scoreRow?.id || ""} />
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Spirit</h2>
             <p className="mt-1 text-sm text-slate-500">Mission/vision/values alignment.</p>
             <div className="mt-4 grid gap-3">
@@ -508,7 +508,7 @@ export default async function DashboardHome() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Soul</h2>
             <p className="mt-1 text-sm text-slate-500">Relationships, emotions, inner life.</p>
             <div className="mt-4 grid gap-3">
@@ -536,7 +536,7 @@ export default async function DashboardHome() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Body</h2>
             <p className="mt-1 text-sm text-slate-500">Health, energy, action capacity.</p>
             <div className="mt-4 grid gap-3">

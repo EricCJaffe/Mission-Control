@@ -67,7 +67,7 @@ export default async function BodyMetricsPage() {
       </div>
 
       {/* Entry form — upserts for today's date */}
-      <form action="/fitness/metrics/new" method="post" className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm mb-6">
+      <form action="/fitness/metrics/new" method="post" className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm mb-6">
         <h2 className="text-sm font-semibold text-slate-700 mb-4">
           {todayMetrics ? 'Update Today\'s Metrics' : 'Log Today\'s Metrics'}
         </h2>
@@ -212,7 +212,7 @@ export default async function BodyMetricsPage() {
 
       {/* Recent history */}
       {recentMetrics && recentMetrics.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700">Recent History (30 days)</h2>
             <Link

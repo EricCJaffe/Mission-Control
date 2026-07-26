@@ -1056,7 +1056,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
           {/* Manual mode hint */}
           {loggerMode === 'manual' && (
-            <div className="mb-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <div className="mb-4 rounded-xl border-2 border-slate-300 bg-slate-50 p-3">
               <p className="text-xs text-slate-600">
                 Manual mode starts with a blank workout. Add exercises one by one as you go.
               </p>

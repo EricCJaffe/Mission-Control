@@ -274,7 +274,7 @@ export default function FitnessDashboardClient({
         </Link>
 
         {/* Strain hero */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Strain</p>
           <div className="flex items-center gap-4">
             <div className="flex h-[80px] w-[80px] items-center justify-center rounded-full bg-slate-800">
@@ -290,7 +290,7 @@ export default function FitnessDashboardClient({
         </div>
 
         {/* Today's workout hero */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex flex-col justify-between">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm flex flex-col justify-between">
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Today</p>
             <p className="text-xs text-slate-400">{new Date(today + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
@@ -352,7 +352,7 @@ export default function FitnessDashboardClient({
         />
         {/* BP mini card */}
         {latestBP ? (
-          <Link href="/fitness/bp" className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow transition-shadow">
+          <Link href="/fitness/bp" className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm hover:shadow transition-shadow">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs text-slate-500 flex items-center gap-1"><Heart size={14} className="text-slate-400" /> Blood Pressure</p>
               <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 border ${bpFlagTailwindClass(latestBP.flag_level)}`}>
@@ -415,7 +415,7 @@ export default function FitnessDashboardClient({
 
       {/* Weekly calendar strip */}
       {weekPlanned.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-700 mb-3">This Week</h2>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {weekPlanned.map((pw) => {
@@ -447,7 +447,7 @@ export default function FitnessDashboardClient({
 
       {/* Recent workouts */}
       {recentLogs.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700">Recent Workouts</h2>
             <Link href="/fitness/history" className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-0.5">
@@ -481,14 +481,14 @@ export default function FitnessDashboardClient({
         <div className="flex gap-3">
           <Link
             href="/fitness/morning"
-            className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+            className="flex-1 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
           >
             <span className="text-blue-700/70"><Sunrise size={20} /></span>
             <span className="text-sm font-medium text-slate-700">Morning Brief</span>
           </Link>
           <Link
             href="/fitness/settings"
-            className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+            className="flex-1 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
           >
             <span className="text-blue-700/70"><Settings size={20} /></span>
             <span className="text-sm font-medium text-slate-700">Settings</span>
@@ -513,7 +513,7 @@ export default function FitnessDashboardClient({
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+                className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
               >
                 <span className="text-blue-700/70">{link.icon}</span>
                 <span className="text-sm font-medium text-slate-700">{link.label}</span>
@@ -542,7 +542,7 @@ export default function FitnessDashboardClient({
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+                className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
               >
                 <span className="text-blue-700/70">{link.icon}</span>
                 <span className="text-sm font-medium text-slate-700">{link.label}</span>

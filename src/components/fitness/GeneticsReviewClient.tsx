@@ -210,7 +210,7 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
         </button>
 
         {/* File info */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">{selectedUpload?.file_name || 'Genetic Report'}</h2>
@@ -276,7 +276,7 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-slate-900">Raw SNP Data</h3>
             {groupedByGene.map(([gene, geneMarkers]) => (
-              <div key={gene} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+              <div key={gene} className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
                 <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
                   <div className="flex items-center gap-2">
                     <Dna className="h-5 w-5 text-blue-600" />
@@ -327,7 +327,7 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Structured Report Review</h3>
             <p className="text-sm text-slate-600">
               This report stores structured findings and AI analysis rather than individual rows in `genetic_markers`.
@@ -385,7 +385,7 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
     <div className="space-y-6">
       {/* Pending uploads */}
       {pendingUploads.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Needs Review</h2>
           <div className="space-y-3">
             {pendingUploads.map((upload) => (
@@ -411,7 +411,7 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
 
       {/* Completed uploads */}
       {completedUploads.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Confirmed</h2>
           <div className="space-y-3">
             {completedUploads.map((upload) => (
@@ -481,7 +481,7 @@ function AnalysisDisplay({ analysis }: { analysis: Analysis }) {
 
       {/* Gene-by-Gene Explanations */}
       {analysis.gene_explanations && analysis.gene_explanations.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Dna className="h-5 w-5 text-blue-600" />
             <h3 className="text-lg font-semibold text-slate-900">What Your Genes Mean</h3>
@@ -524,7 +524,7 @@ function AnalysisDisplay({ analysis }: { analysis: Analysis }) {
 
       {/* Supplement Recommendations */}
       {analysis.supplement_recommendations && analysis.supplement_recommendations.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Pill className="h-5 w-5 text-green-600" />
             <h3 className="text-lg font-semibold text-slate-900">Supplement Recommendations</h3>
@@ -560,7 +560,7 @@ function AnalysisDisplay({ analysis }: { analysis: Analysis }) {
 
       {/* Dietary Recommendations */}
       {analysis.dietary_recommendations && analysis.dietary_recommendations.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <UtensilsCrossed className="h-5 w-5 text-orange-600" />
             <h3 className="text-lg font-semibold text-slate-900">Dietary Recommendations</h3>
@@ -587,7 +587,7 @@ function AnalysisDisplay({ analysis }: { analysis: Analysis }) {
 
       {/* Lifestyle Recommendations */}
       {analysis.lifestyle_recommendations && analysis.lifestyle_recommendations.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Dumbbell className="h-5 w-5 text-blue-600" />
             <h3 className="text-lg font-semibold text-slate-900">Lifestyle Recommendations</h3>
@@ -605,7 +605,7 @@ function AnalysisDisplay({ analysis }: { analysis: Analysis }) {
 
       {/* Medication Notes */}
       {analysis.medication_notes && analysis.medication_notes.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Stethoscope className="h-5 w-5 text-purple-600" />
             <h3 className="text-lg font-semibold text-slate-900">Medication Interactions</h3>

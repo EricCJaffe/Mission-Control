@@ -77,25 +77,25 @@ export default function HRVDashboardClient({ hrvData, savedInsight }: Props) {
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500 mb-1">Current (7-day avg)</p>
           <p className="text-3xl font-bold text-slate-900">{Math.round(recentAvg)}</p>
           <p className="text-xs text-slate-500 mt-1">ms</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500 mb-1">90-Day Average</p>
           <p className="text-3xl font-bold text-slate-900">{avg}</p>
           <p className="text-xs text-slate-500 mt-1">ms</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500 mb-1">Range</p>
           <p className="text-3xl font-bold text-slate-900">{min}–{max}</p>
           <p className="text-xs text-slate-500 mt-1">ms</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-1">
             {trendIcon}
             <p className="text-sm text-slate-500">7-Day Trend</p>
@@ -108,7 +108,7 @@ export default function HRVDashboardClient({ hrvData, savedInsight }: Props) {
       </div>
 
       {/* Chart */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-4">90-Day Trend</h2>
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
@@ -151,7 +151,7 @@ export default function HRVDashboardClient({ hrvData, savedInsight }: Props) {
       </div>
 
       {/* AI Insights */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-purple-600" />

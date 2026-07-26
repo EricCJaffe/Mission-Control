@@ -98,7 +98,7 @@ export default function WithingsImportWizard() {
 
       {/* Input Form */}
       {!results && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm mb-6">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm mb-6">
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Export Folder Path
           </label>
@@ -156,7 +156,7 @@ export default function WithingsImportWizard() {
           </div>
 
           {/* Detailed Results */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
             <h3 className="font-semibold text-gray-900 mb-4">Import Summary</h3>
             <div className="space-y-3">
               {/* Blood Pressure */}
@@ -207,7 +207,7 @@ export default function WithingsImportWizard() {
           </div>
 
           {/* Next Steps */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
             <h3 className="font-semibold text-gray-900 mb-3">What's Next?</h3>
             <ul className="space-y-2 text-gray-700">
               <li className="flex items-start gap-2">

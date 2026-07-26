@@ -88,7 +88,7 @@ export default function MetricsAnalyticsClient() {
 
   if (loading || generating) {
     return (
-      <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-12 text-center shadow-sm">
         <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
         <p className="mt-4 text-slate-600">
           {generating ? 'Analyzing your metrics with AI...' : 'Loading saved analysis...'}
@@ -127,7 +127,7 @@ export default function MetricsAnalyticsClient() {
 
   if (!analysis) {
     return (
-      <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-12 text-center shadow-sm">
         <p className="text-slate-600">No analysis generated yet.</p>
         <p className="mt-2 text-sm text-slate-500">
           Running an analysis calls the AI and uses API credits, so it only happens when you ask.
@@ -158,7 +158,7 @@ export default function MetricsAnalyticsClient() {
   return (
     <div className="space-y-6">
       {/* Summary */}
-      <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-blue-50 to-purple-50 p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-gradient-to-br from-blue-50 to-purple-50 p-6 shadow-sm">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm font-medium text-slate-600">
             Analysis based on {dataPoints} days of data
@@ -207,7 +207,7 @@ export default function MetricsAnalyticsClient() {
       )}
 
       {/* Sleep/HRV Correlation */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-2xl font-bold flex items-center gap-2"><Moon size={24} /> Sleep & HRV Correlation</h2>
         <div className="mb-4">
           <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
@@ -239,7 +239,7 @@ export default function MetricsAnalyticsClient() {
       </div>
 
       {/* Recovery Trends */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-2xl font-bold flex items-center gap-2"><TrendingUp size={24} /> Recovery Trends</h2>
         <div className="mb-4">
           <span

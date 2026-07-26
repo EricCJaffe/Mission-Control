@@ -240,7 +240,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
       {/* Latest + averages row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {latest && (
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500 mb-1">Latest Reading</p>
             <p className="text-2xl font-bold text-slate-800 tabular-nums">{latest.systolic}/{latest.diastolic}</p>
             <p className="text-xs text-slate-500">{latest.pulse ? `${latest.pulse} bpm · ` : ''}{new Date(latest.reading_date).toLocaleDateString()}</p>
@@ -250,7 +250,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
           </div>
         )}
         {avgSystolic != null && (
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs text-slate-500">30-Day Average</p>
               {trends && (
@@ -270,7 +270,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
           </div>
         )}
         {stats?.pulsePressure != null && (
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500 mb-1">Pulse Pressure</p>
             <p className="text-2xl font-bold text-slate-800 tabular-nums">{stats.pulsePressure}</p>
             <p className="text-xs text-slate-400">SYS - DIA</p>
@@ -278,7 +278,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
           </div>
         )}
         {stats?.map != null && (
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500 mb-1">Mean Arterial Pressure</p>
             <p className="text-2xl font-bold text-slate-800 tabular-nums">{stats.map}</p>
             <p className="text-xs text-slate-400">MAP</p>
@@ -289,7 +289,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
 
       {/* Advanced Charts */}
       {chartData.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Blood Pressure Trends</h2>
 
           <ResponsiveContainer width="100%" height={350}>
@@ -426,7 +426,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
       )}
 
       {/* New reading form */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-slate-700">Log Blood Pressure</h2>
           <button
@@ -535,7 +535,7 @@ export default function BPDashboardClient({ readings: initial }: Props) {
 
       {/* Reading History */}
       {readings.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-700">Reading History ({readings.length})</h2>
           </div>

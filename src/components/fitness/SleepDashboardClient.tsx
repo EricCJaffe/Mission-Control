@@ -145,7 +145,7 @@ export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
   return (
     <div className="space-y-6">
       {/* Date Range Selector */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-2">
           {(['7d', '30d', '90d', 'all'] as DateRange[]).map((range) => (
             <button
@@ -166,7 +166,7 @@ export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
       {/* Summary Cards */}
       {stats && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs text-slate-500">Last Night</p>
               <Moon className="h-4 w-4 text-purple-500" />
@@ -177,7 +177,7 @@ export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
             )}
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs text-slate-500">Average Duration</p>
               {stats.trend && (
@@ -201,13 +201,13 @@ export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
             )}
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500 mb-1">Avg Sleep Quality</p>
             <p className="text-2xl font-bold text-slate-800 tabular-nums">{stats.avg.score}/100</p>
             <p className="text-xs text-slate-500">Efficiency: {stats.avg.efficiency}%</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <p className="text-xs text-slate-500 mb-1">Avg HR During Sleep</p>
             <p className="text-2xl font-bold text-slate-800 tabular-nums">{stats.avg.hr} bpm</p>
             {parseFloat(stats.avg.hrv) > 0 && (
@@ -221,7 +221,7 @@ export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
       {chartData.length > 0 && (
         <div className="space-y-6">
           {/* Sleep Duration Trend */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold mb-4">Sleep Duration Trend</h2>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
@@ -255,7 +255,7 @@ export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
           </div>
 
           {/* Sleep Stage Breakdown */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold mb-4">Sleep Stage Breakdown</h2>
             <ResponsiveContainer width="100%" height={350}>
               <AreaChart data={chartData}>
@@ -316,7 +316,7 @@ export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
           </div>
 
           {/* Heart Rate During Sleep */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold mb-4">Heart Rate During Sleep</h2>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
@@ -367,7 +367,7 @@ export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
 
           {/* HRV During Sleep (if available) */}
           {chartData.some((d) => d.avgHrv) && (
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold mb-4">HRV During Sleep</h2>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={chartData}>
@@ -401,7 +401,7 @@ export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
 
       {/* Historical Data Table */}
       {filteredLogs.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-700">Sleep History ({filteredLogs.length} nights)</h2>
           </div>
@@ -449,7 +449,7 @@ export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
       )}
 
       {filteredLogs.length === 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-12 text-center shadow-sm">
           <Moon className="mx-auto h-12 w-12 text-slate-300 mb-4" />
           <p className="text-slate-500 font-medium">No sleep data for the selected time range.</p>
           <p className="text-sm text-slate-400 mt-2">

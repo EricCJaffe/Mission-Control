@@ -83,7 +83,7 @@ export default function StrongImportClient() {
   return (
     <div className="space-y-6 max-w-2xl">
       {/* Instructions */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold text-slate-800 mb-3">How to export from Strong</h2>
         <ol className="list-decimal list-inside space-y-1.5 text-sm text-slate-600">
           <li>Open the Strong app on your phone</li>
@@ -98,7 +98,7 @@ export default function StrongImportClient() {
       </div>
 
       {/* Upload area */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold text-slate-800 mb-4">Upload CSV</h2>
 
         {!file ? (

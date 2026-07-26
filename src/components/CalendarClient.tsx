@@ -353,7 +353,7 @@ export default function CalendarClient({
       <div className="mt-6">
         <h3 className="mb-3 text-sm font-semibold text-slate-900">Add Event</h3>
         <form
-          className="grid gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:grid-cols-2"
+          className="grid gap-3 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm md:grid-cols-2"
           action="/dashboard/events"
           method="post"
           data-progress="true"

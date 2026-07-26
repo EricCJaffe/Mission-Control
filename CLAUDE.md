@@ -39,7 +39,7 @@ The user runs multiple projects at once. Never use broad kill commands like `kil
 - API routes in `src/app/api/*`
 - Mutations in `src/app/*/route.ts`
 - Supabase tables use `user_id` with RLS
-- Tailwind card baseline: `rounded-2xl border border-slate-100 bg-white p-5 shadow-sm`
+- Tailwind card baseline: `rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm`
 - Lucide icons only
 - Migrations use `supabase/migrations/YYYYMMDDHHmmss_name.sql`
 

@@ -67,7 +67,7 @@ function TaskRow({ task, onOpen }: { task: Task; onOpen: (task: Task) => void })
     task.status !== "done";
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-3 py-2">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-slate-300 bg-white px-3 py-2">
       <div className="flex min-w-0 items-center gap-3">
         <button className="h-4 w-4 rounded-full border border-slate-300" type="button" onClick={() => onOpen(task)} aria-label="Open task" />
         <div className="min-w-0">
@@ -247,7 +247,7 @@ export default function TasksListClient({
         ))}
       </div>
 
-      <div className="mt-4 rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <div className="mt-4 rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-4 py-2 text-xs font-semibold text-slate-500">Tasks</div>
         {tab === "templates" && (
           <div className="px-4 py-6 text-sm text-slate-500">No templates yet.</div>

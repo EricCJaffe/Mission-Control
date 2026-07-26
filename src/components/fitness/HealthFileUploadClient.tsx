@@ -160,7 +160,7 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
   return (
     <div className="space-y-6">
       {/* Upload Card */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-4">Upload Files</h2>
 
         {/* File Type Selector */}
@@ -274,7 +274,7 @@ export default function HealthFileUploadClient({ healthDocExists, recentUploads 
 
       {/* Recent Uploads */}
       {recentUploads.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Recent Uploads</h2>
           <div className="space-y-3">
             {recentUploads.map((upload) => (

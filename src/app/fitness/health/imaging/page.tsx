@@ -50,13 +50,13 @@ export default async function ImagingReportsPage() {
       </div>
 
       {imagingReports.length === 0 ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-8 shadow-sm">
           <p className="text-sm text-slate-600">No imaging analyses saved yet.</p>
         </div>
       ) : (
         <div className="space-y-6">
           {imagingReports.map((report) => (
-            <div key={report.id} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <div key={report.id} className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
               <div className="mb-4">
                 <h2 className="text-xl font-semibold text-slate-900">
                   {report.analysis_json?.study_title || report.file_name}

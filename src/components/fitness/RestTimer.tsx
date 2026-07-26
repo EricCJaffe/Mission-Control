@@ -48,7 +48,7 @@ export default function RestTimer({ defaultSeconds = 90 }: Props) {
   const display = `${mins}:${String(secs).padStart(2, '0')}`;
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-slate-700">Rest Timer</h3>
         {running && (

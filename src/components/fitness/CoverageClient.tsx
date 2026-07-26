@@ -102,7 +102,7 @@ export default function CoverageClient() {
       )}
 
       {loading && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-12 text-center shadow-sm">
           <Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-400" />
           <p className="mt-3 text-sm text-slate-500">Reading your training history…</p>
         </div>
@@ -138,7 +138,7 @@ export default function CoverageClient() {
           )}
 
           {/* Attribute rows, worst-first */}
-          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
             {report.attributes.map((a, i) => {
               const meta = STATUS_META[a.status];
               const Icon = meta.Icon;

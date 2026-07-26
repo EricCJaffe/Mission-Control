@@ -177,7 +177,7 @@ export default function HealthLabReviewClient({
         </button>
 
         {/* Panel Metadata - Editable */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Panel Information</h2>
           <p className="text-sm text-gray-600 mb-4">
             Review and edit the auto-extracted metadata below. AI extracted this from your PDF.
@@ -279,7 +279,7 @@ export default function HealthLabReviewClient({
         )}
 
         {/* All Results */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h3 className="text-lg font-semibold mb-3">
             All Test Results ({results.length})
           </h3>
@@ -318,7 +318,7 @@ export default function HealthLabReviewClient({
         </div>
 
         {/* Actions */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h3 className="text-lg font-semibold mb-3">Confirm Panel</h3>
           <p className="text-sm text-gray-600 mb-4">
             Once confirmed, AI will generate trend analysis and propose health.md updates.
@@ -365,7 +365,7 @@ export default function HealthLabReviewClient({
     <div className="space-y-6">
       {/* Pending Panels */}
       {pendingPanels.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">
             Pending Review ({pendingPanels.length})
           </h2>
@@ -401,7 +401,7 @@ export default function HealthLabReviewClient({
 
       {/* Confirmed Panels */}
       {confirmedPanels.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">
             Confirmed Panels (Recent 10)
           </h2>
@@ -438,7 +438,7 @@ export default function HealthLabReviewClient({
       )}
 
       {pendingPanels.length === 0 && confirmedPanels.length === 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-12 text-center shadow-sm">
           <p className="text-gray-600">
             No lab panels yet. Upload PDFs at{' '}
             <a href="/fitness/health/upload" className="text-blue-600 hover:underline">

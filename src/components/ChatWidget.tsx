@@ -281,7 +281,7 @@ export default function ChatWidget() {
                   className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                     msg.role === "user"
                       ? "bg-slate-800 text-white"
-                      : "border border-slate-100 bg-slate-50 text-slate-800"
+                      : "border-2 border-slate-300 bg-slate-50 text-slate-800"
                   }`}
                 >
                   <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -387,7 +387,7 @@ export default function ChatWidget() {
             ))}
             {loading && messages[messages.length - 1]?.role !== "assistant" && (
               <div className="mb-3 flex justify-start">
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-2.5">
+                <div className="rounded-2xl border-2 border-slate-300 bg-slate-50 px-3.5 py-2.5">
                   <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
                 </div>
               </div>

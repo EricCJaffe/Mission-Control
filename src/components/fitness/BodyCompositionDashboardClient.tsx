@@ -141,7 +141,7 @@ export default function BodyCompositionDashboardClient({ metrics }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
         <div>
           <h2 className="text-xl font-semibold text-slate-800">Body Composition Dashboard</h2>
           <p className="text-sm text-slate-500">Withings-driven composition trends with change summaries, averages, and guardrails.</p>
@@ -171,7 +171,7 @@ export default function BodyCompositionDashboardClient({ metrics }: Props) {
             <Link
               key={metricKey}
               href={`/fitness/metrics/history?metric=${metricKey === 'weight_lbs' ? 'weight' : metricKey}&range=${range}`}
-              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+              className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md"
             >
               <div className="text-sm text-slate-600">{meta.label}</div>
               <div className="mt-1 text-2xl font-bold text-slate-800">{current != null ? meta.format(current) : '—'}</div>
@@ -186,7 +186,7 @@ export default function BodyCompositionDashboardClient({ metrics }: Props) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <div className="mb-4">
             <h3 className="text-lg font-semibold text-slate-800">Weight & Body Fat Trend</h3>
             <p className="text-sm text-slate-500">Reference band highlights where body-fat maintenance is likely most practical for current endurance and cardiac goals.</p>
@@ -206,7 +206,7 @@ export default function BodyCompositionDashboardClient({ metrics }: Props) {
           </ResponsiveContainer>
         </div>
 
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <div className="mb-4">
             <h3 className="text-lg font-semibold text-slate-800">Muscle, Bone & Hydration</h3>
             <p className="text-sm text-slate-500">Useful for checking whether weight change is accompanied by lean-mass preservation and stable scale hydration.</p>
@@ -227,13 +227,13 @@ export default function BodyCompositionDashboardClient({ metrics }: Props) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <h3 className="text-lg font-semibold text-slate-800">Body-Fat Interpretation</h3>
           <p className={`mt-2 text-sm font-medium ${bodyFatStatus.tone}`}>{bodyFatStatus.label}</p>
           <p className="mt-2 text-sm text-slate-600">{bodyFatStatus.note}</p>
           <p className="mt-3 text-xs text-slate-500">Reference band shown on chart: roughly 12-18% as a practical maintenance zone, not a medical target.</p>
         </div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <h3 className="text-lg font-semibold text-slate-800">Weight / Fluid Guardrail</h3>
           <p className={`mt-2 text-sm font-medium ${weightStatus.tone}`}>{weightStatus.label}</p>
           <p className="mt-2 text-sm text-slate-600">{weightStatus.note}</p>

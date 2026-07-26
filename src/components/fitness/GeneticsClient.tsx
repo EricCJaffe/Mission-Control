@@ -134,7 +134,7 @@ export default function GeneticsClient({ markers }: Props) {
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -167,13 +167,13 @@ export default function GeneticsClient({ markers }: Props) {
 
       {/* Genetic Markers Grouped by Gene */}
       {groupedByGene.length === 0 ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-8 text-center shadow-sm">
           <p className="text-sm text-slate-500">No markers match your filters.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {groupedByGene.map(([gene, geneMarkers]) => (
-            <div key={gene} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+            <div key={gene} className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
               <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <Dna className="h-5 w-5 text-blue-600" />

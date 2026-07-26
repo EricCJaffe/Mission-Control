@@ -88,7 +88,7 @@ export default function MarchAppointmentSetupClient({
   return (
     <div className="space-y-6">
       {/* Prerequisites Check */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-4">Prerequisites</h2>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -133,7 +133,7 @@ export default function MarchAppointmentSetupClient({
 
       {/* Create Appointment */}
       {!appointmentExists ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-2">Step 1: Create Appointment</h2>
           <p className="text-sm text-gray-600 mb-4">
             Create the March 13, 2026 cardiologist appointment in your system.
@@ -160,7 +160,7 @@ export default function MarchAppointmentSetupClient({
 
       {/* Generate Prep */}
       {appointmentExists && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-2">
             Step 2: Generate Appointment Prep
           </h2>

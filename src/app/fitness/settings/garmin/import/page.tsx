@@ -84,7 +84,7 @@ export default function GarminImportPage() {
         </button>
       </div>
 
-      <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-8 shadow-sm">
         <h1 className="mb-2 text-2xl font-bold">Import Garmin FIT Files</h1>
         <p className="mb-6 text-sm text-gray-600">
           Upload FIT files from your Garmin Connect export to import wellness data, activities,

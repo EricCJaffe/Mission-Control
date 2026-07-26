@@ -190,7 +190,7 @@ export default function MorningBriefingClient(props: Props) {
       </div>
 
       {/* Overnight Stats */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Overnight</h2>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <MetricRow label="RHR" value={metrics?.resting_hr ? `${metrics.resting_hr} bpm` : '—'} sub={metrics?.resting_hr ? `${diffLabel(metrics.resting_hr - rhrBaseline)} from baseline` : undefined} />
@@ -222,7 +222,7 @@ export default function MorningBriefingClient(props: Props) {
 
       {/* Medication Reminders */}
       {medications.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Pill className="h-4 w-4 text-slate-600" />
@@ -275,7 +275,7 @@ export default function MorningBriefingClient(props: Props) {
       )}
 
       {/* Today's Plan */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Today&apos;s Plan</h2>
         {todayPlan ? (
           <div className="flex items-center gap-3">
@@ -303,14 +303,14 @@ export default function MorningBriefingClient(props: Props) {
       {(form || strain) && (
         <div className="grid grid-cols-2 gap-3">
           {form && (
-            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
               <p className="text-xs text-slate-500">Form (TSB)</p>
               <p className="text-2xl font-bold">{form.form_tsb != null ? Math.round(form.form_tsb) : '—'}</p>
               <p className="text-xs text-slate-400">{form.form_status ?? ''}</p>
             </div>
           )}
           {strain && (
-            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
               <p className="text-xs text-slate-500">Today&apos;s Strain</p>
               <p className="text-2xl font-bold">{strain.strain_score}</p>
               <p className="text-xs text-slate-400">{strain.strain_level}</p>
@@ -321,7 +321,7 @@ export default function MorningBriefingClient(props: Props) {
 
       {/* BP Quick View */}
       {latestBP && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Blood Pressure</h2>
             <a href="/fitness/bp" className="text-xs text-blue-600 hover:underline">View all</a>
@@ -342,7 +342,7 @@ export default function MorningBriefingClient(props: Props) {
 
       {/* AI Briefing */}
       {(loadingBriefing || generatingBriefing) && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm animate-pulse">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm animate-pulse">
           <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
           <div className="h-3 bg-slate-200 rounded w-full"></div>
         </div>
@@ -350,7 +350,7 @@ export default function MorningBriefingClient(props: Props) {
 
       {/* No briefing yet — generating one costs API credits, so it is opt-in. */}
       {!loadingBriefing && !generatingBriefing && !aiBriefing && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm text-center">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm text-center">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">AI Coach</h2>
           <p className="mt-2 text-sm text-slate-600">No briefing generated for today yet.</p>
           <p className="mt-1 text-xs text-slate-500">
@@ -367,7 +367,7 @@ export default function MorningBriefingClient(props: Props) {
 
       {aiBriefing && !generatingBriefing && (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-2">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">AI Coach</h2>
               <button
@@ -401,7 +401,7 @@ export default function MorningBriefingClient(props: Props) {
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2">
                 <Droplets className="h-4 w-4 text-blue-600" />
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Hydration</h2>
@@ -413,7 +413,7 @@ export default function MorningBriefingClient(props: Props) {
                 </p>
               )}
             </div>
-            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2">
                 <Apple className="h-4 w-4 text-emerald-600" />
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Nutrition</h2>
@@ -425,7 +425,7 @@ export default function MorningBriefingClient(props: Props) {
                 </p>
               )}
             </div>
-            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2">
                 <Waves className="h-4 w-4 text-cyan-600" />
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Recovery</h2>
@@ -439,7 +439,7 @@ export default function MorningBriefingClient(props: Props) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-indigo-600" />
               <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Daily Learning</h2>
@@ -448,7 +448,7 @@ export default function MorningBriefingClient(props: Props) {
             {aiBriefing.learning && <p className="mt-2 text-xs text-slate-500">{aiBriefing.learning}</p>}
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2">
               <Quote className="h-4 w-4 text-violet-600" />
               <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Inspiration</h2>
@@ -468,7 +468,7 @@ export default function MorningBriefingClient(props: Props) {
 
       {/* Factor Breakdown */}
       {readiness && (
-        <details className="rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <details className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
           <summary className="cursor-pointer p-4 text-sm font-semibold text-slate-500">Readiness Breakdown</summary>
           <div className="border-t border-slate-100 p-4 space-y-2">
             {[
@@ -494,9 +494,9 @@ export default function MorningBriefingClient(props: Props) {
 
       {/* Quick Links */}
       <div className="grid grid-cols-3 gap-2 text-center text-xs">
-        <a href="/fitness/metrics" className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm hover:shadow">Metrics</a>
-        <a href="/fitness/bp" className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm hover:shadow">BP</a>
-        <a href="/fitness/trends" className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm hover:shadow">Trends</a>
+        <a href="/fitness/metrics" className="rounded-xl border-2 border-slate-300 bg-white p-3 shadow-sm hover:shadow">Metrics</a>
+        <a href="/fitness/bp" className="rounded-xl border-2 border-slate-300 bg-white p-3 shadow-sm hover:shadow">BP</a>
+        <a href="/fitness/trends" className="rounded-xl border-2 border-slate-300 bg-white p-3 shadow-sm hover:shadow">Trends</a>
       </div>
     </div>
   );

@@ -163,7 +163,7 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
         <StatCard label="Form / TSB" value={latestTsb != null ? String(Math.round(latestTsb)) : '—'} sub={latestForm?.form_status ?? undefined} />
       </div>
 
-      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Source Of Truth</h2>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <div className="rounded-xl border border-cyan-100 bg-cyan-50/60 p-4">
@@ -263,7 +263,7 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
           {compositionCards.map((card) => {
             const summary = getMetricDelta(bodyMetrics, card.key);
             return (
-              <Link key={card.key} href={card.href} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
+              <Link key={card.key} href={card.href} className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
                 <div className="mb-2">
                   <p className="text-sm font-semibold text-slate-700">{card.label}</p>
                   <p className="text-xs text-slate-500">{summary.latest != null ? `Latest: ${summary.latest} ${card.unit}` : 'No data'}</p>
@@ -280,7 +280,7 @@ export default function FitnessTrendsClient({ bodyMetrics: initialBody, bpReadin
       </div>
 
       {workoutLogs.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-700">Workout Log ({rangeLabel})</h2>
           </div>
@@ -320,7 +320,7 @@ function TrendCard({ title, subtitle, target, note, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
       <div className="mb-2">
         <p className="text-sm font-semibold text-slate-700">{title}</p>
         {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
@@ -334,7 +334,7 @@ function TrendCard({ title, subtitle, target, note, children }: {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
       <p className="text-xs text-slate-500 mb-1">{label}</p>
       <p className="text-2xl font-bold tabular-nums text-slate-800">{value}</p>
       {sub && <p className="text-xs text-slate-500 capitalize mt-0.5">{sub}</p>}

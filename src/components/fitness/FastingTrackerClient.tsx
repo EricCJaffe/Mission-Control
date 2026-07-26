@@ -234,7 +234,7 @@ export default function FastingTrackerClient({ fastingLogs, upcomingWorkouts }: 
 
       {/* Quick Actions */}
       {!activeFast && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
           <button
             onClick={handleStartFast}
@@ -248,26 +248,26 @@ export default function FastingTrackerClient({ fastingLogs, upcomingWorkouts }: 
 
       {/* Statistics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
           <p className="text-xs text-slate-500">Total Fasts</p>
           <p className="text-2xl font-bold text-slate-900 mt-1">{stats.totalFasts}</p>
         </div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
           <p className="text-xs text-slate-500">Avg Window</p>
           <p className="text-2xl font-bold text-slate-900 mt-1">{stats.avgHours}h</p>
         </div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
           <p className="text-xs text-slate-500">Longest Fast</p>
           <p className="text-2xl font-bold text-slate-900 mt-1">{stats.longestFast}h</p>
         </div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-center">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
           <p className="text-xs text-slate-500">Current Streak</p>
           <p className="text-2xl font-bold text-slate-900 mt-1">{stats.currentStreak} days</p>
         </div>
       </div>
 
       {/* AI Advisor */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-purple-600" />
@@ -310,7 +310,7 @@ export default function FastingTrackerClient({ fastingLogs, upcomingWorkouts }: 
       </div>
 
       {/* Recent Fasts */}
-      <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-slate-600" />

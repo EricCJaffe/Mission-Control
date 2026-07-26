@@ -174,7 +174,7 @@ export default function ReviewUpdatesPage() {
             </Link>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm text-center">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-8 shadow-sm text-center">
             <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-slate-900 mb-2">All Caught Up!</h2>
             <p className="text-slate-600">

@@ -29,7 +29,7 @@ export default function GarminMassImportPage() {
       </div>
 
       {/* Instructions */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-3">How to Export from Garmin Connect</h2>
         <ol className="list-decimal list-inside space-y-2 text-sm text-slate-700">
           <li>
@@ -59,13 +59,13 @@ export default function GarminMassImportPage() {
       </div>
 
       {/* Import Form */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-4">Import Data</h2>
         <GarminMassImportForm />
       </div>
 
       {/* What Gets Imported */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-3">What Gets Imported</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <div>

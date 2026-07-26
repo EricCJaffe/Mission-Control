@@ -175,7 +175,7 @@ export default function ExerciseDetailClient({ exercise, setLogs, oneRmRecords }
       </div>
 
       {/* Exercise Info Card */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{exercise.name}</h1>
@@ -232,7 +232,7 @@ export default function ExerciseDetailClient({ exercise, setLogs, oneRmRecords }
       {workoutHistory.length > 1 && (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Max Weight Chart */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
             <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-blue-600" />
               Max Weight Progression
@@ -249,7 +249,7 @@ export default function ExerciseDetailClient({ exercise, setLogs, oneRmRecords }
           </div>
 
           {/* Volume Chart */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
             <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-green-600" />
               Total Volume Progression
@@ -267,7 +267,7 @@ export default function ExerciseDetailClient({ exercise, setLogs, oneRmRecords }
 
           {/* Estimated 1RM Chart */}
           {oneRmData.length > 0 && (
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
               <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-purple-600" />
                 Estimated 1RM Progression
@@ -293,7 +293,7 @@ export default function ExerciseDetailClient({ exercise, setLogs, oneRmRecords }
       )}
 
       {/* Workout History Table */}
-      <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
           <Calendar className="h-5 w-5 text-slate-600" />
           <h2 className="text-lg font-semibold text-slate-900">Workout History</h2>

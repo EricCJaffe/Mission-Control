@@ -126,7 +126,7 @@ export default function WorkoutTextLogger() {
   const readyToSave = Boolean(parsed && parsed.exercises.length > 0 && unresolved.length === 0);
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-2">
         <Wand2 className="h-5 w-5 text-blue-600" />
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">

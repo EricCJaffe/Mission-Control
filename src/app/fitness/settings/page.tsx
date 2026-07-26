@@ -25,7 +25,7 @@ export default async function AthleteSettingsPage() {
       </div>
 
       {/* Data Import Section */}
-      <div className="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="mb-6 rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-4">Data Imports</h2>
         <div className="space-y-3">
           {/* Withings */}

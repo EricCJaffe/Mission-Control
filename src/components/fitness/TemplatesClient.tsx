@@ -108,7 +108,7 @@ export default function TemplatesClient({ templates: initial }: { templates: Tem
 
       {/* Add form */}
       {showAdd ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">Create Template</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <input value={name} onChange={e => setName(e.target.value)} placeholder="Template name"
@@ -181,7 +181,7 @@ export default function TemplatesClient({ templates: initial }: { templates: Tem
             }
 
             return (
-              <div key={t.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div key={t.id} className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <span>{TYPE_ICONS[t.type ?? ''] ?? <Dumbbell size={20} />}</span>

@@ -132,7 +132,7 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
 
       {/* Add form */}
       {showAdd ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">Add Equipment</h2>
           <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Brooks Ghost 15"
             className="rounded-xl border border-slate-200 px-3 py-2 text-sm w-full" />
@@ -172,7 +172,7 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
 
       {/* Equipment list */}
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-8 text-center shadow-sm">
           <p className="text-slate-500 text-sm">No equipment tracked yet. Add your shoes and bikes to track mileage and get replacement alerts.</p>
         </div>
       ) : (
@@ -221,7 +221,7 @@ export default function EquipmentClient({ items: initial }: { items: EquipmentIt
             }
 
             return (
-              <div key={item.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div key={item.id} className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <span className="text-slate-600">{ICONS[item.type] ?? <Settings size={24} />}</span>

@@ -44,7 +44,7 @@ export default function HealthDocPendingUpdates({ showFullList = false }: Props)
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-slate-400 animate-pulse" />
           <p className="text-sm text-slate-500">Loading updates...</p>

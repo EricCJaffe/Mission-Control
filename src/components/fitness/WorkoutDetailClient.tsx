@@ -189,7 +189,7 @@ export default function WorkoutDetailClient({ workout, sets, cardioData }: Props
       </div>
 
       {/* Workout Summary Card */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 capitalize">{workout.workout_type} Workout</h1>
@@ -266,7 +266,7 @@ export default function WorkoutDetailClient({ workout, sets, cardioData }: Props
 
       {/* Cardio Data */}
       {cardioData && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Cardio Details</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {cardioData.distance_miles && (
@@ -296,7 +296,7 @@ export default function WorkoutDetailClient({ workout, sets, cardioData }: Props
       )}
 
       {/* Session Photos */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Session Photos</h2>
 
         {photoError && (
@@ -370,7 +370,7 @@ export default function WorkoutDetailClient({ workout, sets, cardioData }: Props
 
       {/* Exercise Details */}
       {exerciseGroups.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">
             <h2 className="text-lg font-semibold text-slate-900">Exercises</h2>
           </div>

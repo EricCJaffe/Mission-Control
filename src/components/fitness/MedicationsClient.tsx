@@ -236,7 +236,7 @@ export default function MedicationsClient({
 
       {/* Add/edit form */}
       {showAdd ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">{editId ? 'Edit Medication' : 'Add Medication'}</h2>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -395,7 +395,7 @@ export default function MedicationsClient({
 
       {/* Empty state */}
       {medications.length === 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm space-y-4">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-8 text-center shadow-sm space-y-4">
           <p className="text-slate-500 text-sm">No medications tracked yet. Add your prescriptions and supplements for AI-aware training guidance.</p>
           <button onClick={handleSeed} disabled={seeding}
             className="rounded-xl bg-blue-700 text-white text-sm font-medium px-5 py-2.5 hover:bg-blue-600 disabled:opacity-50 min-h-[44px]">
@@ -407,7 +407,7 @@ export default function MedicationsClient({
 
       {/* Inactive medications */}
       {inactiveMeds.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden opacity-60">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden opacity-60">
           <div className="px-5 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-500">Inactive ({inactiveMeds.length})</h2>
           </div>

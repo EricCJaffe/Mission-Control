@@ -163,7 +163,7 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
           const name = exSets[0]?.exercises?.name ?? 'Unknown Exercise';
           const hasPR = exSets.some(s => s.is_pr);
           return (
-            <div key={exId} className="rounded-xl border border-slate-100 bg-white/50 overflow-hidden">
+            <div key={exId} className="rounded-xl border-2 border-slate-300 bg-white/50 overflow-hidden">
               <div className="px-3 py-2 bg-slate-50/80 flex items-center gap-2">
                 <p className="text-sm font-medium text-slate-700 flex-1">{name}</p>
                 {hasPR && <span className="text-xs bg-amber-100 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">PR</span>}
@@ -319,7 +319,7 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
           return (
             <div key={monthKey}>
               <h2 className="text-sm font-semibold text-slate-500 mb-2">{monthLabel} ({monthWorkouts.length})</h2>
-              <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden divide-y divide-slate-100">
+              <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden divide-y divide-slate-100">
                 {monthWorkouts.map(w => {
                   const isExpanded = expandedId === w.id;
                   const detail = detailCache[w.id];
@@ -386,7 +386,7 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
 
                           {/* Notes */}
                           {w.notes && (
-                            <div className="rounded-lg bg-white p-3 border border-slate-100">
+                            <div className="rounded-lg bg-white p-3 border-2 border-slate-300">
                               <p className="text-xs text-slate-400 mb-0.5">Notes</p>
                               <p className="text-sm text-slate-700">{w.notes}</p>
                             </div>
@@ -436,7 +436,7 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
           );
         })
       ) : (
-        <div className="rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-8 text-center shadow-sm">
           <p className="text-slate-500 text-sm">
             {workouts.length === 0
               ? 'No workouts logged yet. Start your first workout from the dashboard!'

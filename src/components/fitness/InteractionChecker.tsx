@@ -39,7 +39,7 @@ export default function InteractionChecker({ medications }: Props) {
   const beneficialIds = ['statin-coq10-depletion']; // Mark beneficial interactions
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
+    <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

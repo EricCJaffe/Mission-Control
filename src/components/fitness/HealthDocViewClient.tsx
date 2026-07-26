@@ -126,7 +126,7 @@ export default function HealthDocViewClient({
 
   if (!healthDoc) {
     return (
-      <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-12 text-center shadow-sm">
         <p className="text-gray-600 mb-4">
           Health profile not initialized yet.
         </p>
@@ -145,7 +145,7 @@ export default function HealthDocViewClient({
       {/* Edit Mode */}
       {editMode ? (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold mb-4">Edit Health Profile</h2>
 
             <div className="mb-4">
@@ -192,7 +192,7 @@ export default function HealthDocViewClient({
       ) : (
         /* View Mode */
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold">Current Version</h2>
@@ -220,7 +220,7 @@ export default function HealthDocViewClient({
 
       {/* Version History */}
       {versionHistory.length > 1 && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Version History</h2>
           <div className="space-y-3">
             {versionHistory.map((version) => {

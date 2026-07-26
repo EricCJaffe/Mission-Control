@@ -123,7 +123,7 @@ export default function DayView({
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
       {/* Header with navigation */}
       <div className="mb-4 flex items-center justify-between">
         <div>

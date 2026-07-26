@@ -394,7 +394,7 @@ export default function LabDashboardClient({ initialTab }: LabDashboardClientPro
             Genetics Reports
           </button>
         </div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-12 text-center shadow-sm">
           <p className="text-gray-600">
             No confirmed lab panels found. Upload and confirm lab reports first.
           </p>
@@ -429,7 +429,7 @@ export default function LabDashboardClient({ initialTab }: LabDashboardClientPro
 
       {/* Filter Controls (Blood Work only) */}
       {labType === 'bloodwork' && data && (
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm font-medium text-gray-700">Filter:</span>
           <button
@@ -513,19 +513,19 @@ export default function LabDashboardClient({ initialTab }: LabDashboardClientPro
         <div className="space-y-6">
           {/* Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-600 mb-1">Total Panels</p>
               <p className="text-3xl font-bold text-gray-900">{data.panels.length}</p>
             </div>
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-600 mb-1">Tests Tracked</p>
               <p className="text-3xl font-bold text-gray-900">{Object.keys(data.test_trends).length}</p>
             </div>
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-600 mb-1">Flagged Results</p>
               <p className="text-3xl font-bold text-yellow-600">{data.flagged_results.length}</p>
             </div>
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-600 mb-1">Date Range</p>
               <p className="text-sm font-medium text-gray-900">
                 {new Date(data.panels[data.panels.length - 1].panel_date).toLocaleDateString()} -
@@ -535,11 +535,11 @@ export default function LabDashboardClient({ initialTab }: LabDashboardClientPro
           </div>
 
           {/* Source PDF Links */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-900 mb-3">Source Lab PDFs</h3>
             <div className="space-y-2">
               {data.panels.map((panel) => (
-                <div key={panel.id} className="flex items-center justify-between rounded-lg border border-slate-100 p-3">
+                <div key={panel.id} className="flex items-center justify-between rounded-lg border-2 border-slate-300 p-3">
                   <div>
                     <p className="text-sm font-medium text-slate-900">{panel.lab_name || 'Lab Panel'}</p>
                     <p className="text-xs text-slate-500">
@@ -794,7 +794,7 @@ export default function LabDashboardClient({ initialTab }: LabDashboardClientPro
           </p>
 
           {Object.keys(data.key_metrics).length === 0 ? (
-            <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-12 text-center shadow-sm">
               <p className="text-gray-600">
                 No key metrics found in your lab panels. Upload more comprehensive lab reports with lipid, kidney, and metabolic panels.
               </p>
@@ -804,7 +804,7 @@ export default function LabDashboardClient({ initialTab }: LabDashboardClientPro
               {Object.entries(data.key_metrics).map(([testName, points]) => (
                 <div
                   key={testName}
-                  className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                  className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                   onClick={() => setSelectedTest(testName)}
                 >
                   <h3 className="text-lg font-semibold mb-4">{testName}</h3>
@@ -973,7 +973,7 @@ export default function LabDashboardClient({ initialTab }: LabDashboardClientPro
               <p className="text-gray-600">Loading genetics reports...</p>
             </div>
           ) : methylationReports.length === 0 ? (
-            <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
+            <div className="rounded-2xl border-2 border-slate-300 bg-white p-12 text-center shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No Genetics Reports Found</h3>
               <p className="text-gray-600 mb-4">
                 Upload your genetic report PDFs to get AI-powered insights on methylation, neurotransmitters, detox, mitochondria, hormones, and nutrition.
@@ -1189,7 +1189,7 @@ export default function LabDashboardClient({ initialTab }: LabDashboardClientPro
                 })();
 
                 return (
-                <div key={report.file_id} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+                <div key={report.file_id} className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
                   {/* Collapsible Header */}
                   <div
                     className={`border-b p-5 cursor-pointer select-none ${headerColor}`}
