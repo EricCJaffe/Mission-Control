@@ -57,6 +57,13 @@ export async function GET(req: NextRequest) {
     categories = (reload.data ?? []) as Category[];
   }
 
+  // Only honour a category the user actually owns — validating against the
+  // loaded paths eliminates any PostgREST filter injection through this value
+  // (no need to interpolate untrusted text into a filter string).
+  const validCategory = category && categories.some((c) => c.path === category) ? category : '';
+  // Escape PostgREST-reserved and ILIKE metacharacters before interpolation.
+  const escapeFilter = (s: string) => s.replace(/[\\%_,().:*]/g, (ch) => `\\${ch}`);
+
   // Notes: filter by category subtree (path prefix) and/or full-text search.
   let notesQuery = supabase
     .from('notes')
@@ -65,12 +72,14 @@ export async function GET(req: NextRequest) {
     .order('updated_at', { ascending: false })
     .limit(500);
 
-  if (category) {
+  if (validCategory) {
+    const safe = escapeFilter(validCategory);
     // Include the category and its descendants (path or path/…).
-    notesQuery = notesQuery.or(`category_path.eq.${category},category_path.like.${category}/%`);
+    notesQuery = notesQuery.or(`category_path.eq.${safe},category_path.like.${safe}/%`);
   }
   if (q) {
-    // Prefer the FTS index; fall back to ilike if the column isn't there yet.
+    // Prefer the FTS index (parameterised, injection-safe); fall back to an
+    // escaped ilike only if the search column isn't there yet.
     const fts = await supabase
       .from('notes')
       .select('id, title, tags, category_id, category_path, updated_at, status')
@@ -79,14 +88,17 @@ export async function GET(req: NextRequest) {
       .limit(500);
     if (!fts.error) {
       let rows = fts.data ?? [];
-      if (category) {
+      if (validCategory) {
         rows = rows.filter(
-          (n) => n.category_path === category || (n.category_path ?? '').startsWith(`${category}/`)
+          (n) =>
+            n.category_path === validCategory ||
+            (n.category_path ?? '').startsWith(`${validCategory}/`)
         );
       }
       return NextResponse.json({ ok: true, categories, notes: rows, query: q });
     }
-    notesQuery = notesQuery.or(`title.ilike.%${q}%,content_md.ilike.%${q}%`);
+    const safeQ = escapeFilter(q);
+    notesQuery = notesQuery.or(`title.ilike.%${safeQ}%,content_md.ilike.%${safeQ}%`);
   }
 
   const notesRes = await notesQuery;
