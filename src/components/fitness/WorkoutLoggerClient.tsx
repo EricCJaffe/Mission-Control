@@ -170,7 +170,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   const [mode, setMode] = useState<WorkoutMode>('select');
   const [loggerMode, setLoggerMode] = useState<LoggerMode>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateRow | null>(null);
-  const [workoutType, setWorkoutType] = useState<string>(todayPlan?.workout_type ?? 'strength');
+  const [workoutType, setWorkoutType] = useState<string>('strength');
   const [blocks, setBlocks] = useState<ExerciseBlock[]>([]);
   const [duration, setDuration] = useState<number | ''>('');
   const [rpeSession, setRpeSession] = useState<number | ''>('');
@@ -1006,19 +1006,15 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
           <div className="mb-4">
             <label className="text-xs text-slate-500 block mb-2">Type</label>
-            <div className="flex flex-wrap gap-2">
-              {(['strength', 'cardio', 'hiit', 'hybrid', 'mobility'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setWorkoutType(t)}
-                  className={`rounded-xl px-4 py-2 text-sm font-medium min-h-[44px] capitalize ${
-                    workoutType === t ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {t}
-                </button>
+            <select
+              value={workoutType}
+              onChange={(e) => setWorkoutType(e.target.value)}
+              className="rounded-xl border border-slate-200 min-h-[44px] px-3 text-base w-full capitalize"
+            >
+              {['strength', 'cardio', 'hiit', 'hybrid', 'mobility'].map((t) => (
+                <option key={t} value={t} className="capitalize">{t}</option>
               ))}
-            </div>
+            </select>
           </div>
 
           {/* Template selector - only show in template mode */}
