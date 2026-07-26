@@ -564,6 +564,9 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     // Append to existing blocks
     setBlocks(prev => [...prev, ...newBlocks]);
     setShowAIBuilder(false);
+    // Building from the select screen drops you straight into logging the
+    // generated workout. A no-op if you were already logging.
+    setMode('logging');
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -986,7 +989,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                 From Template
               </button>
               <button
-                onClick={() => setLoggerMode('ai')}
+                onClick={() => { setLoggerMode('ai'); setShowAIBuilder(true); }}
                 className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors min-h-[40px] ${
                   loggerMode === 'ai' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
                 }`}
@@ -1038,11 +1041,15 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             </div>
           )}
 
-          {/* AI Builder hint */}
+          {/* AI Builder hint — the builder opens as soon as you pick this tab */}
           {loggerMode === 'ai' && (
             <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
               <p className="text-xs text-blue-700">
-                AI Builder will help you create a workout based on your goals and recent training. Click &ldquo;Start Workout&rdquo; to begin.
+                Describe a workout and AI builds it.{' '}
+                <button onClick={() => setShowAIBuilder(true)} className="font-semibold underline">
+                  Open builder
+                </button>{' '}
+                if it closed.
               </p>
             </div>
           )}
@@ -1075,8 +1082,8 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
               if (workoutType === 'cardio' || workoutType === 'mobility') {
                 setMode('cardio');
               } else if (loggerMode === 'ai') {
-                // AI mode: Open AI builder directly
-                setMode('logging');
+                // AI mode: (re)open the builder over the picker. Building it
+                // transitions to logging; cancelling leaves you here.
                 setShowAIBuilder(true);
               } else if (loggerMode === 'manual') {
                 // Manual mode: Start with blank workout
@@ -1100,6 +1107,14 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             {repeatData ? 'Repeat Workout' : loggerMode === 'ai' ? 'Build with AI' : 'Start Workout'}
           </button>
         </div>
+
+        {/* AI builder opens over the picker; building it drops into logging. */}
+        <AIWorkoutBuilder
+          isOpen={showAIBuilder}
+          onClose={() => setShowAIBuilder(false)}
+          onAddExercises={handleAIGeneratedExercises}
+          mode="logger"
+        />
       </div>
     );
   }
