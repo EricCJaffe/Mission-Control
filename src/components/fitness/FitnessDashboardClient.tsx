@@ -9,7 +9,7 @@ import {
   AlertTriangle, AlertCircle,
   Sunrise, Scale, Heart, FileEdit, History, Trophy,
   ClipboardList, FileHeart, FlaskConical, Pill, CalendarDays,
-  Settings, Footprints, Activity, BedDouble, Gauge, Droplets, Utensils, Waves,
+  Settings, Footprints, Activity, BedDouble, Gauge, Droplets, Utensils, Waves, Compass,
   ChevronRight, CalendarPlus, PenLine,
 } from 'lucide-react';
 
@@ -504,6 +504,7 @@ export default function FitnessDashboardClient({
               { href: '/fitness/exercises', label: 'Exercises', icon: <Dumbbell size={20} /> },
               { href: '/fitness/templates', label: 'Workout Templates', icon: <FileEdit size={20} /> },
               { href: '/fitness/plans', label: 'Training Plans', icon: <ClipboardList size={20} /> },
+              { href: '/fitness/coverage', label: 'Movement Coverage', icon: <Compass size={20} /> },
               { href: '/fitness/records', label: 'Personal Records', icon: <Trophy size={20} /> },
               { href: '/fitness/equipment', label: 'Equipment', icon: <Footprints size={20} /> },
               { href: '/calendar', label: 'Schedule Workout', icon: <CalendarPlus size={20} /> },
