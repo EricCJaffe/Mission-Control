@@ -1930,6 +1930,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       {/* Quick exercise creator modal */}
       {showQuickCreator && (
         <QuickExerciseCreator
+          initialName={exerciseSearch}
           onExerciseCreated={handleExerciseCreated}
           onCancel={() => setShowQuickCreator(false)}
         />

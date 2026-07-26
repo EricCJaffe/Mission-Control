@@ -718,6 +718,7 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
       {/* Quick exercise creator modal */}
       {showQuickCreator && (
         <QuickExerciseCreator
+          initialName={exerciseSearch}
           onExerciseCreated={handleExerciseCreated}
           onCancel={() => setShowQuickCreator(false)}
         />
