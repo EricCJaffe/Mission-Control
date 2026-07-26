@@ -83,6 +83,9 @@ type Props = {
 // ——— Internal types ———
 
 type LoggedSet = {
+  /** Stable per-set id — used as the React key so removing a set updates the
+      right row instead of index-shifting the whole list. */
+  id: string;
   set_type: SetType;
   reps: number | '';
   weight_lbs: number | '';
@@ -91,6 +94,13 @@ type LoggedSet = {
   notes: string;
   completed: boolean;
 };
+
+let _setSeq = 0;
+const newSetId = () => `set-${Date.now().toString(36)}-${++_setSeq}`;
+
+// Cap how many sets we pre-fill from last-workout history — imports can carry
+// far more than anyone actually performs in a session.
+const MAX_PREFILL_SETS = 6;
 
 type ExerciseBlock = {
   id: string; // unique key for React
@@ -288,6 +298,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           const sets: LoggedSet[] = [];
           for (let r = 0; r < item.rounds; r++) {
             sets.push({
+              id: newSetId(),
               set_type: 'working',
               reps: ssExercise.target_reps || '',
               weight_lbs: ssExercise.target_weight || '',
@@ -311,6 +322,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         // Standalone exercise
         const ex = exerciseMap.get(item.exercise_id);
         const sets: LoggedSet[] = item.sets.map((st) => ({
+          id: newSetId(),
           set_type: st.type,
           reps: st.target_reps || '',
           weight_lbs: st.target_weight || '',
@@ -322,7 +334,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         // If no sets defined, add 3 working sets as default
         if (sets.length === 0) {
           for (let i = 0; i < 3; i++) {
-            sets.push({ set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false });
+            sets.push({ id: newSetId(), set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false });
           }
         }
         newBlocks.push({
@@ -361,6 +373,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         const sets: LoggedSet[] = [];
         for (let i = 0; i < numSets; i++) {
           sets.push({
+            id: newSetId(),
             set_type: i === 0 ? 'warmup' : 'working',
             reps: pe.reps || '',
             weight_lbs: pe.weight || '',
@@ -409,6 +422,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       const exName = ex?.name ?? firstSet?.exercises?.name ?? 'Unknown';
 
       const sets: LoggedSet[] = exSets.map(s => ({
+        id: newSetId(),
         set_type: (s.set_type as SetType) || 'working',
         reps: s.reps ?? '',
         weight_lbs: s.weight_lbs ?? '',
@@ -445,9 +459,9 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
     // Fetch last workout data for this exercise
     let sets: LoggedSet[] = [
-      { set_type: 'warmup', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
-      { set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
-      { set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
+      { id: newSetId(), set_type: 'warmup', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
+      { id: newSetId(), set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
+      { id: newSetId(), set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
     ];
 
     try {
@@ -455,16 +469,20 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       const data = await res.json();
 
       if (data.ok && data.has_history && data.sets.length > 0) {
-        // Pre-fill with last workout data
-        sets = data.sets.map((s: { set_type: SetType; reps: number | null; weight_lbs: number | null; rest_seconds: number | null }) => ({
-          set_type: s.set_type,
-          reps: s.reps ?? '',
-          weight_lbs: s.weight_lbs ?? '',
-          rpe: '',
-          rest_seconds: s.rest_seconds,
-          notes: '',
-          completed: false,
-        }));
+        // Pre-fill with last workout data, but cap it — a stray import can carry
+        // dozens of sets, and you'd rarely do more than ~6. Add more by hand if needed.
+        sets = data.sets
+          .slice(0, MAX_PREFILL_SETS)
+          .map((s: { set_type: SetType; reps: number | null; weight_lbs: number | null; rest_seconds: number | null }) => ({
+            id: newSetId(),
+            set_type: s.set_type,
+            reps: s.reps ?? '',
+            weight_lbs: s.weight_lbs ?? '',
+            rpe: '',
+            rest_seconds: s.rest_seconds,
+            notes: '',
+            completed: false,
+          }));
 
         // Create summary string
         const firstWorkingSet = data.sets.find((s: { set_type: SetType }) => s.set_type === 'working') as
@@ -517,6 +535,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           const sets: LoggedSet[] = [];
           for (let r = 0; r < item.rounds; r++) {
             sets.push({
+              id: newSetId(),
               set_type: 'working',
               reps: ssExercise.target_reps || '',
               weight_lbs: ssExercise.target_weight || '',
@@ -540,6 +559,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         // Standalone exercise
         const ex = exerciseMap.get(item.exercise_id) ?? item.exercise;
         const sets: LoggedSet[] = item.sets.map((st) => ({
+          id: newSetId(),
           set_type: st.type,
           reps: st.target_reps || '',
           weight_lbs: st.target_weight || '',
@@ -551,7 +571,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         // If no sets defined, add 3 working sets as default
         if (sets.length === 0) {
           for (let i = 0; i < 3; i++) {
-            sets.push({ set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false });
+            sets.push({ id: newSetId(), set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false });
           }
         }
         newBlocks.push({
@@ -655,6 +675,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       return {
         ...b,
         sets: [...b.sets, {
+          id: newSetId(),
           set_type: 'working',
           reps: lastSet?.reps ?? '',
           weight_lbs: lastSet?.weight_lbs ?? '',
@@ -1567,7 +1588,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     };
     return (
       <div
-        key={setIdx}
+        key={s.id}
         className={`grid grid-cols-[2.75rem_1fr_1fr_2.75rem_1.5rem] items-center gap-2 px-3 py-1.5 ${
           s.completed ? 'bg-lime-50/60' : ''
         }`}
