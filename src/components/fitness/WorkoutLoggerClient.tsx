@@ -284,6 +284,61 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   const exerciseMap = new Map(localExercises.map((e) => [e.id, e]));
 
   // ——— Template pre-fill ———
+  // Overlay each block's sets with what you actually did last time for that
+  // exercise (weights, reps, set count) — so starting from a template, AI build,
+  // or plan begins from last session, not a blank/prescribed slate. Exercises
+  // with no history keep the sets they came in with.
+  async function applyLastWorkouts(built: ExerciseBlock[]): Promise<ExerciseBlock[]> {
+    const ids = [...new Set(built.map((b) => b.exercise_id).filter(Boolean))] as string[];
+    if (ids.length === 0) return built;
+    try {
+      const res = await fetch('/api/fitness/exercises/last-workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exercise_ids: ids }),
+      });
+      const data = await res.json();
+      if (!data.ok) return built;
+      const last = data.last as Record<
+        string,
+        { workout_date: string | null; sets: Array<{ set_type: string | null; reps: number | null; weight_lbs: number | null; rest_seconds: number | null }> }
+      >;
+      const summaries = new Map<string, { date: string; summary: string }>();
+      const overlaid = built.map((b) => {
+        const hist = b.exercise_id ? last[b.exercise_id] : undefined;
+        if (!hist || hist.sets.length === 0) return b;
+        const sets: LoggedSet[] = hist.sets.slice(0, MAX_PREFILL_SETS).map((s) => ({
+          id: newSetId(),
+          set_type: (s.set_type as SetType) || 'working',
+          reps: s.reps ?? '',
+          weight_lbs: s.weight_lbs ?? '',
+          rpe: '',
+          rest_seconds: s.rest_seconds,
+          notes: '',
+          completed: false,
+        }));
+        const firstWorking = hist.sets.find((s) => s.set_type === 'working') ?? hist.sets[0];
+        if (firstWorking && hist.workout_date) {
+          summaries.set(b.exercise_id!, {
+            date: new Date(hist.workout_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            summary: `${hist.sets.length}x${firstWorking.reps ?? '?'} @ ${firstWorking.weight_lbs ?? 0}lbs`,
+          });
+        }
+        return { ...b, sets };
+      });
+      if (summaries.size) {
+        setExerciseHistory((prev) => {
+          const m = new Map(prev);
+          summaries.forEach((v, k) => m.set(k, v));
+          return m;
+        });
+      }
+      return overlaid;
+    } catch {
+      return built;
+    }
+  }
+
   function loadTemplate(template: TemplateRow) {
     const structure = Array.isArray(template.structure) ? template.structure as WorkoutStructureItem[] : [];
     if (structure.length === 0) return;
@@ -349,7 +404,9 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       }
     }
 
+    // Show the template immediately, then overlay last-time weights/sets.
     setBlocks(newBlocks);
+    applyLastWorkouts(newBlocks).then(setBlocks);
   }
 
   function loadPlan() {
@@ -393,7 +450,10 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           exercise_rpe: '',
         });
       }
-      if (newBlocks.length > 0) setBlocks(newBlocks);
+      if (newBlocks.length > 0) {
+        setBlocks(newBlocks);
+        applyLastWorkouts(newBlocks).then(setBlocks);
+      }
     }
   }
 
@@ -586,8 +646,12 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       }
     }
 
-    // Append to existing blocks
+    // Append to existing blocks, then overlay last-time weights/sets.
     setBlocks(prev => [...prev, ...newBlocks]);
+    applyLastWorkouts(newBlocks).then((overlaid) => {
+      const byId = new Map(overlaid.map((b) => [b.id, b]));
+      setBlocks((prev) => prev.map((b) => byId.get(b.id) ?? b));
+    });
     setShowAIBuilder(false);
     // Building from the select screen drops you straight into logging the
     // generated workout. A no-op if you were already logging.

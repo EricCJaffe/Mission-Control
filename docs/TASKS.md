@@ -28,6 +28,15 @@
   - CSV and FIT import flows work today.
   - Garmin OAuth/live sync is still not implemented.
 
+- [ ] **Decide how recovery items (sauna, cold plunge, etc.) are handled** (Eric, 2026-07-27)
+  - A recovery module already exists (`/fitness/recovery`, `recovery.ts`, `RecoverySessionsClient`).
+  - Open question: surface them in the workout logger flow / as a loggable "workout" type,
+    or keep them purely in the recovery module? Reconcile before adding more recovery UI.
+
+- [ ] **Clean up existing workout templates — not current with Eric's routine** (Eric reminder, 2026-07-27)
+  - Templates "Upper Body Push" / "Back and Bicep" etc. reflect an older routine.
+  - Rebuild templates to match the current Push A / Pull A / Bodyweight / Push B / Pull B split.
+
 ### Medium Priority
 - [ ] Email notifications for pending `health.md` updates
   - Health update detection, review, and approval exist.
