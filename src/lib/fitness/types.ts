@@ -305,7 +305,9 @@ export type RecoveryModality =
   | 'sauna'
   | 'cold_plunge'
   | 'stretching'
-  | 'mobility';
+  | 'mobility'
+  | 'massage'
+  | 'compression';
 
 export type RecoveryTimingContext =
   | 'pre_workout'
@@ -320,6 +322,7 @@ export type RecoverySession = {
   user_id: string;
   session_date: string;
   modality: RecoveryModality;
+  sub_type?: string | null;
   duration_min: number;
   temperature_f: number | null;
   rounds: number | null;

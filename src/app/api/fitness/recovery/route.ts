@@ -3,7 +3,8 @@ import { supabaseServer } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-const VALID_MODALITIES = ['sauna', 'cold_plunge', 'stretching', 'mobility'] as const;
+const VALID_MODALITIES = ['sauna', 'cold_plunge', 'stretching', 'mobility', 'massage', 'compression'] as const;
+const VALID_MASSAGE_SUBTYPES = ['gun', 'professional', 'self'] as const;
 const VALID_TIMING = ['pre_workout', 'post_workout', 'standalone', 'morning', 'afternoon', 'evening'] as const;
 
 export async function GET() {
@@ -51,6 +52,11 @@ export async function POST(req: NextRequest) {
       rounds: clampInt(body.rounds, 1, 20),
       timing_context: timingContext,
       linked_workout_id: typeof body.linked_workout_id === 'string' && body.linked_workout_id ? body.linked_workout_id : null,
+      // Massage detail (gun / professional / self); ignored for other modalities.
+      sub_type:
+        modality === 'massage' && VALID_MASSAGE_SUBTYPES.includes(body.sub_type)
+          ? body.sub_type
+          : null,
       perceived_recovery: clampInt(body.perceived_recovery, 1, 10),
       energy_before: clampInt(body.energy_before, 1, 10),
       energy_after: clampInt(body.energy_after, 1, 10),

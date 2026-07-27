@@ -15,6 +15,8 @@ export function summarizeRecoverySessions(sessions: RecoverySession[]): Recovery
     cold_plunge: 0,
     stretching: 0,
     mobility: 0,
+    massage: 0,
+    compression: 0,
   };
 
   let totalMinutes = 0;
@@ -63,6 +65,10 @@ export function modalityLabel(modality: RecoveryModality) {
       return 'Stretching';
     case 'mobility':
       return 'Mobility';
+    case 'massage':
+      return 'Massage';
+    case 'compression':
+      return 'Compression';
   }
 }
 

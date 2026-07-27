@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dumbbell, Loader2, Snowflake, Sparkles, StretchHorizontal, Waves, Flame } from 'lucide-react';
+import { Dumbbell, Loader2, Snowflake, Sparkles, StretchHorizontal, Waves, Flame, Hand, Footprints } from 'lucide-react';
 import { modalityLabel } from '@/lib/fitness/recovery-modalities';
 import type { RecoverySession } from '@/lib/fitness/types';
 
@@ -19,8 +19,17 @@ type Props = {
 const MODALITY_OPTIONS = [
   { value: 'sauna', label: 'Sauna', icon: Flame },
   { value: 'cold_plunge', label: 'Cold Plunge', icon: Snowflake },
+  { value: 'massage', label: 'Massage', icon: Hand },
+  { value: 'compression', label: 'Leg Compression', icon: Footprints },
   { value: 'stretching', label: 'Stretching', icon: StretchHorizontal },
   { value: 'mobility', label: 'Mobility', icon: Waves },
+] as const;
+
+// Massage detail — Massage Envy etc. is "professional", a Theragun is "gun".
+const MASSAGE_SUBTYPES = [
+  { value: 'gun', label: 'Massage gun' },
+  { value: 'professional', label: 'Professional (e.g. Massage Envy)' },
+  { value: 'self', label: 'Self / hands-on' },
 ] as const;
 
 export default function RecoverySessionsClient({ initialSessions, recentWorkouts }: Props) {
@@ -34,6 +43,7 @@ export default function RecoverySessionsClient({ initialSessions, recentWorkouts
   const [form, setForm] = useState({
     session_date: new Date().toISOString().slice(0, 10),
     modality: 'sauna',
+    sub_type: '',
     duration_min: '',
     temperature_f: '',
     rounds: '',
@@ -131,7 +141,22 @@ export default function RecoverySessionsClient({ initialSessions, recentWorkouts
                 ))}
               </select>
             </label>
-            <Field label="Duration (min)" value={form.duration_min} onChange={(value) => setForm((prev) => ({ ...prev, duration_min: value }))} />
+            {form.modality === 'massage' ? (
+              <label className="block text-sm font-medium text-slate-700">
+                Massage type
+                <select value={form.sub_type} onChange={(event) => setForm((prev) => ({ ...prev, sub_type: event.target.value }))} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
+                  <option value="">—</option>
+                  {MASSAGE_SUBTYPES.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <Field label="Duration (min)" value={form.duration_min} onChange={(value) => setForm((prev) => ({ ...prev, duration_min: value }))} />
+            )}
+            {form.modality === 'massage' && (
+              <Field label="Duration (min)" value={form.duration_min} onChange={(value) => setForm((prev) => ({ ...prev, duration_min: value }))} />
+            )}
             <label className="block text-sm font-medium text-slate-700">
               Timing
               <select value={form.timing_context} onChange={(event) => setForm((prev) => ({ ...prev, timing_context: event.target.value }))} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
@@ -219,7 +244,14 @@ export default function RecoverySessionsClient({ initialSessions, recentWorkouts
             <div key={session.id} className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">{modalityLabel(session.modality)}</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {modalityLabel(session.modality)}
+                    {session.sub_type ? (
+                      <span className="ml-1 font-normal text-slate-500">
+                        · {MASSAGE_SUBTYPES.find((s) => s.value === session.sub_type)?.label ?? session.sub_type}
+                      </span>
+                    ) : null}
+                  </p>
                   <p className="text-xs text-slate-500">{session.session_date} · {session.timing_context.replace('_', ' ')}</p>
                 </div>
                 <p className="text-sm text-slate-700">{session.duration_min} min</p>
