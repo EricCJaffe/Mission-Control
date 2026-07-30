@@ -33,6 +33,14 @@
   - Optional for Garmin-related scripts or future sync work.
 - `GARMIN_PASSWORD`
   - Optional for Garmin-related scripts or future sync work.
+- `APPLE_HEALTH_INGEST_TOKEN`
+  - Bearer token the Health Auto Export iOS app sends to `/api/fitness/apple-health/ingest`.
+  - Generate with `openssl rand -hex 32`. The route is fail-closed: if this is unset it
+    returns 503 and accepts nothing.
+- `APPLE_HEALTH_USER_ID`
+  - Supabase `auth.users` id that ingested Apple Health rows are written for.
+  - Required because the phone posts with no browser session, so the route writes with the
+    service role and has no other way to know whose data it is.
 
 ## Secrets Handling
 - Keep secrets in `.env.local`.

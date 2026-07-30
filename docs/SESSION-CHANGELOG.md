@@ -10,6 +10,51 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+- 2026-07-30 14:15 ET — Apple Health: extended metrics, migrations applied, backfill imported
+  - What changed:
+    - Applied **all 9 pending migrations** to remote Supabase via `supabase db push` (the 5 that had been queued since 2026-07-23, plus 4 new Apple Health ones). Remote and local migration state now match.
+    - New schema for data that had nowhere to land: `body_metrics.blood_oxygen_pct`/`respiratory_rate`; `daily_summaries.exercise_minutes`/`stand_minutes`/`stand_hours`/`daylight_minutes`; new tables `running_dynamics`, `mobility_metrics`, `workout_routes` (GPS traces as jsonb, downsampled above 4000 points, with bounding box + elevation gain precomputed).
+    - Normalizer extended to fill all of the above; unmapped metrics down from 26 to 6.
+    - **Imported the 2026-03-01 → 2026-07-30 backfill through the real endpoint**: 152 daily_summaries, 110 body_metrics, 88 sleep_logs, 23 bp_readings, 31 workouts, 5 running_dynamics, 151 mobility_metrics, 5 workout_routes.
+  - Why:
+    - Eric asked for exercise maps, running dynamics, blood oxygen and Apple exercise time to be captured rather than discarded, and authorised applying the migrations.
+  - Bugs the real import caught (all fixed):
+    - `hrv_ms` is an `integer` column — sending 34.52 failed the whole body_metrics batch.
+    - The sleep column is `awake_seconds`, not `awake_sleep_seconds`; and `sleep_start`/`sleep_end`/`total_sleep_seconds` are NOT NULL, so entries missing them are now skipped rather than failing the batch.
+    - `ON CONFLICT` cannot use the **partial** unique index from `20260730120000`. Replaced with a plain unique constraint in `20260730150000` — safe because Postgres treats NULLs as distinct, so non-Apple rows don't collide.
+  - Follow-ups:
+    - Endpoint still returns 503 in production until `APPLE_HEALTH_INGEST_TOKEN` / `APPLE_HEALTH_USER_ID` are set in Vercel — see the reminder in `docs/TASKS.md`.
+    - One imported route reports 425m elevation gain in flat north Florida; GPS altitude drift, not a parsing bug. Consider smoothing if routes get surfaced in the UI.
+    - Nothing yet *reads* `running_dynamics`, `mobility_metrics`, or `workout_routes` — the data is being collected ahead of any UI.
+
+- 2026-07-30 10:20 ET — Apple Health ingest (server side)
+  - What changed:
+    - Added `POST /api/fitness/apple-health/ingest` — the only non-cookie-auth route in the app, since the phone posts with no browser session. Bearer token + service-role writes, fail-CLOSED (503) when `APPLE_HEALTH_INGEST_TOKEN`/`APPLE_HEALTH_USER_ID` are absent, timing-safe token compare. Deliberately unlike `cron/daily-metric-check`, which skips its check entirely when `CRON_SECRET` is unset.
+    - Added `src/lib/fitness/apple-health-import.ts` — normalises Health Auto Export payloads into `body_metrics`, `daily_summaries`, `sleep_logs`, `bp_readings`, `workout_logs`/`cardio_logs`. Handles HAE's `"yyyy-MM-dd HH:mm:ss Z"` dates, which `new Date()` mis-parses, and kg→lb / km→mi conversion.
+    - Migration `20260730120000_apple_health_ingest.sql`: allows `'Apple Health'` on `daily_summaries.source` and `sleep_logs.source`, adds `workout_logs.apple_workout_id` + partial unique index for idempotent re-sends, and creates `apple_health_sync_logs` (including `raw_payload` and `metrics_unmapped`).
+  - Why:
+    - Apple exposes HealthKit only on-device, so there is no server-side pull. Garmin Connect and Health Mate both mirror into Apple Health, so one inbound path can replace three integrations.
+  - Follow-ups:
+    - **Not live yet** — see the Apple Health reminder at the top of `docs/TASKS.md` (migration, 2 env vars, buy Health Auto Export).
+    - **Mapping validated against a real 9.6MB export** (2026-03-01 → 2026-07-30, 41 metrics / 31 workouts): all 14 mapped metric names matched, and the normalizer produced 152 daily_summaries, 110 body_metrics, 88 sleep_logs, 23 bp_readings, 31 workouts with zero malformed dates or bad durations. Findings folded back in: added `body_mass_index` → `body_metrics.bmi` (57 rows), and sleep now keeps the LONGEST session per day because ~2/3 of Apple's sleep entries are naps and last-write let a nap overwrite a night. Also capped `raw_payload` logging at 512KB so a backfill doesn't bloat the sync log.
+    - Real-world note: HAE pre-merges multi-source days into one point (source is a pipe-joined list), so the per-day summing cannot double-count Garmin + Watch + iPhone.
+    - 26 metrics remain unmapped — mostly ones with no column to land in (audio exposure, walking asymmetry, running dynamics, underwater depth). `respiratory_rate`, `blood_oxygen_saturation`, and `apple_exercise_time` are the plausible future adds.
+    - GPX route files in the export are not imported; there is no table for GPS traces, and the workout `route` arrays are ignored too.
+    - Verified by 35 normalizer assertions, the real-export run above, and by exercising the 503/401/400/405 paths against a live server. The DB write path has still not run — it needs the migration applied.
+
+- 2026-07-29 09:35 ET — Workout logger set-entry ergonomics
+  - What changed:
+    - Replaced the page-bottom `RestTimer` card with `InlineRestTimer` — a ~24px chip that appears under a set once it's marked done. One tap runs a 60s countdown in place, with a `+30s` bump, tap-to-clear, and a vibrate on finish. `RestTimer.tsx` is now unreferenced.
+    - Added `SetNumberInput`: −/+ steppers around the weight and reps fields (5 lb and 1 rep), rendered as `type="text"` so the caret can be forced to the end of the value on focus/tap. Number inputs don't support `setSelectionRange`, which is why the type changed.
+    - Added `src/lib/fitness/carry-forward.ts` — typing weight/reps into a set now fills the still-blank sets below it, stopping at the first set that's been edited by hand or completed. Sets it filled keep following until edited, so live typing (`1` → `13` → `135`) propagates.
+    - Tightened the set-row grid so the extra stepper buttons still fit a 320px phone.
+  - Why:
+    - Editing weight/reps on mobile was painful: tapping a field put the caret in front of the digits, and the only rest timer sat below every exercise so it had to be scrolled to.
+  - Follow-ups:
+    - Decide whether to delete the now-unused `RestTimer.tsx` or keep it for a settings-driven long-rest view.
+    - Rest length is a fixed 60s constant (`REST_DEFAULT_SECONDS`); wire it to per-exercise `rest_seconds` if that's wanted.
+    - Verified by build/typecheck/lint and by driving the components in headless Chrome; not yet exercised in the signed-in logger on a real phone.
+
 - 2026-03-10 10:55 ET — Flourishing module implementation
   - What changed:
     - Added the Flourishing subsystem: canonical question set, persisted assessments, current profile, and persona proposal review/apply flow.

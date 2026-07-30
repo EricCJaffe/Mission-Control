@@ -24,7 +24,72 @@
 
 ## Open Product Tasks
 ### High Priority
+- [ ] **Turn on automatic Apple Health syncing — REMINDER for Eric** (2026-07-30)
+  DONE already: all migrations applied to remote, and the 2026-03-01 → 2026-07-30
+  backfill is imported and verified (152 daily_summaries, 110 body_metrics, 88 sleep_logs,
+  23 bp_readings, 31 workouts, 5 running_dynamics, 151 mobility_metrics, 5 workout_routes).
+  Re-sending the same payload is idempotent — verified by sending twice with no change.
+
+  REMAINING, all on Eric's side:
+  1. `openssl rand -hex 32` → `vercel env add APPLE_HEALTH_INGEST_TOKEN` (all envs), and
+     `vercel env add APPLE_HEALTH_USER_ID` = `96982dec-d682-4dd0-9498-1d2d226dab83`.
+     Add both to `.env.local` too. Until then the endpoint returns 503 in production.
+  2. Buy Health Auto Export on iOS (~$2/mo or lifetime), add a REST API automation:
+     POST JSON to `https://<app-domain>/api/fitness/apple-health/ingest`,
+     header `Authorization: Bearer <token>`, schedule hourly, range "Since Last Sync".
+  3. After the first automated sync, check `apple_health_sync_logs.metrics_unmapped`.
+     Currently unmapped and deliberately so: cycling_distance, physical_effort,
+     environmental/headphone_audio_exposure, underwater_temperature/depth.
+
+  Confirmed working: the export's `source` fields show `Connect` (Garmin), `Withings`,
+  `Sleep Number`, Apple Watch and iPhone all already feeding Apple Health, so this one
+  automation covers every device.
+
+### Follow-ups parked from the 2026-07-30 session
+Captured while Eric was away from the keyboard. Nothing here is broken — these are
+open decisions and deferred work, roughly in the order worth doing.
+
+- [ ] **Security: `CRON_SECRET` check fails open.**
+  `src/app/api/cron/daily-metric-check/route.ts:24` only enforces the bearer token
+  `if (process.env.CRON_SECRET)` — with the var unset the route is fully public. Either
+  set `CRON_SECRET` in Vercel or make the check fail closed (the new Apple Health route
+  shows the pattern). Same file line ~65 has a broken self-call: it builds the app URL
+  from `NEXT_PUBLIC_SUPABASE_URL`, so it POSTs to the Supabase host, not the app.
+
+- [ ] **Decide the fate of `src/components/fitness/RestTimer.tsx`.**
+  Now unreferenced — the inline chip replaced it. It still has the 30/60/90/120/180
+  presets the chip doesn't. Delete it, or keep it for a settings-driven long-rest view.
+
+- [ ] **Rest length is a hardcoded 60s** (`REST_DEFAULT_SECONDS` in `WorkoutLoggerClient`).
+  `set_logs.rest_seconds` already exists and nothing writes to it. Wire per-exercise rest
+  lengths through if the fixed minute proves wrong in practice.
+
+- [ ] **Confirm the caret behaviour feels right on a real phone.**
+  Tapping anywhere in a weight/reps field snaps the caret to the END of the value, per
+  the original request. That also means you can't tap into the middle of a number to
+  edit it. One-line change in `SetNumberInput.caretToEnd` if you want mid-number taps
+  to land where your thumb hits.
+
+- [ ] **Nothing reads the new Apple Health tables yet.**
+  `running_dynamics`, `mobility_metrics`, and `workout_routes` are collecting data with
+  no UI. Route maps are the obvious first build — the rows already carry a bounding box
+  and elevation gain so a map can be framed without reading every point.
+
+- [ ] **GPS elevation drift.** One imported route claims 425m of climb in flat north
+  Florida. It's altitude noise, not a parsing bug, but smooth it before showing elevation
+  anywhere in the UI.
+
+- [ ] **Six Apple Health metrics remain unmapped** and need columns if wanted:
+  `cycling_distance`, `physical_effort`, `environmental_audio_exposure`,
+  `headphone_audio_exposure`, `underwater_temperature`, `underwater_depth`.
+
+- [ ] **Vercel CLI is outdated** (54.12.2 → 58.0.0): `npm i -g vercel@latest`.
+
 - [ ] Garmin OAuth full automation
+  - Likely obsolete once Apple Health ingest is live: Garmin Connect mirrors into Apple
+    Health, so the Apple path may replace the credential-storing Garmin scrape entirely.
+  - Revisit after the first week of Apple Health data — if coverage is good, delete
+    `garmin/sync` + `garmin/auth` rather than finishing OAuth.
   - CSV and FIT import flows work today.
   - Garmin OAuth/live sync is still not implemented.
 
