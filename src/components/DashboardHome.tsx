@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
+import HybridTrainingIndicator from "@/components/fitness/HybridTrainingIndicator";
+import { computeHybridBalance } from "@/lib/fitness/hybrid-balance";
 
 function formatTime(value: string) {
   const date = new Date(value);
@@ -44,6 +46,10 @@ export default async function DashboardHome() {
   const todayIso = formatDate(today);
   const start = startOfDay(today).toISOString();
   const end = endOfDay(today).toISOString();
+  const HYBRID_CONTEXT_DAYS = 30;
+  const hybridSince = new Date(
+    today.getTime() - HYBRID_CONTEXT_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
 
   const [
     scoresResult,
@@ -55,6 +61,8 @@ export default async function DashboardHome() {
     tasksResult,
     personaResult,
     sopChecksResult,
+    hybridWorkoutsResult,
+    hybridRecoveryResult,
   ] = await Promise.all([
     supabase
       .from("dashboard_scores")
@@ -107,6 +115,19 @@ export default async function DashboardHome() {
       .eq("is_done", false)
       .order("created_at", { ascending: true })
       .limit(10),
+    // Hybrid balance needs a 30-day look-back so the ring can show the week
+    // against a longer trend.
+    supabase
+      .from("workout_logs")
+      .select("id,workout_date,workout_type,source,duration_minutes")
+      .eq("user_id", user.id)
+      .gte("workout_date", hybridSince),
+    supabase
+      .from("recovery_sessions")
+      .select("id,session_date,modality,duration_min")
+      .eq("user_id", user.id)
+      .in("modality", ["stretching", "mobility"])
+      .gte("session_date", hybridSince.slice(0, 10)),
   ]);
 
   const scoreRow = scoresResult.data;
@@ -144,6 +165,30 @@ export default async function DashboardHome() {
     unknown: "bg-slate-400 text-white",
   };
 
+  const hybridSessions = [
+    ...(hybridWorkoutsResult.data ?? []).map((w) => ({
+      id: w.id as string,
+      date: w.workout_date as string,
+      type: (w.workout_type as string) ?? "",
+      source: (w.source as string) ?? null,
+      minutes: (w.duration_minutes as number) ?? 0,
+    })),
+    // Recovery sessions are date-only; noon keeps them inside the window
+    // regardless of the viewer's offset.
+    ...(hybridRecoveryResult.data ?? []).map((r) => ({
+      id: r.id as string,
+      date: `${r.session_date as string}T12:00:00Z`,
+      type: (r.modality as string) ?? "",
+      source: "recovery",
+      minutes: (r.duration_min as number) ?? 0,
+    })),
+  ];
+  const hybridWeek = computeHybridBalance(hybridSessions, { windowDays: 7, now: today });
+  const hybridMonth = computeHybridBalance(hybridSessions, {
+    windowDays: HYBRID_CONTEXT_DAYS,
+    now: today,
+  });
+
   return (
     <main className="pt-4 md:pt-8">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -157,6 +202,10 @@ export default async function DashboardHome() {
           Signed in as: <span className="font-medium text-slate-900">{user.email}</span>
         </div>
       </div>
+
+      <section className="mt-6">
+        <HybridTrainingIndicator primary={hybridWeek} context={hybridMonth} />
+      </section>
 
       <section className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
