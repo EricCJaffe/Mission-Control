@@ -20,11 +20,13 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import RestTimer from './RestTimer';
+import InlineRestTimer from './InlineRestTimer';
+import SetNumberInput from './SetNumberInput';
 import PlateCalculator from './PlateCalculator';
 import QuickExerciseCreator from './QuickExerciseCreator';
 import AIWorkoutBuilder from './AIWorkoutBuilder';
 import type { SetType, CardioLog, WorkoutStructureItem } from '@/lib/fitness/types';
+import { carrySetValue, type CarryField } from '@/lib/fitness/carry-forward';
 
 type ExerciseRow = {
   id: string;
@@ -97,6 +99,13 @@ type LoggedSet = {
 
 let _setSeq = 0;
 const newSetId = () => `set-${Date.now().toString(36)}-${++_setSeq}`;
+
+/** Rest length one tap of the inline timer gives you. */
+const REST_DEFAULT_SECONDS = 60;
+const REST_BUMP_SECONDS = 30;
+/** Steppers: barbell jumps are 5s, reps are whole numbers. */
+const WEIGHT_STEP_LBS = 5;
+const REPS_STEP = 1;
 
 // Cap how many sets we pre-fill from last-workout history — imports can carry
 // far more than anyone actually performs in a session.
@@ -280,6 +289,48 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
   // Exercise history tracking
   const [exerciseHistory, setExerciseHistory] = useState<Map<string, { date: string; summary: string }>>(new Map());
+
+  // ——— Inline rest timer ———
+  // Only one rest runs at a time; it's pinned to the set row you started it
+  // from. Stored as an absolute end time so the countdown stays accurate if
+  // the phone screen sleeps mid-rest.
+  const [restTimer, setRestTimer] = useState<{ setId: string; endsAt: number; duration: number } | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const restAlertedRef = useRef<string | null>(null);
+
+  /** `${setId}:${field}` entries we auto-filled, so they keep following the
+      set above until the user edits them directly. */
+  const carriedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!restTimer) return;
+    setNowMs(Date.now());
+    const id = setInterval(() => setNowMs(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [restTimer]);
+
+  // Buzz once when the rest finishes — you're rarely looking at the screen.
+  useEffect(() => {
+    if (!restTimer || nowMs < restTimer.endsAt) return;
+    const key = `${restTimer.setId}:${restTimer.endsAt}`;
+    if (restAlertedRef.current === key) return;
+    restAlertedRef.current = key;
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate([180, 90, 180]);
+    }
+  }, [restTimer, nowMs]);
+
+  function startRest(setId: string) {
+    setRestTimer({ setId, endsAt: Date.now() + REST_DEFAULT_SECONDS * 1000, duration: REST_DEFAULT_SECONDS });
+  }
+
+  function extendRest() {
+    setRestTimer(prev =>
+      prev
+        ? { ...prev, endsAt: prev.endsAt + REST_BUMP_SECONDS * 1000, duration: prev.duration + REST_BUMP_SECONDS }
+        : prev
+    );
+  }
 
   const exerciseMap = new Map(localExercises.map((e) => [e.id, e]));
 
@@ -757,6 +808,23 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       if (b.id !== blockId) return b;
       return { ...b, sets: b.sets.filter((_, i) => i !== setIdx) };
     }));
+  }
+
+  /**
+   * Weight/reps entry that carries forward to the sets below it.
+   *
+   * Type 135 into set 1 and the still-blank sets under it fill in too, so a
+   * straight-across exercise only needs one entry. Propagation stops at the
+   * first set you've edited yourself (or already completed) — once a set
+   * diverges it stays put. Sets we filled keep following until you touch them,
+   * which is what makes live typing work: "1" → "13" → "135" all propagate.
+   */
+  function updateSetValue(blockId: string, setIdx: number, field: CarryField, value: number | '') {
+    setBlocks(prev => prev.map(b =>
+      b.id === blockId
+        ? { ...b, sets: carrySetValue(b.sets, setIdx, field, value, carriedRef.current) }
+        : b
+    ));
   }
 
   function updateSetInBlock(blockId: string, setIdx: number, field: keyof LoggedSet, value: unknown) {
@@ -1650,57 +1718,68 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       const next = typeKeys[(typeKeys.indexOf(s.set_type) + 1) % typeKeys.length];
       updateSetInBlock(block.id, setIdx, 'set_type', next);
     };
+    // The rest chip only shows once the set is logged — it's the moment you'd
+    // actually start resting, and it keeps the row clean until then.
+    const isResting = restTimer?.setId === s.id;
+    const remaining = isResting ? Math.ceil((restTimer.endsAt - nowMs) / 1000) : null;
     return (
-      <div
-        key={s.id}
-        className={`grid grid-cols-[2.75rem_1fr_1fr_2.75rem_1.5rem] items-center gap-2 px-3 py-1.5 ${
-          s.completed ? 'bg-lime-50/60' : ''
-        }`}
-      >
-        {/* Set-number badge; tap to cycle set type. Colour encodes the type. */}
-        <button
-          onClick={cycleType}
-          title={`${SET_TYPE_LABELS[s.set_type]} set — tap to change type`}
-          className={`h-11 rounded-lg border-2 text-sm font-bold tabular-nums ${SET_TYPE_BADGE[s.set_type]}`}
-        >
-          {s.set_type === 'working' ? setIdx + 1 : SET_TYPE_GLYPH[s.set_type]}
-        </button>
-        <input
-          type="number"
-          inputMode="decimal"
-          step="2.5"
-          value={s.weight_lbs}
-          onChange={(e) => updateSetInBlock(block.id, setIdx, 'weight_lbs', e.target.value ? Number(e.target.value) : '')}
-          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-1 text-center text-base font-semibold tabular-nums focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
-          placeholder="0"
-        />
-        <input
-          type="number"
-          inputMode="numeric"
-          value={s.reps}
-          onChange={(e) => updateSetInBlock(block.id, setIdx, 'reps', e.target.value ? Number(e.target.value) : '')}
-          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-1 text-center text-base font-semibold tabular-nums focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
-          placeholder="0"
-        />
-        <button
-          onClick={() => updateSetInBlock(block.id, setIdx, 'completed', !s.completed)}
-          aria-pressed={s.completed}
-          title={s.completed ? 'Set done' : 'Mark set done'}
-          className={`flex h-11 w-11 items-center justify-center rounded-lg border-2 transition-colors ${
-            s.completed
-              ? 'border-lime-500 bg-lime-500 text-white'
-              : 'border-slate-200 bg-white text-slate-300 hover:border-lime-400'
+      <div key={s.id}>
+        <div
+          className={`grid grid-cols-[2rem_1fr_1fr_2.5rem_0.875rem] items-center gap-1 px-2 py-1.5 ${
+            s.completed ? 'bg-lime-50/60' : ''
           }`}
         >
-          <Check className="h-5 w-5" strokeWidth={3} />
-        </button>
-        <button
-          onClick={() => removeSetFromBlock(block.id, setIdx)}
-          title="Remove set"
-          className="flex h-11 w-6 items-center justify-center text-slate-300 hover:text-red-400"
-        >
-          <X className="h-4 w-4" />
-        </button>
+          {/* Set-number badge; tap to cycle set type. Colour encodes the type. */}
+          <button
+            onClick={cycleType}
+            title={`${SET_TYPE_LABELS[s.set_type]} set — tap to change type`}
+            className={`h-11 rounded-lg border-2 text-sm font-bold tabular-nums ${SET_TYPE_BADGE[s.set_type]}`}
+          >
+            {s.set_type === 'working' ? setIdx + 1 : SET_TYPE_GLYPH[s.set_type]}
+          </button>
+          <SetNumberInput
+            value={s.weight_lbs}
+            onChange={(v) => updateSetValue(block.id, setIdx, 'weight_lbs', v)}
+            step={WEIGHT_STEP_LBS}
+            decimal
+            label="weight in pounds"
+          />
+          <SetNumberInput
+            value={s.reps}
+            onChange={(v) => updateSetValue(block.id, setIdx, 'reps', v)}
+            step={REPS_STEP}
+            label="reps"
+          />
+          <button
+            onClick={() => updateSetInBlock(block.id, setIdx, 'completed', !s.completed)}
+            aria-pressed={s.completed}
+            title={s.completed ? 'Set done' : 'Mark set done'}
+            className={`flex h-11 w-full items-center justify-center rounded-lg border-2 transition-colors ${
+              s.completed
+                ? 'border-lime-500 bg-lime-500 text-white'
+                : 'border-slate-200 bg-white text-slate-300 hover:border-lime-400'
+            }`}
+          >
+            <Check className="h-5 w-5" strokeWidth={3} />
+          </button>
+          <button
+            onClick={() => removeSetFromBlock(block.id, setIdx)}
+            title="Remove set"
+            className="flex h-11 w-full items-center justify-center text-slate-300 hover:text-red-400"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {s.completed && (
+          <InlineRestTimer
+            remaining={remaining}
+            duration={isResting ? restTimer.duration : REST_DEFAULT_SECONDS}
+            defaultSeconds={REST_DEFAULT_SECONDS}
+            onStart={() => startRest(s.id)}
+            onCancel={() => setRestTimer(null)}
+            onExtend={extendRest}
+          />
+        )}
       </div>
     );
   }
@@ -1750,7 +1829,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
         {/* Column headers — labelled once, so each set row stays compact */}
         {block.sets.length > 0 && (
-          <div className="grid grid-cols-[2.75rem_1fr_1fr_2.75rem_1.5rem] items-center gap-2 px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="grid grid-cols-[2rem_1fr_1fr_2.5rem_0.875rem] items-center gap-1 px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             <span className="text-center">Set</span>
             <span className="text-center">Lbs</span>
             <span className="text-center">Reps</span>
@@ -1937,9 +2016,6 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           </button>
         )}
       </div>
-
-      {/* Rest timer */}
-      <RestTimer defaultSeconds={90} />
 
       {/* Plate calculator toggle */}
       <button onClick={() => setShowPlateCalc((v) => !v)}
