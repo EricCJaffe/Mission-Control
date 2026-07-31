@@ -45,6 +45,27 @@
   `Sleep Number`, Apple Watch and iPhone all already feeding Apple Health, so this one
   automation covers every device.
 
+- [ ] **Withings stopped reaching Apple Health around 2026-07-01** (found 2026-07-31)
+  Blood pressure ends 06-27; weight / BMI / body fat / lean mass end 07-01. Everything
+  Watch- or iPhone-sourced runs current, so it is specifically the Withings bridge. BP
+  only ever reaches Apple Health via Withings, so there is no BP at all after 06-27.
+  Not an import bug — the data is absent from the Health Auto Export file too.
+  Fixes, in order:
+  1. Open the Health Mate (Withings) app on the phone — it only pushes to Apple Health
+     when opened. Then Settings → Health → Data Access & Devices → Health Mate → Turn On All.
+  2. Run the app's own Withings sync at `/fitness/settings/withings`. The OAuth connection
+     is still `connected` with valid scopes but **last synced 2026-03-11** — it is
+     manual-only and nothing schedules it. This pulls from the Withings cloud directly and
+     bypasses Apple entirely, so it backfills regardless of the bridge.
+  3. No Withings export is needed; the OAuth connection makes it redundant.
+  Blocked for Claude: `WITHINGS_CLIENT_ID`/`SECRET` aren't in `.env.local` and the repo
+  isn't linked to Vercel locally (`vercel env ls` → "codebase isn't linked"), so the
+  5-month-old token can't be refreshed from here. One `vercel link` would unblock it.
+
+- [ ] **Consider scheduling the Withings sync.** It has never run automatically — that's
+  why 5 months of drift went unnoticed. Either add a Vercel cron, or drop it entirely
+  once Apple Health is the single pipe.
+
 ### Follow-ups parked from the 2026-07-30 session
 Captured while Eric was away from the keyboard. Nothing here is broken — these are
 open decisions and deferred work, roughly in the order worth doing.
