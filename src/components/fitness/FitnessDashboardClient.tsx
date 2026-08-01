@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import QuickRecoveryLog from '@/components/fitness/QuickRecoveryLog';
+import WithingsSyncButton from './WithingsSyncButton';
 import { bpFlagTailwindClass, bpFlagLabel } from '@/lib/fitness/alerts';
 import type { BPFlagLevel } from '@/lib/fitness/types';
 import type { ReactNode } from 'react';
@@ -320,6 +321,10 @@ export default function FitnessDashboardClient({
 
       {/* Quick recovery log — sauna / cold plunge / massage / compression, one tap */}
       <QuickRecoveryLog />
+
+      {/* Withings sync — BP and body composition come from here, and nothing
+          schedules it, so the control sits next to the metrics it feeds. */}
+      <WithingsSyncButton />
 
       {/* Metric cards — 2x3 grid with larger numbers */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
