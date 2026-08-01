@@ -10,6 +10,22 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+- 2026-08-01 09:40 ET — Withings as source of truth for BP and body composition
+  - What changed:
+    - Apple Health ingest no longer writes `bp_readings` at all. The two paths cannot be de-duplicated: Apple flattens a reading to local midnight while the Withings API keeps the real measurement time, so the same cuff reading arrives with different timestamps. Two duplicates already existed (2026-03-02 142/90, 2026-03-08 153/91).
+    - Apple ingest now strips weight / body fat / lean mass / BMI on any date where `body_metrics.weight_source = 'Withings'`, so Withings is never overwritten while Apple still fills unclaimed days. Weight can't duplicate (one row per date) — only overwrite — so a preference is sufficient there where BP needed a hard exclusion.
+    - Added `scripts/dedupe-bp-readings.mjs`, matching on (day, systolic, diastolic) rather than timestamp. Cleaned the 2 existing duplicates.
+    - Recorded the full precedence table in `docs/DATA_SOURCES.md`, superseding the Garmin-era rules.
+  - **Bug found and fixed — this one mattered:**
+    - PostgREST normalises a batch upsert to the UNION of all rows' columns and NULL-fills whatever a row omits. So dropping `weight_lbs` from one row didn't skip the column, it wrote NULL over the existing weight — the first attempt at the deferral rule actively destroyed the value it was meant to protect. This was a *latent* bug in all the existing upserts too, since Apple payloads are naturally ragged (a date may have HRV but no weight).
+    - Fixed with `upsertGrouped()`, which batches rows by identical column signature so each statement only names columns every row in it supplies. All six upserts now route through it. Verified by seeding a Withings-owned sentinel row and confirming it survived a full re-ingest.
+  - Why:
+    - Eric wants Withings BP/weight/body-comp as source of truth without duplicating against Apple Health.
+  - Follow-ups:
+    - 21 Apple-sourced BP rows (Apr–Jun) remain — currently the only BP for that period. Run the dedupe script after the first Withings backfill.
+    - Nothing schedules the Withings sync, and nothing else writes BP now, so those metrics stop if it isn't run.
+    - A same-source repeat measurement is NOT treated as a duplicate: 2024-12-20 had two Withings readings of 135/87 six minutes apart, which is normal practice. The first version of the dedupe script would have deleted one.
+
 - 2026-07-30 14:15 ET — Apple Health: extended metrics, migrations applied, backfill imported
   - What changed:
     - Applied **all 9 pending migrations** to remote Supabase via `supabase db push` (the 5 that had been queued since 2026-07-23, plus 4 new Apple Health ones). Remote and local migration state now match.

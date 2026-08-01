@@ -63,8 +63,24 @@
   5-month-old token can't be refreshed from here. One `vercel link` would unblock it.
 
 - [ ] **Consider scheduling the Withings sync.** It has never run automatically — that's
-  why 5 months of drift went unnoticed. Either add a Vercel cron, or drop it entirely
-  once Apple Health is the single pipe.
+  why 5 months of drift went unnoticed. Now that Withings is the declared source of
+  truth for BP and body composition, nothing else writes them, so if this never runs
+  those metrics simply stop. Add a Vercel cron, or accept it as manual and remember to
+  run it.
+
+- [ ] **After the first Withings backfill, run the BP dedupe.** 21 Apple-sourced BP rows
+  (Apr–Jun) are currently the only BP data for that period, so they were deliberately
+  left in place. Once the Withings sync backfills the same readings they'll duplicate:
+  ```
+  APPLE_HEALTH_USER_ID=96982dec-d682-4dd0-9498-1d2d226dab83 \
+    node --env-file=.env.local scripts/dedupe-bp-readings.mjs        # dry run
+  ```
+  Add `--apply` once the dry run looks right.
+
+- [ ] **Apple Health ingest still 503s in production.** The route is deployed (it returns
+  its own "not configured" message, not a 404), so the env vars aren't reaching it.
+  Either they're not set for Production, or the deployment predates them — **env changes
+  need a redeploy to take effect**. Check `vercel env ls production`, then `vercel redeploy`.
 
 ### Follow-ups parked from the 2026-07-30 session
 Captured while Eric was away from the keyboard. Nothing here is broken — these are
