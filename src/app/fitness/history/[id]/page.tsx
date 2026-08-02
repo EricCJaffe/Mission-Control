@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import WorkoutDetailClient from '@/components/fitness/WorkoutDetailClient';
+import RouteMap from '@/components/fitness/RouteMap';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -37,22 +38,38 @@ export default async function WorkoutDetailPage({ params }: Props) {
     console.error('Error fetching sets:', setsError);
   }
 
-  // Fetch cardio data if it's a cardio workout
-  let cardioData = null;
-  if (workout.workout_type === 'cardio' || workout.workout_type === 'hybrid') {
-    const { data: cardio } = await supabase
-      .from('cardio_logs')
-      .select('*')
-      .eq('workout_log_id', id)
-      .single();
-    cardioData = cardio;
-  }
+  // Fetch cardio data unconditionally. This used to be gated on
+  // workout_type being 'cardio' or 'hybrid', which silently hid it for every
+  // Apple Health workout — those arrive typed 'Outdoor Run', 'Indoor Cycling'
+  // and so on, and do carry heart rate and distance.
+  const { data: cardioData } = await supabase
+    .from('cardio_logs')
+    .select('*')
+    .eq('workout_log_id', id)
+    .maybeSingle();
+
+  // GPS trace, present only for outdoor workouts.
+  const { data: route } = await supabase
+    .from('workout_routes')
+    .select('points, elevation_gain_m, elevation_loss_m')
+    .eq('workout_log_id', id)
+    .eq('user_id', user.id)
+    .maybeSingle();
 
   return (
-    <WorkoutDetailClient
-      workout={workout}
-      sets={sets || []}
-      cardioData={cardioData}
-    />
+    <div className="space-y-4">
+      {route?.points?.length ? (
+        <RouteMap
+          points={route.points}
+          elevationGainM={route.elevation_gain_m}
+          elevationLossM={route.elevation_loss_m}
+        />
+      ) : null}
+      <WorkoutDetailClient
+        workout={workout}
+        sets={sets || []}
+        cardioData={cardioData}
+      />
+    </div>
   );
 }

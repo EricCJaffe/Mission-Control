@@ -182,14 +182,18 @@ open decisions and deferred work, roughly in the order worth doing.
   edit it. One-line change in `SetNumberInput.caretToEnd` if you want mid-number taps
   to land where your thumb hits.
 
-- [ ] **Nothing reads the new Apple Health tables yet.**
-  `running_dynamics`, `mobility_metrics`, and `workout_routes` are collecting data with
-  no UI. Route maps are the obvious first build — the rows already carry a bounding box
-  and elevation gain so a map can be framed without reading every point.
+- [x] **Route maps — SHIPPED 2026-08-02.** GPS traces render as inline SVG on the
+  workout detail page (`/fitness/history/[id]`). No tiles, no map library, no key.
+  - Also fixed: cardio data was only fetched when `workout_type` was literally 'cardio'
+    or 'hybrid', so every Apple Health workout ('Outdoor Run' etc.) silently hid its
+    heart rate and distance.
+- [x] **GPS elevation drift — FIXED 2026-08-02.** Smoothed with a moving average plus a
+  3m threshold. The 425m phantom climb is now 40m; genuinely flat routes read 0-6m. All
+  five stored routes were recomputed.
 
-- [ ] **GPS elevation drift.** One imported route claims 425m of climb in flat north
-  Florida. It's altitude noise, not a parsing bug, but smooth it before showing elevation
-  anywhere in the UI.
+- [ ] **`running_dynamics` and `mobility_metrics` still have no UI.** Both are
+  accumulating daily rows. Trend charts are the natural next build — walking asymmetry
+  and double-support are only meaningful as trend lines.
 
 - [ ] **Six Apple Health metrics remain unmapped** and need columns if wanted:
   `cycling_distance`, `physical_effort`, `environmental_audio_exposure`,
