@@ -31,7 +31,7 @@ export default function AppShell({ userEmail, children }: AppShellProps) {
         <div
           className={`fixed inset-y-0 left-0 z-50 w-72 transform transition-transform md:static md:translate-x-0 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-          } ${sidebarCollapsed ? "md:w-20" : "md:w-64"}`}
+          } ${sidebarCollapsed ? "md:w-0 md:overflow-hidden md:border-r-0" : "md:w-64"}`}
         >
           <Sidebar
             userEmail={userEmail}
@@ -65,7 +65,11 @@ export default function AppShell({ userEmail, children }: AppShellProps) {
           <div className="px-4 pb-16 pt-4 md:px-6 md:pt-6">{children}</div>
         </div>
         <button
-          className="fixed bottom-5 left-5 z-40 hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-lg md:flex"
+          className={`fixed bottom-5 left-5 z-40 hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold shadow-lg md:flex ${
+            sidebarCollapsed
+              ? "border-2 border-blue-600 bg-blue-600 text-white hover:bg-blue-700"
+              : "border border-slate-200 bg-white text-slate-700"
+          }`}
           type="button"
           onClick={() => setSidebarCollapsed((prev) => !prev)}
         >

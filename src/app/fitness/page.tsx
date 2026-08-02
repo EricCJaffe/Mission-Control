@@ -107,8 +107,11 @@ export default async function FitnessPage() {
         const avgHours = logs.length > 0
           ? logs.reduce((sum, log) => sum + log.total_sleep_seconds, 0) / logs.length / 3600
           : null;
-        const avgScore = logs.length > 0
-          ? Math.round(logs.filter(l => l.sleep_score != null).reduce((sum, log) => sum + (log.sleep_score || 0), 0) / logs.filter(l => l.sleep_score != null).length)
+        // Guard the divisor: with no scored nights this was 0/0 -> NaN, which
+        // React then rendered as the literal string "NaN" on the dashboard.
+        const scored = logs.filter(l => l.sleep_score != null);
+        const avgScore = scored.length > 0
+          ? Math.round(scored.reduce((sum, log) => sum + (log.sleep_score || 0), 0) / scored.length)
           : null;
         return {
           data: latestNight ? {
@@ -121,6 +124,18 @@ export default async function FitnessPage() {
         };
       }),
   ]);
+
+  // Weight lives on its own timeline: body_metrics gets a row every day from
+  // the watch, but weight_lbs is only set on days the scale reported. Taking
+  // it off the newest row showed "Track Weight" even with a recent weigh-in.
+  const { data: latestWeightRow } = await supabase
+    .from('body_metrics')
+    .select('weight_lbs, body_fat_pct, metric_date, weight_source')
+    .eq('user_id', user.id)
+    .not('weight_lbs', 'is', null)
+    .order('metric_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   // Get workout logs for this week to cross-reference with planned
   const { data: weekLogs } = await supabase
@@ -155,6 +170,7 @@ export default async function FitnessPage() {
         readiness={readiness}
         strain={strain}
         latestSleep={latestSleep}
+        latestWeight={latestWeightRow ?? null}
       />
     </main>
   );

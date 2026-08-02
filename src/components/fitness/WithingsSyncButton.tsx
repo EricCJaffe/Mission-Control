@@ -9,6 +9,7 @@ type SyncResults = Record<string, SyncCounts>;
 
 type Status = {
   connected: boolean;
+  status?: string;
   lastSyncAt: string | null;
   lastSyncStatus: string | null;
   lastError: string | null;
@@ -77,7 +78,12 @@ export default function WithingsSyncButton() {
   const age = daysSince(status?.lastSyncAt ?? null);
   const stale = age === null || age >= 2;
 
-  if (status && !status.connected) {
+  // A failed sync sets the connection to 'error'. That is NOT the same as
+  // being disconnected — the credentials are fine — so only offer "Connect"
+  // when there is genuinely no connection to use.
+  const neverConnected = status && !status.connected && status.status !== 'error';
+
+  if (neverConnected) {
     return (
       <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
         <p className="text-sm font-semibold text-slate-900">Withings not connected</p>

@@ -88,6 +88,12 @@ type Props = {
     strain_score: number;
     strain_level: string;
   } | null;
+  latestWeight: {
+    weight_lbs: number | null;
+    body_fat_pct: number | null;
+    metric_date: string;
+    weight_source: string | null;
+  } | null;
   latestSleep: {
     total_sleep_seconds: number;
     sleep_score: number | null;
@@ -185,6 +191,18 @@ function ScoreRing({ score, size = 80, strokeWidth = 6, color }: { score: number
   );
 }
 
+/** "Today" / "3 days ago" / "Jul 1" — weight is only as current as the
+    last weigh-in, and the card should say so. */
+function weightAgeLabel(metricDate: string): string {
+  const then = new Date(`${metricDate}T12:00:00`);
+  if (Number.isNaN(then.getTime())) return 'Body composition →';
+  const days = Math.round((Date.now() - then.getTime()) / 86_400_000);
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 14) return `${days} days ago`;
+  return then.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 export default function FitnessDashboardClient({
   today,
   todayPlan,
@@ -198,6 +216,7 @@ export default function FitnessDashboardClient({
   readiness,
   strain,
   latestSleep,
+  latestWeight,
 }: Props) {
   const logsByDate = new Map(weekLogs.map((l) => [l.workout_date.slice(0, 10), l]));
 
@@ -391,13 +410,17 @@ export default function FitnessDashboardClient({
             </div>
             <div className="flex items-baseline gap-2 mb-1">
               <p className="text-2xl font-bold tabular-nums text-indigo-900">{(latestSleep.total_sleep_seconds / 3600).toFixed(1)}<span className="text-sm text-indigo-500">h</span></p>
-              {latestSleep.avg_hours && (
-                <p className="text-xs text-indigo-600">avg: {latestSleep.avg_hours.toFixed(1)}h</p>
+              {Number.isFinite(latestSleep.avg_hours) && (
+                <p className="text-xs text-indigo-600">avg: {latestSleep.avg_hours!.toFixed(1)}h</p>
               )}
             </div>
             <div className="flex items-center justify-between text-xs text-indigo-500">
-              {latestSleep.avg_score && <span>Avg score: {latestSleep.avg_score}/100</span>}
-              {latestSleep.avg_hr && <span>{latestSleep.avg_hr} bpm</span>}
+              {/* Explicit boolean guards: `{value && <span/>}` renders the
+                  literal "NaN" (or "0") when value is a non-truthy number. */}
+              {Number.isFinite(latestSleep.avg_score) && (
+                <span>Avg score: {latestSleep.avg_score}/100</span>
+              )}
+              {Number.isFinite(latestSleep.avg_hr) && <span>{latestSleep.avg_hr} bpm</span>}
             </div>
           </Link>
         ) : (
@@ -408,11 +431,16 @@ export default function FitnessDashboardClient({
         )}
 
         {/* Weight / Body Comp mini card */}
-        {latestMetrics?.weight_lbs ? (
+        {latestWeight?.weight_lbs ? (
           <Link href="/fitness/body-composition" className="rounded-2xl border border-green-100 bg-green-50/30 p-4 shadow-sm hover:shadow transition-shadow">
             <p className="text-xs text-green-600 font-medium flex items-center gap-1 mb-1"><Scale size={14} /> Weight</p>
-            <p className="text-2xl font-bold tabular-nums text-green-900">{latestMetrics.weight_lbs.toFixed(1)}<span className="text-sm text-green-500"> lbs</span></p>
-            <p className="text-xs text-green-600 mt-0.5">Body composition →</p>
+            <p className="text-2xl font-bold tabular-nums text-green-900">{latestWeight.weight_lbs.toFixed(1)}<span className="text-sm text-green-500"> lbs</span></p>
+            {/* The scale only reports on days you step on it, so show WHEN —
+                a weeks-old number presented as current is worse than none. */}
+            <p className="text-xs text-green-600 mt-0.5">
+              {weightAgeLabel(latestWeight.metric_date)}
+              {latestWeight.body_fat_pct != null && ` · ${latestWeight.body_fat_pct.toFixed(1)}% bf`}
+            </p>
           </Link>
         ) : (
           <Link href="/fitness/trends" className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors flex flex-col items-center justify-center gap-1">
