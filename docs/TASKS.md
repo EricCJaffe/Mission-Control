@@ -79,11 +79,8 @@
   isn't linked to Vercel locally (`vercel env ls` → "codebase isn't linked"), so the
   5-month-old token can't be refreshed from here. One `vercel link` would unblock it.
 
-- [ ] **Consider scheduling the Withings sync.** It has never run automatically — that's
-  why 5 months of drift went unnoticed. Now that Withings is the declared source of
-  truth for BP and body composition, nothing else writes them, so if this never runs
-  those metrics simply stop. Add a Vercel cron, or accept it as manual and remember to
-  run it.
+- [x] **Scheduling the Withings sync — DONE 2026-08-02** (see above). The manual
+  "Sync now" button on /fitness remains for on-demand runs.
 
 - [ ] **After the first Withings backfill, run the BP dedupe.** 21 Apple-sourced BP rows
   (Apr–Jun) are currently the only BP data for that period, so they were deliberately
@@ -161,12 +158,15 @@ an assessment is 30+ days old. Everything below is designed but NOT built.
 Captured while Eric was away from the keyboard. Nothing here is broken — these are
 open decisions and deferred work, roughly in the order worth doing.
 
-- [ ] **Security: `CRON_SECRET` check fails open.**
-  `src/app/api/cron/daily-metric-check/route.ts:24` only enforces the bearer token
-  `if (process.env.CRON_SECRET)` — with the var unset the route is fully public. Either
-  set `CRON_SECRET` in Vercel or make the check fail closed (the new Apple Health route
-  shows the pattern). Same file line ~65 has a broken self-call: it builds the app URL
-  from `NEXT_PUBLIC_SUPABASE_URL`, so it POSTs to the Supabase host, not the app.
+- [x] **Security: `CRON_SECRET` fail-open — FIXED 2026-08-02.** Now fail-closed (503
+  when unset, 401 on a bad token). Two further bugs found and fixed in the same route:
+  it used the COOKIE-based Supabase client, which has no session in a cron, so RLS
+  returned zero users and the job had never processed anyone; and the broken self-call
+  is gone — `HealthDocUpdater` is invoked in-process instead.
+  - **Eric must set `CRON_SECRET` in Vercel** or both crons return 503 and never run.
+
+- [x] **Withings sync now scheduled — 2026-08-02.** `/api/cron/withings-sync` runs daily
+  at 11:00 UTC via `vercel.json`; the metric check follows at 12:00. Needs `CRON_SECRET`.
 
 - [ ] **Decide the fate of `src/components/fitness/RestTimer.tsx`.**
   Now unreferenced — the inline chip replaced it. It still has the 30/60/90/120/180

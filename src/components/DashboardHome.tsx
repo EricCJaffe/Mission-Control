@@ -2,7 +2,8 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import HybridTrainingIndicator from "@/components/fitness/HybridTrainingIndicator";
 import { computeHybridBalance } from "@/lib/fitness/hybrid-balance";
-import { reassessStatus } from "@/lib/flourishing/spirit-soul-body";
+import { reassessStatus, computePillarScores } from "@/lib/flourishing/spirit-soul-body";
+import { statusForScore } from "@/lib/status-colors";
 
 function formatTime(value: string) {
   const date = new Date(value);
@@ -79,7 +80,7 @@ export default async function DashboardHome() {
       .maybeSingle(),
     supabase
       .from("flourishing_profiles")
-      .select("display_index,strongest_domains,growth_domains,overall_message,updated_at")
+      .select("display_index,strongest_domains,growth_domains,overall_message,updated_at,domain_scores")
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase
@@ -188,6 +189,13 @@ export default async function DashboardHome() {
   // score presented as current is worse than an obvious prompt to redo it.
   const reassess = reassessStatus(flourishing?.updated_at ?? null, today);
 
+  // Pillars lead the page: this is the one row that answers "how am I doing".
+  const pillarScores = computePillarScores(
+    ((flourishing?.domain_scores ?? []) as Array<{ domain: string; score: number | null }>).map(
+      (d) => ({ domain: d.domain, score: d.score }),
+    ),
+  );
+
   const hybridWeek = computeHybridBalance(hybridSessions, { windowDays: 7, now: today });
   const hybridMonth = computeHybridBalance(hybridSessions, {
     windowDays: HYBRID_CONTEXT_DAYS,
@@ -207,6 +215,48 @@ export default async function DashboardHome() {
           Signed in as: <span className="font-medium text-slate-900">{user.email}</span>
         </div>
       </div>
+
+      {/* Spirit / Soul / Body — the app's own frame, at the top where it
+          belongs. Colour carries status, and every card also states it in
+          words so hue is never the only signal. */}
+      <section className="mt-6 grid gap-3 sm:grid-cols-3">
+        {pillarScores.map((pillar) => {
+          const style = statusForScore(pillar.score);
+          return (
+            <Link
+              key={pillar.pillar}
+              href={
+                pillar.pillar === "body"
+                  ? "/fitness"
+                  : pillar.pillar === "spirit"
+                    ? "/spirit"
+                    : "/flourishing"
+              }
+              className={`rounded-2xl border-2 p-4 shadow-sm transition-shadow hover:shadow ${style.border} ${style.bg}`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
+                  {pillar.label}
+                </span>
+                {pillar.trend !== "unknown" && (
+                  <span className="text-[11px] text-slate-500">
+                    {pillar.trend === "progressing" ? "↑" : pillar.trend === "slipping" ? "↓" : "→"}
+                  </span>
+                )}
+              </div>
+              <p className={`mt-1 text-3xl font-bold tabular-nums ${style.text}`}>
+                {pillar.score ?? "—"}
+              </p>
+              <p className="text-xs font-medium text-slate-600">{style.label}</p>
+              {pillar.weakest && (
+                <p className="mt-1 truncate text-[11px] text-slate-500">
+                  weakest: {pillar.weakest.replace(/_/g, " ")}
+                </p>
+              )}
+            </Link>
+          );
+        })}
+      </section>
 
       <section className="mt-6">
         <HybridTrainingIndicator primary={hybridWeek} context={hybridMonth} />

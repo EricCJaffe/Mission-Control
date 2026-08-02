@@ -37,6 +37,10 @@
   - Bearer token the Health Auto Export iOS app sends to `/api/fitness/apple-health/ingest`.
   - Generate with `openssl rand -hex 32`. The route is fail-closed: if this is unset it
     returns 503 and accepts nothing.
+- `CRON_SECRET`
+  - Bearer token Vercel Cron sends to `/api/cron/*`. Generate with `openssl rand -hex 32`.
+  - **Required**: both cron routes are fail-closed and return 503 without it, so the
+    scheduled Withings sync and daily metric check simply won't run.
 - `BIBLE_API_KEY`
   - API.Bible key, used to render reading-plan passages inline.
   - Without it, reading plans still work — they show references and a link out.

@@ -69,6 +69,10 @@ export const config = {
     '/notes/:path*',
     '/knowledge/:path*',
     '/fitness/:path*',
+    '/spirit/:path*',
+    '/flourishing/:path*',
+    '/metrics/:path*',
+    '/templates/:path*',
     '/login',
   ],
 }
