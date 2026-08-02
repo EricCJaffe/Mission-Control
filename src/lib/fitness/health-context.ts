@@ -3,6 +3,7 @@
 // to build a comprehensive context for all AI interactions
 
 import { supabaseServer } from '@/lib/supabase/server';
+import { summariseLabs, formatLabsForPrompt, type LabSummary } from './lab-context';
 
 export type FunctionType =
   | 'morning_briefing'
@@ -70,6 +71,8 @@ interface HealthContext {
     strongest_domains: string[];
     growth_domains: string[];
   } | null;
+  /** Selected lab results — see lab-context.ts for what's included and why. */
+  labs: LabSummary | null;
   recentMetrics: {
     rhr: number | null;
     hrv: number | null;
@@ -232,6 +235,26 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
     .limit(1)
     .single();
 
+  // Lab panels and results. These were absent from this context entirely,
+  // which meant every AI surface built from it — health.md updates, supplement
+  // analysis, appointment prep — ran without ever seeing a lab value, and
+  // wrote "unknown baseline" while hundreds of results sat in the database.
+  const { data: labPanels } = await supabase
+    .from('lab_panels')
+    .select('id,panel_date,lab_name,notes')
+    .eq('user_id', userId)
+    .order('panel_date', { ascending: false })
+    .limit(12);
+
+  const panelIds = (labPanels ?? []).map((p) => p.id as string);
+  const { data: labResults } = panelIds.length
+    ? await supabase
+        .from('lab_results')
+        .select('test_name,test_category,value,value_text,unit,flag,panel_id')
+        .eq('user_id', userId)
+        .in('panel_id', panelIds)
+    : { data: [] as never[] };
+
   const { data: bpReadings } = await supabase
     .from('bp_readings')
     .select('systolic, diastolic')
@@ -291,6 +314,10 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
     soul,
     health,
     medications: meds || [],
+    labs:
+      (labPanels ?? []).length > 0
+        ? summariseLabs(labPanels as never, (labResults ?? []) as never)
+        : null,
     comprehensiveGenetics,
     recentImaging: (imagingUploads || []).map((upload) => ({
       file_name: upload.file_name,
@@ -774,6 +801,12 @@ export async function buildAISystemPrompt(
     prompt += `━━━ HEALTH PROFILE (health.md) ━━━\n${context.health}\n\n`;
   } else {
     prompt += `━━━ HEALTH PROFILE ━━━\n⚠️ WARNING: health.md not initialized. Using minimal context.\n\n`;
+  }
+
+  // Labs go immediately after the health profile: health.md states targets,
+  // and this states where the actual numbers sit against them.
+  if (context.labs) {
+    prompt += formatLabsForPrompt(context.labs);
   }
 
   if (context.flourishing) {
