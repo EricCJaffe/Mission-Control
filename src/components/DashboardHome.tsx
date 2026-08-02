@@ -412,10 +412,6 @@ export default async function DashboardHome() {
         })}
       </section>
 
-      <section className="mt-6">
-        <HybridTrainingIndicator primary={hybridWeek} context={hybridMonth} />
-      </section>
-
       {FEATURES.monthlyAlignment && (
         <section className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
