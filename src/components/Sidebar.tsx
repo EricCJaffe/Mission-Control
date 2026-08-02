@@ -19,6 +19,7 @@ import {
   Flame,
   Sparkles,
   HeartPulse,
+  Footprints,
 } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
@@ -126,6 +127,7 @@ export default function Sidebar({
             <div className={`mt-2 grid gap-2 ${isCollapsed ? "place-items-center" : ""}`}>
               <NavLink href="/fitness" label="Fitness" shortLabel="FT" collapsed={isCollapsed} icon={<Dumbbell size={18} className="text-red-600" />} onClick={handleNavigate} />
               <NavLink href="/fitness/health" label="Health" shortLabel="HL" collapsed={isCollapsed} icon={<HeartPulse size={18} className="text-rose-600" />} onClick={handleNavigate} />
+              <NavLink href="/fitness/mobility" label="Mobility" shortLabel="MB" collapsed={isCollapsed} icon={<Footprints size={18} className="text-emerald-600" />} onClick={handleNavigate} />
             </div>
           </div>
 
