@@ -167,6 +167,16 @@ an assessment is 30+ days old. Everything below is designed but NOT built.
   frequent. `REASSESS_INTERVAL_DAYS` in `spirit-soul-body.ts` is the single knob.
   Currently a dashboard prompt only — no email or push.
 
+- [ ] **Audit client components for stale server props.** Fixed in FlourishingClient
+  2026-08-02: it POSTed a new assessment, updated local state, and left the `history` and
+  `profile` SERVER props untouched — so a new assessment appeared in the overview while
+  History, the flourishing index, strongest/growth domains and the trend comparison all
+  kept showing the previous one. `router.refresh()` is the fix.
+  A crude grep (`POST` present, `router.refresh()` absent) flags ~20 other client
+  components, but most are likely false positives — some manage state optimistically on
+  purpose, some refetch explicitly, some just call read-only AI endpoints. Needs a real
+  per-component check, not a bulk change.
+
 ### Follow-ups parked from the 2026-07-30 session
 Captured while Eric was away from the keyboard. Nothing here is broken — these are
 open decisions and deferred work, roughly in the order worth doing.

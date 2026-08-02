@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowRight, Compass, Cross, Loader2, PlusCircle, ShieldCheck, Sparkles, TrendingUp } from 'lucide-react';
 import type { AssessmentQuestion, FlourishingAssessmentResult, FlourishingProfile } from '@/lib/flourishing/types';
 import { DOMAIN_COLORS } from '@/lib/flourishing/types';
@@ -45,6 +46,7 @@ export default function FlourishingClient({
     () => Object.fromEntries(questions.map((question) => [question.question_id, 5]))
   );
   const [assessmentType, setAssessmentType] = useState<'monthly' | 'adhoc'>('monthly');
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | 'assess' | 'history' | 'persona'>('overview');
   const [submitting, setSubmitting] = useState(false);
   const [refreshingInsights, setRefreshingInsights] = useState(false);
@@ -77,6 +79,11 @@ export default function FlourishingClient({
         const current = await fetch('/api/flourishing/current').then((response) => response.json());
         setProposalRows(current.pending_persona_proposals || []);
       }
+      // `history` and `profile` are server props. Without this the new
+      // assessment shows in the overview (it's in local state) while History,
+      // the flourishing index, strongest/growth domains and the trend
+      // comparison all keep rendering the previous assessment.
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert('Failed to submit flourishing assessment');
@@ -98,6 +105,7 @@ export default function FlourishingClient({
       return;
     }
     setProposalRows((prev) => prev.filter((item) => !ids.includes(item.id)));
+    router.refresh();
   }
 
   async function refreshInsights() {
@@ -119,6 +127,7 @@ export default function FlourishingClient({
       setSelectedAssessment(data.assessment);
       const current = await fetch('/api/flourishing/current').then((response) => response.json());
       setProposalRows(current.pending_persona_proposals || []);
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert('Failed to refresh flourishing insights');
