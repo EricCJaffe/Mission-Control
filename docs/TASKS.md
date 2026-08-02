@@ -185,9 +185,12 @@ open decisions and deferred work, roughly in the order worth doing.
   Now unreferenced — the inline chip replaced it. It still has the 30/60/90/120/180
   presets the chip doesn't. Delete it, or keep it for a settings-driven long-rest view.
 
-- [ ] **Rest length is a hardcoded 60s** (`REST_DEFAULT_SECONDS` in `WorkoutLoggerClient`).
-  `set_logs.rest_seconds` already exists and nothing writes to it. Wire per-exercise rest
-  lengths through if the fixed minute proves wrong in practice.
+- [x] **Rest timer reworked 2026-08-02.** Toggle in the logger toolbar (off by default,
+  remembered in localStorage), duration picker 45s-3m, auto-starts when a set is marked
+  done, chimes and vibrates at zero. The old design required spotting and tapping a small
+  grey chip that only appeared after completion — it read as a placeholder.
+  - Still unwired: `set_logs.rest_seconds` (per-exercise rest lengths). The session-level
+    duration covers the common case.
 
 - [ ] **Confirm the caret behaviour feels right on a real phone.**
   Tapping anywhere in a weight/reps field snaps the caret to the END of the value, per
@@ -208,17 +211,20 @@ open decisions and deferred work, roughly in the order worth doing.
   accumulating daily rows. Trend charts are the natural next build — walking asymmetry
   and double-support are only meaningful as trend lines.
 
-- [ ] **Six Apple Health metrics remain unmapped** and need columns if wanted:
-  `cycling_distance`, `physical_effort`, `environmental_audio_exposure`,
-  `headphone_audio_exposure`, `underwater_temperature`, `underwater_depth`.
+- [x] **Unmapped Apple metrics — WON'T DO** (Eric, 2026-08-02). Audio exposure,
+  physical effort and underwater depth/temperature stay unmapped by choice. They are
+  reported in `apple_health_sync_logs.metrics_unmapped` if that ever changes.
 
 - [ ] **Vercel CLI is outdated** (54.12.2 → 58.0.0): `npm i -g vercel@latest`.
 
-- [ ] Garmin OAuth full automation
-  - Likely obsolete once Apple Health ingest is live: Garmin Connect mirrors into Apple
-    Health, so the Apple path may replace the credential-storing Garmin scrape entirely.
-  - Revisit after the first week of Apple Health data — if coverage is good, delete
-    `garmin/sync` + `garmin/auth` rather than finishing OAuth.
+- [ ] **Delete the Garmin scrape — CONFIRMED OBSOLETE 2026-08-02.**
+  Proven from Eric's own export: **21 of 31 workouts came from `Connect`** (Garmin) via
+  Apple Health, plus 10 metrics (heart rate, resting HR, steps, sleep, active/basal
+  energy, distance, flights, cycling distance, weight). Garmin -> Apple Health -> HAE
+  already covers it, so no periodic Garmin import is needed.
+  - `garmin/sync` and `garmin/auth` still store Eric's Connect PASSWORD encrypted in
+    `athlete_profile.garmin_tokens`. That is the last credential-storing path in the app
+    and it is now redundant — deleting it removes real risk for no lost function.
   - CSV and FIT import flows work today.
   - Garmin OAuth/live sync is still not implemented.
 

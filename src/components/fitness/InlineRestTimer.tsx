@@ -9,6 +9,8 @@ type Props = {
   duration: number;
   /** Default length shown on the idle chip. */
   defaultSeconds: number;
+  /** Currently selected rest length, shown on the idle chip. */
+  seconds?: number;
   onStart: () => void;
   onCancel: () => void;
   onExtend: () => void;
@@ -22,14 +24,19 @@ function mmss(total: number) {
 /**
  * One-line rest timer that sits between sets.
  *
- * Idle it's a small "Rest 1:00" chip; tapping starts the countdown in place.
- * Deliberately ~24px tall so it never competes with the set rows — the old
- * full-card timer lived at the bottom of the page and had to be scrolled to.
+ * Normally you never touch it: with the rest timer switched on in the logger
+ * toolbar, marking a set done starts the countdown automatically. The idle
+ * "Start rest" chip is the manual fallback.
+ *
+ * An earlier version styled that chip as small grey text, which read as a
+ * placeholder rather than a control — it looked broken because nothing about
+ * it said "tap me". It is now an outlined button.
  */
 export default function InlineRestTimer({
   remaining,
   duration,
   defaultSeconds,
+  seconds,
   onStart,
   onCancel,
   onExtend,
@@ -40,10 +47,10 @@ export default function InlineRestTimer({
         <button
           type="button"
           onClick={onStart}
-          className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          className="flex min-h-[32px] items-center gap-1.5 rounded-full border-2 border-orange-400 bg-orange-50 px-3 text-xs font-semibold text-orange-700 hover:bg-orange-100"
         >
-          <Timer className="h-3 w-3" />
-          Rest {mmss(defaultSeconds)}
+          <Timer className="h-3.5 w-3.5" />
+          Start rest {mmss(seconds ?? defaultSeconds)}
         </button>
       </div>
     );
@@ -58,8 +65,8 @@ export default function InlineRestTimer({
         type="button"
         onClick={onCancel}
         title="Tap to clear"
-        className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums ${
-          done ? 'bg-lime-500 text-white' : 'bg-orange-100 text-orange-700'
+        className={`flex min-h-[32px] shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-bold tabular-nums ${
+          done ? 'bg-emerald-600 text-white' : 'bg-orange-500 text-white'
         }`}
       >
         <Timer className="h-3 w-3" />

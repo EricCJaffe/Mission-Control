@@ -298,6 +298,83 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   const [nowMs, setNowMs] = useState(() => Date.now());
   const restAlertedRef = useRef<string | null>(null);
 
+  /** Opt in per session. Off by default so it never nags when not wanted. */
+  const [restEnabled, setRestEnabled] = useState(false);
+  const [restSeconds, setRestSeconds] = useState(REST_DEFAULT_SECONDS);
+  const restEnabledRef = useRef(false);
+  const restSecondsRef = useRef(REST_DEFAULT_SECONDS);
+  restEnabledRef.current = restEnabled;
+  restSecondsRef.current = restSeconds;
+
+  // Remember the choice — the same lifter wants the same rest next session.
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem('mc:rest-timer');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (typeof parsed.enabled === 'boolean') setRestEnabled(parsed.enabled);
+        if (typeof parsed.seconds === 'number') setRestSeconds(parsed.seconds);
+      }
+    } catch {
+      // Preference only; never block logging on it.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        'mc:rest-timer',
+        JSON.stringify({ enabled: restEnabled, seconds: restSeconds })
+      );
+    } catch {
+      // ignore
+    }
+  }, [restEnabled, restSeconds]);
+
+  /**
+   * Audio has to be unlocked by a user gesture, and the beep fires a minute
+   * later with no gesture of its own — so the context is created when the
+   * timer is switched on and kept alive for the session.
+   */
+  const audioRef = useRef<AudioContext | null>(null);
+
+  function unlockAudio() {
+    try {
+      if (!audioRef.current) {
+        const Ctor =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (Ctor) audioRef.current = new Ctor();
+      }
+      if (audioRef.current?.state === 'suspended') void audioRef.current.resume();
+    } catch {
+      // Sound is a nicety; the countdown still works without it.
+    }
+  }
+
+  function playRestChime() {
+    const ctx = audioRef.current;
+    if (!ctx) return;
+    try {
+      // Three short rising tones — audible over gym noise, not alarming.
+      [0, 0.18, 0.36].forEach((offset, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 660 + i * 220;
+        const at = ctx.currentTime + offset;
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.exponentialRampToValueAtTime(0.35, at + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
+        osc.start(at);
+        osc.stop(at + 0.18);
+      });
+    } catch {
+      // ignore
+    }
+  }
+
   /** `${setId}:${field}` entries we auto-filled, so they keep following the
       set above until the user edits them directly. */
   const carriedRef = useRef<Set<string>>(new Set());
@@ -318,10 +395,24 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       navigator.vibrate([180, 90, 180]);
     }
+    playRestChime();
   }, [restTimer, nowMs]);
 
-  function startRest(setId: string) {
-    setRestTimer({ setId, endsAt: Date.now() + REST_DEFAULT_SECONDS * 1000, duration: REST_DEFAULT_SECONDS });
+  function startRest(setId: string, seconds = restSecondsRef.current) {
+    unlockAudio();
+    setRestTimer({ setId, endsAt: Date.now() + seconds * 1000, duration: seconds });
+  }
+
+  /**
+   * Marking a set done starts the rest, when the timer is switched on. The
+   * previous design required spotting and tapping a small chip that only
+   * appeared after completion — which read as a placeholder rather than a
+   * control. Tying it to the completion tap means zero extra taps mid-set.
+   */
+  function handleSetCompletion(blockId: string, setIdx: number, setId: string, completed: boolean) {
+    updateSetInBlock(blockId, setIdx, 'completed', completed);
+    if (completed && restEnabledRef.current) startRest(setId);
+    else if (!completed && restTimer?.setId === setId) setRestTimer(null);
   }
 
   function extendRest() {
@@ -1751,7 +1842,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             label="reps"
           />
           <button
-            onClick={() => updateSetInBlock(block.id, setIdx, 'completed', !s.completed)}
+            onClick={() => handleSetCompletion(block.id, setIdx, s.id, !s.completed)}
             aria-pressed={s.completed}
             title={s.completed ? 'Set done' : 'Mark set done'}
             className={`flex h-11 w-full items-center justify-center rounded-lg border-2 transition-colors ${
@@ -1770,12 +1861,13 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             <X className="h-4 w-4" />
           </button>
         </div>
-        {s.completed && (
+        {s.completed && restEnabled && (
           <InlineRestTimer
             remaining={remaining}
             duration={isResting ? restTimer.duration : REST_DEFAULT_SECONDS}
             defaultSeconds={REST_DEFAULT_SECONDS}
             onStart={() => startRest(s.id)}
+            seconds={restSeconds}
             onCancel={() => setRestTimer(null)}
             onExtend={extendRest}
           />
@@ -1959,6 +2051,60 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           </button>
         </div>
       )}
+
+      {/* Rest timer control. Opt-in per session and remembered; once on, the
+          countdown starts by itself when a set is marked done. */}
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-slate-300 bg-white px-4 py-3 shadow-sm">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={restEnabled}
+          onClick={() => {
+            const next = !restEnabled;
+            setRestEnabled(next);
+            if (next) unlockAudio(); // must happen on the tap itself
+            else setRestTimer(null);
+          }}
+          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+            restEnabled ? 'bg-lime-500' : 'bg-slate-300'
+          }`}
+        >
+          <span
+            className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${
+              restEnabled ? 'left-6' : 'left-1'
+            }`}
+          />
+        </button>
+
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-900">Rest timer</p>
+          <p className="text-xs text-slate-500">
+            {restEnabled ? 'Starts when you mark a set done · chimes at zero' : 'Off'}
+          </p>
+        </div>
+
+        {restEnabled && (
+          <div className="ml-auto flex gap-1">
+            {[45, 60, 90, 120, 180].map((secs) => (
+              <button
+                key={secs}
+                type="button"
+                onClick={() => {
+                  setRestSeconds(secs);
+                  unlockAudio();
+                }}
+                className={`min-h-[36px] rounded-lg px-2.5 text-xs font-semibold tabular-nums transition-colors ${
+                  restSeconds === secs
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {secs < 120 ? `${secs}s` : `${secs / 60}m`}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Exercise blocks */}
       <DndContext
