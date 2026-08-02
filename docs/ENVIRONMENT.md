@@ -37,6 +37,15 @@
   - Bearer token the Health Auto Export iOS app sends to `/api/fitness/apple-health/ingest`.
   - Generate with `openssl rand -hex 32`. The route is fail-closed: if this is unset it
     returns 503 and accepts nothing.
+- `BIBLE_API_KEY`
+  - API.Bible key, used to render reading-plan passages inline.
+  - Without it, reading plans still work — they show references and a link out.
+    Scripture text is never stored in the database, only fetched at render time.
+- `BIBLE_VERSION_ID`
+  - Optional. Defaults to NKJV (`63097d2a0a2f7db3-01`). Public-domain KJV is
+    `de4e12af7f28f599-01` if the licensed key is ever unavailable.
+- `BIBLE_API_BASE_URL`
+  - Optional. Defaults to `https://rest.api.bible`.
 - `APPLE_HEALTH_USER_ID`
   - Supabase `auth.users` id that ingested Apple Health rows are written for.
   - Required because the phone posts with no browser session, so the route writes with the

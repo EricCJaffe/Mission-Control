@@ -105,11 +105,16 @@ SHIPPED 2026-08-02 (second pass): practice tracking (`practices` + `practice_log
 (`src/lib/status-colors.ts`), and the sidebar regrouped into Spirit / Soul / Body /
 Operate. Survey and practice scores are shown side by side, never blended.
 
-- [ ] **Reading plans.** Next natural build. Licensing note: reading PLANS (lists of
-  references) can be authored/seeded freely, but Bible TEXT is licensed for most modern
-  translations (ESV/NIV/NASB need an API key + terms). Public-domain options (KJV, WEB,
-  ASV) can be displayed freely. Recommended start: store references and link out to
-  Eric's preferred Bible app — zero licensing exposure, works day one.
+- [x] **Reading plans — SHIPPED 2026-08-02.** Six plans seeded (Bible in a Year,
+  NT in 90, John in 21, Psalms in 30, a Proverb a Day, Wisdom in 60) at
+  `/spirit/reading`. Marking a day read also ticks the `bible_reading` practice.
+  - **Eric must set `BIBLE_API_KEY` in Vercel and `.env.local`** — without it the page
+    still works, showing references and a link out, but no inline text.
+  - **Rotate the API.Bible key**: it was pasted into chat on 2026-08-02.
+  - NKJV id is `63097d2a0a2f7db3-01`; public-domain KJV fallback `de4e12af7f28f599-01`.
+  - Only references are stored; scripture text is fetched at render and never persisted,
+    so a licence change degrades the page rather than breaking it. The API's copyright
+    string is displayed with every passage — that's a licence condition.
 
 - [ ] **Daily reminder for practices.** Currently none — the `/spirit` page shows state
   but nothing nudges. In-app prompts are feasible now (same pattern as the Flourishing
