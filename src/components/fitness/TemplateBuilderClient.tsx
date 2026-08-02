@@ -401,13 +401,13 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
         <div className="flex gap-3">
           <button
             onClick={() => setShowExercisePicker(true)}
-            className="flex-1 rounded-xl border-2 border-dashed border-slate-300 p-4 text-center text-sm text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+            className="flex-1 rounded-xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 transition-colors"
           >
             + Add Exercise
           </button>
           <button
             onClick={() => setShowAIBuilder(true)}
-            className="rounded-xl border-2 border-dashed border-blue-300 p-4 px-6 text-center text-sm text-blue-500 hover:border-blue-400 hover:text-blue-600 transition-colors whitespace-nowrap"
+            className="rounded-xl border-2 border-blue-500 bg-blue-50 p-4 px-6 text-center text-sm font-semibold text-blue-700 hover:border-blue-600 hover:bg-blue-100 transition-colors whitespace-nowrap"
           >
             ✨ AI Builder
           </button>
@@ -455,7 +455,7 @@ export default function TemplateBuilderClient({ template, exercises }: Props) {
           {/* Create New Exercise button */}
           <button
             onClick={() => setShowQuickCreator(true)}
-            className="w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-600 hover:border-blue-400 hover:bg-blue-100 transition-colors min-h-[44px]"
+            className="w-full rounded-lg border-2 border-blue-500 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:border-blue-600 hover:bg-blue-100 transition-colors min-h-[44px]"
           >
             + Create New Exercise
           </button>

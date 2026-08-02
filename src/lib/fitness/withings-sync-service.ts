@@ -19,10 +19,21 @@ export class WithingsSyncService {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
+  /** Held on the instance so a caller can recover rotated tokens after a
+      failure — Withings rotates the refresh token on every refresh, and
+      losing it means the connection has to be re-authorised by hand. */
+  private client: WithingsClient | null = null;
+
   constructor(private userId: string, private tokens: WithingsTokens) {}
+
+  /** Latest tokens the client holds, including any mid-sync refresh. */
+  currentTokens(): WithingsTokens {
+    return this.client?.getTokens() ?? this.tokens;
+  }
 
   async sync(mode: WithingsSyncMode): Promise<{ results: WithingsSyncResults; refreshedTokens: WithingsTokens }> {
     const client = new WithingsClient(this.tokens);
+    this.client = client;
     const { startDate, endDate } = await this.getSyncWindow(mode);
 
     const results: WithingsSyncResults = {

@@ -412,11 +412,11 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
       ) : (
         <div className="grid md:grid-cols-2 gap-3">
           <button onClick={() => setShowCreate(true)}
-            className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 hover:border-slate-400 transition-colors min-h-[44px]">
+            className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors min-h-[44px]">
             + Create Training Plan
           </button>
           <button onClick={() => setShowAIGen(true)}
-            className="rounded-2xl border border-dashed border-purple-300 p-4 text-center text-sm text-purple-600 hover:border-purple-400 transition-colors min-h-[44px] flex items-center justify-center gap-2">
+            className="rounded-2xl border-2 border-purple-500 bg-purple-50 p-4 text-center text-sm font-semibold text-purple-600 hover:border-purple-400 transition-colors min-h-[44px] flex items-center justify-center gap-2">
             <Sparkles className="h-4 w-4" />
             Generate AI Plan
           </button>

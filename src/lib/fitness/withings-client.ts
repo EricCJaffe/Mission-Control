@@ -78,6 +78,8 @@ export function buildWithingsAuthorizeUrl(state: string): string {
 export class WithingsClient {
   private apiBaseUrl: string;
   private tokens: WithingsTokens | null;
+  /** Shared promise while a token refresh is in flight — see ensureValidToken. */
+  private refreshInFlight: Promise<WithingsTokens> | null = null;
 
   constructor(tokens?: WithingsTokens | null, apiBaseUrl?: string) {
     this.apiBaseUrl = apiBaseUrl || process.env.WITHINGS_API_BASE_URL || DEFAULT_API_BASE_URL;
@@ -122,14 +124,35 @@ export class WithingsClient {
     return tokens;
   }
 
+  /**
+   * Returns a live token, refreshing it first if it is at or near expiry.
+   *
+   * The refresh is single-flight. A sync fires several API calls through
+   * Promise.all, and each one calls this; with an expired token they would all
+   * see it as expired at the same instant and each POST an identical
+   * refresh_token grant. Withings rejects identical requests inside a 10-second
+   * window with "Same arguments in less than 10 seconds", which is what took
+   * down the syncs on 2026-03-11 and 2026-08-02.
+   *
+   * Sharing one in-flight promise means concurrent callers await the same
+   * request, and — because Withings ROTATES the refresh token on every use —
+   * it also stops the racers from burning tokens the caller never gets to save.
+   */
   async ensureValidToken(): Promise<WithingsTokens> {
     if (!this.tokens) {
       throw new Error('Withings tokens are not loaded');
     }
 
-    if (new Date(this.tokens.expires_at) <= new Date(Date.now() + 5 * 60 * 1000)) {
-      await this.refreshAccessToken(this.tokens.refresh_token);
+    if (new Date(this.tokens.expires_at) > new Date(Date.now() + 5 * 60 * 1000)) {
+      return this.tokens;
     }
+
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = this.refreshAccessToken(this.tokens.refresh_token).finally(() => {
+        this.refreshInFlight = null;
+      });
+    }
+    await this.refreshInFlight;
 
     return this.tokens;
   }

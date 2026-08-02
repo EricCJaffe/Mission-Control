@@ -1130,7 +1130,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         {/* Create New Exercise button */}
         <button
           onClick={() => setShowQuickCreator(true)}
-          className="w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-600 hover:border-blue-400 hover:bg-blue-100 transition-colors min-h-[44px]"
+          className="w-full rounded-lg border-2 border-blue-500 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:border-blue-600 hover:bg-blue-100 transition-colors min-h-[44px]"
         >
           + Create New Exercise
         </button>
@@ -2002,16 +2002,16 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       {/* Action buttons */}
       <div className="flex gap-2">
         <button onClick={() => { setSwapTarget(null); setShowExercisePicker(true); }}
-          className="flex-1 rounded-xl border border-dashed border-slate-300 text-sm text-slate-400 py-3 hover:border-slate-400 hover:text-slate-500 min-h-[44px]">
+          className="flex-1 rounded-xl border-2 border-slate-400 bg-slate-50 text-sm font-semibold text-slate-700 py-3 hover:border-slate-500 hover:bg-slate-100 min-h-[44px]">
           + Add Exercise
         </button>
         <button onClick={() => setShowAIBuilder(true)}
-          className="rounded-xl border border-dashed border-blue-300 text-sm text-blue-400 px-4 py-3 hover:border-blue-400 hover:text-blue-500 min-h-[44px] whitespace-nowrap">
+          className="rounded-xl border-2 border-blue-500 bg-blue-50 text-sm font-semibold text-blue-700 px-4 py-3 hover:border-blue-600 hover:bg-blue-100 min-h-[44px] whitespace-nowrap">
           ✨ AI Builder
         </button>
         {blocks.filter(b => !b.superset_group).length >= 2 && (
           <button onClick={() => setShowSupersetBuilder(true)}
-            className="rounded-xl border border-dashed border-purple-300 text-sm text-purple-400 px-4 py-3 hover:border-purple-400 hover:text-purple-500 min-h-[44px]">
+            className="rounded-xl border-2 border-purple-500 bg-purple-50 text-sm font-semibold text-purple-700 px-4 py-3 hover:border-purple-600 hover:bg-purple-100 min-h-[44px]">
             Superset
           </button>
         )}

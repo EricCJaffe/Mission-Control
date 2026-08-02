@@ -53,9 +53,12 @@ export async function POST(req: NextRequest) {
     .update({ last_sync_status: 'running', last_error: null })
     .eq('user_id', user.id);
 
+  let syncService: WithingsSyncService | null = null;
+  let tokens: ReturnType<typeof decryptWithingsTokens> | null = null;
+
   try {
-    const tokens = decryptWithingsTokens(connection.encrypted_tokens);
-    const syncService = new WithingsSyncService(user.id, tokens);
+    tokens = decryptWithingsTokens(connection.encrypted_tokens);
+    syncService = new WithingsSyncService(user.id, tokens);
     const { results, refreshedTokens } = await syncService.sync(mode);
 
     await supabase
@@ -111,13 +114,28 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Withings sync failed';
 
+    // Withings rotates the refresh token on every refresh. If the sync managed
+    // to refresh before failing, the stored token is already dead — persist the
+    // rotated pair or the connection silently needs re-authorising.
+    const connectionUpdate: Record<string, unknown> = {
+      last_sync_status: 'failed',
+      last_error: message,
+      status: 'error',
+    };
+    try {
+      const latest = syncService?.currentTokens();
+      if (latest && tokens && latest.refresh_token !== tokens.refresh_token) {
+        connectionUpdate.encrypted_tokens = encryptWithingsTokens(latest);
+        // The credentials are still good — only this run failed.
+        connectionUpdate.status = 'connected';
+      }
+    } catch {
+      // Token recovery is best-effort; never mask the original failure.
+    }
+
     await supabase
       .from('withings_connections')
-      .update({
-        last_sync_status: 'failed',
-        last_error: message,
-        status: 'error',
-      })
+      .update(connectionUpdate)
       .eq('user_id', user.id);
 
     await supabase

@@ -199,7 +199,7 @@ export default function AppointmentsClient({ appointments: initial }: Props) {
         </div>
       ) : (
         <button onClick={() => setShowAdd(true)}
-          className="w-full rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 hover:border-slate-400 transition-colors min-h-[44px]">
+          className="w-full rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors min-h-[44px]">
           + Schedule New Appointment
         </button>
       )}

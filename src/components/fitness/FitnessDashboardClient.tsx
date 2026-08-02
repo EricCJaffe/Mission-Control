@@ -372,7 +372,7 @@ export default function FitnessDashboardClient({
             {latestBP.pulse && <p className="text-xs text-slate-400 mt-0.5">{latestBP.pulse} bpm</p>}
           </Link>
         ) : (
-          <Link href="/fitness/bp" className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 hover:border-slate-400 transition-colors flex flex-col items-center justify-center gap-1">
+          <Link href="/fitness/bp" className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors flex flex-col items-center justify-center gap-1">
             <Heart size={20} className="text-slate-300" />
             <span>Log BP</span>
           </Link>
@@ -401,7 +401,7 @@ export default function FitnessDashboardClient({
             </div>
           </Link>
         ) : (
-          <Link href="/fitness/sleep" className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 hover:border-slate-400 transition-colors flex flex-col items-center justify-center gap-1">
+          <Link href="/fitness/sleep" className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors flex flex-col items-center justify-center gap-1">
             <BedDouble size={20} className="text-slate-300" />
             <span>Track Sleep</span>
           </Link>
@@ -415,7 +415,7 @@ export default function FitnessDashboardClient({
             <p className="text-xs text-green-600 mt-0.5">Body composition →</p>
           </Link>
         ) : (
-          <Link href="/fitness/trends" className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-400 hover:border-slate-400 transition-colors flex flex-col items-center justify-center gap-1">
+          <Link href="/fitness/trends" className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors flex flex-col items-center justify-center gap-1">
             <Scale size={20} className="text-slate-300" />
             <span>Track Weight</span>
           </Link>

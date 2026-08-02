@@ -17,6 +17,7 @@ import {
   Brain,
   Pin,
 } from "lucide-react";
+import { FEATURES } from "@/lib/feature-flags";
 
 type SidebarProps = {
   userEmail: string | null;
@@ -100,8 +101,12 @@ export default function Sidebar({
               <NavLink href="/calendar" label="Calendar" shortLabel="CL" collapsed={isCollapsed} icon={<CalendarDays size={18} className="text-orange-600" />} onClick={handleNavigate} />
               <NavLink href="/metrics" label="Metrics" shortLabel="MX" collapsed={isCollapsed} icon={<BarChart3 size={18} className="text-purple-600" />} onClick={handleNavigate} />
               <NavLink href="/fitness" label="Fitness" shortLabel="FT" collapsed={isCollapsed} icon={<Dumbbell size={18} className="text-red-600" />} onClick={handleNavigate} />
-              <NavLink href="/books" label="Books" shortLabel="BK" collapsed={isCollapsed} icon={<BookOpen size={18} className="text-amber-600" />} onClick={handleNavigate} />
-              <NavLink href="/sermons" label="Sermons" shortLabel="SM" collapsed={isCollapsed} icon={<Mic size={18} className="text-pink-600" />} onClick={handleNavigate} />
+              {FEATURES.books && (
+                <NavLink href="/books" label="Books" shortLabel="BK" collapsed={isCollapsed} icon={<BookOpen size={18} className="text-amber-600" />} onClick={handleNavigate} />
+              )}
+              {FEATURES.sermons && (
+                <NavLink href="/sermons" label="Sermons" shortLabel="SM" collapsed={isCollapsed} icon={<Mic size={18} className="text-pink-600" />} onClick={handleNavigate} />
+              )}
             </div>
           </div>
 

@@ -45,6 +45,23 @@
   `Sleep Number`, Apple Watch and iPhone all already feeding Apple Health, so this one
   automation covers every device.
 
+- [ ] **Re-test the Withings sync after the race fix** (2026-08-02)
+  The 08-02 attempt failed with `Same arguments in less than 10 seconds` — a Withings
+  rate-limit on identical requests. Root cause: `sync()` fires three API calls in
+  `Promise.all`, each calls `ensureValidToken()`, and with a 5-month-expired token all
+  three fired their own identical refresh simultaneously. Fixed by making the refresh
+  single-flight in `withings-client.ts`. **Just press Sync now again** on /fitness.
+  - If it fails with an auth/invalid_grant error instead, the refresh token was rotated
+    and lost by an earlier failed run (Withings rotates on every refresh, and the route
+    only persisted on success — also fixed now). Reconnect at
+    `/fitness/settings/withings` and it will re-authorise.
+  - Same history: 2026-03-11 hit this too, and a retry ~70s later succeeded.
+
+- [ ] **Books and Sermons are hidden, not deleted** (2026-08-02)
+  `src/lib/feature-flags.ts` → set `books: true` / `sermons: true` to bring either back.
+  Only the sidebar entries are gated; routes, components, API handlers and all data are
+  untouched, and both are still reachable by direct URL (`/books`, `/sermons`).
+
 - [ ] **Withings stopped reaching Apple Health around 2026-07-01** (found 2026-07-31)
   Blood pressure ends 06-27; weight / BMI / body fat / lean mass end 07-01. Everything
   Watch- or iPhone-sourced runs current, so it is specifically the Withings bridge. BP
