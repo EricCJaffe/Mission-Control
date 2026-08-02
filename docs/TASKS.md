@@ -99,6 +99,44 @@
   Either they're not set for Production, or the deployment predates them — **env changes
   need a redeploy to take effect**. Check `vercel env ls production`, then `vercel redeploy`.
 
+### Spirit / Soul / Body — roadmap (design captured 2026-08-02)
+Shipped: the Flourishing survey now rolls up into the dashboard's three pillars
+(`src/lib/flourishing/spirit-soul-body.ts`), and a monthly retake prompt appears once
+an assessment is 30+ days old. Everything below is designed but NOT built.
+
+- [ ] **AI suggestions when a pillar lags.** `PillarScore` already exposes `weakest`
+  (the lowest contributing domain) and `standing`/`trend`, which is the hook: when a
+  pillar is `needs_attention`, propose concrete work in that domain. The scoring module
+  already stores per-domain tips and scripture — start there rather than a fresh prompt.
+
+- [ ] **Resource library.** Eric wants suggested resources tied to a lagging domain.
+  Nothing exists for this yet — needs a content model before any AI wiring.
+
+- [ ] **Blend empirical data into the pillars.** The idea: self-reported answers are one
+  signal, real behaviour is another, and they should corroborate each other.
+  - **Body** — the strongest candidate, because the data already exists: training
+    balance (`hybrid-balance.ts`), sleep, recovery, resting HR/HRV trends. Survey
+    question `pb_q2` ("stewarding my body with consistency in sleep, movement,
+    nutrition, recovery") is almost literally a query against tables we now populate.
+  - **Spirit** — would need reading/study tracking (Bible reading, book reading). The
+    books module is currently hidden behind a feature flag; some of that scaffolding
+    may be reusable.
+  - **Soul (work/money/time)** — least instrumented. Calendar margin and task
+    completion are plausible proxies; money would need an external source.
+  - Design note: keep the survey score and the empirical score SEPARATE rather than
+    blending into one number. A blended figure hides which signal moved, and the
+    interesting question is precisely when they disagree — feeling stewarded while the
+    training data says otherwise is the insight, not noise to average away.
+
+- [ ] **Rubric: good / maintaining / progressing.** Half-built already — `standing`
+  (thriving / maintaining / needs_attention, on 0–10 bands) and `trend`
+  (progressing / holding / slipping, with a 0.5-point tolerance so self-report wobble
+  doesn't read as movement). What's missing is the empirical half to check it against.
+
+- [ ] **Cadence.** Monthly for now, per Eric; revisit quarterly if monthly proves too
+  frequent. `REASSESS_INTERVAL_DAYS` in `spirit-soul-body.ts` is the single knob.
+  Currently a dashboard prompt only — no email or push.
+
 ### Follow-ups parked from the 2026-07-30 session
 Captured while Eric was away from the keyboard. Nothing here is broken — these are
 open decisions and deferred work, roughly in the order worth doing.

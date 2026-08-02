@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import HybridTrainingIndicator from "@/components/fitness/HybridTrainingIndicator";
 import { computeHybridBalance } from "@/lib/fitness/hybrid-balance";
+import { reassessStatus } from "@/lib/flourishing/spirit-soul-body";
 
 function formatTime(value: string) {
   const date = new Date(value);
@@ -183,6 +184,10 @@ export default async function DashboardHome() {
       minutes: (r.duration_min as number) ?? 0,
     })),
   ];
+  // Monthly cadence: the survey is only useful if it's retaken, and a stale
+  // score presented as current is worse than an obvious prompt to redo it.
+  const reassess = reassessStatus(flourishing?.updated_at ?? null, today);
+
   const hybridWeek = computeHybridBalance(hybridSessions, { windowDays: 7, now: today });
   const hybridMonth = computeHybridBalance(hybridSessions, {
     windowDays: HYBRID_CONTEXT_DAYS,
@@ -269,9 +274,28 @@ export default async function DashboardHome() {
             <div className="mt-1 text-sm text-slate-600">
               A review-centered score across spiritual, relational, emotional, physical, stewardship, and calling domains.
             </div>
+            <div className="mt-1 text-sm font-medium">
+              {reassess.daysSince === null ? (
+                <span className="text-amber-700">Not taken yet — start your first assessment.</span>
+              ) : reassess.due ? (
+                <span className="text-amber-700">
+                  Last taken {reassess.daysSince} days ago — due for a monthly check-in.
+                </span>
+              ) : (
+                <span className="text-slate-500">
+                  Taken {reassess.daysSince} day{reassess.daysSince === 1 ? "" : "s"} ago · next in{" "}
+                  {reassess.daysUntilDue} day{reassess.daysUntilDue === 1 ? "" : "s"}
+                </span>
+              )}
+            </div>
           </div>
-          <Link className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm" href="/flourishing">
-            Open Flourishing
+          <Link
+            className={`rounded-full px-4 py-2 text-sm font-medium shadow-sm ${
+              reassess.due ? "bg-amber-500 text-white" : "bg-slate-900 text-white"
+            }`}
+            href="/flourishing"
+          >
+            {reassess.due ? "Retake assessment" : "Open Flourishing"}
           </Link>
         </div>
 

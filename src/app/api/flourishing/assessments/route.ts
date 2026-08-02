@@ -3,6 +3,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { buildPersonaProposalInsert, buildPersonaSections, applyCurrentContentToPersonaProposals, generateFlourishingCoaching } from '@/lib/flourishing/coach';
 import { ensureDefaultQuestionSet, getFlourishingAssessment, getFlourishingHistory, upsertFlourishingProfile } from '@/lib/flourishing/profile';
 import { scoreAssessment } from '@/lib/flourishing/scoring';
+import { computePillarScores, pillarScoresToRow } from '@/lib/flourishing/spirit-soul-body';
 import type { AssessmentQuestion, CoreFlourishingDomain, FlourishingAssessmentType, FlourishingResponseMap } from '@/lib/flourishing/types';
 
 export const dynamic = 'force-dynamic';
@@ -214,6 +215,22 @@ export async function POST(req: NextRequest) {
   };
 
   await upsertFlourishingProfile(user.id, assessment);
+
+  // Roll the six domains up into the dashboard's Spirit / Soul / Body scores.
+  // Inserted as a new dated row rather than overwriting the latest: earlier
+  // rows are hand-authored and carry alignment/action notes a survey can't
+  // produce, so mutating them would destroy real writing. Tagged
+  // source='flourishing' so the two kinds stay tellable apart.
+  const pillars = pillarScoresToRow(computePillarScores(domainScores));
+  const { error: scoreError } = await supabase.from('dashboard_scores').insert({
+    user_id: user.id,
+    ...pillars,
+    source: 'flourishing',
+    assessment_id: inserted.id,
+  });
+  if (scoreError) {
+    console.error('[flourishing] failed to write dashboard_scores', scoreError.message);
+  }
 
   return NextResponse.json({ ok: true, assessment, pending_persona_proposals: personaProposals.length });
 }
