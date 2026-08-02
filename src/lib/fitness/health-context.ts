@@ -3,6 +3,7 @@
 // to build a comprehensive context for all AI interactions
 
 import { supabaseServer } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { summariseLabs, formatLabsForPrompt, type LabSummary } from './lab-context';
 
 export type FunctionType =
@@ -92,8 +93,29 @@ interface HealthContext {
 /**
  * Load health context from database
  */
+/**
+ * Client for context loading.
+ *
+ * Every query below filters explicitly by user_id, and callers pass a userId
+ * they have already authorised — so the service-role client is used when it's
+ * available. The cookie client returns NOTHING from a background context
+ * (cron, scheduled job, server-side trigger) because there is no session for
+ * RLS to evaluate, which silently produced an all-"N/A" context rather than an
+ * error. Falls back to the cookie client when no service key is configured.
+ */
+async function contextClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (url && serviceKey) {
+    return createClient(url, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return supabaseServer();
+}
+
 async function loadHealthContext(userId: string): Promise<HealthContext> {
-  const supabase = await supabaseServer();
+  const supabase = await contextClient();
 
   // Load persona.md, soul.md, and health.md
   const { data: docs } = await supabase
@@ -203,6 +225,17 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
     .order('metric_date', { ascending: false })
     .limit(7);
 
+  // Sleep comes from sleep_logs. body_metrics.sleep_duration_min exists but no
+  // importer writes it, so reading it there always yielded N/A while 88 nights
+  // sat in sleep_logs.
+  const { data: sleepLogs } = await supabase
+    .from('sleep_logs')
+    .select('total_sleep_seconds')
+    .eq('user_id', userId)
+    .gte('sleep_date', sevenDaysAgo.toISOString().split('T')[0])
+    .order('sleep_date', { ascending: false })
+    .limit(7);
+
   const { data: readinessData } = await supabase
     .from('daily_readiness')
     .select('score')
@@ -277,19 +310,47 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
   } catch { /* table may not exist */ }
 
   // Calculate averages
-  const avgRHR = bodyMetrics?.length
-    ? Math.round(bodyMetrics.reduce((sum, m) => sum + (m.resting_hr || 0), 0) / bodyMetrics.length)
-    : null;
-  const avgHRV = bodyMetrics?.length
-    ? Math.round(bodyMetrics.reduce((sum, m) => sum + (m.hrv_ms || 0), 0) / bodyMetrics.length)
-    : null;
-  const avgBB = bodyMetrics?.length
-    ? Math.round(bodyMetrics.reduce((sum, m) => sum + (m.body_battery || 0), 0) / bodyMetrics.length)
-    : null;
-  const avgSleep = bodyMetrics?.length
-    ? (bodyMetrics.reduce((sum, m) => sum + ((m.sleep_duration_min || 0) / 60), 0) / bodyMetrics.length).toFixed(1)
-    : null;
-  const latestWeight = bodyMetrics?.[0]?.weight_lbs || null;
+  /**
+   * Average only the days that actually have the value.
+   *
+   * The previous version summed `m.field || 0` and divided by the total row
+   * count, so every day the watch didn't record a value dragged the mean
+   * toward zero — with 6 of 7 days reporting, RHR came out as 64 against a
+   * true 74. Understating resting heart rate by ten beats in the context that
+   * drives training recommendations is worse than reporting nothing.
+   */
+  const avgOf = (field: 'resting_hr' | 'hrv_ms' | 'body_battery' | 'sleep_duration_min') => {
+    const values = (bodyMetrics ?? [])
+      .map((m) => m[field] as number | null)
+      .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+    if (values.length === 0) return null;
+    return values.reduce((a, b) => a + b, 0) / values.length;
+  };
+
+  const avgRHRraw = avgOf('resting_hr');
+  const avgHRVraw = avgOf('hrv_ms');
+  const avgBBraw = avgOf('body_battery');
+  const avgSleepRaw = avgOf('sleep_duration_min');
+
+  const avgRHR = avgRHRraw === null ? null : Math.round(avgRHRraw);
+  const avgHRV = avgHRVraw === null ? null : Math.round(avgHRVraw);
+  const avgBB = avgBBraw === null ? null : Math.round(avgBBraw);
+  const sleepHours = (sleepLogs ?? [])
+    .map((l) => l.total_sleep_seconds as number | null)
+    .filter((v): v is number => typeof v === 'number' && v > 0)
+    .map((seconds) => seconds / 3600);
+  const avgSleep =
+    sleepHours.length > 0
+      ? (sleepHours.reduce((a, b) => a + b, 0) / sleepHours.length).toFixed(1)
+      : avgSleepRaw === null
+        ? null
+        : (avgSleepRaw / 60).toFixed(1);
+
+  // The newest row is written daily by the watch and rarely carries a weight —
+  // the scale only reports on days you step on it. Take the most recent row
+  // that actually has one.
+  const latestWeight =
+    (bodyMetrics ?? []).find((m) => typeof m.weight_lbs === 'number')?.weight_lbs ?? null;
 
   const avgBP = bpReadings?.length
     ? {

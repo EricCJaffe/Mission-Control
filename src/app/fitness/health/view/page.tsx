@@ -2,6 +2,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import HealthDocViewClient from '@/components/fitness/HealthDocViewClient';
 import HealthDocPendingUpdates from '@/components/fitness/HealthDocPendingUpdates';
+import HealthDocCheckUpdates from '@/components/fitness/HealthDocCheckUpdates';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +41,12 @@ export default async function HealthDocViewPage() {
     .order('version', { ascending: false })
     .limit(10);
 
+  const { count: pendingCount } = await supabase
+    .from('health_doc_pending_updates')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userData.user.id)
+    .eq('status', 'pending');
+
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="mb-6">
@@ -47,6 +54,12 @@ export default async function HealthDocViewPage() {
         <p className="text-gray-600">
           Your living health document. This feeds all AI features with complete medical context.
         </p>
+      </div>
+
+      {/* Always visible: the pending-updates widget renders nothing when the
+          queue is empty, which left no way to ask for a re-check. */}
+      <div className="mb-4">
+        <HealthDocCheckUpdates pendingCount={pendingCount ?? 0} />
       </div>
 
       {/* Pending Updates Widget */}
