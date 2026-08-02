@@ -154,10 +154,42 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Distinguish the three ways this fails. The phone app gives no detail
+  // beyond "export did not complete", so without this a misformatted header
+  // and a wrong token look identical. None of it reveals the expected value.
   const header = req.headers.get('authorization') ?? '';
-  const provided = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  if (!header) {
+    return NextResponse.json(
+      {
+        error: 'Unauthorized',
+        reason: 'no_authorization_header',
+        hint: 'Add a header named "Authorization" with value "Bearer <token>".',
+      },
+      { status: 401 }
+    );
+  }
+  if (!header.startsWith('Bearer ')) {
+    return NextResponse.json(
+      {
+        error: 'Unauthorized',
+        reason: 'header_not_bearer',
+        hint: 'The value must start with "Bearer " followed by the token. Put "Authorization" in the header NAME field and "Bearer <token>" in the VALUE field — do not repeat "Authorization:" inside the value.',
+        received_prefix: header.slice(0, 12),
+      },
+      { status: 401 }
+    );
+  }
+  const provided = header.slice(7).trim();
   if (!provided || !tokenMatches(provided, expectedToken)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json(
+      {
+        error: 'Unauthorized',
+        reason: 'token_mismatch',
+        hint: 'The header is shaped correctly but the token does not match APPLE_HEALTH_INGEST_TOKEN in Vercel.',
+        token_length_received: provided.length,
+      },
+      { status: 401 }
+    );
   }
 
   let payload: HaePayload;
