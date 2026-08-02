@@ -4,6 +4,7 @@ import HybridTrainingIndicator from "@/components/fitness/HybridTrainingIndicato
 import { computeHybridBalance } from "@/lib/fitness/hybrid-balance";
 import { reassessStatus, computePillarScores } from "@/lib/flourishing/spirit-soul-body";
 import { statusForScore } from "@/lib/status-colors";
+import { FEATURES } from "@/lib/feature-flags";
 
 function formatTime(value: string) {
   const date = new Date(value);
@@ -262,57 +263,59 @@ export default async function DashboardHome() {
         <HybridTrainingIndicator primary={hybridWeek} context={hybridMonth} />
       </section>
 
-      <section className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.3em] text-blue-800">
-              Alignment Status
+      {FEATURES.monthlyAlignment && (
+        <section className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-[0.3em] text-blue-800">
+                Alignment Status
+              </div>
+              <div className="mt-2 text-2xl font-semibold">Monthly Alignment</div>
+              <div className="mt-1 text-sm text-slate-500">
+                Based on the latest review score and drift flags.
+              </div>
             </div>
-            <div className="mt-2 text-2xl font-semibold">Monthly Alignment</div>
-            <div className="mt-1 text-sm text-slate-500">
-              Based on the latest review score and drift flags.
+            <div className={`rounded-full px-4 py-2 text-sm font-semibold ${statusStyles[alignmentStatus]}`}>
+              {alignmentStatus === "aligned" && "Aligned"}
+              {alignmentStatus === "drifting" && "Drifting"}
+              {alignmentStatus === "off-track" && "Off-track"}
+              {alignmentStatus === "unknown" && "No data yet"}
             </div>
           </div>
-          <div className={`rounded-full px-4 py-2 text-sm font-semibold ${statusStyles[alignmentStatus]}`}>
-            {alignmentStatus === "aligned" && "Aligned"}
-            {alignmentStatus === "drifting" && "Drifting"}
-            {alignmentStatus === "off-track" && "Off-track"}
-            {alignmentStatus === "unknown" && "No data yet"}
-          </div>
-        </div>
 
-        <form className="mt-4 grid gap-3 md:grid-cols-[1fr_auto_auto]" action="/dashboard/alignment" method="post">
-          <input type="hidden" name="period_start" value={todayIso.slice(0, 7) + "-01"} />
-          <input
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-            name="alignment_score"
-            type="number"
-            min="0"
-            max="10"
-            placeholder="Alignment score (0-10)"
-            defaultValue={alignment?.alignment_score ?? ""}
-          />
-          <select
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-            name="alignment_status"
-            defaultValue={alignment?.alignment_status ?? ""}
-          >
-            <option value="">Auto</option>
-            <option value="aligned">Aligned</option>
-            <option value="drifting">Drifting</option>
-            <option value="off-track">Off-track</option>
-          </select>
-          <input
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-            name="drift_flags"
-            placeholder="Drift flags (comma-separated)"
-            defaultValue={(alignment?.drift_flags || []).join(", ")}
-          />
-          <button className="md:col-span-3 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-            Update Alignment
-          </button>
-        </form>
-      </section>
+          <form className="mt-4 grid gap-3 md:grid-cols-[1fr_auto_auto]" action="/dashboard/alignment" method="post">
+            <input type="hidden" name="period_start" value={todayIso.slice(0, 7) + "-01"} />
+            <input
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              name="alignment_score"
+              type="number"
+              min="0"
+              max="10"
+              placeholder="Alignment score (0-10)"
+              defaultValue={alignment?.alignment_score ?? ""}
+            />
+            <select
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              name="alignment_status"
+              defaultValue={alignment?.alignment_status ?? ""}
+            >
+              <option value="">Auto</option>
+              <option value="aligned">Aligned</option>
+              <option value="drifting">Drifting</option>
+              <option value="off-track">Off-track</option>
+            </select>
+            <input
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              name="drift_flags"
+              placeholder="Drift flags (comma-separated)"
+              defaultValue={(alignment?.drift_flags || []).join(", ")}
+            />
+            <button className="md:col-span-3 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+              Update Alignment
+            </button>
+          </form>
+        </section>
+      )}
 
       <section className="mt-6 overflow-hidden rounded-[28px] border border-amber-100 bg-gradient-to-br from-rose-50 via-amber-50 to-sky-50 p-5 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

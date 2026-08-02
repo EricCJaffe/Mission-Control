@@ -97,6 +97,19 @@
   need a redeploy to take effect**. Check `vercel env ls production`, then `vercel redeploy`.
 
 ### Spirit / Soul / Body — roadmap (design captured 2026-08-02)
+- [x] **Monthly Alignment retired 2026-08-02.** It overlapped the Flourishing survey by
+  ~70% (both monthly, both covering faith/health/relationships/calling) and had never
+  been completed once — `monthly_reviews` had zero rows. Hidden behind
+  `FEATURES.monthlyAlignment`, not deleted; the route, the submit handler and any past
+  rows are untouched.
+  - Its one distinctive contribution was a priority WEIGHTING (God First 30%, Family 25%,
+    Health 20%, Impact 20%, Stewardship 5%) — the only place the app claimed some areas
+    matter more than others. That now lives in `DOMAIN_WEIGHTS`: within Spirit, faith .6
+    / calling .4; within Soul, relational .5 / mental .3 / work-money-time .2.
+  - Effect on Eric's scores: Spirit 7.63 → 7.45, Soul 6.08 → 5.65. Soul dropped because
+    relational (4.25, his weakest domain) now carries the most weight inside it — which
+    is the point of weighting rather than a bug.
+
 SHIPPED 2026-08-02 (second pass): practice tracking (`practices` + `practice_logs`,
 6 seeded practices, daily check-off at `/spirit`), the traffic-light status system
 (`src/lib/status-colors.ts`), and the sidebar regrouped into Spirit / Soul / Body /

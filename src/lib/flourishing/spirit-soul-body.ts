@@ -6,9 +6,10 @@
  * life, soul is mind/will/emotions (which is where stewardship of work, money
  * and time sits — it's an exercise of the will), and body is the physical.
  *
- * Each score is a plain mean of its domains on the survey's 0–10 scale. No
- * weighting: every domain is measured with the same number of questions on the
- * same scale, so weighting would be an opinion dressed up as arithmetic.
+ * Each score is a WEIGHTED mean of its domains on the survey's 0–10 scale —
+ * see DOMAIN_WEIGHTS. The weighting is inherited from the retired Monthly
+ * Alignment review, which encoded a deliberate priority order; treating every
+ * domain as equal would have flattened that when the two instruments merged.
  */
 
 import type { CoreFlourishingDomain } from './types';
@@ -19,6 +20,33 @@ export const PILLAR_DOMAINS: Record<Pillar, CoreFlourishingDomain[]> = {
   spirit: ['faith_spiritual', 'meaning_purpose_calling'],
   soul: ['mental_emotional', 'relational', 'work_money_time'],
   body: ['physical_brain'],
+};
+
+/**
+ * Relative weight of each domain inside its pillar.
+ *
+ * Carried over from the retired Monthly Alignment review, which was the only
+ * instrument that encoded a priority ORDER rather than treating every area as
+ * equal: God First 30%, Family 25%, Health 20%, Impact 20%, Stewardship 5%.
+ * That ordering is a deliberate claim about what matters most, and losing it
+ * when the two instruments merged would have quietly flattened it.
+ *
+ * So within Spirit, walking with God outweighs sense of calling; within Soul,
+ * relationships outweigh mental state, which outweighs stewardship of work,
+ * money and time. Body has a single domain and needs no weighting.
+ *
+ * Weights are renormalised over whichever domains were actually answered, so
+ * a partial assessment doesn't silently skew toward whatever survived.
+ */
+export const DOMAIN_WEIGHTS: Partial<Record<CoreFlourishingDomain, number>> = {
+  faith_spiritual: 0.6,
+  meaning_purpose_calling: 0.4,
+
+  relational: 0.5,
+  mental_emotional: 0.3,
+  work_money_time: 0.2,
+
+  physical_brain: 1,
 };
 
 export const PILLAR_LABELS: Record<Pillar, string> = {
@@ -77,6 +105,19 @@ function toMap(scores: DomainScoreInput[]): Map<string, number> {
   return map;
 }
 
+/** Weighted mean, renormalised over the domains actually present. */
+function weightedMean(entries: Array<{ domain: CoreFlourishingDomain; score: number }>): number {
+  let weighted = 0;
+  let totalWeight = 0;
+  for (const entry of entries) {
+    const weight = DOMAIN_WEIGHTS[entry.domain] ?? 1;
+    weighted += entry.score * weight;
+    totalWeight += weight;
+  }
+  if (totalWeight === 0) return 0;
+  return Math.round((weighted / totalWeight) * 100) / 100;
+}
+
 /**
  * @param domainScores  current assessment's per-domain scores
  * @param previousScores previous assessment's, for trend. Omit if none.
@@ -96,16 +137,12 @@ export function computePillarScores(
       .map((d) => ({ domain: d, score: current.get(d)! }))
       .sort((a, b) => a.score - b.score);
 
-    const score =
-      contributing.length > 0
-        ? Math.round((contributing.reduce((sum, c) => sum + c.score, 0) / contributing.length) * 100) / 100
-        : null;
+    const score = contributing.length > 0 ? weightedMean(contributing) : null;
 
-    const priorContributing = domains.filter((d) => prior.has(d)).map((d) => prior.get(d)!);
-    const previous =
-      priorContributing.length > 0
-        ? priorContributing.reduce((sum, v) => sum + v, 0) / priorContributing.length
-        : null;
+    const priorContributing = domains
+      .filter((d) => prior.has(d))
+      .map((d) => ({ domain: d, score: prior.get(d)! }));
+    const previous = priorContributing.length > 0 ? weightedMean(priorContributing) : null;
 
     const { trend, delta } = trendFor(score, previous);
 

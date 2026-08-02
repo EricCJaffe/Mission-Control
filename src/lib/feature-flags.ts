@@ -11,6 +11,14 @@ export const FEATURES = {
   books: false,
   /** Sermon prep module (/sermons) — hidden 2026-08-02, may return. */
   sermons: false,
+  /**
+   * Monthly Alignment review (/reviews/new, dashboard "Alignment Status").
+   * Retired 2026-08-02 — it overlapped the Flourishing survey by ~70% and had
+   * never been completed. Its one distinctive contribution, the priority
+   * weighting, now lives in DOMAIN_WEIGHTS in flourishing/spirit-soul-body.ts,
+   * so nothing was lost by hiding it. Past reviews remain in monthly_reviews.
+   */
+  monthlyAlignment: false,
 } as const;
 
 export type FeatureName = keyof typeof FEATURES;
