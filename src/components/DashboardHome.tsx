@@ -4,6 +4,9 @@ import HybridTrainingIndicator from "@/components/fitness/HybridTrainingIndicato
 import { computeHybridBalance } from "@/lib/fitness/hybrid-balance";
 import { reassessStatus, computePillarScores } from "@/lib/flourishing/spirit-soul-body";
 import { statusForScore } from "@/lib/status-colors";
+import PracticeTracker from "@/components/spirit/PracticeTracker";
+import { todayIso as practiceToday, type Practice, type PracticeLog } from "@/lib/spirit/practices";
+import { Dumbbell, Plus, CalendarDays, Target, CheckSquare, HeartPulse, Activity, Gauge } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
 function formatTime(value: string) {
@@ -39,6 +42,93 @@ function alignmentLabel(status?: string | null, score?: number | null, flags?: s
   return "unknown";
 }
 
+/** Compact vital readout for the dashboard strip. */
+function VitalCard({
+  icon,
+  label,
+  value,
+  unit,
+  asOf,
+  href,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number | string | null;
+  unit: string;
+  asOf: string | null;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-2xl border-2 border-slate-300 bg-white p-3 shadow-sm transition-shadow hover:shadow"
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+        {value ?? "—"}
+        {value !== null && unit ? <span className="ml-1 text-xs font-medium text-slate-400">{unit}</span> : null}
+      </p>
+      {/* Vitals are only as current as the last reading — say when. */}
+      <p className="text-[10px] text-slate-400">{asOf ? asOf : "no data"}</p>
+    </Link>
+  );
+}
+
+/** A short list of open items with a one-tap add. */
+function OpenList({
+  title,
+  icon,
+  addHref,
+  browseHref,
+  items,
+  emptyLabel,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  addHref: string;
+  browseHref: string;
+  items: Array<{ id: string; label: string; hint?: string | null }>;
+  emptyLabel: string;
+}) {
+  return (
+    <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          {icon}
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        </div>
+        <Link
+          href={addHref}
+          aria-label={`Add ${title.toLowerCase()}`}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-slate-300 text-slate-600 transition-colors hover:border-slate-500 hover:bg-slate-50"
+        >
+          <Plus className="h-4 w-4" />
+        </Link>
+      </div>
+      {items.length === 0 ? (
+        <p className="mt-3 text-xs text-slate-400">{emptyLabel}</p>
+      ) : (
+        <ul className="mt-3 space-y-1.5">
+          {items.map((item) => (
+            <li key={item.id} className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="truncate text-slate-700">{item.label}</span>
+              {item.hint && (
+                <span className="shrink-0 text-[11px] text-slate-400">{item.hint}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link href={browseHref} className="mt-3 inline-block text-xs font-medium text-blue-600 hover:text-blue-700">
+        View all →
+      </Link>
+    </div>
+  );
+}
+
 export default async function DashboardHome() {
   const supabase = await supabaseServer();
   const { data } = await supabase.auth.getUser();
@@ -66,6 +156,13 @@ export default async function DashboardHome() {
     sopChecksResult,
     hybridWorkoutsResult,
     hybridRecoveryResult,
+    rhrResult,
+    hrvResult,
+    bpResult,
+    plannedWorkoutResult,
+    goalsResult,
+    practicesResult,
+    practiceLogsResult,
   ] = await Promise.all([
     supabase
       .from("dashboard_scores")
@@ -131,6 +228,54 @@ export default async function DashboardHome() {
       .eq("user_id", user.id)
       .in("modality", ["stretching", "mobility"])
       .gte("session_date", hybridSince.slice(0, 10)),
+    // Latest non-null RHR/HRV: the newest body_metrics row is written daily by
+    // the watch and often carries neither, so each is looked up on its own.
+    supabase
+      .from("body_metrics")
+      .select("metric_date,resting_hr")
+      .eq("user_id", user.id)
+      .not("resting_hr", "is", null)
+      .order("metric_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("body_metrics")
+      .select("metric_date,hrv_ms")
+      .eq("user_id", user.id)
+      .not("hrv_ms", "is", null)
+      .order("metric_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("bp_readings")
+      .select("reading_date,systolic,diastolic")
+      .eq("user_id", user.id)
+      .order("reading_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("planned_workouts")
+      .select("id,workout_type,day_label,status,scheduled_time")
+      .eq("user_id", user.id)
+      .eq("scheduled_date", todayIso)
+      .maybeSingle(),
+    supabase
+      .from("goals")
+      .select("id,title,status")
+      .eq("user_id", user.id)
+      .neq("status", "complete")
+      .limit(5),
+    supabase
+      .from("practices")
+      .select("id,key,label,cadence,target_per_period,sort_order,created_at")
+      .eq("user_id", user.id)
+      .eq("active", true)
+      .order("sort_order"),
+    supabase
+      .from("practice_logs")
+      .select("practice_id,log_date,completed")
+      .eq("user_id", user.id)
+      .gte("log_date", hybridSince.slice(0, 10)),
   ]);
 
   const scoreRow = scoresResult.data;
@@ -196,6 +341,14 @@ export default async function DashboardHome() {
       (d) => ({ domain: d.domain, score: d.score }),
     ),
   );
+
+  const rhr = rhrResult.data;
+  const hrv = hrvResult.data;
+  const bp = bpResult.data;
+  const plannedWorkout = plannedWorkoutResult.data;
+  const goals = goalsResult.data ?? [];
+  const practices = (practicesResult.data ?? []) as Practice[];
+  const practiceLogs = (practiceLogsResult.data ?? []) as PracticeLog[];
 
   const hybridWeek = computeHybridBalance(hybridSessions, { windowDays: 7, now: today });
   const hybridMonth = computeHybridBalance(hybridSessions, {
@@ -317,383 +470,149 @@ export default async function DashboardHome() {
         </section>
       )}
 
-      <section className="mt-6 overflow-hidden rounded-[28px] border border-amber-100 bg-gradient-to-br from-rose-50 via-amber-50 to-sky-50 p-5 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.3em] text-amber-700">
-              Flourishing
-            </div>
-            <div className="mt-2 text-2xl font-semibold">Whole-Life Snapshot</div>
-            <div className="mt-1 text-sm text-slate-600">
-              A review-centered score across spiritual, relational, emotional, physical, stewardship, and calling domains.
-            </div>
-            <div className="mt-1 text-sm font-medium">
-              {reassess.daysSince === null ? (
-                <span className="text-amber-700">Not taken yet — start your first assessment.</span>
-              ) : reassess.due ? (
-                <span className="text-amber-700">
-                  Last taken {reassess.daysSince} days ago — due for a monthly check-in.
-                </span>
-              ) : (
-                <span className="text-slate-500">
-                  Taken {reassess.daysSince} day{reassess.daysSince === 1 ? "" : "s"} ago · next in{" "}
-                  {reassess.daysUntilDue} day{reassess.daysUntilDue === 1 ? "" : "s"}
-                </span>
-              )}
-            </div>
-          </div>
-          <Link
-            className={`rounded-full px-4 py-2 text-sm font-medium shadow-sm ${
-              reassess.due ? "bg-amber-500 text-white" : "bg-slate-900 text-white"
-            }`}
-            href="/flourishing"
-          >
-            {reassess.due ? "Retake assessment" : "Open Flourishing"}
-          </Link>
+      {/* Act row: the two things wanted most days — start a workout, and see
+          what's already planned. */}
+      <section className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Today&rsquo;s training</p>
+          {plannedWorkout ? (
+            <>
+              <p className="mt-1 text-lg font-bold text-slate-900">
+                {plannedWorkout.day_label || plannedWorkout.workout_type}
+              </p>
+              <p className="text-xs text-slate-500">
+                Planned{plannedWorkout.scheduled_time ? ` for ${plannedWorkout.scheduled_time}` : ""}
+                {plannedWorkout.status ? ` · ${plannedWorkout.status}` : ""}
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-slate-500">Nothing scheduled — log whatever you do.</p>
+          )}
         </div>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-4">
-          <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Current Index</div>
-            <div className="mt-2 text-4xl font-semibold text-slate-900">{flourishing?.display_index ?? "—"}</div>
-          </div>
-          <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Strongest</div>
-            <div className="mt-2 text-sm text-slate-700">{flourishing?.strongest_domains?.join(", ") || "Run an assessment"}</div>
-          </div>
-          <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Growth Edge</div>
-            <div className="mt-2 text-sm text-slate-700">{flourishing?.growth_domains?.join(", ") || "Run an assessment"}</div>
-          </div>
-          <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Last Message</div>
-            <div className="mt-2 text-sm text-slate-700">{flourishing?.overall_message || "No flourishing assessment yet."}</div>
-          </div>
-        </div>
+        <Link
+          href="/fitness/log"
+          className="flex min-h-[72px] items-center justify-center gap-2 rounded-2xl bg-lime-500 px-6 text-base font-bold text-white shadow-sm transition-colors hover:bg-lime-600"
+        >
+          <Dumbbell className="h-5 w-5" />
+          Log Workout
+        </Link>
       </section>
 
-      <section className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.3em] text-blue-800">
-              Chief of Staff Briefing
-            </div>
-            <div className="mt-2 text-2xl font-semibold">Today’s Focus</div>
-            <div className="mt-1 text-sm text-slate-500">
-              What’s behind, what’s due, and what restores alignment.
-            </div>
-          </div>
-          <Link className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm" href="/reviews/new">
-            Run Monthly Survey
-          </Link>
-        </div>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="text-sm font-semibold">Behind</div>
-            <div className="mt-2 text-xs text-slate-500">
-              Overdue tasks: {overdue.length}
-            </div>
-            <div className="text-xs text-slate-500">
-              SOP steps pending: {pendingSops.length}
-            </div>
-            <div className="text-xs text-slate-500">
-              SOP steps overdue: {sopOverdue.length}
-            </div>
-            {(overdue.length > 0 || sopOverdue.length > 0) ? (
-              <div className="mt-2 text-xs text-slate-600">
-                Clear one overdue task and one SOP step today.
-              </div>
-            ) : (
-              <div className="mt-2 text-xs text-slate-600">No behind signals.</div>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="text-sm font-semibold">Must-Do Today</div>
-            <div className="mt-2 text-xs text-slate-500">
-              {mustDo.length} tasks due today
-            </div>
-            <div className="mt-2 text-xs text-slate-600">
-              Protect these before optional tasks.
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="text-sm font-semibold">Anchors</div>
-            <div className="mt-2 text-xs text-slate-500">
-              Prayer, training, and family touchpoint.
-            </div>
-            <div className="mt-2 text-xs text-slate-600">
-              Check anchors to keep the day aligned.
-            </div>
-          </div>
-        </div>
+      {/* Health vitals at a glance. */}
+      <section className="mt-3 grid grid-cols-3 gap-3">
+        <VitalCard
+          icon={<HeartPulse className="h-4 w-4 text-rose-500" />}
+          label="Resting HR"
+          value={rhr?.resting_hr ?? null}
+          unit="bpm"
+          asOf={rhr?.metric_date ?? null}
+          href="/fitness/rhr"
+        />
+        <VitalCard
+          icon={<Activity className="h-4 w-4 text-violet-500" />}
+          label="HRV"
+          value={hrv?.hrv_ms ?? null}
+          unit="ms"
+          asOf={hrv?.metric_date ?? null}
+          href="/fitness/hrv"
+        />
+        <VitalCard
+          icon={<Gauge className="h-4 w-4 text-sky-500" />}
+          label="Blood pressure"
+          value={bp ? `${bp.systolic}/${bp.diastolic}` : null}
+          unit=""
+          asOf={bp?.reading_date?.slice(0, 10) ?? null}
+          href="/fitness/bp"
+        />
       </section>
 
-      <section className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.3em] text-blue-800">
-              Mission, Vision, Values
-            </div>
-            <div className="mt-2 text-2xl font-semibold">Guideposts</div>
-            <div className="mt-1 text-sm text-slate-500">
-              Pulled from your Persona note. Keep this visible to prevent drift.
-            </div>
+      {/* Priority matrix — horizontal so it reads as a strip, not a list. */}
+      {priorities.length > 0 && (
+        <section className="mt-4">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+              Today&rsquo;s priorities
+            </h2>
+            <Link href="/dashboard/priorities" className="text-xs font-medium text-blue-600 hover:text-blue-700">
+              Edit
+            </Link>
           </div>
-          <a className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm" href="/knowledge">
-            Update Persona
-          </a>
-        </div>
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 whitespace-pre-line">
-          {personaExcerpt || "No persona note found yet. Add it in Knowledge."}
-        </div>
-      </section>
-
-      <section className="mt-6 grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm md:col-span-1">
-          <h2 className="text-sm uppercase tracking-widest text-slate-500">Priority Matrix</h2>
-          <ul className="mt-4 grid gap-2 text-sm">
-            <li className="rounded-xl border border-slate-200 bg-white px-3 py-2">1. God First</li>
-            <li className="rounded-xl border border-slate-200 bg-white px-3 py-2">2. Health</li>
-            <li className="rounded-xl border border-slate-200 bg-white px-3 py-2">3. Family</li>
-            <li className="rounded-xl border border-slate-200 bg-white px-3 py-2">4. Impact</li>
-          </ul>
-        </div>
-
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm md:col-span-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm uppercase tracking-widest text-slate-500">Today</h2>
-            <div className="text-xs text-slate-500">{today.toDateString()}</div>
-          </div>
-
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="font-semibold">Top 3 Priorities</div>
-              <div className="mt-2 grid gap-2 text-sm">
-                {priorities.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-2 rounded-lg border-2 border-slate-300 bg-slate-50 px-3 py-2">
-                    <div>
-                      <div className="font-medium">#{item.rank} {item.title}</div>
-                      <div className="text-xs text-slate-500">{item.domain}</div>
-                    </div>
-                  </div>
-                ))}
-                {priorities.length === 0 && (
-                  <div className="text-xs text-slate-500">No priorities set for today.</div>
-                )}
-              </div>
-
-              <form className="mt-3 grid gap-2" action="/dashboard/priorities" method="post">
-                <input type="hidden" name="date" value={todayIso} />
-                <div className="grid grid-cols-[auto_1fr] gap-2">
-                  <select className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="rank" defaultValue="1">
-                    <option value="1">#1</option>
-                    <option value="2">#2</option>
-                    <option value="3">#3</option>
-                  </select>
-                  <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="title" placeholder="Priority title" />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {priorities.slice(0, 3).map((p, i) => {
+              const tone = [
+                "border-rose-400 bg-rose-50 text-rose-900",
+                "border-amber-400 bg-amber-50 text-amber-900",
+                "border-sky-400 bg-sky-50 text-sky-900",
+              ][i % 3];
+              return (
+                <div key={p.id} className={`rounded-2xl border-2 p-4 shadow-sm ${tone}`}>
+                  <p className="text-[11px] font-bold uppercase tracking-widest opacity-70">
+                    {p.domain || `Priority ${i + 1}`}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold leading-snug">{p.title}</p>
                 </div>
-                <select className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="domain" defaultValue="God First">
-                  <option>God First</option>
-                  <option>Health</option>
-                  <option>Family</option>
-                  <option>Impact</option>
-                </select>
-                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
-                  Save Priority
-                </button>
-              </form>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="font-semibold">Calendar (Day View)</div>
-              <div className="mt-2 grid gap-2 text-sm">
-                {events.map((event) => (
-                  <div key={event.id} className="rounded-lg border-2 border-slate-300 bg-slate-50 px-3 py-2">
-                    <div className="font-medium">{event.title}</div>
-                    <div className="text-xs text-slate-500">
-                      {formatTime(event.start_at)} - {formatTime(event.end_at)} · {event.event_type}
-                    </div>
-                  </div>
-                ))}
-                {events.length === 0 && (
-                  <div className="text-xs text-slate-500">No events scheduled today.</div>
-                )}
-              </div>
-
-              <form className="mt-3 grid gap-2" action="/dashboard/events" method="post">
-                <input type="hidden" name="date" value={todayIso} />
-                <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="title" placeholder="Event title" required />
-                <div className="grid grid-cols-2 gap-2">
-                  <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="start_at" type="time" required />
-                  <input className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="end_at" type="time" required />
-                </div>
-                <select className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs" name="event_type" defaultValue="Daily Anchor">
-                  <option>Monthly Review</option>
-                  <option>Weekly Planning</option>
-                  <option>Daily Anchor</option>
-                  <option>Sermon/Teaching</option>
-                  <option>Client Work</option>
-                  <option>Family</option>
-                  <option>Health/Training</option>
-                </select>
-                <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
-                  Add Event
-                </button>
-              </form>
-            </div>
+              );
+            })}
           </div>
+        </section>
+      )}
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="font-semibold">Tasks (Must-do)</div>
-              <div className="mt-2 grid gap-2 text-sm">
-                {mustDo.map((task) => (
-                  <div key={task.id} className="rounded-lg border-2 border-slate-300 bg-slate-50 px-3 py-2">
-                    <div className="font-medium">{task.title}</div>
-                    <div className="text-xs text-slate-500">Due today</div>
-                  </div>
-                ))}
-                {mustDo.length === 0 && (
-                  <div className="text-xs text-slate-500">No must-do tasks due today.</div>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="font-semibold">Tasks (Optional)</div>
-              <div className="mt-2 grid gap-2 text-sm">
-                {optional.map((task) => (
-                  <div key={task.id} className="rounded-lg border-2 border-slate-300 bg-slate-50 px-3 py-2">
-                    <div className="font-medium">{task.title}</div>
-                    <div className="text-xs text-slate-500">No due date today</div>
-                  </div>
-                ))}
-                {optional.length === 0 && (
-                  <div className="text-xs text-slate-500">No optional tasks queued.</div>
-                )}
-              </div>
-            </div>
+      {/* Daily practices — the Spirit checklist, on the one page that gets
+          opened every morning. */}
+      {practices.length > 0 && (
+        <section className="mt-4">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+              Daily practices
+            </h2>
+            <Link href="/spirit" className="text-xs font-medium text-amber-700 hover:text-amber-800">
+              Open Spirit
+            </Link>
           </div>
+          <PracticeTracker practices={practices} logs={practiceLogs} today={practiceToday(today)} />
+        </section>
+      )}
 
-          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-            <div className="font-semibold">Habit Anchors</div>
-            <form className="mt-3 grid gap-2 text-sm" action="/dashboard/anchors" method="post">
-              <input type="hidden" name="date" value={todayIso} />
-              <label className="flex items-center gap-2">
-                <input type="checkbox" name="prayer" defaultChecked={anchors?.prayer ?? false} />
-                Prayer / Scripture
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" name="training" defaultChecked={anchors?.training ?? false} />
-                Training
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" name="family_touchpoint" defaultChecked={anchors?.family_touchpoint ?? false} />
-                Family Touchpoint
-              </label>
-              <button className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white" type="submit">
-                Save Anchors
-              </button>
-            </form>
-          </div>
-        </div>
+      <section className="mt-4">
+        <HybridTrainingIndicator primary={hybridWeek} context={hybridMonth} />
       </section>
 
-      <section className="mt-8">
-        <form className="grid gap-4 md:grid-cols-3" action="/dashboard/update" method="post">
-          <input type="hidden" name="score_id" value={scoreRow?.id || ""} />
-
-          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-            <h2 className="font-semibold">Spirit</h2>
-            <p className="mt-1 text-sm text-slate-500">Mission/vision/values alignment.</p>
-            <div className="mt-4 grid gap-3">
-              <input
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                name="spirit"
-                type="number"
-                min="0"
-                max="10"
-                placeholder="Score (0-10)"
-                defaultValue={spiritScore}
-              />
-              <input
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                name="spirit_alignment"
-                placeholder="Alignment note"
-                defaultValue={scoreRow?.spirit_alignment ?? ""}
-              />
-              <input
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                name="spirit_action"
-                placeholder="Quick action"
-                defaultValue={scoreRow?.spirit_action ?? ""}
-              />
-            </div>
-          </div>
-
-          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-            <h2 className="font-semibold">Soul</h2>
-            <p className="mt-1 text-sm text-slate-500">Relationships, emotions, inner life.</p>
-            <div className="mt-4 grid gap-3">
-              <input
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                name="soul"
-                type="number"
-                min="0"
-                max="10"
-                placeholder="Score (0-10)"
-                defaultValue={soulScore}
-              />
-              <input
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                name="soul_alignment"
-                placeholder="Alignment note"
-                defaultValue={scoreRow?.soul_alignment ?? ""}
-              />
-              <input
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                name="soul_action"
-                placeholder="Quick action"
-                defaultValue={scoreRow?.soul_action ?? ""}
-              />
-            </div>
-          </div>
-
-          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-            <h2 className="font-semibold">Body</h2>
-            <p className="mt-1 text-sm text-slate-500">Health, energy, action capacity.</p>
-            <div className="mt-4 grid gap-3">
-              <input
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                name="body"
-                type="number"
-                min="0"
-                max="10"
-                placeholder="Score (0-10)"
-                defaultValue={bodyScore}
-              />
-              <input
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                name="body_alignment"
-                placeholder="Alignment note"
-                defaultValue={scoreRow?.body_alignment ?? ""}
-              />
-              <input
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                name="body_action"
-                placeholder="Quick action"
-                defaultValue={scoreRow?.body_action ?? ""}
-              />
-            </div>
-          </div>
-
-          <button className="md:col-span-3 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-            Save Alignment Snapshot
-          </button>
-        </form>
+      {/* Open items, each with a one-tap way to add another. */}
+      <section className="mt-4 grid gap-3 md:grid-cols-3">
+        <OpenList
+          title="Tasks"
+          icon={<CheckSquare className="h-4 w-4 text-green-600" />}
+          addHref="/tasks/new"
+          browseHref="/tasks"
+          items={[...mustDo, ...overdue.filter((t) => !mustDo.some((m) => m.id === t.id))]
+            .slice(0, 5)
+            .map((t) => ({
+              id: t.id,
+              label: t.title,
+              hint: t.due_date && t.due_date < todayIso ? "overdue" : t.due_date === todayIso ? "today" : null,
+            }))}
+          emptyLabel="Nothing due"
+        />
+        <OpenList
+          title="Events"
+          icon={<CalendarDays className="h-4 w-4 text-orange-600" />}
+          addHref="/calendar"
+          browseHref="/calendar"
+          items={events.slice(0, 5).map((e) => ({
+            id: e.id,
+            label: e.title,
+            hint: formatTime(e.start_at),
+          }))}
+          emptyLabel="Nothing today"
+        />
+        <OpenList
+          title="Goals"
+          icon={<Target className="h-4 w-4 text-cyan-600" />}
+          addHref="/goals"
+          browseHref="/goals"
+          items={goals.slice(0, 5).map((g) => ({ id: g.id, label: g.title, hint: g.status }))}
+          emptyLabel="No open goals"
+        />
       </section>
     </main>
   );

@@ -70,6 +70,7 @@ export const config = {
     '/knowledge/:path*',
     '/fitness/:path*',
     '/spirit/:path*',
+    '/admin/:path*',
     '/flourishing/:path*',
     '/metrics/:path*',
     '/templates/:path*',

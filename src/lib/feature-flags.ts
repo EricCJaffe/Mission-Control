@@ -19,6 +19,12 @@ export const FEATURES = {
    * so nothing was lost by hiding it. Past reviews remain in monthly_reviews.
    */
   monthlyAlignment: false,
+  /**
+   * Standalone /metrics page. Hidden 2026-08-02 — everything it showed now
+   * lives on the dashboard, so it was a second place to look for the same
+   * numbers. Route and data are untouched.
+   */
+  metricsPage: false,
 } as const;
 
 export type FeatureName = keyof typeof FEATURES;
