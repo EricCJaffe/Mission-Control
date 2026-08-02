@@ -22,8 +22,23 @@ export async function GET(req: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!secret || !supabaseUrl || !serviceKey) {
-    return NextResponse.json({ error: 'Cron is not configured on this deployment.' }, { status: 503 });
+  const missing = [
+    ['CRON_SECRET', secret],
+    ['NEXT_PUBLIC_SUPABASE_URL', supabaseUrl],
+    ['SUPABASE_SERVICE_ROLE_KEY', serviceKey],
+  ]
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missing.length) {
+    return NextResponse.json(
+      {
+        error: 'Cron is not configured on this deployment.',
+        missing_env: missing,
+        hint: 'Set these for Production in Vercel, then redeploy.',
+      },
+      { status: 503 }
+    );
   }
   if (req.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
