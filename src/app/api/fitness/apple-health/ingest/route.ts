@@ -131,16 +131,18 @@ export async function POST(req: NextRequest) {
 
   // Naming the absent variables is safe — these are names, never values — and
   // turns "503, good luck" into a one-glance diagnosis.
-  const missing = [
-    ['APPLE_HEALTH_INGEST_TOKEN', expectedToken],
-    ['APPLE_HEALTH_USER_ID', userId],
-    ['NEXT_PUBLIC_SUPABASE_URL', supabaseUrl],
-    ['SUPABASE_SERVICE_ROLE_KEY', serviceKey],
-  ]
-    .filter(([, value]) => !value)
-    .map(([name]) => name);
+  // Explicit check first so TypeScript narrows these to strings below; the
+  // list is only for the message.
+  if (!expectedToken || !userId || !supabaseUrl || !serviceKey) {
+    const missing = [
+      ['APPLE_HEALTH_INGEST_TOKEN', expectedToken],
+      ['APPLE_HEALTH_USER_ID', userId],
+      ['NEXT_PUBLIC_SUPABASE_URL', supabaseUrl],
+      ['SUPABASE_SERVICE_ROLE_KEY', serviceKey],
+    ]
+      .filter(([, value]) => !value)
+      .map(([name]) => name);
 
-  if (missing.length) {
     // Never fall through to "no auth required" when configuration is absent.
     return NextResponse.json(
       {
