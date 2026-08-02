@@ -100,6 +100,21 @@
   need a redeploy to take effect**. Check `vercel env ls production`, then `vercel redeploy`.
 
 ### Spirit / Soul / Body — roadmap (design captured 2026-08-02)
+SHIPPED 2026-08-02 (second pass): practice tracking (`practices` + `practice_logs`,
+6 seeded practices, daily check-off at `/spirit`), the traffic-light status system
+(`src/lib/status-colors.ts`), and the sidebar regrouped into Spirit / Soul / Body /
+Operate. Survey and practice scores are shown side by side, never blended.
+
+- [ ] **Reading plans.** Next natural build. Licensing note: reading PLANS (lists of
+  references) can be authored/seeded freely, but Bible TEXT is licensed for most modern
+  translations (ESV/NIV/NASB need an API key + terms). Public-domain options (KJV, WEB,
+  ASV) can be displayed freely. Recommended start: store references and link out to
+  Eric's preferred Bible app — zero licensing exposure, works day one.
+
+- [ ] **Daily reminder for practices.** Currently none — the `/spirit` page shows state
+  but nothing nudges. In-app prompts are feasible now (same pattern as the Flourishing
+  monthly one); push/email needs infrastructure the app doesn't have.
+
 Shipped: the Flourishing survey now rolls up into the dashboard's three pillars
 (`src/lib/flourishing/spirit-soul-body.ts`), and a monthly retake prompt appears once
 an assessment is 30+ days old. Everything below is designed but NOT built.
