@@ -14,6 +14,13 @@
  *   Thu — Zone 2 easy: conversational, builds time on feet
  *   Sat — Progression: the key session, extends the longest continuous run
  *
+ * Week 1's progression session IS the run already completed on the start date,
+ * so the plan begins from real work rather than asking him to repeat it.
+ *
+ * Surfaces alternate outdoor / treadmill through the block, per his usual
+ * rotation. Treadmill lands on the interval session where holding a steady jog
+ * is easier, outdoor on the progression where the distance is the point.
+ *
  * Deloads in weeks 4 and 8. The Saturday build averages ~10%/week, which is
  * the conventional ceiling for running volume and matters more than usual
  * here: post-CABG, EF 36%, so the plan is deliberately conservative and every
@@ -73,7 +80,7 @@ function buildSessions(): Session[] {
     out.push({
       week,
       date: addDays(weekStart, 1),
-      label: `Norwegian 4x4 — ${jog} min jog / 4 min walk`,
+      label: `Norwegian 4x4 — ${jog} min jog / 4 min walk (${week % 2 === 1 ? 'treadmill' : 'outdoor'})`,
       type: 'Interval Run',
       prescribed: {
         format: 'norwegian_4x4',
@@ -82,6 +89,7 @@ function buildSessions(): Session[] {
         work_min: jog,
         recover_min: 4,
         cooldown_min: 6,
+        surface: week % 2 === 1 ? 'treadmill' : 'outdoor',
         total_min: 6 + rounds * (jog + 4) + 6,
         target_effort: 'RPE 6-7 on the jog — hard but you could still speak a short sentence',
       },
@@ -95,11 +103,12 @@ function buildSessions(): Session[] {
     out.push({
       week,
       date: addDays(weekStart, 3),
-      label: `Zone 2 easy — ${easyMin} min`,
+      label: `Zone 2 easy — ${easyMin} min (${week % 2 === 1 ? 'outdoor' : 'treadmill'})`,
       type: 'Zone 2 Run',
       prescribed: {
         format: 'zone2',
         total_min: easyMin,
+        surface: week % 2 === 1 ? 'outdoor' : 'treadmill',
         target_effort: 'RPE 3-4, full conversation possible throughout',
         method: 'Run/walk freely. Time on feet is the goal, not continuous running.',
       },
@@ -108,18 +117,20 @@ function buildSessions(): Session[] {
         `Walk whenever you need to; this session builds the aerobic base, not speed.`,
     });
 
-    // Saturday — the progression run
+    // Saturday — the progression run. Week 1 is anchored to the start date
+    // because that run has already happened.
     const isTest = week === 12;
     out.push({
       week,
-      date: addDays(weekStart, 5),
+      date: week === 1 ? START : addDays(weekStart, 5),
       label: isTest
-        ? '5K TEST — 3.1 mi continuous'
-        : `Progression — ${miles} mi continuous${deload ? ' (deload)' : ''}`,
+        ? '5K TEST — 3.1 mi continuous (outdoor)'
+        : `Progression — ${miles} mi continuous${deload ? ' (deload)' : ''} (outdoor)`,
       type: isTest ? '5K Test' : 'Progression Run',
       prescribed: {
         format: isTest ? 'time_trial' : 'progression',
         warmup_min: 8,
+        surface: 'outdoor',
         continuous_miles: miles,
         target_pace_min_per_mile: 13.0,
         cooldown_min: 8,
@@ -127,7 +138,11 @@ function buildSessions(): Session[] {
           ? 'RPE 7-8. Even pace, finish strong.'
           : 'RPE 5-6. Continuous is the point — slow down rather than stop.',
       },
-      notes: isTest
+      notes: week === 1
+        ? `Already done — 60 min out, 3.78 mi total, ~1.1 mi of it continuous at ` +
+          `~13:30/mi, HR 122 avg / 149 max. This is the baseline everything else ` +
+          `is measured against.`
+        : isTest
         ? `The goal: 3.1 mi without stopping at ~13:00/mi (about 40 min). 8 min walk ` +
           `warm-up, then run. Even effort — do not start fast.`
         : `Run ${miles} mi continuously at whatever pace keeps you running. ${
@@ -165,6 +180,7 @@ const { data: plan, error: planError } = await supabase
     end_date: endDate,
     cycle_weeks: 12,
     plan_type: 'running',
+    discipline: 'cardio',
     status: 'active',
     ai_generated: false,
     config: {

@@ -254,12 +254,14 @@ export default async function DashboardHome() {
       .order("reading_date", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Every session scheduled today, across all active plans — strength and
+    // cardio run concurrently, so maybeSingle() would arbitrarily drop one.
     supabase
       .from("planned_workouts")
       .select("id,workout_type,day_label,status,scheduled_time")
       .eq("user_id", user.id)
       .eq("scheduled_date", todayIso)
-      .maybeSingle(),
+      .order("scheduled_time", { ascending: true, nullsFirst: false }),
     supabase
       .from("goals")
       .select("id,title,status")
@@ -351,7 +353,7 @@ export default async function DashboardHome() {
   const rhr = rhrResult.data;
   const hrv = hrvResult.data;
   const bp = bpResult.data;
-  const plannedWorkout = plannedWorkoutResult.data;
+  const plannedWorkouts = plannedWorkoutResult.data ?? [];
   const goals = goalsResult.data ?? [];
   const practices = (practicesResult.data ?? []) as Practice[];
   const practiceLogs = (practiceLogsResult.data ?? []) as PracticeLog[];
@@ -502,16 +504,23 @@ export default async function DashboardHome() {
       <section className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
         <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Today&rsquo;s training</p>
-          {plannedWorkout ? (
-            <>
-              <p className="mt-1 text-lg font-bold text-slate-900">
-                {plannedWorkout.day_label || plannedWorkout.workout_type}
-              </p>
-              <p className="text-xs text-slate-500">
-                Planned{plannedWorkout.scheduled_time ? ` for ${plannedWorkout.scheduled_time}` : ""}
-                {plannedWorkout.status ? ` · ${plannedWorkout.status}` : ""}
-              </p>
-            </>
+          {plannedWorkouts.length > 0 ? (
+            <ul className="mt-1 space-y-1">
+              {plannedWorkouts.map((w) => (
+                <li key={w.id} className="flex items-baseline gap-2">
+                  <span
+                    className={`text-sm font-bold ${
+                      w.status === "completed" ? "text-slate-400 line-through" : "text-slate-900"
+                    }`}
+                  >
+                    {w.day_label || w.workout_type}
+                  </span>
+                  {w.status === "completed" && (
+                    <span className="text-[11px] font-semibold text-emerald-600">done</span>
+                  )}
+                </li>
+              ))}
+            </ul>
           ) : (
             <p className="mt-1 text-sm text-slate-500">Nothing scheduled — log whatever you do.</p>
           )}
