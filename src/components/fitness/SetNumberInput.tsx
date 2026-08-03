@@ -108,7 +108,7 @@ export default function SetNumberInput({
         onChange={(e) => handleChange(e.target.value)}
         aria-label={label}
         // min-w keeps 3 digits ("135", "225") legible on a 320px phone.
-        className="h-11 w-full min-w-[2.1rem] rounded-lg border border-slate-200 bg-white px-0.5 text-center text-[15px] font-semibold tabular-nums focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
+        className="h-11 w-full min-w-[2.1rem] rounded-lg border border-slate-200 bg-white px-0.5 text-center text-[15px] font-semibold tabular-nums focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
         placeholder="0"
       />
       <button

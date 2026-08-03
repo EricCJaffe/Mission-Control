@@ -92,7 +92,7 @@ export default function WithingsSyncButton() {
         </p>
         <Link
           href="/fitness/settings/withings"
-          className="mt-2 inline-block text-xs font-medium text-lime-700 hover:text-lime-800"
+          className="mt-2 inline-block text-xs font-medium text-blue-700 hover:text-blue-800"
         >
           Connect Withings →
         </Link>
@@ -131,7 +131,7 @@ export default function WithingsSyncButton() {
         <button
           onClick={handleSync}
           disabled={syncing}
-          className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-xl bg-lime-500 px-4 text-sm font-semibold text-white hover:bg-lime-600 disabled:opacity-60"
+          className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-xl bg-blue-700 px-4 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
         >
           <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
           {syncing ? 'Syncing…' : 'Sync now'}
@@ -139,8 +139,8 @@ export default function WithingsSyncButton() {
       </div>
 
       {totals && (
-        <div className="mt-3 flex items-start gap-2 rounded-lg bg-lime-50 p-2.5">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-lime-600" />
+        <div className="mt-3 flex items-start gap-2 rounded-lg bg-blue-50 p-2.5">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
           <div className="text-xs text-slate-700">
             <p className="font-medium">
               Imported {totals.imported}, updated {totals.updated}.

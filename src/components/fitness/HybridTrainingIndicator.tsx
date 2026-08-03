@@ -189,7 +189,7 @@ export default function HybridTrainingIndicator({ primary, context }: Props) {
 
       <Link
         href="/fitness"
-        className="mt-4 inline-block text-xs font-medium text-lime-700 hover:text-lime-800"
+        className="mt-4 inline-block text-xs font-medium text-blue-700 hover:text-blue-800"
       >
         Open fitness →
       </Link>

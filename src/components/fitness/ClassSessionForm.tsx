@@ -63,7 +63,7 @@ export default function ClassSessionForm({ defaultDiscipline = 'Jiu-Jitsu' }: { 
     }
   }
 
-  const field = 'w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-base focus:border-lime-500 focus:outline-none';
+  const field = 'w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none';
   const label = 'block text-xs font-semibold uppercase tracking-wider text-slate-500';
 
   return (
@@ -102,7 +102,7 @@ export default function ClassSessionForm({ defaultDiscipline = 'Jiu-Jitsu' }: { 
                 type="button"
                 onClick={() => setRpe(rpe === i + 1 ? null : i + 1)}
                 className={`min-h-[40px] flex-1 rounded-md text-sm font-semibold tabular-nums transition-colors ${
-                  rpe === i + 1 ? 'bg-lime-500 text-white' : 'border border-slate-200 bg-white text-slate-500 hover:bg-slate-100'
+                  rpe === i + 1 ? 'bg-blue-700 text-white' : 'border border-slate-200 bg-white text-slate-500 hover:bg-slate-100'
                 }`}
               >
                 {i + 1}
@@ -145,7 +145,7 @@ export default function ClassSessionForm({ defaultDiscipline = 'Jiu-Jitsu' }: { 
         onClick={save}
         disabled={saving || saved || !duration}
         className={`flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl text-base font-bold text-white transition-colors ${
-          saved ? 'bg-emerald-600' : 'bg-lime-500 hover:bg-lime-600 disabled:opacity-60'
+          saved ? 'bg-emerald-600' : 'bg-blue-700 hover:bg-blue-800 disabled:opacity-60'
         }`}
       >
         {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" strokeWidth={3} />}

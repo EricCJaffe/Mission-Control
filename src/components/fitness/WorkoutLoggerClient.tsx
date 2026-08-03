@@ -162,7 +162,7 @@ const SET_TYPE_LABELS: Record<SetType, string> = {
 // Set-number badge styling by type. Working = the default green; other types
 // recolor the badge so the type is readable at a glance. Tapping cycles type.
 const SET_TYPE_BADGE: Record<SetType, string> = {
-  working: 'border-lime-500 text-slate-800 bg-lime-50',
+  working: 'border-emerald-600 text-slate-800 bg-emerald-50',
   warmup: 'border-amber-400 text-amber-700 bg-amber-50',
   cooldown: 'border-sky-400 text-sky-700 bg-sky-50',
   drop: 'border-purple-400 text-purple-700 bg-purple-50',
@@ -289,7 +289,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   useEffect(() => {
     // Only run the live clock for an in-progress workout. When logging a past
     // one, the duration is typed in instead.
-    if ((mode === 'logging' || mode === 'cardio') && isLive) {
+    if ((mode === 'logging' || mode === 'cardio' || mode === 'class') && isLive) {
       if (!timerStartRef.current) timerStartRef.current = Date.now();
       const interval = setInterval(() => {
         setElapsedSeconds(Math.floor((Date.now() - (timerStartRef.current ?? Date.now())) / 1000));
@@ -1326,7 +1326,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             <button
               onClick={() => setIsLive(true)}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors min-h-[40px] ${
-                isLive ? 'bg-lime-500 text-white' : 'text-slate-600 hover:bg-slate-50'
+                isLive ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
               Start — live timer
@@ -1334,7 +1334,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             <button
               onClick={() => setIsLive(false)}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors min-h-[40px] ${
-                !isLive ? 'bg-lime-500 text-white' : 'text-slate-600 hover:bg-slate-50'
+                !isLive ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
               Log — already done
@@ -1822,7 +1822,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           <div className={`grid ${cardioStats.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2 text-center`}>
             {cardioStats.map((stat) => (
               <div key={stat.label}>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-lime-400">{stat.label}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-300">{stat.label}</div>
                 <div className="mt-0.5 text-xl font-bold tabular-nums text-white">{stat.value}</div>
               </div>
             ))}
@@ -1862,7 +1862,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                       key={i + 1}
                       onClick={() => setRpeSession(i + 1)}
                       className={`min-h-[44px] flex-1 rounded-lg text-sm font-semibold tabular-nums ${
-                        rpeSession === i + 1 ? 'bg-lime-500 text-white' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-100'
+                        rpeSession === i + 1 ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-100'
                       }`}
                     >
                       {i + 1}
@@ -2058,7 +2058,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         )}
 
         <button onClick={saveWorkout} disabled={saving}
-          className="w-full rounded-xl bg-green-700 text-white text-sm font-semibold py-3 hover:bg-green-800 min-h-[44px] disabled:opacity-50">
+          className="w-full rounded-xl bg-blue-700 text-white text-sm font-semibold py-3 hover:bg-blue-800 min-h-[44px] disabled:opacity-50">
           {saving ? 'Saving...' : isLive ? 'Complete Workout' : 'Save Workout'}
         </button>
 
@@ -2111,7 +2111,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       <div key={s.id}>
         <div
           className={`grid grid-cols-[2rem_1fr_1fr_2.5rem_0.875rem] items-center gap-1 px-2 py-1.5 ${
-            s.completed ? 'bg-lime-50/60' : ''
+            s.completed ? 'bg-emerald-50/60' : ''
           }`}
         >
           {/* Set-number badge; tap to cycle set type. Colour encodes the type. */}
@@ -2141,8 +2141,8 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             title={s.completed ? 'Set done' : 'Mark set done'}
             className={`flex h-11 w-full items-center justify-center rounded-lg border-2 transition-colors ${
               s.completed
-                ? 'border-lime-500 bg-lime-500 text-white'
-                : 'border-slate-200 bg-white text-slate-300 hover:border-lime-400'
+                ? 'border-emerald-600 bg-emerald-600 text-white'
+                : 'border-slate-200 bg-white text-slate-300 hover:border-emerald-500'
             }`}
           >
             <Check className="h-5 w-5" strokeWidth={3} />
@@ -2179,7 +2179,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           <div className="flex-1">
             <button
               onClick={() => router.push(`/fitness/exercises/${block.exercise_id}`)}
-              className="text-base font-bold text-slate-900 hover:text-lime-700 transition-colors text-left"
+              className="text-base font-bold text-slate-900 hover:text-blue-700 transition-colors text-left"
             >
               {block.exercise_name}
             </button>
@@ -2240,7 +2240,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                 key={i + 1}
                 onClick={() => setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, exercise_rpe: i + 1 } : b))}
                 className={`min-h-[36px] flex-1 rounded-md text-xs font-semibold tabular-nums ${
-                  block.exercise_rpe === i + 1 ? 'bg-lime-500 text-white' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-100'
+                  block.exercise_rpe === i + 1 ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-100'
                 }`}
               >
                 {i + 1}
@@ -2253,7 +2253,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         <div className="px-3 py-2 border-t border-slate-100">
           <button
             onClick={() => addSetToBlock(block.id)}
-            className="flex min-h-[44px] w-full items-center justify-center rounded-lg bg-lime-50 text-sm font-semibold text-lime-700 hover:bg-lime-100"
+            className="flex min-h-[44px] w-full items-center justify-center rounded-lg bg-blue-50 text-sm font-semibold text-blue-700 hover:bg-blue-100"
           >
             + Add Set
           </button>
@@ -2285,7 +2285,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       <div className="sticky top-2 z-20 rounded-2xl bg-slate-900 px-4 py-3 shadow-lg">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-lime-400">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-300">
               {isLive ? 'Time' : 'Minutes'}
             </div>
             {isLive ? (
@@ -2302,11 +2302,11 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             )}
           </div>
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-lime-400">Tonnage (lbs)</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-300">Tonnage (lbs)</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-white">{tonnage.toLocaleString()}</div>
           </div>
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-lime-400">Sets</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-300">Sets</div>
             <div className="mt-0.5 text-xl font-bold tabular-nums text-white">
               {completedSets === totalSets ? `${totalSets}` : `${completedSets}/${totalSets}`}
             </div>
@@ -2360,7 +2360,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             else setRestTimer(null);
           }}
           className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
-            restEnabled ? 'bg-lime-500' : 'bg-slate-300'
+            restEnabled ? 'bg-blue-700' : 'bg-slate-300'
           }`}
         >
           <span
@@ -2601,7 +2601,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
               </button>
               <button
                 onClick={handleSaveAnyway}
-                className="flex-1 min-h-[44px] rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                className="flex-1 min-h-[44px] rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
               >
                 Save Anyway
               </button>

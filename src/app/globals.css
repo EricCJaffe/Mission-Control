@@ -88,3 +88,25 @@ button.mc-loading::after {
   border-bottom: 2px solid #38bdf8;
   border-radius: 2px;
 }
+
+/*
+ * Box outlines.
+ *
+ * Eric's note: the grey outlines read too light across the whole app. Rather
+ * than rewriting ~1,400 utility classes — which would drift the moment anyone
+ * added a card — the grey border shades are darkened here in one place.
+ *
+ * Only greys are touched. A rose, emerald, blue or amber border is carrying
+ * meaning and keeps its colour.
+ *
+ * slate-100 is deliberately excluded: it is used for hairline dividers INSIDE
+ * cards, and turning those black would draw a heavy rule through the middle of
+ * every panel rather than around it.
+ */
+.border-slate-200,
+.border-slate-300,
+.border-slate-400,
+.border-gray-200,
+.border-gray-300 {
+  border-color: #000;
+}

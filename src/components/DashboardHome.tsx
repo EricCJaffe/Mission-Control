@@ -545,19 +545,13 @@ export default async function DashboardHome() {
             <p className="mt-0.5 text-sm text-slate-500">Nothing scheduled — log whatever you do.</p>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex">
           <Link
             href="/fitness/log"
-            className="flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-800"
+            className="flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-6 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-800"
           >
             <Dumbbell className="h-5 w-5" />
             Log Workout
-          </Link>
-          <Link
-            href="/fitness/log?type=jiujitsu"
-            className="flex min-h-[56px] items-center justify-center rounded-2xl border-2 border-blue-700 bg-blue-50 px-4 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100"
-          >
-            Jiu Jitsu
           </Link>
         </div>
       </section>
