@@ -29,7 +29,7 @@ export default async function MorningBriefingPage() {
       .select('id, day_label, workout_type, prescribed')
       .eq('user_id', user.id).eq('scheduled_date', today).maybeSingle(),
     supabase.from('daily_readiness')
-      .select('readiness_score, readiness_color, readiness_label, hrv_score, rhr_score, sleep_score, body_battery_score, form_score, bp_score, weather_score, recommendation')
+      .select('readiness_score, readiness_color, readiness_label, hrv_score, rhr_score, sleep_score, body_battery_score, form_score, bp_score, weather_score, soreness_score, recovery_context, missing_factors, recommendation')
       .eq('user_id', user.id).eq('calc_date', today).maybeSingle(),
     supabase.from('daily_strain')
       .select('strain_score, strain_level')

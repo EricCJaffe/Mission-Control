@@ -4,6 +4,7 @@
 // ============================================================
 
 import type { ReadinessInputs, ReadinessResult, ReadinessFactor } from './types';
+import { summariseRecovery, recoveryNudge, type RecoverySessionInput } from './recovery-readiness';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -14,9 +15,14 @@ const WEIGHTS = {
   rhr: 0.20,
   sleep: 0.15,
   bodyBattery: 0.10,
-  form: 0.15,
+  form: 0.13,
   bloodPressure: 0.10,
-  weather: 0.05,
+  // Self-rated soreness / perceived recovery. Small on purpose: it is the only
+  // musculoskeletal signal in the model, but it is also the only self-reported
+  // one, and self-reports drift. Taken from form, which already overlaps with
+  // it — TSB is a modelled proxy for exactly the fatigue this measures directly.
+  musculoskeletal: 0.05,
+  weather: 0.02,
 } as const;
 
 function calcHrvScore(hrv: number, baseline: number): { score: number; detail: string } {
@@ -60,9 +66,12 @@ function calcFormScore(tsb: number): { score: number; detail: string } {
 function calcBpScore(
   systolic: number | null,
   diastolic: number | null,
-): { score: number; detail: string } {
+): { score: number | null; detail: string } {
+  // Was 80 — a fabricated "probably fine". Downstream, a made-up score is
+  // indistinguishable from a measured one, so a missing reading quietly
+  // propped the total up. It now drops out and the other weights renormalise.
   if (systolic === null || diastolic === null) {
-    return { score: 80, detail: 'No recent reading' };
+    return { score: null, detail: 'No recent reading' };
   }
   if (systolic < 120 && diastolic < 80) return { score: 100, detail: `${systolic}/${diastolic} — normal` };
   if (systolic < 130) return { score: 70, detail: `${systolic}/${diastolic} — elevated` };
@@ -73,10 +82,11 @@ function calcBpScore(
 function calcWeatherScore(
   heatIndex: number | null,
   outdoorPlanned: boolean,
-): { score: number; detail: string } {
-  if (!outdoorPlanned || heatIndex === null) {
-    return { score: 100, detail: 'Indoor or no data' };
-  }
+): { score: number | null; detail: string } {
+  // Indoor genuinely is a perfect weather score — nothing outside can hurt the
+  // session. Missing data is a different thing entirely and drops out.
+  if (!outdoorPlanned) return { score: 100, detail: 'Indoor session' };
+  if (heatIndex === null) return { score: null, detail: 'No weather data' };
   if (heatIndex < 80) return { score: 100, detail: `${heatIndex}°F — comfortable` };
   if (heatIndex < 85) return { score: 80, detail: `${heatIndex}°F — warm` };
   if (heatIndex < 90) return { score: 50, detail: `${heatIndex}°F — caution` };
@@ -93,21 +103,43 @@ export function calculateReadinessScore(inputs: ReadinessInputs): ReadinessResul
   const bp = calcBpScore(inputs.latest_bp_systolic, inputs.latest_bp_diastolic);
   const weather = calcWeatherScore(inputs.heat_index_f, inputs.outdoor_planned);
 
-  const factors: ReadinessFactor[] = [
-    { name: 'HRV', score: hrv.score, weight: WEIGHTS.hrv, weighted_contribution: hrv.score * WEIGHTS.hrv, detail: hrv.detail },
-    { name: 'Resting HR', score: rhr.score, weight: WEIGHTS.rhr, weighted_contribution: rhr.score * WEIGHTS.rhr, detail: rhr.detail },
-    { name: 'Sleep', score: sleep.score, weight: WEIGHTS.sleep, weighted_contribution: sleep.score * WEIGHTS.sleep, detail: sleep.detail },
-    { name: 'Body Battery', score: bb.score, weight: WEIGHTS.bodyBattery, weighted_contribution: bb.score * WEIGHTS.bodyBattery, detail: bb.detail },
-    { name: 'Form (TSB)', score: form.score, weight: WEIGHTS.form, weighted_contribution: form.score * WEIGHTS.form, detail: form.detail },
-    { name: 'Blood Pressure', score: bp.score, weight: WEIGHTS.bloodPressure, weighted_contribution: bp.score * WEIGHTS.bloodPressure, detail: bp.detail },
-    { name: 'Weather', score: weather.score, weight: WEIGHTS.weather, weighted_contribution: weather.score * WEIGHTS.weather, detail: weather.detail },
+  const recovery = summariseRecovery(inputs.recovery_sessions ?? [], inputs.now ?? new Date());
+
+  const raw: Array<{ name: string; score: number | null; weight: number; detail: string }> = [
+    { name: 'HRV', score: hrv.score, weight: WEIGHTS.hrv, detail: hrv.detail },
+    { name: 'Resting HR', score: rhr.score, weight: WEIGHTS.rhr, detail: rhr.detail },
+    { name: 'Sleep', score: sleep.score, weight: WEIGHTS.sleep, detail: sleep.detail },
+    { name: 'Body Battery', score: bb.score, weight: WEIGHTS.bodyBattery, detail: bb.detail },
+    { name: 'Form (TSB)', score: form.score, weight: WEIGHTS.form, detail: form.detail },
+    { name: 'Blood Pressure', score: bp.score, weight: WEIGHTS.bloodPressure, detail: bp.detail },
+    { name: 'Soreness', score: recovery.score, weight: WEIGHTS.musculoskeletal, detail: recovery.detail },
+    { name: 'Weather', score: weather.score, weight: WEIGHTS.weather, detail: weather.detail },
   ];
 
-  const score = Math.round(factors.reduce((sum, f) => sum + f.weighted_contribution, 0));
+  // Renormalise over the factors that actually have data, so a missing input
+  // neither drags the score down nor silently props it up. With everything
+  // present this is identical to the fixed weights.
+  const available = raw.filter((f) => f.score !== null);
+  const availableWeight = available.reduce((sum, f) => sum + f.weight, 0);
+
+  const factors: ReadinessFactor[] = raw.map((f) => {
+    const weight = f.score === null || availableWeight === 0 ? 0 : f.weight / availableWeight;
+    return {
+      name: f.name,
+      score: f.score,
+      weight,
+      weighted_contribution: f.score === null ? 0 : f.score * weight,
+      detail: f.detail,
+    };
+  });
+
+  const score = availableWeight === 0
+    ? 0
+    : Math.round(factors.reduce((sum, f) => sum + f.weighted_contribution, 0));
+
   const color = score >= 70 ? 'green' : score >= 40 ? 'yellow' : 'red';
   const label = score >= 70 ? 'Primed' : score >= 40 ? 'Moderate' : 'Recovery';
 
-  // Default recommendation based on score ranges
   let recommendation: string;
   if (score >= 80) recommendation = "You're primed. Hit today's session hard.";
   else if (score >= 70) recommendation = 'Good recovery. Execute as planned.';
@@ -115,5 +147,18 @@ export function calculateReadinessScore(inputs: ReadinessInputs): ReadinessResul
   else if (score >= 40) recommendation = 'Below average. Drop to Zone 1-2 only, reduce volume 30%.';
   else recommendation = 'Recovery day. Swap for a light walk or complete rest.';
 
-  return { score, color, label, factors, recommendation };
+  return {
+    score,
+    color,
+    label,
+    factors,
+    recommendation,
+    recovery: {
+      sessions_last_14d: recovery.sessionsInWindow,
+      days_since_last: recovery.daysSinceLast,
+      modalities: recovery.modalities,
+      nudge: recoveryNudge(recovery, score),
+    },
+    missing_factors: raw.filter((f) => f.score === null).map((f) => f.name),
+  };
 }

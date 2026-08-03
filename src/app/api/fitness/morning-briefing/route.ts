@@ -148,6 +148,7 @@ async function buildMorningBriefing({ regenerate }: { regenerate: boolean }) {
       : 120,
     heat_index_f: null,
     outdoor_planned: todayPlan?.workout_type === 'cardio',
+    recovery_sessions: recoverySessions as unknown as ReadinessInputs['recovery_sessions'],
   };
 
   const readiness = calculateReadinessScore(readinessInputs);
@@ -228,7 +229,12 @@ async function buildMorningBriefing({ regenerate }: { regenerate: boolean }) {
     user_id: user.id, // NEW: passes user ID for health context loading
     readiness_score: readiness.score,
     readiness_label: readiness.label,
-    readiness_factors: readiness.factors,
+    // Only factors that actually had data. A factor with a null score was
+    // excluded from the number, and handing it to the briefing would invite
+    // the model to narrate a measurement that was never taken.
+    readiness_factors: readiness.factors
+      .filter((f): f is typeof f & { score: number } => f.score !== null)
+      .map((f) => ({ name: f.name, score: f.score, detail: f.detail })),
     resting_hr: metrics?.resting_hr ?? null,
     rhr_baseline: rhrBaseline,
     hrv_ms: metrics?.hrv_ms ?? null,

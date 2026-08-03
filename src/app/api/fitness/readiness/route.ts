@@ -108,13 +108,17 @@ export async function GET() {
       : 120,
     heat_index_f: weatherRes?.heat_index_f ?? null,
     outdoor_planned: outdoorPlanned,
+    recovery_sessions: recoverySessions as unknown as ReadinessInputs['recovery_sessions'],
   };
 
   const result = calculateReadinessScore(inputs);
-  const recoveryAdjustment = calculateRecoveryAdjustment(recoverySessions);
-  if (recoveryAdjustment.delta !== 0) {
-    result.score = Math.max(0, Math.min(100, result.score + recoveryAdjustment.delta));
-    result.recommendation = `${result.recommendation} ${recoveryAdjustment.message}`.trim();
+
+  // The recovery nudge is advice, appended to the recommendation. It is
+  // deliberately NOT added to the score: see recovery-readiness.ts for why
+  // crediting the number for logged modalities both double-counts and makes
+  // the score raisable by logging rather than by recovering.
+  if (result.recovery.nudge) {
+    result.recommendation = `${result.recommendation} ${result.recovery.nudge}`.trim();
   }
 
   // Persist
@@ -131,9 +135,13 @@ export async function GET() {
     form_score: result.factors.find(f => f.name === 'Form (TSB)')?.score,
     bp_score: result.factors.find(f => f.name === 'Blood Pressure')?.score,
     weather_score: result.factors.find(f => f.name === 'Weather')?.score,
+    soreness_score: result.factors.find(f => f.name === 'Soreness')?.score,
+    recovery_context: result.recovery,
+    missing_factors: result.missing_factors,
     inputs: {
       ...(inputs as unknown as Record<string, unknown>),
-      recovery_adjustment: recoveryAdjustment,
+      recovery: result.recovery,
+      missing_factors: result.missing_factors,
       recent_recovery_sessions: recoverySessions,
     },
     recommendation: result.recommendation,
@@ -158,52 +166,3 @@ function recentDate(daysBack: number) {
   return date.toISOString().slice(0, 10);
 }
 
-function calculateRecoveryAdjustment(sessions: Array<Record<string, unknown>>) {
-  if (sessions.length === 0) {
-    return {
-      delta: -2,
-      message: 'No recent recovery work logged, so readiness is being scored slightly more conservatively.',
-    };
-  }
-
-  const totalMinutes = sessions.reduce((sum, session) => sum + (Number(session.duration_min) || 0), 0);
-  const avgPerceivedRecovery = average(
-    sessions.map((session) => {
-      const value = Number(session.perceived_recovery);
-      return Number.isFinite(value) ? value : null;
-    })
-  );
-  const avgEnergyDelta = average(
-    sessions.map((session) => {
-      const before = Number(session.energy_before);
-      const after = Number(session.energy_after);
-      if (!Number.isFinite(before) || !Number.isFinite(after)) return null;
-      return after - before;
-    })
-  );
-
-  if (sessions.length >= 2 && totalMinutes >= 40 && ((avgPerceivedRecovery ?? 0) >= 7 || (avgEnergyDelta ?? 0) >= 1)) {
-    return {
-      delta: 3,
-      message: 'Recent recovery work is supporting readiness, so the score gets a modest positive adjustment.',
-    };
-  }
-
-  if (sessions.length >= 1 && totalMinutes >= 20) {
-    return {
-      delta: 1,
-      message: 'Recent recovery work is being counted as a small positive readiness signal.',
-    };
-  }
-
-  return {
-    delta: 0,
-    message: '',
-  };
-}
-
-function average(values: Array<number | null>) {
-  const filtered = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
-  if (filtered.length === 0) return null;
-  return filtered.reduce((sum, value) => sum + value, 0) / filtered.length;
-}

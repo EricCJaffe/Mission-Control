@@ -64,6 +64,14 @@ type Props = {
     form_score: number | null;
     bp_score: number | null;
     weather_score: number | null;
+    soreness_score: number | null;
+    recovery_context: {
+      sessions_last_14d: number;
+      days_since_last: number | null;
+      modalities: string[];
+      nudge: string | null;
+    } | null;
+    missing_factors: string[] | null;
     recommendation: string | null;
   } | null;
   strain: {
@@ -478,16 +486,59 @@ export default function MorningBriefingClient(props: Props) {
               { label: 'Body Battery', score: readiness.body_battery_score },
               { label: 'Form (TSB)', score: readiness.form_score },
               { label: 'Blood Pressure', score: readiness.bp_score },
+              { label: 'Soreness', score: readiness.soreness_score },
               { label: 'Weather', score: readiness.weather_score },
             ].map((f) => (
               <div key={f.label} className="flex items-center gap-2 text-xs">
                 <span className="w-24 text-slate-500">{f.label}</span>
+                {/* A missing factor gets a hatched track, not an empty bar.
+                    An empty bar reads as zero — as though the factor were
+                    measured and terrible — when it was never measured at all. */}
                 <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-                  <div className={`h-full rounded-full ${barColor(f.score ?? 0)}`} style={{ width: `${f.score ?? 0}%` }} />
+                  {f.score === null ? (
+                    <div className="h-full w-full bg-[repeating-linear-gradient(45deg,#e2e8f0_0_4px,transparent_4px_8px)]" />
+                  ) : (
+                    <div className={`h-full rounded-full ${barColor(f.score)}`} style={{ width: `${f.score}%` }} />
+                  )}
                 </div>
-                <span className="w-8 text-right font-mono">{f.score ?? '—'}</span>
+                <span className="w-8 text-right font-mono text-slate-400">{f.score ?? 'n/a'}</span>
               </div>
             ))}
+
+            {readiness.missing_factors && readiness.missing_factors.length > 0 && (
+              <p className="pt-1 text-[11px] text-slate-400">
+                Not measured today: {readiness.missing_factors.join(', ')}. The remaining
+                factors were reweighted to fill the gap rather than assuming a value.
+              </p>
+            )}
+
+            {readiness.recovery_context && (
+              <div className="mt-3 rounded-xl bg-teal-50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">Recovery</p>
+                <p className="mt-1 text-xs text-teal-900">
+                  {readiness.recovery_context.sessions_last_14d > 0 ? (
+                    <>
+                      {readiness.recovery_context.sessions_last_14d} session
+                      {readiness.recovery_context.sessions_last_14d === 1 ? '' : 's'} in 14 days
+                      {readiness.recovery_context.days_since_last !== null &&
+                        ` · last ${readiness.recovery_context.days_since_last === 0 ? 'today' : `${readiness.recovery_context.days_since_last}d ago`}`}
+                      {readiness.recovery_context.modalities.length > 0 &&
+                        ` · ${readiness.recovery_context.modalities.join(', ')}`}
+                    </>
+                  ) : (
+                    'No recovery sessions logged in the last 14 days.'
+                  )}
+                </p>
+                {readiness.recovery_context.nudge && (
+                  <p className="mt-1 text-xs text-teal-700">{readiness.recovery_context.nudge}</p>
+                )}
+                <p className="mt-1.5 text-[11px] text-teal-600">
+                  Sauna, plunge and massage are shown here but do not change the score —
+                  if they worked, the effect already shows up in HRV, resting HR and sleep.
+                  Only what you rate (soreness, perceived recovery) counts, above.
+                </p>
+              </div>
+            )}
           </div>
         </details>
       )}

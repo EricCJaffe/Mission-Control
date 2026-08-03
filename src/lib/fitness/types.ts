@@ -2,6 +2,8 @@
 // FITNESS MODULE — Shared TypeScript Types
 // ============================================================
 
+import type { RecoverySessionInput } from './recovery-readiness';
+
 export type WorkoutType = 'strength' | 'cardio' | 'hiit' | 'hybrid' | 'mobility';
 export type SetType = 'warmup' | 'working' | 'cooldown' | 'drop' | 'failure' | 'amrap';
 export type ExerciseCategory = 'push' | 'pull' | 'legs' | 'core' | 'cardio' | 'mobility';
@@ -354,7 +356,9 @@ export type LabType =
 
 export type ReadinessFactor = {
   name: string;
-  score: number;
+  /** Null when the input was missing — the factor is excluded, not guessed. */
+  score: number | null;
+  /** Weight actually applied after renormalising over available factors. */
   weight: number;
   weighted_contribution: number;
   detail: string;
@@ -377,6 +381,9 @@ export type ReadinessInputs = {
   bp_7day_avg_systolic: number;
   heat_index_f: number | null;
   outdoor_planned: boolean;
+  /** Recent recovery sessions, for the musculoskeletal self-report factor. */
+  recovery_sessions?: RecoverySessionInput[];
+  now?: Date;
 };
 
 export type ReadinessResult = {
@@ -385,6 +392,15 @@ export type ReadinessResult = {
   label: ReadinessLabel;
   factors: ReadinessFactor[];
   recommendation: string;
+  /** Recovery shown beside the score as context — it never moves the score. */
+  recovery: {
+    sessions_last_14d: number;
+    days_since_last: number | null;
+    modalities: string[];
+    nudge: string | null;
+  };
+  /** Factors dropped for missing data. Surfaced so a thin score reads as thin. */
+  missing_factors: string[];
 };
 
 export type StrainInputs = {
