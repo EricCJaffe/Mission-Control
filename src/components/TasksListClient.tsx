@@ -196,6 +196,7 @@ export default function TasksListClient({
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showDone, setShowDone] = useState(false);
   const [tab, setTab] = useState("my");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   /** Optimistic status overrides, keyed by task id. */
@@ -227,7 +228,8 @@ export default function TasksListClient({
 
   const filtered = useMemo(() => {
     return tasks.filter((task) => {
-      if (statusFilter !== "all" && normalizeStatus(task.status) !== statusFilter) return false;
+      // Status is applied at the section level, not here — filtering twice
+      // meant picking "Done" emptied every section including Done.
       if (!search.trim()) return true;
       const hay = `${task.title} ${task.category || ""} ${task.why || ""}`.toLowerCase();
       return hay.includes(search.toLowerCase());
@@ -271,7 +273,11 @@ export default function TasksListClient({
     }
   }
 
-  const pinned = withOverrides.filter((task) => task.priority === 1);
+  // Pinned means "important", not "permanent" — a completed pinned task drops
+  // into Done with everything else rather than sitting at the top for good.
+  const pinned = withOverrides.filter(
+    (task) => task.priority === 1 && normalizeStatus(task.status) !== "done",
+  );
   const todo = withOverrides.filter((task) => normalizeStatus(task.status) === "todo" && task.priority !== 1);
   const inProgress = withOverrides.filter((task) => task.status === "in_progress");
   const done = withOverrides.filter((task) => task.status === "done");
@@ -317,13 +323,6 @@ export default function TasksListClient({
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="all">All Lists</option>
-          <option value="todo">To Do</option>
-          <option value="in_progress">In Progress</option>
-          <option value="done">Done</option>
-          <option value="blocked">Blocked</option>
-        </select>
         <select className="rounded-xl border border-slate-200 bg-white px-3 py-2">
           <option>All Projects</option>
         </select>
@@ -338,7 +337,7 @@ export default function TasksListClient({
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
         {[
           { key: "my", label: "My Tasks" },
           { key: "all", label: "All Tasks" },
@@ -354,6 +353,35 @@ export default function TasksListClient({
             {item.label}
           </button>
         ))}
+
+        <span className="mx-1 h-4 w-px bg-slate-300" />
+
+        {[
+          { key: "all", label: "All" },
+          { key: "todo", label: "To Do", count: todo.length + pinned.length },
+          { key: "in_progress", label: "In Progress", count: inProgress.length },
+          { key: "done", label: "Done", count: done.length },
+          { key: "blocked", label: "Blocked", count: blocked.length },
+        ].map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => {
+              setStatusFilter(item.key);
+              if (item.key === "done") setShowDone(true);
+            }}
+            className={`rounded-full border px-3 py-1 ${
+              statusFilter === item.key ? "bg-blue-700 text-white" : "bg-white"
+            }`}
+          >
+            {item.label}
+            {item.count !== undefined && (
+              <span className={statusFilter === item.key ? "ml-1 text-blue-200" : "ml-1 text-slate-400"}>
+                {item.count}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       <div className="mt-4 rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
@@ -363,7 +391,7 @@ export default function TasksListClient({
         )}
         {tab !== "templates" && (
           <div className="divide-y divide-slate-100">
-            {pinned.length > 0 && (
+            {pinned.length > 0 && (statusFilter === "all" || statusFilter === "todo") && (
               <div className="px-4 py-3">
                 <div className="text-xs font-semibold text-slate-500">Pinned</div>
                 <div className="mt-2 grid gap-2">
@@ -374,6 +402,7 @@ export default function TasksListClient({
               </div>
             )}
 
+            {(statusFilter === "all" || statusFilter === "todo") && (
             <div className="px-4 py-3">
               <div className="text-xs font-semibold text-slate-500">To Do</div>
               <div className="mt-2 grid gap-2">
@@ -383,36 +412,51 @@ export default function TasksListClient({
                 {todo.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
               </div>
             </div>
+            )}
 
-            <div className="px-4 py-3">
-              <div className="text-xs font-semibold text-slate-500">In Progress</div>
-              <div className="mt-2 grid gap-2">
-                {inProgress.map((task) => (
-                  <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
-                ))}
-                {inProgress.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
+            {inProgress.length > 0 && (statusFilter === "all" || statusFilter === "in_progress") && (
+              <div className="px-4 py-3">
+                <div className="text-xs font-semibold text-slate-500">In Progress</div>
+                <div className="mt-2 grid gap-2">
+                  {inProgress.map((task) => (
+                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
+            {(statusFilter === "all" || statusFilter === "done") && (
             <div className="px-4 py-3">
-              <div className="text-xs font-semibold text-slate-500">Done</div>
-              <div className="mt-2 grid gap-2">
-                {done.map((task) => (
-                  <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
-                ))}
-                {done.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowDone((v) => !v)}
+                className="flex w-full items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700"
+              >
+                <span>{showDone ? "▾" : "▸"}</span>
+                Done
+                <span className="font-normal text-slate-400">{done.length}</span>
+              </button>
+              {showDone && (
+                <div className="mt-2 grid gap-2">
+                  {done.map((task) => (
+                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
+                  ))}
+                  {done.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
+                </div>
+              )}
             </div>
+            )}
 
-            <div className="px-4 py-3">
-              <div className="text-xs font-semibold text-slate-500">Blocked</div>
-              <div className="mt-2 grid gap-2">
-                {blocked.map((task) => (
-                  <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
-                ))}
-                {blocked.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
+            {blocked.length > 0 && (statusFilter === "all" || statusFilter === "blocked") && (
+              <div className="px-4 py-3">
+                <div className="text-xs font-semibold text-slate-500">Blocked</div>
+                <div className="mt-2 grid gap-2">
+                  {blocked.map((task) => (
+                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
