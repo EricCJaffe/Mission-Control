@@ -2,12 +2,12 @@ import { supabaseServer } from '@/lib/supabase/server';
 import MileageClient from '@/components/fitness/MileageClient';
 import {
   monthlyBuckets,
-  periodStart,
   periodTotal,
   projectPeriod,
   toIso,
-  weeklyBuckets,
-  workoutTotals,
+  workoutMonthlyBuckets,
+  workoutPeriodTotal,
+  workoutWeeklyBuckets,
   type DayDistance,
   type PeriodKey,
   type WorkoutDistance,
@@ -27,14 +27,23 @@ export default async function MileagePage() {
 
   const today = toIso(new Date());
 
-  const [daysRes, routesRes] = await Promise.all([
+  const [daysRes, cardioRes, routesRes] = await Promise.all([
     supabase
       .from('daily_summaries')
       .select('summary_date, distance_miles, total_steps')
       .eq('user_id', user.id)
       .order('summary_date', { ascending: false }),
-    // Route geometry is the only reliable per-workout distance — workout_logs
-    // has no distance column, so session mileage is measured rather than read.
+    // cardio_logs is the real source for session distance: 121 sessions carry
+    // it against 6 with GPS, and it covers treadmill and indoor work, which
+    // have no route at all. The training block alternates onto the treadmill,
+    // so measuring only outdoor runs would report half the mileage as zero.
+    supabase
+      .from('cardio_logs')
+      .select('workout_log_id, distance_miles, workout_logs!inner(user_id, workout_date, workout_type, duration_minutes)')
+      .eq('workout_logs.user_id', user.id)
+      .not('distance_miles', 'is', null),
+    // GPS is still consulted for anything cardio_logs missed — a route with no
+    // reported distance can still be measured from its own geometry.
     supabase
       .from('workout_routes')
       .select('workout_log_id, points, workout_logs!inner(workout_date, workout_type, duration_minutes)')
@@ -42,32 +51,60 @@ export default async function MileagePage() {
   ]);
 
   if (daysRes.error) console.error('[mileage] daily_summaries:', daysRes.error.message);
+  if (cardioRes.error) console.error('[mileage] cardio_logs:', cardioRes.error.message);
   if (routesRes.error) console.error('[mileage] workout_routes:', routesRes.error.message);
 
   const days = (daysRes.data ?? []) as DayDistance[];
 
   const workouts: WorkoutDistance[] = [];
-  for (const row of routesRes.data ?? []) {
-    const log = (row as unknown as {
+  const seen = new Set<string>();
+
+  for (const row of cardioRes.data ?? []) {
+    const r = row as unknown as {
+      workout_log_id: string;
+      distance_miles: number | null;
       workout_logs: { workout_date: string; workout_type: string | null; duration_minutes: number | null };
-    }).workout_logs;
-    if (!log) continue;
-    const analysis = analyseRun((row as unknown as { points: [] }).points ?? []);
-    if (!analysis) continue;
+    };
+    if (!r.workout_logs || !r.distance_miles) continue;
+    seen.add(r.workout_log_id);
     workouts.push({
-      workout_date: log.workout_date,
-      workout_type: log.workout_type,
-      miles: analysis.totalMiles,
-      minutes: log.duration_minutes,
+      workout_date: r.workout_logs.workout_date,
+      workout_type: r.workout_logs.workout_type,
+      miles: r.distance_miles,
+      minutes: r.workout_logs.duration_minutes,
     });
   }
 
-  const totals = PERIODS.map((p) => periodTotal(days, p, today));
-  const workoutsByPeriod = Object.fromEntries(
-    PERIODS.map((p) => [p, workoutTotals(workouts, periodStart(p, today), today)]),
-  );
+  for (const row of routesRes.data ?? []) {
+    const r = row as unknown as {
+      workout_log_id: string;
+      points: [];
+      workout_logs: { workout_date: string; workout_type: string | null; duration_minutes: number | null };
+    };
+    if (!r.workout_logs || seen.has(r.workout_log_id)) continue;
+    const analysis = analyseRun(r.points ?? []);
+    if (!analysis) continue;
+    workouts.push({
+      workout_date: r.workout_logs.workout_date,
+      workout_type: r.workout_logs.workout_type,
+      miles: analysis.totalMiles,
+      minutes: r.workout_logs.duration_minutes,
+    });
+  }
+
+  // Training first. Everyday walking is kept for context but never merged in.
+  const sessionTotals = PERIODS.map((p) => workoutPeriodTotal(workouts, p, today));
+  const dailyTotals = PERIODS.map((p) => periodTotal(days, p, today));
+
+  // Projection is run off session miles, since that is the headline now.
   const projections = Object.fromEntries(
-    totals.map((t) => [t.period, projectPeriod(t, today)]),
+    sessionTotals.map((t) => [
+      t.period,
+      projectPeriod(
+        { ...dailyTotals.find((d) => d.period === t.period)!, milesPerDay: t.daysElapsed > 0 ? t.miles / t.daysElapsed : 0 },
+        today,
+      ),
+    ]),
   );
 
   return (
@@ -75,15 +112,16 @@ export default async function MileagePage() {
       <div className="mb-6">
         <h1 className="text-3xl font-semibold">Mileage</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Distance on foot by week, month and year — everyday walking and logged sessions
-          counted separately.
+          Training distance by week, month and year. Everyday walking is tracked separately
+          at the bottom.
         </p>
       </div>
       <MileageClient
-        totals={totals}
-        monthly={monthlyBuckets(days, today.slice(0, 4))}
-        weekly={weeklyBuckets(days, today, 12)}
-        workoutsByPeriod={workoutsByPeriod}
+        workoutTotals={sessionTotals}
+        dailyTotals={dailyTotals}
+        monthly={workoutMonthlyBuckets(workouts, today.slice(0, 4))}
+        weekly={workoutWeeklyBuckets(workouts, today, 12)}
+        dailyMonthly={monthlyBuckets(days, today.slice(0, 4))}
         projections={projections}
         year={today.slice(0, 4)}
       />

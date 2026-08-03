@@ -231,10 +231,129 @@ export function workoutTotals(
     miles: Math.round(miles * 100) / 100,
     sessions: inRange.length,
     minutes: Math.round(minutes),
+    // Strength and flexibility sessions carry no distance; listing them at
+    // 0.0 mi in a mileage breakdown is a row that only ever says "not this".
     byType: [...byType.entries()]
       .map(([type, v]) => ({ type, miles: Math.round(v.miles * 100) / 100, sessions: v.sessions }))
+      .filter((t) => t.miles > 0)
       .sort((a, b) => b.miles - a.miles),
   };
+}
+
+export type WorkoutPeriodTotal = WorkoutTotals & {
+  period: PeriodKey;
+  label: string;
+  start: string;
+  end: string;
+  daysElapsed: number;
+  previousMiles: number;
+  changePct: number | null;
+  /** Longest single session in the period, miles. */
+  longestMiles: number;
+};
+
+/**
+ * Session mileage for a period, with the same like-for-like comparison the
+ * daily totals use — the first N days of last month, not all of it.
+ *
+ * This is the number that answers "how much did I train", which is the one
+ * Eric actually cares about. Everyday walking is real distance but it is not
+ * training, and averaging the two together hides whether a week of running
+ * happened at all.
+ */
+export function workoutPeriodTotal(
+  workouts: WorkoutDistance[],
+  period: PeriodKey,
+  today: string
+): WorkoutPeriodTotal {
+  const start =
+    period === 'all'
+      ? workouts.reduce<string>(
+          (min, w) => (w.workout_date.slice(0, 10) < min ? w.workout_date.slice(0, 10) : min),
+          today
+        )
+      : periodStart(period, today);
+
+  const totals = workoutTotals(workouts, start, today);
+
+  const daysElapsed =
+    Math.round(
+      (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86_400_000
+    ) + 1;
+
+  const prevEnd = addDays(periodStart(period, today), -1);
+  const prevStart = addDays(prevEnd, -(daysElapsed - 1));
+  const previousMiles =
+    period === 'all' ? 0 : workoutTotals(workouts, prevStart, prevEnd).miles;
+
+  const longestMiles = workouts
+    .filter((w) => {
+      const day = w.workout_date.slice(0, 10);
+      return day >= start && day <= today;
+    })
+    .reduce((max, w) => Math.max(max, w.miles), 0);
+
+  return {
+    ...totals,
+    period,
+    label: LABELS[period],
+    start,
+    end: today,
+    daysElapsed,
+    previousMiles,
+    changePct:
+      period === 'all' || previousMiles <= 0
+        ? null
+        : Math.round(((totals.miles - previousMiles) / previousMiles) * 1000) / 10,
+    longestMiles: Math.round(longestMiles * 100) / 100,
+  };
+}
+
+/** Session mileage per month for a calendar year. */
+export function workoutMonthlyBuckets(
+  workouts: WorkoutDistance[],
+  year: string
+): Bucket[] {
+  const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const buckets: Bucket[] = names.map((label, i) => ({
+    key: `${year}-${String(i + 1).padStart(2, '0')}`,
+    label,
+    miles: 0,
+    steps: 0,
+  }));
+
+  for (const w of workouts) {
+    const day = w.workout_date.slice(0, 10);
+    if (!day.startsWith(year)) continue;
+    const idx = Number(day.slice(5, 7)) - 1;
+    if (idx < 0 || idx > 11) continue;
+    buckets[idx].miles += w.miles;
+  }
+
+  return buckets.map((b) => ({ ...b, miles: Math.round(b.miles * 10) / 10 }));
+}
+
+/** Session mileage for the last `count` ISO weeks, oldest first. */
+export function workoutWeeklyBuckets(
+  workouts: WorkoutDistance[],
+  today: string,
+  count = 12
+): Bucket[] {
+  const buckets: Bucket[] = [];
+  let cursor = startOfWeek(today);
+
+  for (let i = 0; i < count; i++) {
+    const end = addDays(cursor, 6);
+    buckets.unshift({
+      key: cursor,
+      label: `${cursor.slice(5, 7)}/${cursor.slice(8, 10)}`,
+      miles: workoutTotals(workouts, cursor, end).miles,
+      steps: 0,
+    });
+    cursor = addDays(cursor, -7);
+  }
+
+  return buckets;
 }
 
 /**

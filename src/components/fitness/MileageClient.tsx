@@ -1,41 +1,47 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, Minus } from 'lucide-react';
-import type { Bucket, PeriodTotal, WorkoutTotals } from '@/lib/fitness/mileage';
+import { ArrowDown, ArrowUp, Minus, Footprints } from 'lucide-react';
+import type { Bucket, PeriodTotal, WorkoutPeriodTotal } from '@/lib/fitness/mileage';
 
 /**
- * Distance totals over week, month and year.
+ * Training mileage by week, month and year.
  *
- * The comparison is against the SAME stretch of the previous period — the
- * first three days of last month, not all of it — because otherwise every
- * month opens by reporting a 90% collapse and the number becomes noise you
- * learn to skip.
+ * Logged sessions are the whole point — everyday walking is real distance but
+ * it is not training, and a week where the step count held up because of
+ * errands should not read the same as a week of running. Daily movement is
+ * kept, collapsed, at the bottom for context.
+ *
+ * Comparisons run against the SAME stretch of the previous period — the first
+ * three days of last month, not all of it — or every month would open by
+ * reporting a collapse and the number becomes noise you learn to skip.
  */
 export default function MileageClient({
-  totals,
+  workoutTotals,
+  dailyTotals,
   monthly,
   weekly,
-  workoutsByPeriod,
+  dailyMonthly,
   projections,
   year,
 }: {
-  totals: PeriodTotal[];
+  workoutTotals: WorkoutPeriodTotal[];
+  dailyTotals: PeriodTotal[];
   monthly: Bucket[];
   weekly: Bucket[];
-  workoutsByPeriod: Record<string, WorkoutTotals>;
+  dailyMonthly: Bucket[];
   projections: Record<string, number | null>;
   year: string;
 }) {
   const [focus, setFocus] = useState<string>('month');
-  const focused = totals.find((t) => t.period === focus) ?? totals[0];
-  const workouts = workoutsByPeriod[focus];
+  const focused = workoutTotals.find((t) => t.period === focus) ?? workoutTotals[0];
+  const daily = dailyTotals.find((t) => t.period === focus);
   const projection = projections[focus];
 
   return (
     <div className="space-y-4">
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {totals.map((t) => (
+        {workoutTotals.map((t) => (
           <button
             key={t.period}
             type="button"
@@ -53,9 +59,12 @@ export default function MileageClient({
               {t.miles.toFixed(1)}
               <span className="ml-1 text-sm font-semibold text-slate-500">mi</span>
             </p>
+            <p className="text-[11px] text-slate-500">
+              {t.sessions} session{t.sessions === 1 ? '' : 's'}
+            </p>
             {t.changePct !== null ? (
               <p
-                className={`flex items-center gap-0.5 text-[11px] font-semibold ${
+                className={`mt-0.5 flex items-center gap-0.5 text-[11px] font-semibold ${
                   t.changePct > 2
                     ? 'text-emerald-600'
                     : t.changePct < -2
@@ -70,21 +79,34 @@ export default function MileageClient({
                 ) : (
                   <Minus className="h-3 w-3" />
                 )}
-                {Math.abs(t.changePct)}% vs prior {t.period}
+                {Math.abs(t.changePct)}% vs prior
               </p>
             ) : (
-              <p className="text-[11px] text-slate-400">{t.activeDays} active days</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">
+                {t.previousMiles > 0 ? `${t.previousMiles.toFixed(1)} mi prior` : 'no prior data'}
+              </p>
             )}
           </button>
         ))}
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Daily average" value={`${focused.milesPerDay.toFixed(2)} mi`} sub={`over ${focused.daysElapsed} days`} />
+      <section className="grid gap-3 sm:grid-cols-4">
         <Stat
-          label="Steps"
-          value={focused.steps.toLocaleString()}
-          sub={`${Math.round(focused.steps / Math.max(1, focused.daysElapsed)).toLocaleString()}/day`}
+          label="Time training"
+          value={`${Math.floor(focused.minutes / 60)}h ${focused.minutes % 60}m`}
+          sub={`${focused.sessions} session${focused.sessions === 1 ? '' : 's'}`}
+        />
+        <Stat
+          label="Longest session"
+          value={`${focused.longestMiles.toFixed(2)} mi`}
+          sub="single workout"
+        />
+        <Stat
+          label="Avg session"
+          value={
+            focused.sessions > 0 ? `${(focused.miles / focused.sessions).toFixed(2)} mi` : '—'
+          }
+          sub="per workout"
         />
         {projection !== null && projection !== undefined ? (
           <Stat
@@ -93,36 +115,29 @@ export default function MileageClient({
             sub={`full ${focused.period} at this rate`}
           />
         ) : (
-          <Stat label="Active days" value={String(focused.activeDays)} sub={`of ${focused.daysElapsed}`} />
+          <Stat
+            label="Per week"
+            value={`${((focused.miles / Math.max(1, focused.daysElapsed)) * 7).toFixed(1)} mi`}
+            sub="average"
+          />
         )}
       </section>
 
-      {workouts && workouts.sessions > 0 && (
+      {focused.byType.length > 0 && (
         <section className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-          <div className="flex items-baseline justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Logged sessions — {focused.label.toLowerCase()}
-            </p>
-            <p className="text-xs text-slate-400">
-              {workouts.sessions} session{workouts.sessions === 1 ? '' : 's'} ·{' '}
-              {Math.round(workouts.minutes / 60)}h {workouts.minutes % 60}m
-            </p>
-          </div>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
-            {workouts.miles.toFixed(2)}
-            <span className="ml-1 text-sm font-semibold text-slate-500">mi in workouts</span>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            By activity — {focused.label.toLowerCase()}
           </p>
-          <p className="text-xs text-slate-500">
-            Of {focused.miles.toFixed(1)} mi total on foot — the rest is everyday walking.
-          </p>
-          <div className="mt-2 space-y-1">
-            {workouts.byType.map((t) => (
+          <div className="mt-2 space-y-1.5">
+            {focused.byType.map((t) => (
               <div key={t.type} className="flex items-center gap-2 text-xs">
                 <span className="w-32 shrink-0 truncate text-slate-600">{t.type}</span>
-                <div className="h-4 flex-1 overflow-hidden rounded bg-slate-100">
+                <div className="h-5 flex-1 overflow-hidden rounded bg-slate-100">
                   <div
                     className="h-full bg-blue-700"
-                    style={{ width: `${(t.miles / Math.max(...workouts.byType.map((x) => x.miles))) * 100}%` }}
+                    style={{
+                      width: `${(t.miles / Math.max(...focused.byType.map((x) => x.miles))) * 100}%`,
+                    }}
                   />
                 </div>
                 <span className="w-16 shrink-0 text-right tabular-nums font-semibold text-slate-900">
@@ -135,8 +150,37 @@ export default function MileageClient({
         </section>
       )}
 
-      <BarChart title={`${year} by month`} buckets={monthly} unit="mi" />
-      <BarChart title="Last 12 weeks" buckets={weekly} unit="mi" />
+      <BarChart title={`Training miles — ${year} by month`} buckets={monthly} />
+      <BarChart title="Training miles — last 12 weeks" buckets={weekly} />
+
+      {daily && (
+        <details className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
+          <summary className="flex cursor-pointer items-center gap-2 p-4 text-sm font-semibold text-slate-600">
+            <Footprints className="h-4 w-4 text-slate-400" />
+            All movement, including everyday walking
+            <span className="font-normal text-slate-400">
+              {daily.miles.toFixed(0)} mi {focused.label.toLowerCase()}
+            </span>
+          </summary>
+          <div className="space-y-3 border-t border-slate-100 p-4">
+            <p className="text-xs text-slate-500">
+              Everything Apple Health counted on foot, errands included. Kept separate from
+              training on purpose — a week that held up on step count because of walking around
+              is not a week of running.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Stat label="Total on foot" value={`${daily.miles.toFixed(1)} mi`} sub={`${daily.activeDays} active days`} />
+              <Stat label="Steps" value={daily.steps.toLocaleString()} sub={`${Math.round(daily.steps / Math.max(1, daily.daysElapsed)).toLocaleString()}/day`} />
+              <Stat
+                label="Training share"
+                value={daily.miles > 0 ? `${Math.round((focused.miles / daily.miles) * 100)}%` : '—'}
+                sub="of distance on foot"
+              />
+            </div>
+            <BarChart title={`All movement — ${year} by month`} buckets={dailyMonthly} muted />
+          </div>
+        </details>
+      )}
     </div>
   );
 }
@@ -151,7 +195,15 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-function BarChart({ title, buckets, unit }: { title: string; buckets: Bucket[]; unit: string }) {
+function BarChart({
+  title,
+  buckets,
+  muted,
+}: {
+  title: string;
+  buckets: Bucket[];
+  muted?: boolean;
+}) {
   const max = Math.max(...buckets.map((b) => b.miles), 1);
   return (
     <section className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
@@ -160,12 +212,14 @@ function BarChart({ title, buckets, unit }: { title: string; buckets: Bucket[]; 
         {buckets.map((b) => (
           <div key={b.key} className="flex min-w-[24px] flex-1 flex-col items-center justify-end gap-1">
             <span className="text-[10px] font-semibold tabular-nums text-slate-500">
-              {b.miles > 0 ? b.miles.toFixed(0) : ''}
+              {b.miles > 0 ? b.miles.toFixed(b.miles < 10 ? 1 : 0) : ''}
             </span>
             <div
-              className={`w-full rounded-t ${b.miles > 0 ? 'bg-blue-700' : 'bg-slate-100'}`}
+              className={`w-full rounded-t ${
+                b.miles > 0 ? (muted ? 'bg-slate-400' : 'bg-blue-700') : 'bg-slate-100'
+              }`}
               style={{ height: `${Math.max((b.miles / max) * 100, b.miles > 0 ? 3 : 1)}%` }}
-              title={`${b.label}: ${b.miles} ${unit}`}
+              title={`${b.label}: ${b.miles} mi`}
             />
             <span className="text-[10px] text-slate-400">{b.label}</span>
           </div>
