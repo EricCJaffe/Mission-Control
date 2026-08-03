@@ -327,6 +327,13 @@ open decisions and deferred work, roughly in the order worth doing.
   - Templates "Upper Body Push" / "Back and Bicep" etc. reflect an older routine.
   - Rebuild templates to match the current Push A / Pull A / Bodyweight / Push B / Pull B split.
 
+- [ ] **Office 365 / Exchange calendar integration** (Eric asked 2026-08-03, deferred)
+      Setup steps written up in `docs/OFFICE365-CALENDAR-SETUP.md`. Blocked on Eric
+      registering the Azure app and supplying client ID + tenant ID; he enters the
+      secret himself. Recommendation on record: read-only first, two-way later if
+      ever. Open question for him: should Outlook events feed the morning briefing
+      and dashboard, or only /calendar?
+
 ### Medium Priority
 - [ ] Email notifications for pending `health.md` updates
   - Health update detection, review, and approval exist.

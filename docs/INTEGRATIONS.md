@@ -49,6 +49,14 @@
 - macOS `textutil`
   - Used by `scripts/import_book_from_rtf.mjs`.
 
+## Planned
+
+### Office 365 / Exchange Calendar (not started, 2026-08-03)
+Microsoft Graph, read-only first. Full setup steps, permission list, and the
+gotchas around recurring events and time zones are in
+[`OFFICE365-CALENDAR-SETUP.md`](./OFFICE365-CALENDAR-SETUP.md). Blocked on
+Eric registering the Azure app — steps 1-3 there are his, step 4 is code.
+
 ## Not Implemented
 - Garmin Connect OAuth live sync
 - Email notification provider for pending `health.md` updates
