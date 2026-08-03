@@ -1,4 +1,5 @@
 import { supabaseServer } from '@/lib/supabase/server';
+import { HeartPulse } from 'lucide-react';
 import TrendSparkline, { type TrendPoint } from '@/components/fitness/TrendSparkline';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,8 @@ type MobilityRow = {
   walking_speed_mph: number | null;
   step_length_in: number | null;
   walking_hr_avg: number | null;
+  six_minute_walk_m: number | null;
+  cardio_recovery_bpm: number | null;
 };
 
 type RunningRow = {
@@ -34,7 +37,7 @@ export default async function MobilityPage() {
   const [{ data: mobility }, { data: running }] = await Promise.all([
     supabase
       .from('mobility_metrics')
-      .select('metric_date, walking_asymmetry_pct, double_support_pct, walking_speed_mph, step_length_in, walking_hr_avg')
+      .select('metric_date, walking_asymmetry_pct, double_support_pct, walking_speed_mph, step_length_in, walking_hr_avg, six_minute_walk_m, cardio_recovery_bpm')
       .eq('user_id', user.id)
       .order('metric_date'),
     supabase
@@ -152,6 +155,40 @@ export default async function MobilityPage() {
             />
           </div>
         )}
+      </section>
+
+      <section>
+        <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
+          <HeartPulse className="h-4 w-4 text-rose-600" />
+          Cardiac function markers
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <TrendSparkline
+            label="6-minute walk distance"
+            unit="m"
+            points={series(m, 'six_minute_walk_m')}
+            bands={{ good: 450, watch: 350 }}
+            precision={0}
+            hint="How far you could walk on the flat in six minutes — a standard measure of functional cardiac capacity. Healthy adults manage roughly 550-650 m."
+          />
+          <TrendSparkline
+            label="HR recovery (1 min)"
+            unit="bpm"
+            points={series(m, 'cardio_recovery_bpm')}
+            bands={{ good: 20, watch: 13 }}
+            precision={0}
+            hint="How far heart rate falls in the first minute after hard effort, as the parasympathetic system takes back over. Beta-blockers blunt this, so expect a lower number than an untreated person would post."
+          />
+        </div>
+        <p className="mt-2 rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+          These two differ from everything above: both are used clinically in cardiac
+          assessment, and the thresholds come from outcome literature rather than athletic
+          convention — six-minute walk distance under about 300 m, and a one-minute heart-rate
+          recovery of 12 bpm or less, are the figures that appear in it. Apple <em>estimates</em>{' '}
+          both from ordinary walking rather than administering the real tests, so the direction
+          they move is worth far more than any single reading. Worth showing Dr. Chandler; not
+          worth drawing conclusions from alone.
+        </p>
       </section>
 
       <p className="text-xs text-slate-400">

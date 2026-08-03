@@ -88,6 +88,20 @@ interface HealthContext {
     fastingStatus: string | null;
     avgBP: { systolic: number; diastolic: number } | null;
   };
+  /**
+   * Functional-capacity markers. Six-minute walk distance and one-minute
+   * heart-rate recovery are used in cardiac assessment, not just fitness, and
+   * with LVEF 36% they carry more weight than any other passive measure here.
+   * Apple estimates both from ordinary walking, so they are labelled as
+   * estimates in the prompt to stop the model quoting them as test results.
+   */
+  functionalCapacity: {
+    sixMinuteWalkM: number | null;
+    hrRecoveryBpm: number | null;
+    walkingSpeedMph: number | null;
+    walkingAsymmetryPct: number | null;
+    asOf: string | null;
+  } | null;
 }
 
 /**
@@ -319,6 +333,24 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
    * true 74. Understating resting heart rate by ten beats in the context that
    * drives training recommendations is worse than reporting nothing.
    */
+  // Gait and functional capacity. Ninety days because these move slowly and a
+  // single day's walking is noisy; the latest non-null of each is what matters.
+  const { data: mobilityRows, error: mobilityError } = await supabase
+    .from('mobility_metrics')
+    .select('metric_date, six_minute_walk_m, cardio_recovery_bpm, walking_speed_mph, walking_asymmetry_pct')
+    .eq('user_id', userId)
+    .gte('metric_date', new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10))
+    .order('metric_date', { ascending: false });
+  if (mobilityError) console.error('[health-context] mobility_metrics:', mobilityError.message);
+
+  const latestOf = (key: 'six_minute_walk_m' | 'cardio_recovery_bpm' | 'walking_speed_mph' | 'walking_asymmetry_pct') => {
+    for (const row of mobilityRows ?? []) {
+      const v = row[key];
+      if (typeof v === 'number') return v;
+    }
+    return null;
+  };
+
   const avgOf = (field: 'resting_hr' | 'hrv_ms' | 'body_battery' | 'sleep_duration_min') => {
     const values = (bodyMetrics ?? [])
       .map((m) => m[field] as number | null)
@@ -435,6 +467,15 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
       fastingStatus,
       avgBP,
     },
+    functionalCapacity: (mobilityRows ?? []).length
+      ? {
+          sixMinuteWalkM: latestOf('six_minute_walk_m'),
+          hrRecoveryBpm: latestOf('cardio_recovery_bpm'),
+          walkingSpeedMph: latestOf('walking_speed_mph'),
+          walkingAsymmetryPct: latestOf('walking_asymmetry_pct'),
+          asOf: mobilityRows?.[0]?.metric_date ?? null,
+        }
+      : null,
   };
 }
 
@@ -970,6 +1011,27 @@ export async function buildAISystemPrompt(
   }
   prompt += `- **Last Workout**: ${context.recentMetrics.lastWorkout || 'None recently'}\n`;
   prompt += `- **Fasting Status**: ${context.recentMetrics.fastingStatus}\n\n`;
+
+  // Functional capacity. Stated as estimates on purpose: these are the two
+  // measures here with real prognostic weight in heart failure, and a model
+  // that mistakes an Apple estimate for an administered test will overreach.
+  const fc = context.functionalCapacity;
+  if (fc && (fc.sixMinuteWalkM !== null || fc.hrRecoveryBpm !== null)) {
+    prompt += `### FUNCTIONAL CAPACITY (Apple Health estimates, not administered tests — as of ${fc.asOf ?? 'recently'})\n`;
+    if (fc.sixMinuteWalkM !== null) {
+      prompt += `- **6-minute walk (est.)**: ${fc.sixMinuteWalkM} m — healthy adult ~550-650 m; heart-failure literature treats <300 m as poor prognosis\n`;
+    }
+    if (fc.hrRecoveryBpm !== null) {
+      prompt += `- **HR recovery at 1 min (est.)**: ${fc.hrRecoveryBpm} bpm — >20 healthy, <=12 is the adverse threshold in the literature. NOTE: beta-blockade blunts this, so a modest value is expected here and is not on its own a finding\n`;
+    }
+    if (fc.walkingSpeedMph !== null) {
+      prompt += `- **Usual walking speed**: ${fc.walkingSpeedMph} mph (healthy adult ~2.7-3.1)\n`;
+    }
+    if (fc.walkingAsymmetryPct !== null) {
+      prompt += `- **Walking asymmetry**: ${fc.walkingAsymmetryPct}% (under 3% typical; sustained >5% suggests a gait problem)\n`;
+    }
+    prompt += `These are trends, not results. Do not present them as clinical measurements or use them to reassure or alarm — route anything notable to the cardiologist.\n\n`;
+  }
 
   // Function-specific instructions
   prompt += `━━━ YOUR TASK (${functionType}) ━━━\n`;
