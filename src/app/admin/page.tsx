@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
-import { Brain, FileText, Pin, HeartPulse, BarChart3, Settings } from 'lucide-react';
+import { Brain, FileText, Flame, Pin, HeartPulse, BarChart3, Settings } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin | Mission Control' };
@@ -20,11 +20,12 @@ export default async function AdminPage() {
   const user = userData.user;
   if (!user) return null;
 
-  const [{ data: persona }, { data: soul }, { count: sopCount }, { count: templateCount }, { data: healthDoc }, { count: pendingUpdates }] =
+  const [{ data: persona }, { data: soul }, { count: sopCount }, { count: practiceCount }, { count: templateCount }, { data: healthDoc }, { count: pendingUpdates }] =
     await Promise.all([
       supabase.from('notes').select('updated_at').eq('user_id', user.id).eq('title', 'persona').maybeSingle(),
       supabase.from('notes').select('updated_at').eq('user_id', user.id).eq('title', 'soul').maybeSingle(),
       supabase.from('sop_checks').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_done', false),
+      supabase.from('practices').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('active', true),
       supabase.from('workout_templates').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
       supabase
         .from('health_documents')
@@ -55,6 +56,14 @@ export default async function AdminPage() {
       body: 'Medical history, medications, supplements, training constraints and vital targets. Drives workout planning and supplement analysis.',
       meta: healthDoc ? `Version ${healthDoc.version} · ${String(healthDoc.last_updated_at).slice(0, 10)}` : 'Not initialised',
       meta2: pendingUpdates ? `${pendingUpdates} update${pendingUpdates === 1 ? '' : 's'} awaiting review` : null,
+    },
+    {
+      href: '/spirit',
+      icon: <Flame className="h-5 w-5 text-amber-600" />,
+      title: 'Practices',
+      body: 'Which practices you track and how often — Bible reading, prayer, church, giving. Configured here; the ones due each day appear on the dashboard.',
+      meta: `${practiceCount ?? 0} active`,
+      meta2: null,
     },
     {
       href: '/sops',

@@ -10,11 +10,22 @@ type NavLinkProps = {
   collapsed?: boolean;
   icon?: React.ReactNode;
   onClick?: () => void;
+  /**
+   * Match this href only exactly. Set it on entries that are the parent of
+   * another nav entry, so /fitness does not stay lit while you are on
+   * /fitness/mobility and both appear selected at once.
+   */
+  exact?: boolean;
 };
 
-export default function NavLink({ href, label, shortLabel, collapsed, icon, onClick }: NavLinkProps) {
+export default function NavLink({ href, label, shortLabel, collapsed, icon, onClick, exact }: NavLinkProps) {
   const pathname = usePathname();
-  const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+  // startsWith alone matched any path sharing a prefix, so /spirit lit up on
+  // /spirit/reading and /spirit/prayer too — Practices looked permanently
+  // selected. Require a segment boundary so /spirit does not claim
+  // /spirit/reading, while /fitness still claims /fitness/mobility.
+  const isActive =
+    pathname === href || (!exact && href !== "/" && pathname.startsWith(`${href}/`));
   const display = collapsed ? (shortLabel || label.slice(0, 2).toUpperCase()) : label;
 
   return (

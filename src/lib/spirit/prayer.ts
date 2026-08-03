@@ -42,12 +42,15 @@ export type PrayerRequest = {
 export type PrayerCadence = 'daily' | 'weekly' | 'monthly' | 'once' | 'rotation';
 
 export const CADENCES: Array<{ key: PrayerCadence; label: string; hint: string }> = [
-  { key: 'daily', label: 'Every day', hint: 'Surfaces every day until answered' },
-  { key: 'weekly', label: 'Weekly', hint: 'Once every 7 days' },
-  { key: 'monthly', label: 'Monthly', hint: 'Once every month' },
-  { key: 'once', label: 'One time', hint: 'A single occasion — pick the day' },
-  { key: 'rotation', label: 'In the rotation', hint: 'No fixed schedule; comes round least-recently-prayed first' },
+  { key: 'once', label: 'Once', hint: 'No repeat — shows until you have prayed it once, then it is done' },
+  { key: 'daily', label: 'Daily', hint: 'Comes back every day until answered' },
+  { key: 'weekly', label: 'Weekly', hint: 'Comes back every 7 days' },
+  { key: 'monthly', label: 'Monthly', hint: 'Comes back every month' },
+  { key: 'rotation', label: 'Rotation', hint: 'No fixed schedule — cycles round with the rest of the list' },
 ];
+
+/** New prayers do not repeat unless you say so. */
+export const DEFAULT_CADENCE: PrayerCadence = 'once';
 
 const CADENCE_DAYS: Partial<Record<PrayerCadence, number>> = {
   daily: 1,
@@ -187,14 +190,34 @@ export type TodaysList = {
   scheduled: PrayerRequest[];
   /** Topping up from the unscheduled long tail. */
   rotation: PrayerRequest[];
+  /** Already prayed today — kept in the list, shown as done. */
+  done: PrayerRequest[];
+  /** True once nothing is left outstanding. */
+  complete: boolean;
 };
+
+function prayedToday(r: PrayerRequest, now: Date): boolean {
+  if (!r.last_prayed_at) return false;
+  return r.last_prayed_at.slice(0, 10) === dayOnly(now);
+}
 
 /**
  * Builds today's list: everything genuinely due, then rotation items to fill.
  *
- * Scheduled items are never truncated — if you asked for something daily, it
- * appears daily, and silently dropping it because the list was full would make
- * the schedule a suggestion rather than a schedule.
+ * The subtlety is that the list has to DRAIN. Naively taking the top N
+ * least-recently-prayed each time produces a treadmill — pray one, it drops
+ * out, the next-oldest is promoted into the free slot, and the list is
+ * perpetually full no matter how many you get through. That is not a prayer
+ * list, it is a hydra, and it makes finishing impossible.
+ *
+ * So the day's slate is fixed at N: anything already prayed today occupies a
+ * slot and is shown as done, and only the remainder is filled from the pool.
+ * Praying one converts an outstanding slot into a completed one instead of
+ * summoning a replacement, and the list reaches zero outstanding.
+ *
+ * This stays stateless — no stored slate to go out of sync — because the items
+ * prayed today are exactly the ones that left the pool, so the remainder is
+ * the same set it was before, minus the one just prayed.
  */
 export function selectTodaysList(
   requests: PrayerRequest[],
@@ -204,17 +227,29 @@ export function selectTodaysList(
   const now = opts.now ?? new Date();
 
   const active = requests.filter((r) => r.status === 'open' || r.status === 'waiting');
-  const scheduled = active.filter((r) => isDueToday(r, now));
+  const done = active.filter((r) => prayedToday(r, now));
+  const doneIds = new Set(done.map((r) => r.id));
+
+  const outstanding = active.filter((r) => !doneIds.has(r.id));
+  const scheduled = outstanding.filter((r) => isDueToday(r, now));
   const scheduledIds = new Set(scheduled.map((r) => r.id));
 
-  const pool = active.filter(
+  const pool = outstanding.filter(
     (r) => !scheduledIds.has(r.id) && (r.cadence ?? 'rotation') === 'rotation'
   );
-  const slots = Math.max(0, size - scheduled.length);
+
+  // Slots already spent: everything prayed today, plus everything scheduled.
+  // Scheduled items are never truncated — asking for something daily and
+  // having it silently dropped would make the schedule a suggestion.
+  const slots = Math.max(0, size - done.length - scheduled.length);
+
+  const rotation = sortByPriority(pool, now).slice(0, slots);
 
   return {
     scheduled: sortByPriority(scheduled, now),
-    rotation: sortByPriority(pool, now).slice(0, slots),
+    rotation,
+    done: sortByPriority(done, now),
+    complete: scheduled.length === 0 && rotation.length === 0,
   };
 }
 
@@ -240,6 +275,8 @@ export function selectDailyRotation(
   requests: PrayerRequest[],
   opts: { size?: number; now?: Date } = {}
 ): PrayerRequest[] {
+  // Outstanding only — the dashboard card is a prompt to act, so showing what
+  // is already done would be noise there.
   const { scheduled, rotation } = selectTodaysList(requests, opts);
   return [...scheduled, ...rotation].slice(0, opts.size ?? DAILY_ROTATION_SIZE);
 }
@@ -327,6 +364,44 @@ export function buildSubjectTree(
   sortTree(roots);
 
   return roots;
+}
+
+export type SubjectContext = {
+  name: string;
+  category: string;
+  /** Ancestor names, outermost first, excluding the subject itself. */
+  ancestors: string[];
+};
+
+/**
+ * Where each subject sits, for showing a request in context.
+ *
+ * A bare "Freedom from alcoholism" tells you what to pray but not who for, and
+ * "Amanda" alone is thin when the list holds three of them across two sides of
+ * the family. Category and ancestry are what make a line legible at a glance.
+ *
+ * Walks parents iteratively with a seen-set rather than recursing, so a cycle
+ * introduced by a bad reparent cannot hang the render.
+ */
+export function buildSubjectIndex(
+  subjects: Array<{ id: string; name: string; category: string; parent_id: string | null }>
+): Map<string, SubjectContext> {
+  const byId = new Map(subjects.map((s) => [s.id, s]));
+  const index = new Map<string, SubjectContext>();
+
+  for (const subject of subjects) {
+    const ancestors: string[] = [];
+    const seen = new Set<string>([subject.id]);
+    let cursor = subject.parent_id ? byId.get(subject.parent_id) : undefined;
+    while (cursor && !seen.has(cursor.id)) {
+      ancestors.unshift(cursor.name);
+      seen.add(cursor.id);
+      cursor = cursor.parent_id ? byId.get(cursor.parent_id) : undefined;
+    }
+    index.set(subject.id, { name: subject.name, category: subject.category, ancestors });
+  }
+
+  return index;
 }
 
 /** Flattens a tree for search and counting, depth-first, preserving order. */

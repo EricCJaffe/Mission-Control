@@ -87,7 +87,10 @@ export async function POST(req: NextRequest) {
       mode: MODES.includes(body?.mode) ? body.mode : null,
       status: STATUSES.includes(body?.status) ? body.status : 'open',
       urgent: body?.urgent === true,
-      cadence: CADENCES.includes(body?.cadence) ? body.cadence : 'rotation',
+      // Defaults to a one-off. Repeats are something you add deliberately —
+      // every new prayer silently joining a recurring cycle is how a list
+      // becomes a treadmill.
+      cadence: CADENCES.includes(body?.cadence) ? body.cadence : 'once',
       cadence_anchor: str(body?.cadence_anchor),
       due_date: str(body?.due_date),
     })

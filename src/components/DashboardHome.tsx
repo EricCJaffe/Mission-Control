@@ -2,11 +2,21 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import HybridTrainingIndicator from "@/components/fitness/HybridTrainingIndicator";
 import { computeHybridBalance } from "@/lib/fitness/hybrid-balance";
-import { reassessStatus, computePillarScores } from "@/lib/flourishing/spirit-soul-body";
+import { computePillarScores } from "@/lib/flourishing/spirit-soul-body";
 import { statusForScore } from "@/lib/status-colors";
 import PracticeTracker from "@/components/spirit/PracticeTracker";
-import { todayIso as practiceToday, type Practice, type PracticeLog } from "@/lib/spirit/practices";
-import { selectDailyRotation, type PrayerRequest } from "@/lib/spirit/prayer";
+import {
+  isPracticeDue,
+  todayIso as practiceToday,
+  type Practice,
+  type PracticeLog,
+} from "@/lib/spirit/practices";
+import {
+  buildSubjectIndex,
+  selectDailyRotation,
+  CATEGORY_LABELS as PRAYER_CATEGORY_LABELS,
+  type PrayerRequest,
+} from "@/lib/spirit/prayer";
 import { Dumbbell, Plus, CalendarDays, Target, CheckSquare, HeartPulse, Activity, Gauge } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
@@ -146,15 +156,11 @@ export default async function DashboardHome() {
   ).toISOString();
 
   const [
-    scoresResult,
     alignmentResult,
     flourishingResult,
     prioritiesResult,
-    anchorsResult,
     eventsResult,
     tasksResult,
-    personaResult,
-    sopChecksResult,
     hybridWorkoutsResult,
     hybridRecoveryResult,
     rhrResult,
@@ -163,16 +169,11 @@ export default async function DashboardHome() {
     plannedWorkoutResult,
     goalsResult,
     prayerResult,
+    prayerSubjectsResult,
     practicesResult,
     practiceLogsResult,
     readingSubsResult,
   ] = await Promise.all([
-    supabase
-      .from("dashboard_scores")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
     supabase
       .from("monthly_reviews")
       .select("id,alignment_score,alignment_status,drift_flags,period_start")
@@ -190,11 +191,6 @@ export default async function DashboardHome() {
       .eq("date", todayIso)
       .order("rank", { ascending: true }),
     supabase
-      .from("daily_anchors")
-      .select("id,prayer,training,family_touchpoint")
-      .eq("date", todayIso)
-      .maybeSingle(),
-    supabase
       .from("calendar_events")
       .select("id,title,start_at,end_at,event_type,domain")
       .gte("start_at", start)
@@ -205,19 +201,6 @@ export default async function DashboardHome() {
       .select("id,title,status,due_date,priority")
       .order("created_at", { ascending: false })
       .limit(50),
-    supabase
-      .from("notes")
-      .select("content_md")
-      .eq("title", "persona")
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("sop_checks")
-      .select("id,step,is_done,due_date")
-      .eq("is_done", false)
-      .order("created_at", { ascending: true })
-      .limit(10),
     // Hybrid balance needs a 30-day look-back so the ring can show the week
     // against a longer trend.
     supabase
@@ -272,12 +255,17 @@ export default async function DashboardHome() {
       .limit(5),
     supabase
       .from("prayer_requests")
-      .select("id, subject_id, body, mode, status, urgent, last_prayed_at, prayed_count")
+      .select("id, subject_id, body, mode, status, urgent, last_prayed_at, prayed_count, cadence, cadence_anchor, due_date")
       .eq("user_id", user.id)
       .in("status", ["open", "waiting"]),
     supabase
+      .from("prayer_subjects")
+      .select("id, name, category, parent_id")
+      .eq("user_id", user.id)
+      .eq("archived", false),
+    supabase
       .from("practices")
-      .select("id,key,label,cadence,target_per_period,sort_order,created_at")
+      .select("id,key,label,cadence,target_per_period,sort_order,created_at,due_weekday,due_day_of_month")
       .eq("user_id", user.id)
       .eq("active", true)
       .order("sort_order"),
@@ -293,11 +281,6 @@ export default async function DashboardHome() {
       .eq("status", "active"),
   ]);
 
-  const scoreRow = scoresResult.data;
-  const spiritScore = scoreRow?.spirit ?? "";
-  const soulScore = scoreRow?.soul ?? "";
-  const bodyScore = scoreRow?.body ?? "";
-
   const alignment = alignmentResult.data;
   const flourishing = flourishingResult.data;
   const alignmentStatus = alignmentLabel(
@@ -307,19 +290,13 @@ export default async function DashboardHome() {
   );
 
   const priorities = prioritiesResult.data || [];
-  const anchors = anchorsResult.data;
   const events = eventsResult.data || [];
 
   const tasks = tasksResult.data || [];
   const mustDo = tasks.filter((t) => t.due_date === todayIso);
-  const optional = tasks.filter((t) => t.due_date !== todayIso).slice(0, 5);
   const overdue = tasks.filter((t) => t.due_date && t.due_date < todayIso);
 
-  const pendingSops = sopChecksResult.data || [];
-  const sopOverdue = pendingSops.filter((sop) => sop.due_date && sop.due_date < todayIso);
 
-  const personaContent = personaResult.data?.content_md || "";
-  const personaExcerpt = personaContent.split("\n").slice(0, 12).join("\n").trim();
 
   const statusStyles: Record<string, string> = {
     aligned: "bg-blue-700 text-white",
@@ -348,7 +325,6 @@ export default async function DashboardHome() {
   ];
   // Monthly cadence: the survey is only useful if it's retaken, and a stale
   // score presented as current is worse than an obvious prompt to redo it.
-  const reassess = reassessStatus(flourishing?.updated_at ?? null, today);
 
   // Pillars lead the page: this is the one row that answers "how am I doing".
   const pillarScores = computePillarScores(
@@ -362,12 +338,29 @@ export default async function DashboardHome() {
   const bp = bpResult.data;
   const plannedWorkouts = plannedWorkoutResult.data ?? [];
   const goals = goalsResult.data ?? [];
-  const practices = (practicesResult.data ?? []) as Practice[];
+  const allPractices = (practicesResult.data ?? []) as Practice[];
+  const practiceLogsToday = new Set(
+    (practiceLogsResult.data ?? [])
+      .filter((l) => l.log_date === todayIso && l.completed)
+      .map((l) => l.practice_id),
+  );
+  // Only what is due today and still outstanding. Church on a Tuesday is not a
+  // missed practice, it is not due; and a completed one has served its purpose
+  // — leaving it on the list turns a prompt into a scoreboard.
+  const practices = allPractices.filter(
+    (p) => isPracticeDue(p, todayIso) && !practiceLogsToday.has(p.id),
+  );
+  const practicesDoneToday = allPractices.filter(
+    (p) => isPracticeDue(p, todayIso) && practiceLogsToday.has(p.id),
+  ).length;
 
   // Today's rotation, computed here so the card shows real items rather than a
   // count. A number tells you the list exists; the names get you praying.
   const prayerRotation = selectDailyRotation((prayerResult.data ?? []) as PrayerRequest[], { size: 3 });
   const prayerActive = (prayerResult.data ?? []).length;
+  // Who each request is for. "Freedom from alcoholism" with no name attached
+  // is not something you can act on from a dashboard.
+  const prayerSubjects = buildSubjectIndex(prayerSubjectsResult.data ?? []);
   const practiceLogs = (practiceLogsResult.data ?? []) as PracticeLog[];
 
   // Where each active reading plan stands. Progress is counted per
@@ -514,12 +507,12 @@ export default async function DashboardHome() {
       {/* Act row: the two things wanted most days — start a workout, and see
           what's already planned. */}
       <section className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Today&rsquo;s training</p>
+        <div className="rounded-2xl border-2 border-slate-300 bg-white px-4 py-3 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Today&rsquo;s training</p>
           {plannedWorkouts.length > 0 ? (
-            <ul className="mt-1 space-y-1">
+            <ul className="mt-0.5 space-y-0.5">
               {plannedWorkouts.map((w) => (
-                <li key={w.id} className="flex items-baseline gap-2">
+                <li key={w.id} className="flex items-baseline gap-2 leading-snug">
                   <span
                     className={`text-sm font-bold ${
                       w.status === "completed" ? "text-slate-400 line-through" : "text-slate-900"
@@ -534,22 +527,22 @@ export default async function DashboardHome() {
               ))}
             </ul>
           ) : (
-            <p className="mt-1 text-sm text-slate-500">Nothing scheduled — log whatever you do.</p>
+            <p className="mt-0.5 text-sm text-slate-500">Nothing scheduled — log whatever you do.</p>
           )}
         </div>
         <div className="flex gap-2">
           <Link
             href="/fitness/log"
-            className="flex min-h-[72px] flex-1 items-center justify-center gap-2 rounded-2xl bg-lime-500 px-6 text-base font-bold text-white shadow-sm transition-colors hover:bg-lime-600"
+            className="flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-2xl bg-lime-500 px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-lime-600"
           >
             <Dumbbell className="h-5 w-5" />
             Log Workout
           </Link>
           <Link
             href="/fitness/log/class"
-            className="flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-lime-500 bg-lime-50 px-4 text-sm font-bold text-lime-700 transition-colors hover:bg-lime-100"
+            className="flex min-h-[56px] items-center justify-center rounded-2xl border-2 border-lime-500 bg-lime-50 px-4 text-sm font-bold text-lime-700 transition-colors hover:bg-lime-100"
           >
-            Class
+            Jiu Jitsu
           </Link>
         </div>
       </section>
@@ -619,7 +612,12 @@ export default async function DashboardHome() {
         <section className="mt-4">
           <div className="mb-2 flex items-baseline justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-              Daily practices
+              Practices today
+              {practicesDoneToday > 0 && (
+                <span className="ml-2 font-normal normal-case tracking-normal text-emerald-600">
+                  {practicesDoneToday} done
+                </span>
+              )}
             </h2>
             <Link href="/spirit" className="text-xs font-medium text-amber-700 hover:text-amber-800">
               Open Spirit
@@ -647,12 +645,21 @@ export default async function DashboardHome() {
               {prayerActive} active · next up in the rotation
             </p>
             <ul className="mt-1.5 space-y-1">
-              {prayerRotation.map((r) => (
-                <li key={r.id} className="truncate text-sm text-slate-800">
-                  {r.urgent && <span className="mr-1 font-semibold text-rose-600">!</span>}
-                  {r.body}
-                </li>
-              ))}
+              {prayerRotation.map((r) => {
+                const ctx = r.subject_id ? prayerSubjects.get(r.subject_id) : undefined;
+                return (
+                  <li key={r.id} className="truncate text-sm text-slate-800">
+                    {r.urgent && <span className="mr-1 font-semibold text-rose-600">!</span>}
+                    {ctx && (
+                      <span className="text-xs font-semibold text-indigo-600">
+                        {PRAYER_CATEGORY_LABELS[ctx.category] ?? ctx.category} · {ctx.name}
+                        <span className="mx-1 text-slate-300">—</span>
+                      </span>
+                    )}
+                    {r.body}
+                  </li>
+                );
+              })}
             </ul>
           </Link>
         </section>

@@ -21,6 +21,10 @@ export type Practice = {
   target_per_period: number;
   icon?: string | null;
   sort_order?: number;
+  /** 0=Sunday. Weekly practices surface only on this day; null = any day. */
+  due_weekday?: number | null;
+  /** Monthly practices surface only on this day of the month. */
+  due_day_of_month?: number | null;
   /** ISO date the practice was created. Periods before it existed are not
       counted against you — otherwise adding a weekly practice today scores 0
       for the three prior weeks it couldn't possibly have been kept. */
@@ -35,6 +39,38 @@ export type PracticeLog = {
 
 /** Four weeks: divides evenly into weeks and still spans a monthly practice. */
 export const DEFAULT_WINDOW_DAYS = 28;
+
+/**
+ * Is this practice actually actionable today?
+ *
+ * Weekly and monthly practices with an anchor surface only on their day.
+ * Church on a Tuesday is not something you failed to do — it is not due — and
+ * a checklist showing four items you cannot complete teaches you to stop
+ * reading it.
+ *
+ * Unanchored weekly/monthly practices stay visible all period, which is right
+ * for anything without a fixed day.
+ */
+export function isPracticeDue(practice: Practice, isoDate: string): boolean {
+  if (practice.cadence === 'daily') return true;
+
+  // Parsed as UTC deliberately: the rest of this module treats dates as plain
+  // 'YYYY-MM-DD' strings, and going through local time is how a late-evening
+  // check-in lands on tomorrow.
+  const date = new Date(`${isoDate}T00:00:00Z`);
+
+  if (practice.cadence === 'weekly') {
+    if (practice.due_weekday == null) return true;
+    return date.getUTCDay() === practice.due_weekday;
+  }
+
+  if (practice.cadence === 'monthly') {
+    if (practice.due_day_of_month == null) return true;
+    return date.getUTCDate() === practice.due_day_of_month;
+  }
+
+  return true;
+}
 
 export function todayIso(now: Date = new Date()): string {
   return toIso(now);

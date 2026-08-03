@@ -9,7 +9,9 @@ import {
 import {
   CADENCES,
   CATEGORY_LABELS,
+  DEFAULT_CADENCE,
   PRAYER_MODES,
+  buildSubjectIndex,
   buildSubjectTree,
   flattenTree,
   recentAnswers,
@@ -17,6 +19,7 @@ import {
   selectTodaysList,
   type PrayerRequest,
   type PrayerSubjectNode,
+  type SubjectContext,
 } from '@/lib/spirit/prayer';
 
 type SubjectRow = Omit<PrayerSubjectNode, 'children' | 'requests'>;
@@ -47,16 +50,26 @@ export default function PrayerClient({
   // last" change between renders of the same list for no user-visible reason.
   const [now] = useState(() => Date.now());
 
-  const subjectName = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const s of subjects) map.set(s.id, s.name);
-    return map;
-  }, [subjects]);
+  const subjectIndex = useMemo(() => buildSubjectIndex(subjects), [subjects]);
 
   const tree = useMemo(() => buildSubjectTree(subjects, requests), [subjects, requests]);
   const flatSubjects = useMemo(() => flattenTree(tree), [tree]);
   const todays = useMemo(() => selectTodaysList(requests), [requests]);
-  const todaysAll = useMemo(() => [...todays.scheduled, ...todays.rotation], [todays]);
+  // Prayed items disappear rather than lingering in a done state. `prayed`
+  // hides them optimistically so the card goes on tap instead of waiting for
+  // the server round trip and refetch.
+  const outstanding = useMemo(
+    () => ({
+      scheduled: todays.scheduled.filter((r) => !prayed.has(r.id)),
+      rotation: todays.rotation.filter((r) => !prayed.has(r.id)),
+    }),
+    [todays, prayed]
+  );
+  const todaysAll = useMemo(
+    () => [...outstanding.scheduled, ...outstanding.rotation],
+    [outstanding]
+  );
+  const doneCount = todays.done.length + prayed.size;
   const health = useMemo(() => rotationHealth(requests), [requests]);
   const answers = useMemo(() => recentAnswers(requests, 20), [requests]);
 
@@ -151,7 +164,9 @@ export default function PrayerClient({
             </p>
             <p className="mt-1.5 text-sm text-slate-600">
               {health.total} active
-              {todays.scheduled.length > 0 && ` · ${todays.scheduled.length} scheduled for today`}
+              {outstanding.scheduled.length > 0 &&
+                ` · ${outstanding.scheduled.length} scheduled for today`}
+              {doneCount > 0 && ` · ${doneCount} prayed today`}
               {health.cycleDays !== null &&
                 ` · unscheduled ones come round about every ${health.cycleDays} days`}
               .
@@ -167,12 +182,12 @@ export default function PrayerClient({
           </div>
 
           {todaysAll.length === 0 ? (
-            <EmptyState />
+            <EmptyState doneCount={doneCount} />
           ) : (
             <div className="space-y-4">
               {([
-                { key: 'scheduled', title: 'Scheduled for today', items: todays.scheduled },
-                { key: 'rotation', title: 'From the rotation', items: todays.rotation },
+                { key: 'scheduled', title: 'Scheduled for today', items: outstanding.scheduled },
+                { key: 'rotation', title: 'From the rotation', items: outstanding.rotation },
               ] as const).map((group) =>
                 group.items.length === 0 ? null : (
                   <div key={group.key}>
@@ -190,9 +205,8 @@ export default function PrayerClient({
                         <RequestCard
                           key={r.id}
                           request={r}
-                          subject={r.subject_id ? subjectName.get(r.subject_id) : undefined}
+                          context={r.subject_id ? subjectIndex.get(r.subject_id) : undefined}
                           subjects={flatSubjects}
-                          done={prayed.has(r.id)}
                           busy={busy === r.id}
                           now={now}
                           onPrayed={() => mark(r.id, 'prayed')}
@@ -293,9 +307,12 @@ export default function PrayerClient({
               <div key={r.id} className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    {r.subject_id && (
+                    {r.subject_id && subjectIndex.has(r.subject_id) && (
                       <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                        {subjectName.get(r.subject_id)}
+                        {CATEGORY_LABELS[subjectIndex.get(r.subject_id)!.category] ??
+                          subjectIndex.get(r.subject_id)!.category}
+                        <span className="mx-1 text-emerald-400">·</span>
+                        {subjectIndex.get(r.subject_id)!.name}
                       </p>
                     )}
                     <p className="text-sm font-semibold text-emerald-900">{r.body}</p>
@@ -321,11 +338,18 @@ export default function PrayerClient({
   );
 }
 
-function EmptyState() {
+function EmptyState({ doneCount }: { doneCount: number }) {
   return (
-    <div className="rounded-2xl border-2 border-dashed border-slate-300 p-8 text-center">
-      <Check className="mx-auto h-6 w-6 text-emerald-500" />
-      <p className="mt-2 text-sm text-slate-600">Nothing in the queue. Everything is current.</p>
+    <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-8 text-center">
+      <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-600" />
+      <p className="mt-2 text-sm font-semibold text-emerald-900">
+        {doneCount > 0 ? `Done for today — ${doneCount} prayed.` : 'Nothing due today.'}
+      </p>
+      <p className="mt-1 text-xs text-emerald-700">
+        {doneCount > 0
+          ? 'The list is finished. Anything scheduled will be back tomorrow.'
+          : 'Nothing is scheduled and the rotation is current.'}
+      </p>
     </div>
   );
 }
@@ -351,7 +375,7 @@ function AddPrayerForm({
   const [newSubject, setNewSubject] = useState('');
   const [category, setCategory] = useState('other');
   const [mode, setMode] = useState('');
-  const [cadence, setCadence] = useState<string>('rotation');
+  const [cadence, setCadence] = useState<string>(DEFAULT_CADENCE);
   const [dueDate, setDueDate] = useState('');
   const [urgent, setUrgent] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -550,9 +574,8 @@ function CadencePicker({
 
 function RequestCard({
   request,
-  subject,
+  context,
   subjects,
-  done,
   busy,
   now,
   onPrayed,
@@ -561,9 +584,8 @@ function RequestCard({
   onDelete,
 }: {
   request: PrayerRequest;
-  subject?: string;
+  context?: SubjectContext;
   subjects: Array<PrayerSubjectNode & { depth: number }>;
-  done: boolean;
   busy: boolean;
   now: number;
   onPrayed: () => void;
@@ -722,18 +744,26 @@ function RequestCard({
 
   return (
     <div
-      className={`rounded-2xl border-2 p-4 shadow-sm transition-colors ${
-        done ? 'border-emerald-200 bg-emerald-50' : 'border-slate-300 bg-white'
-      }`}
+      className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          {subject && (
-            <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">{subject}</p>
+          {context && (
+            <p className="flex flex-wrap items-center gap-x-1 text-xs font-semibold text-indigo-600">
+              <span className="uppercase tracking-wider text-indigo-500">
+                {CATEGORY_LABELS[context.category] ?? context.category}
+              </span>
+              {context.ancestors.map((a) => (
+                <span key={a} className="font-normal text-slate-400">
+                  <span className="mr-1 text-slate-300">›</span>
+                  {a}
+                </span>
+              ))}
+              <span className="text-slate-300">›</span>
+              <span>{context.name}</span>
+            </p>
           )}
-          <p className={`mt-0.5 text-sm ${done ? 'text-emerald-900' : 'text-slate-900'}`}>
-            {request.body}
-          </p>
+          <p className="mt-0.5 text-sm text-slate-900">{request.body}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
             {request.urgent && (
               <span className="flex items-center gap-0.5 font-semibold text-rose-600">
@@ -777,17 +807,34 @@ function RequestCard({
           <button
             type="button"
             onClick={onPrayed}
-            disabled={busy || done}
+            disabled={busy}
             aria-label="Mark as prayed"
-            className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-              done
-                ? 'bg-emerald-500 text-white'
-                : 'border-2 border-slate-300 text-slate-400 hover:border-indigo-500 hover:text-indigo-600'
-            }`}
+            className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-300 text-slate-400 transition-colors hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-40"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-5 w-5" strokeWidth={3} />}
           </button>
         </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-slate-100 pt-2">
+        <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          Repeat
+        </span>
+        {CADENCES.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => onEdit({ cadence: c.key })}
+            title={c.hint}
+            className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+              (request.cadence ?? 'once') === c.key
+                ? 'bg-indigo-600 text-white'
+                : 'border border-slate-200 text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
       </div>
 
       {showLog && (
@@ -1158,6 +1205,16 @@ function RequestLine({
         {request.urgent && <span className="mr-1 font-bold text-rose-600">!</span>}
         {request.body}
       </p>
+      <select
+        value={request.cadence ?? 'once'}
+        onChange={(e) => onEdit({ cadence: e.target.value })}
+        aria-label="How often to pray this"
+        className="shrink-0 rounded border border-slate-200 bg-white px-1 py-0.5 text-[10px] font-semibold text-slate-500"
+      >
+        {CADENCES.map((c) => (
+          <option key={c.key} value={c.key}>{c.label}</option>
+        ))}
+      </select>
       <button
         type="button"
         onClick={() => setEditing(true)}
