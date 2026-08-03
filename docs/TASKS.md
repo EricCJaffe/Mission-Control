@@ -146,8 +146,9 @@
       PDF: 121 subjects, 26 specific requests, nesting preserved. Rotation model follows
       PrayerMate (least-recently-prayed first, urgent jumps queue); answered-prayer
       tracking follows Echo. Still open: editing subjects/requests in-app (currently
-      seed-only + mark prayed/answered), prayer_sessions is written by nothing yet,
-      and reflections linking to notes.
+      full CRUD 2026-08-03: add / edit / delete / recategorise / reparent for both
+      subjects and requests, inline in the tree and from a capture form). Still open:
+      prayer_sessions is written by nothing yet, and reflections linking to notes.
 - [x] ~~Prayer module — NOT BUILT, needs a design conversation~~ (Eric, 2026-08-03)
   Confirmed absent: prayer exists only as a boolean on `daily_anchors`, a checkbox in
   the `practices` table, and three survey questions. No tables, no pages, no history.
