@@ -49,12 +49,17 @@ type PlannedWorkout = {
   day_label: string | null;
   workout_type: string | null;
   prescribed: Record<string, unknown>;
+  /** Which plan scheduled it — needed once more than one is active. */
+  plan_id?: string | null;
 };
 
 type Props = {
   plans: PlanRow[];
   upcomingWorkouts: PlannedWorkout[];
   activePlanId: string | null;
+  activePlanIds?: string[];
+  /** id -> plan name, so a session can say which plan it belongs to. */
+  planNames?: Record<string, string>;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -63,7 +68,13 @@ const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-yellow-100 text-yellow-800',
 };
 
-export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, activePlanId }: Props) {
+export default function TrainingPlansClient({
+  plans: initial,
+  upcomingWorkouts,
+  activePlanId,
+  activePlanIds = [],
+  planNames = {},
+}: Props) {
   void activePlanId;
   const router = useRouter();
   const [plans, setPlans] = useState(initial);
@@ -569,7 +580,16 @@ export default function TrainingPlansClient({ plans: initial, upcomingWorkouts, 
                   <Link key={w.id} href="/fitness/log"
                     className="flex items-center gap-3 rounded-xl border-2 border-slate-300 bg-white/60 px-4 py-3 shadow-sm hover:bg-white/80 transition-colors">
                     <span className="text-xs font-mono text-slate-400 w-24 shrink-0">{w.scheduled_date}</span>
-                    <span className="text-sm font-medium text-slate-700">{w.day_label ?? w.workout_type ?? 'Workout'}</span>
+                    <span className="min-w-0 flex-1 text-sm font-medium text-slate-700">
+                      {w.day_label ?? w.workout_type ?? 'Workout'}
+                    </span>
+                    {/* With more than one plan running, a session is ambiguous
+                        without saying which block it belongs to. */}
+                    {activePlanIds.length > 1 && w.plan_id && planNames[w.plan_id] && (
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                        {planNames[w.plan_id]}
+                      </span>
+                    )}
                   </Link>
                 ))}
               </div>

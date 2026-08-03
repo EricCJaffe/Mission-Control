@@ -17,17 +17,22 @@ export default async function TrainingPlansPage() {
     .eq('user_id', user.id)
     .order('start_date', { ascending: false });
 
-  const activePlan = plans?.find((p) => p.status === 'active');
+  // Upcoming work comes from EVERY active plan, not just the first one found.
+  // Running a 5K block alongside a strength block is normal, and showing only
+  // one made the other look as though it had stopped — the same single-active
+  // assumption that hid a second reading plan.
+  const activePlans = (plans ?? []).filter((p) => p.status === 'active');
+  const activePlanIds = activePlans.map((p) => p.id);
 
-  const { data: upcomingWorkouts } = activePlan
+  const { data: upcomingWorkouts } = activePlanIds.length
     ? await supabase
         .from('planned_workouts')
-        .select('id, scheduled_date, day_label, workout_type, prescribed')
+        .select('id, scheduled_date, day_label, workout_type, prescribed, plan_id')
         .eq('user_id', user.id)
-        .eq('plan_id', activePlan.id)
+        .in('plan_id', activePlanIds)
         .gte('scheduled_date', today)
         .order('scheduled_date', { ascending: true })
-        .limit(14)
+        .limit(28)
     : { data: [] };
 
   return (
@@ -39,7 +44,9 @@ export default async function TrainingPlansPage() {
       <TrainingPlansClient
         plans={plans ?? []}
         upcomingWorkouts={upcomingWorkouts ?? []}
-        activePlanId={activePlan?.id ?? null}
+        activePlanId={activePlans[0]?.id ?? null}
+        activePlanIds={activePlanIds}
+        planNames={Object.fromEntries((plans ?? []).map((p) => [p.id, p.name]))}
       />
     </main>
   );

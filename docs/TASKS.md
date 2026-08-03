@@ -96,6 +96,16 @@
   Either they're not set for Production, or the deployment predates them — **env changes
   need a redeploy to take effect**. Check `vercel env ls production`, then `vercel redeploy`.
 
+- [ ] **Two active training plans overlap — Eric's call** (2026-08-03)
+  "Return Block — 6-Day Strength + Run" runs 07-27 → 08-09 and the new
+  "Couch to 5K" runs 08-03 → 10-25, so 08-03 to 08-09 has sessions from both.
+  08-04 in particular has the Return Block's "Run 4 — build" AND the 5K plan's
+  Norwegian 4x4.
+  - Both now show on /fitness/plans (it previously rendered only the first active
+    plan, hiding the other entirely), with a plan-name chip on each session.
+  - Options: let the Return Block finish and treat its runs as the 5K plan's first
+    week, mark it completed early, or move the 5K start to 08-10. Not decided.
+
 - [ ] **Readiness does not use recovery data — decide whether it should** (2026-08-03)
   `readiness.ts` scores five inputs: HRV vs baseline, RHR vs baseline, sleep duration +
   score, TSB (training stress balance), and blood pressure. Recovery sessions are read
