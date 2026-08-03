@@ -6,6 +6,7 @@ import { reassessStatus, computePillarScores } from "@/lib/flourishing/spirit-so
 import { statusForScore } from "@/lib/status-colors";
 import PracticeTracker from "@/components/spirit/PracticeTracker";
 import { todayIso as practiceToday, type Practice, type PracticeLog } from "@/lib/spirit/practices";
+import { selectDailyRotation, type PrayerRequest } from "@/lib/spirit/prayer";
 import { Dumbbell, Plus, CalendarDays, Target, CheckSquare, HeartPulse, Activity, Gauge } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
@@ -161,6 +162,7 @@ export default async function DashboardHome() {
     bpResult,
     plannedWorkoutResult,
     goalsResult,
+    prayerResult,
     practicesResult,
     practiceLogsResult,
     readingSubsResult,
@@ -269,6 +271,11 @@ export default async function DashboardHome() {
       .neq("status", "complete")
       .limit(5),
     supabase
+      .from("prayer_requests")
+      .select("id, subject_id, body, mode, status, urgent, last_prayed_at, prayed_count")
+      .eq("user_id", user.id)
+      .in("status", ["open", "waiting"]),
+    supabase
       .from("practices")
       .select("id,key,label,cadence,target_per_period,sort_order,created_at")
       .eq("user_id", user.id)
@@ -356,6 +363,11 @@ export default async function DashboardHome() {
   const plannedWorkouts = plannedWorkoutResult.data ?? [];
   const goals = goalsResult.data ?? [];
   const practices = (practicesResult.data ?? []) as Practice[];
+
+  // Today's rotation, computed here so the card shows real items rather than a
+  // count. A number tells you the list exists; the names get you praying.
+  const prayerRotation = selectDailyRotation((prayerResult.data ?? []) as PrayerRequest[], { size: 3 });
+  const prayerActive = (prayerResult.data ?? []).length;
   const practiceLogs = (practiceLogsResult.data ?? []) as PracticeLog[];
 
   // Where each active reading plan stands. Progress is counted per
@@ -614,6 +626,35 @@ export default async function DashboardHome() {
             </Link>
           </div>
           <PracticeTracker practices={practices} logs={practiceLogs} today={practiceToday(today)} />
+        </section>
+      )}
+
+      {prayerActive > 0 && (
+        <section className="mt-4">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+              Prayer
+            </h2>
+            <Link href="/spirit/prayer" className="text-xs font-medium text-indigo-700 hover:text-indigo-800">
+              Open prayer
+            </Link>
+          </div>
+          <Link
+            href="/spirit/prayer"
+            className="block rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm transition-shadow hover:shadow"
+          >
+            <p className="text-xs text-slate-500">
+              {prayerActive} active · next up in the rotation
+            </p>
+            <ul className="mt-1.5 space-y-1">
+              {prayerRotation.map((r) => (
+                <li key={r.id} className="truncate text-sm text-slate-800">
+                  {r.urgent && <span className="mr-1 font-semibold text-rose-600">!</span>}
+                  {r.body}
+                </li>
+              ))}
+            </ul>
+          </Link>
         </section>
       )}
 

@@ -111,7 +111,11 @@
   - Options: let the Return Block finish and treat its runs as the 5K plan's first
     week, mark it completed early, or move the 5K start to 08-10. Not decided.
 
-- [ ] **Readiness does not use recovery data — decide whether it should** (2026-08-03)
+- [x] **Readiness and recovery — RESOLVED 2026-08-03.** Decided: modality logging is
+      context and advice only (it double-counts what HRV/RHR/sleep already measure, and
+      would make the score raisable by logging). Self-rated soreness / perceived recovery
+      enters as a 0.05-weight factor — the only musculoskeletal signal in the model.
+- [x] ~~Readiness does not use recovery data~~ (2026-08-03)
   `readiness.ts` scores five inputs: HRV vs baseline, RHR vs baseline, sleep duration +
   score, TSB (training stress balance), and blood pressure. Recovery sessions are read
   by `health-context.ts` for AI prompts but feed NO score.
@@ -138,7 +142,13 @@
     off the head unit has everything the API would give.
   - Not urgent — Eric isn't back on the bike yet. Worth settling before he is.
 
-- [ ] **Prayer module — NOT BUILT, needs a design conversation** (Eric, 2026-08-03)
+- [x] **Prayer module — BUILT 2026-08-03.** Seeded from Eric's own 2025 prayer journal
+      PDF: 121 subjects, 26 specific requests, nesting preserved. Rotation model follows
+      PrayerMate (least-recently-prayed first, urgent jumps queue); answered-prayer
+      tracking follows Echo. Still open: editing subjects/requests in-app (currently
+      seed-only + mark prayed/answered), prayer_sessions is written by nothing yet,
+      and reflections linking to notes.
+- [x] ~~Prayer module — NOT BUILT, needs a design conversation~~ (Eric, 2026-08-03)
   Confirmed absent: prayer exists only as a boolean on `daily_anchors`, a checkbox in
   the `practices` table, and three survey questions. No tables, no pages, no history.
   Eric has built one in other apps and wants to discuss features before anything is
@@ -276,7 +286,11 @@ open decisions and deferred work, roughly in the order worth doing.
   3m threshold. The 425m phantom climb is now 40m; genuinely flat routes read 0-6m. All
   five stored routes were recomputed.
 
-- [ ] **`running_dynamics` and `mobility_metrics` still have no UI.** Both are
+- [x] **`running_dynamics` / `mobility_metrics` UI — WAS ALREADY BUILT.** This task was
+      stale: /fitness/mobility charts both with sparklines and bands. What was genuinely
+      missing and is now added: six_minute_walk_m and cardio_recovery_bpm, plus feeding
+      gait data into the AI health context, which read none of it.
+- [x] ~~`running_dynamics` and `mobility_metrics` still have no UI.~~ Both are
   accumulating daily rows. Trend charts are the natural next build — walking asymmetry
   and double-support are only meaningful as trend lines.
 

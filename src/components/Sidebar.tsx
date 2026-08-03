@@ -17,8 +17,7 @@ import {
   Sparkles,
   HeartPulse,
   Footprints,
-  Settings,
-} from "lucide-react";
+  Settings, HandHeart} from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
 type SidebarProps = {
@@ -115,6 +114,7 @@ export default function Sidebar({
             <div className={`mt-2 grid gap-2 ${isCollapsed ? "place-items-center" : ""}`}>
               <NavLink href="/spirit" label="Practices" shortLabel="SP" collapsed={isCollapsed} icon={<Flame size={18} className="text-amber-600" />} onClick={handleNavigate} />
               <NavLink href="/spirit/reading" label="Reading Plans" shortLabel="RD" collapsed={isCollapsed} icon={<BookOpen size={18} className="text-amber-600" />} onClick={handleNavigate} />
+              <NavLink href="/spirit/prayer" label="Prayer" shortLabel="PR" collapsed={isCollapsed} icon={<HandHeart size={18} className="text-amber-600" />} onClick={handleNavigate} />
               {FEATURES.sermons && (
                 <NavLink href="/sermons" label="Sermons" shortLabel="SM" collapsed={isCollapsed} icon={<Mic size={18} className="text-pink-600" />} onClick={handleNavigate} />
               )}
