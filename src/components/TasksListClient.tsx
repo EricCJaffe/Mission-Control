@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import RtfEditor from "@/components/RtfEditor";
+import { Check } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type Task = {
   id: string;
@@ -60,18 +62,67 @@ function toDateInput(value: string | null) {
   return date.toISOString().slice(0, 10);
 }
 
-function TaskRow({ task, onOpen }: { task: Task; onOpen: (task: Task) => void }) {
+function TaskRow({
+  task,
+  onOpen,
+  onToggleDone,
+  busy,
+}: {
+  task: Task;
+  onOpen: (task: Task) => void;
+  onToggleDone: (task: Task) => void;
+  busy: boolean;
+}) {
+  const isDone = task.status === "done";
   const overdue =
     task.due_date &&
     new Date(task.due_date).getTime() < new Date().setHours(0, 0, 0, 0) &&
-    task.status !== "done";
+    !isDone;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-slate-300 bg-white px-3 py-2">
+    // The whole row opens the task. It was previously only the small circle
+    // and the Edit button, so most of the card looked clickable and wasn't.
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(task)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(task);
+        }
+      }}
+      className={`flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-lg border-2 bg-white px-3 py-2 transition-colors hover:border-slate-400 hover:bg-slate-50 ${
+        isDone ? "border-emerald-300 bg-emerald-50/40" : "border-slate-300"
+      }`}
+    >
       <div className="flex min-w-0 items-center gap-3">
-        <button className="h-4 w-4 rounded-full border border-slate-300" type="button" onClick={() => onOpen(task)} aria-label="Open task" />
+        {/* stopPropagation so completing doesn't also open the task. */}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleDone(task);
+          }}
+          aria-label={isDone ? `Mark ${task.title} not done` : `Mark ${task.title} done`}
+          aria-pressed={isDone}
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-50 ${
+            isDone
+              ? "border-emerald-600 bg-emerald-600 text-white"
+              : "border-slate-300 bg-white text-transparent hover:border-emerald-500 hover:text-emerald-300"
+          }`}
+        >
+          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+        </button>
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-slate-900">{task.title}</div>
+          <div
+            className={`truncate text-sm font-medium ${
+              isDone ? "text-slate-400 line-through" : "text-slate-900"
+            }`}
+          >
+            {task.title}
+          </div>
           <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-slate-500">
             <span className="rounded-full bg-slate-100 px-2 py-0.5">{task.status || "open"}</span>
             {task.priority && <span className="rounded-full bg-amber-100 px-2 py-0.5">P{task.priority}</span>}
@@ -85,7 +136,14 @@ function TaskRow({ task, onOpen }: { task: Task; onOpen: (task: Task) => void })
           {task.why && <div className="mt-1 text-xs text-slate-500">{snippet(task.why)}</div>}
         </div>
       </div>
-      <button className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs" type="button" onClick={() => onOpen(task)}>
+      <button
+        className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs hover:bg-slate-100"
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen(task);
+        }}
+      >
         Edit
       </button>
     </div>
@@ -119,10 +177,14 @@ export default function TasksListClient({
   noteLinks: TaskNoteLink[];
   notes: NoteOption[];
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tab, setTab] = useState("my");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  /** Optimistic status overrides, keyed by task id. */
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, string>>({});
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [editWhy, setEditWhy] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editStatus, setEditStatus] = useState("");
@@ -162,11 +224,42 @@ export default function TasksListClient({
     return filtered;
   }, [filtered, tab]);
 
-  const pinned = visibleTasks.filter((task) => task.priority === 1);
-  const todo = visibleTasks.filter((task) => (task.status || "open") === "open" && task.priority !== 1);
-  const inProgress = visibleTasks.filter((task) => task.status === "in_progress");
-  const done = visibleTasks.filter((task) => task.status === "done");
-  const blocked = visibleTasks.filter((task) => task.status === "blocked");
+  const withOverrides = visibleTasks.map((task) =>
+    statusOverrides[task.id] ? { ...task, status: statusOverrides[task.id] } : task,
+  );
+
+  /**
+   * Toggles done/open. Optimistic so the tick lands instantly — a checkbox
+   * that waits on a round-trip feels broken — and rolled back if the write
+   * fails, so the tick never claims something that did not save.
+   */
+  async function toggleDone(task: Task) {
+    const next = task.status === "done" ? "open" : "done";
+    setStatusOverrides((prev) => ({ ...prev, [task.id]: next }));
+    setTogglingId(task.id);
+    try {
+      const body = new FormData();
+      body.set("id", task.id);
+      body.set("status", next);
+      const res = await fetch("/tasks/update", { method: "POST", body });
+      if (!res.ok) throw new Error("Save failed");
+      router.refresh();
+    } catch {
+      setStatusOverrides((prev) => {
+        const copy = { ...prev };
+        delete copy[task.id];
+        return copy;
+      });
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  const pinned = withOverrides.filter((task) => task.priority === 1);
+  const todo = withOverrides.filter((task) => (task.status || "open") === "open" && task.priority !== 1);
+  const inProgress = withOverrides.filter((task) => task.status === "in_progress");
+  const done = withOverrides.filter((task) => task.status === "done");
+  const blocked = withOverrides.filter((task) => task.status === "blocked");
 
   function openTask(task: Task) {
     setSelectedTask(task);
@@ -259,7 +352,7 @@ export default function TasksListClient({
                 <div className="text-xs font-semibold text-slate-500">Pinned</div>
                 <div className="mt-2 grid gap-2">
                   {pinned.map((task) => (
-                    <TaskRow key={task.id} task={task} onOpen={openTask} />
+                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
                   ))}
                 </div>
               </div>
@@ -269,7 +362,7 @@ export default function TasksListClient({
               <div className="text-xs font-semibold text-slate-500">To Do</div>
               <div className="mt-2 grid gap-2">
                 {todo.map((task) => (
-                  <TaskRow key={task.id} task={task} onOpen={openTask} />
+                  <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
                 ))}
                 {todo.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
               </div>
@@ -279,7 +372,7 @@ export default function TasksListClient({
               <div className="text-xs font-semibold text-slate-500">In Progress</div>
               <div className="mt-2 grid gap-2">
                 {inProgress.map((task) => (
-                  <TaskRow key={task.id} task={task} onOpen={openTask} />
+                  <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
                 ))}
                 {inProgress.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
               </div>
@@ -289,7 +382,7 @@ export default function TasksListClient({
               <div className="text-xs font-semibold text-slate-500">Done</div>
               <div className="mt-2 grid gap-2">
                 {done.map((task) => (
-                  <TaskRow key={task.id} task={task} onOpen={openTask} />
+                  <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
                 ))}
                 {done.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
               </div>
@@ -299,7 +392,7 @@ export default function TasksListClient({
               <div className="text-xs font-semibold text-slate-500">Blocked</div>
               <div className="mt-2 grid gap-2">
                 {blocked.map((task) => (
-                  <TaskRow key={task.id} task={task} onOpen={openTask} />
+                  <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
                 ))}
                 {blocked.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
               </div>
