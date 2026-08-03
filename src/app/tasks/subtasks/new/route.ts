@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       task_id: taskId,
       org_id: user.id,
       title,
-      status: "open",
+      status: "todo",
     });
   }
 

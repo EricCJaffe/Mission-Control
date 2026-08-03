@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import RtfEditor from "@/components/RtfEditor";
 import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
+import RecurrencePicker from "@/components/tasks/RecurrencePicker";
 
 type Task = {
   id: string;
@@ -124,7 +125,7 @@ function TaskRow({
             {task.title}
           </div>
           <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-slate-500">
-            <span className="rounded-full bg-slate-100 px-2 py-0.5">{task.status || "open"}</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5">{normalizeStatus(task.status)}</span>
             {task.priority && <span className="rounded-full bg-amber-100 px-2 py-0.5">P{task.priority}</span>}
             {task.due_date && (
               <span className={`rounded-full px-2 py-0.5 ${overdue ? "bg-rose-100 text-rose-700" : "bg-rose-50"}`}>
@@ -158,6 +159,21 @@ function snippet(text: string, max = 160) {
     .trim();
   if (!cleaned) return "";
   return cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned;
+}
+
+/**
+ * One vocabulary for "not done yet".
+ *
+ * The tasks table defaults to 'todo' and the reviews route writes 'todo', but
+ * this screen used 'open' throughout. A new task therefore matched no bucket
+ * and vanished, and ticking the circle wrote 'open' — a value nothing else
+ * recognises — so the task reappeared as soon as the list refetched. 'todo' is
+ * canonical; 'open' and null are read as the same thing for anything already
+ * written that way.
+ */
+function normalizeStatus(status: string | null | undefined): string {
+  if (!status || status === "open") return "todo";
+  return status;
 }
 
 export default function TasksListClient({
@@ -211,7 +227,7 @@ export default function TasksListClient({
 
   const filtered = useMemo(() => {
     return tasks.filter((task) => {
-      if (statusFilter !== "all" && (task.status || "open") !== statusFilter) return false;
+      if (statusFilter !== "all" && normalizeStatus(task.status) !== statusFilter) return false;
       if (!search.trim()) return true;
       const hay = `${task.title} ${task.category || ""} ${task.why || ""}`.toLowerCase();
       return hay.includes(search.toLowerCase());
@@ -234,7 +250,7 @@ export default function TasksListClient({
    * fails, so the tick never claims something that did not save.
    */
   async function toggleDone(task: Task) {
-    const next = task.status === "done" ? "open" : "done";
+    const next = task.status === "done" ? "todo" : "done";
     setStatusOverrides((prev) => ({ ...prev, [task.id]: next }));
     setTogglingId(task.id);
     try {
@@ -256,7 +272,7 @@ export default function TasksListClient({
   }
 
   const pinned = withOverrides.filter((task) => task.priority === 1);
-  const todo = withOverrides.filter((task) => (task.status || "open") === "open" && task.priority !== 1);
+  const todo = withOverrides.filter((task) => normalizeStatus(task.status) === "todo" && task.priority !== 1);
   const inProgress = withOverrides.filter((task) => task.status === "in_progress");
   const done = withOverrides.filter((task) => task.status === "done");
   const blocked = withOverrides.filter((task) => task.status === "blocked");
@@ -264,7 +280,7 @@ export default function TasksListClient({
   function openTask(task: Task) {
     setSelectedTask(task);
     setEditTitle(task.title);
-    setEditStatus(task.status || "open");
+    setEditStatus(normalizeStatus(task.status));
     setEditPriority(task.priority ? String(task.priority) : "");
     setEditDueDate(toDateInput(task.due_date));
     setEditCategory(task.category || "");
@@ -303,7 +319,7 @@ export default function TasksListClient({
       <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
         <select className="rounded-xl border border-slate-200 bg-white px-3 py-2" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">All Lists</option>
-          <option value="open">To Do</option>
+          <option value="todo">To Do</option>
           <option value="in_progress">In Progress</option>
           <option value="done">Done</option>
           <option value="blocked">Blocked</option>
@@ -436,7 +452,7 @@ export default function TasksListClient({
                     value={editStatus}
                     onChange={(e) => setEditStatus(e.target.value)}
                   >
-                    <option value="open">to do</option>
+                    <option value="todo">to do</option>
                     <option value="in_progress">in progress</option>
                     <option value="done">done</option>
                     <option value="blocked">blocked</option>
@@ -490,14 +506,10 @@ export default function TasksListClient({
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <label className="text-xs text-slate-500">Recurrence</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                    name="recurrence_rule"
-                    value={editRecurrence}
-                    onChange={(e) => setEditRecurrence(e.target.value)}
-                    placeholder="weekly"
-                  />
+                  <label className="text-xs text-slate-500">Repeat</label>
+                  <div className="mt-1">
+                    <RecurrencePicker key={selectedTask?.id ?? 'none'} defaultValue={editRecurrence} />
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs text-slate-500">Recurrence Anchor</label>
@@ -569,8 +581,8 @@ export default function TasksListClient({
                       <input type="hidden" name="id" value={sub.id} />
                       <input type="hidden" name="redirect" value="/tasks" />
                       <input className="flex-1 rounded border border-slate-200 px-2 py-1 text-xs" name="title" defaultValue={sub.title} />
-                      <select className="rounded border border-slate-200 px-2 py-1 text-[10px]" name="status" defaultValue={sub.status || "open"}>
-                        <option value="open">open</option>
+                      <select className="rounded border border-slate-200 px-2 py-1 text-[10px]" name="status" defaultValue={normalizeStatus(sub.status)}>
+                        <option value="todo">to do</option>
                         <option value="in_progress">in progress</option>
                         <option value="done">done</option>
                         <option value="blocked">blocked</option>
@@ -736,6 +748,12 @@ export default function TasksListClient({
               <label className="text-xs text-slate-500">Description</label>
               <input type="hidden" name="why" value={newWhy} />
               <RtfEditor value={newWhy} onChange={setNewWhy} placeholder="Why this matters..." minHeight="140px" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Repeat</label>
+              <div className="mt-1">
+                <RecurrencePicker />
+              </div>
             </div>
             <label className="inline-flex items-center gap-2 text-xs text-slate-500">
               <input type="checkbox" name="is_template" checked={newTemplate} onChange={(e) => setNewTemplate(e.target.checked)} />
