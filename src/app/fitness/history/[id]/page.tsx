@@ -2,6 +2,8 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import WorkoutDetailClient from '@/components/fitness/WorkoutDetailClient';
 import RouteMap from '@/components/fitness/RouteMap';
+import RunBreakdown from '@/components/fitness/RunBreakdown';
+import { analyseRun } from '@/lib/fitness/run-analysis';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -56,6 +58,11 @@ export default async function WorkoutDetailPage({ params }: Props) {
     .eq('user_id', user.id)
     .maybeSingle();
 
+  // Everything below the map is derived from the same GPS trace — splits,
+  // run/walk segmentation, elevation. No extra ingestion, just arithmetic on
+  // points that were already being stored and only ever drawn.
+  const runAnalysis = route?.points?.length ? analyseRun(route.points) : null;
+
   return (
     <div className="space-y-4">
       {route?.points?.length ? (
@@ -65,6 +72,13 @@ export default async function WorkoutDetailPage({ params }: Props) {
           elevationLossM={route.elevation_loss_m}
         />
       ) : null}
+      {runAnalysis && (
+        <RunBreakdown
+          analysis={runAnalysis}
+          avgHr={workout.avg_hr ?? null}
+          maxHr={workout.max_hr ?? null}
+        />
+      )}
       <WorkoutDetailClient
         workout={workout}
         sets={sets || []}

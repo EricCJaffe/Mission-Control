@@ -1,7 +1,7 @@
 "use client";
 
 import NavLink from "@/components/NavLink";
-import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, StickyNote, Sparkles, Footprints, Settings, HandHeart } from "lucide-react";
+import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
 type SidebarProps = {
@@ -119,6 +119,7 @@ export default function Sidebar({
             <div className={`text-xs uppercase tracking-[0.2em] text-emerald-700 ${isCollapsed ? "sr-only" : ""}`}>Body</div>
             <div className={`mt-2 grid gap-2 ${isCollapsed ? "place-items-center" : ""}`}>
               <NavLink href="/fitness" exact label="Fitness" shortLabel="FT" collapsed={isCollapsed} icon={<Dumbbell size={18} className="text-red-600" />} onClick={handleNavigate} />
+              <NavLink href="/fitness/mileage" label="Mileage" shortLabel="MI" collapsed={isCollapsed} icon={<Route size={18} className="text-emerald-600" />} onClick={handleNavigate} />
               <NavLink href="/fitness/mobility" label="Mobility" shortLabel="MB" collapsed={isCollapsed} icon={<Footprints size={18} className="text-emerald-600" />} onClick={handleNavigate} />
             </div>
           </div>
