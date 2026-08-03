@@ -110,3 +110,52 @@ button.mc-loading::after {
 .border-gray-300 {
   border-color: #000;
 }
+
+/*
+ * Task modals.
+ *
+ * A native <dialog> centres via `margin: auto`, which Tailwind's preflight
+ * resets to 0 — so these opened pinned to the top-left of the viewport. The
+ * backdrop is also transparent by default, which left the page behind fully
+ * legible and the dialog reading as part of the page rather than over it.
+ */
+dialog.task-modal {
+  margin: auto;
+  max-height: 90vh;
+}
+
+dialog.task-modal::backdrop {
+  background: rgb(15 23 42 / 0.55);
+  backdrop-filter: blur(2px);
+}
+
+/* Rendered markdown preview. */
+.markdown-preview h2 { font-size: 1.05rem; font-weight: 700; margin: 0.6rem 0 0.3rem; }
+.markdown-preview h3 { font-size: 0.95rem; font-weight: 700; margin: 0.5rem 0 0.25rem; }
+.markdown-preview h4, .markdown-preview h5 { font-size: 0.9rem; font-weight: 600; margin: 0.4rem 0 0.2rem; }
+.markdown-preview p { margin: 0.4rem 0; }
+.markdown-preview ul { list-style: disc; padding-left: 1.25rem; margin: 0.4rem 0; }
+.markdown-preview ol { list-style: decimal; padding-left: 1.25rem; margin: 0.4rem 0; }
+.markdown-preview li { margin: 0.15rem 0; }
+.markdown-preview a { color: #1d4ed8; text-decoration: underline; }
+.markdown-preview code {
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.85em;
+}
+.markdown-preview pre {
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+.markdown-preview pre code { background: none; padding: 0; }
+.markdown-preview blockquote {
+  border-left: 3px solid #cbd5e1;
+  padding-left: 0.75rem;
+  color: #475569;
+  margin: 0.5rem 0;
+}
+.markdown-preview hr { border: 0; border-top: 1px solid #cbd5e1; margin: 0.75rem 0; }

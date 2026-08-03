@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import RtfEditor from "@/components/RtfEditor";
+import MarkdownEditor from "@/components/MarkdownEditor";
 import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import RecurrencePicker from "@/components/tasks/RecurrencePicker";
@@ -234,7 +234,7 @@ export default function TasksListClient({
       const hay = `${task.title} ${task.category || ""} ${task.why || ""}`.toLowerCase();
       return hay.includes(search.toLowerCase());
     });
-  }, [tasks, search, statusFilter]);
+  }, [tasks, search]);
 
   const visibleTasks = useMemo(() => {
     if (tab === "recurring") return filtered.filter((task) => task.recurrence_rule);
@@ -468,9 +468,12 @@ export default function TasksListClient({
         )}
       </div>
 
-      <dialog id="task-detail-dialog" className="w-[92vw] max-w-3xl rounded-2xl border border-slate-200 p-0 shadow-xl">
-        <div className="rounded-2xl bg-white p-6">
-          <div className="flex items-center justify-between">
+      <dialog
+        id="task-detail-dialog"
+        className="task-modal w-[92vw] max-w-3xl rounded-2xl border-2 border-slate-300 p-0 shadow-2xl"
+      >
+        <div className="max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6">
+          <div className="sticky -top-6 z-10 -mx-6 -mt-6 mb-2 flex items-center justify-between border-b-2 border-slate-200 bg-white px-6 py-4">
             <h3 className="text-lg font-semibold">Task Details</h3>
             <button
               className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm"
@@ -552,7 +555,7 @@ export default function TasksListClient({
               <div>
                 <label className="text-xs text-slate-500">Description</label>
                 <input type="hidden" name="why" value={editWhy} />
-                <RtfEditor value={editWhy} onChange={setEditWhy} placeholder="Add details..." minHeight="160px" />
+                <MarkdownEditor value={editWhy} onChange={setEditWhy} placeholder="Add details..." minHeight="160px" />
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
@@ -766,8 +769,11 @@ export default function TasksListClient({
         </div>
       </dialog>
 
-      <dialog id="new-task-dialog" className="w-[92vw] max-w-2xl rounded-2xl border border-slate-200 p-0 shadow-xl">
-        <div className="rounded-2xl bg-white p-6">
+      <dialog
+        id="new-task-dialog"
+        className="task-modal w-[92vw] max-w-2xl rounded-2xl border-2 border-slate-300 p-0 shadow-2xl"
+      >
+        <div className="max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6">
           <h3 className="text-lg font-semibold">New Task</h3>
           <form className="mt-4 grid gap-4" action="/tasks/new" method="post" data-toast="Task added">
             <div>
@@ -798,7 +804,7 @@ export default function TasksListClient({
             <div>
               <label className="text-xs text-slate-500">Description</label>
               <input type="hidden" name="why" value={newWhy} />
-              <RtfEditor value={newWhy} onChange={setNewWhy} placeholder="Why this matters..." minHeight="140px" />
+              <MarkdownEditor value={newWhy} onChange={setNewWhy} placeholder="Why this matters..." minHeight="140px" />
             </div>
             <div>
               <label className="text-xs text-slate-500">Repeat</label>
