@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bold, Code, Eye, Italic, Link2, List, ListOrdered, Pencil, Quote } from 'lucide-react';
 import { renderMarkdown } from '@/lib/markdown';
 
@@ -20,7 +20,7 @@ export default function MarkdownEditor({
   value,
   onChange,
   placeholder,
-  minHeight = '160px',
+  minHeight = '72px',
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -29,6 +29,16 @@ export default function MarkdownEditor({
 }) {
   const [tab, setTab] = useState<'write' | 'preview'>('write');
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  // Grow to fit the content rather than reserving a fixed block of empty
+  // space. Capped so a long description scrolls inside the editor instead of
+  // pushing the rest of the form off the screen.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || tab !== 'write') return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
+  }, [value, tab]);
 
   /**
    * Wraps or prefixes the current selection.
@@ -91,11 +101,11 @@ export default function MarkdownEditor({
   }
 
   const btn =
-    'flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800';
+    'flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-900';
 
   return (
     <div className="overflow-hidden rounded-xl border-2 border-slate-300 bg-white">
-      <div className="flex items-center gap-0.5 border-b border-slate-200 bg-slate-50 px-1.5 py-1">
+      <div className="flex items-center gap-0.5 border-b-2 border-slate-200 bg-slate-50 px-1.5 py-1">
         <button type="button" className={btn} onClick={() => apply('**', '**')} title="Bold (⌘B)" aria-label="Bold">
           <Bold className="h-4 w-4" />
         </button>
@@ -151,7 +161,8 @@ export default function MarkdownEditor({
           onKeyDown={onKeyDown}
           placeholder={placeholder}
           spellCheck
-          className="w-full resize-y border-0 px-3 py-2 text-sm leading-relaxed text-slate-900 focus:outline-none"
+          rows={1}
+          className="block w-full resize-none overflow-y-auto border-0 px-3 py-2 text-sm leading-relaxed text-slate-900 focus:outline-none"
           style={{ minHeight }}
         />
       ) : (

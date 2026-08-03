@@ -120,8 +120,13 @@ button.mc-loading::after {
  * legible and the dialog reading as part of the page rather than over it.
  */
 dialog.task-modal {
+  /* The UA stylesheet centres a modal <dialog> with inset:0 + margin:auto.
+     Tailwind's preflight zeroes margin on everything, so both are restored
+     explicitly rather than relying on one surviving. */
+  inset: 0;
   margin: auto;
   max-height: 90vh;
+  width: fit-content;
 }
 
 dialog.task-modal::backdrop {

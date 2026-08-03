@@ -552,19 +552,18 @@ export default function TasksListClient({
                 </div>
               </div>
 
+              <div className="rounded-xl border-2 border-slate-300 p-3">
+                <RecurrencePicker key={selectedTask?.id ?? 'none'} defaultValue={editRecurrence} />
+              </div>
+
               <div>
                 <label className="text-xs text-slate-500">Description</label>
                 <input type="hidden" name="why" value={editWhy} />
-                <MarkdownEditor value={editWhy} onChange={setEditWhy} placeholder="Add details..." minHeight="160px" />
+                <MarkdownEditor value={editWhy} onChange={setEditWhy} placeholder="Add details…" minHeight="96px" />
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
-                <div>
-                  <label className="text-xs text-slate-500">Repeat</label>
-                  <div className="mt-1">
-                    <RecurrencePicker key={selectedTask?.id ?? 'none'} defaultValue={editRecurrence} />
-                  </div>
-                </div>
+
                 <div>
                   <label className="text-xs text-slate-500">Recurrence Anchor</label>
                   <input
@@ -771,56 +770,96 @@ export default function TasksListClient({
 
       <dialog
         id="new-task-dialog"
-        className="task-modal w-[92vw] max-w-2xl rounded-2xl border-2 border-slate-300 p-0 shadow-2xl"
+        className="task-modal w-[92vw] max-w-lg rounded-2xl border-2 border-slate-300 p-0 shadow-2xl"
       >
-        <div className="max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6">
-          <h3 className="text-lg font-semibold">New Task</h3>
-          <form className="mt-4 grid gap-4" action="/tasks/new" method="post" data-toast="Task added">
+        <div className="max-h-[85vh] overflow-y-auto rounded-2xl bg-white">
+          <div className="sticky top-0 z-10 border-b-2 border-slate-200 bg-white px-5 py-3">
+            <h3 className="text-base font-semibold">New Task</h3>
+          </div>
+          {/* Scheduling sits above the description on purpose. Repeat used to
+              follow a tall editor, which pushed it — and the Create button —
+              off the bottom of the screen, so it looked as though recurring
+              tasks were not supported at all. */}
+          <form className="grid gap-3 px-5 py-4" action="/tasks/new" method="post" data-toast="Task added">
             <div>
-              <label className="text-xs text-slate-500">Title</label>
-              <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required />
+              <label className="text-xs font-semibold text-slate-500" htmlFor="nt-title">Title</label>
+              <input
+                id="nt-title"
+                className="mt-1 w-full rounded-xl border-2 border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+                name="title"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                required
+              />
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div>
-                <label className="text-xs text-slate-500">Category</label>
-                <select className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="sm:col-span-2">
+                <label className="text-xs font-semibold text-slate-500" htmlFor="nt-category">Category</label>
+                <select
+                  id="nt-category"
+                  className="mt-1 w-full rounded-xl border-2 border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+                  name="category"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                >
                   <option value="">None</option>
                   {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
+                    <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="text-xs text-slate-500">Priority</label>
-                <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="priority" type="number" min="1" max="5" value={newPriority} onChange={(e) => setNewPriority(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-xs text-slate-500">Due Date</label>
-                <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="due_date" type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} />
+                <label className="text-xs font-semibold text-slate-500" htmlFor="nt-priority">Priority</label>
+                <input
+                  id="nt-priority"
+                  className="mt-1 w-full rounded-xl border-2 border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+                  name="priority"
+                  type="number"
+                  min="1"
+                  max="5"
+                  value={newPriority}
+                  onChange={(e) => setNewPriority(e.target.value)}
+                />
               </div>
             </div>
+
             <div>
-              <label className="text-xs text-slate-500">Description</label>
+              <label className="text-xs font-semibold text-slate-500" htmlFor="nt-due">Due Date</label>
+              <input
+                id="nt-due"
+                className="mt-1 w-full rounded-xl border-2 border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+                name="due_date"
+                type="date"
+                value={newDue}
+                onChange={(e) => setNewDue(e.target.value)}
+              />
+            </div>
+
+            <div className="rounded-xl border-2 border-slate-300 p-3">
+              <RecurrencePicker />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-500">Description</label>
               <input type="hidden" name="why" value={newWhy} />
-              <MarkdownEditor value={newWhy} onChange={setNewWhy} placeholder="Why this matters..." minHeight="140px" />
+              <MarkdownEditor value={newWhy} onChange={setNewWhy} placeholder="Optional details…" minHeight="72px" />
             </div>
-            <div>
-              <label className="text-xs text-slate-500">Repeat</label>
-              <div className="mt-1">
-                <RecurrencePicker />
-              </div>
-            </div>
+
             <label className="inline-flex items-center gap-2 text-xs text-slate-500">
               <input type="checkbox" name="is_template" checked={newTemplate} onChange={(e) => setNewTemplate(e.target.checked)} />
               Save as template
             </label>
-            <div className="flex justify-end gap-2">
-              <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" type="button" onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}>
+
+            <div className="sticky bottom-0 -mx-5 -mb-4 flex justify-end gap-2 border-t-2 border-slate-200 bg-white px-5 py-3">
+              <button
+                className="rounded-xl border-2 border-slate-300 bg-white px-3 py-2 text-sm"
+                type="button"
+                onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+              >
                 Cancel
               </button>
-              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+              <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800" type="submit">
                 Create Task
               </button>
             </div>
