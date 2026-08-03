@@ -163,6 +163,7 @@ export default async function DashboardHome() {
     goalsResult,
     practicesResult,
     practiceLogsResult,
+    readingSubsResult,
   ] = await Promise.all([
     supabase
       .from("dashboard_scores")
@@ -276,6 +277,11 @@ export default async function DashboardHome() {
       .select("practice_id,log_date,completed")
       .eq("user_id", user.id)
       .gte("log_date", hybridSince.slice(0, 10)),
+    supabase
+      .from("reading_plan_subscriptions")
+      .select("id,plan_id,reading_plans(name,day_count)")
+      .eq("user_id", user.id)
+      .eq("status", "active"),
   ]);
 
   const scoreRow = scoresResult.data;
@@ -349,6 +355,31 @@ export default async function DashboardHome() {
   const goals = goalsResult.data ?? [];
   const practices = (practicesResult.data ?? []) as Practice[];
   const practiceLogs = (practiceLogsResult.data ?? []) as PracticeLog[];
+
+  // Where each active reading plan stands. Progress is counted per
+  // subscription so a day read shows on the dashboard, not just in the module.
+  const readingSubs = readingSubsResult.data ?? [];
+  const readingProgress = await Promise.all(
+    readingSubs.map(async (sub) => {
+      const { data: rows } = await supabase
+        .from("reading_plan_progress")
+        .select("day_number,completed_on")
+        .eq("subscription_id", sub.id);
+      const done = rows ?? [];
+      const doneDays = new Set(done.map((d) => d.day_number));
+      const planMeta = sub.reading_plans as unknown as { name: string; day_count: number } | null;
+      let currentDay = 1;
+      while (doneDays.has(currentDay) && currentDay <= (planMeta?.day_count ?? 1)) currentDay += 1;
+      return {
+        id: sub.id,
+        name: planMeta?.name ?? "Reading plan",
+        dayCount: planMeta?.day_count ?? 0,
+        currentDay: Math.min(currentDay, planMeta?.day_count ?? 1),
+        completed: done.length,
+        doneToday: done.some((d) => d.completed_on === todayIso),
+      };
+    }),
+  );
 
   const hybridWeek = computeHybridBalance(hybridSessions, { windowDays: 7, now: today });
   const hybridMonth = computeHybridBalance(hybridSessions, {
@@ -566,6 +597,50 @@ export default async function DashboardHome() {
             </Link>
           </div>
           <PracticeTracker practices={practices} logs={practiceLogs} today={practiceToday(today)} />
+        </section>
+      )}
+
+      {readingProgress.length > 0 && (
+        <section className="mt-4">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+              Bible reading
+            </h2>
+            <Link href="/spirit/reading" className="text-xs font-medium text-amber-700 hover:text-amber-800">
+              All plans
+            </Link>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {readingProgress.map((r) => {
+              const pct = r.dayCount ? Math.round((r.completed / r.dayCount) * 100) : 0;
+              return (
+                <Link
+                  key={r.id}
+                  href="/spirit/reading"
+                  className={`rounded-2xl border-2 bg-white p-4 shadow-sm transition-shadow hover:shadow ${
+                    r.doneToday ? "border-emerald-400" : "border-amber-400"
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="truncate text-sm font-semibold text-slate-900">{r.name}</p>
+                    <span
+                      className={`shrink-0 text-[11px] font-semibold ${
+                        r.doneToday ? "text-emerald-700" : "text-amber-700"
+                      }`}
+                    >
+                      {r.doneToday ? "Read today" : "Continue"}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Day {r.currentDay} of {r.dayCount} · {pct}%
+                  </p>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </section>
       )}
 

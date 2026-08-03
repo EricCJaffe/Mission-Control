@@ -96,6 +96,23 @@
   Either they're not set for Production, or the deployment predates them — **env changes
   need a redeploy to take effect**. Check `vercel env ls production`, then `vercel redeploy`.
 
+- [ ] **Prayer module — NOT BUILT, needs a design conversation** (Eric, 2026-08-03)
+  Confirmed absent: prayer exists only as a boolean on `daily_anchors`, a checkbox in
+  the `practices` table, and three survey questions. No tables, no pages, no history.
+  Eric has built one in other apps and wants to discuss features before anything is
+  written. Questions worth settling first:
+  - Prayer LIST vs prayer JOURNAL — tracking named people/requests over time, or
+    free-form entries per session? They imply very different schemas.
+  - Answered-prayer tracking, and whether an answered item stays visible.
+  - Categories/recurrence (daily, weekly, situational) and whether it should surface a
+    rotating subset rather than the whole list.
+  - Whether it feeds the Spirit practice score, or stays separate like the reading plans
+    do (reading currently ticks `bible_reading` — prayer could tick `prayer` the same way).
+  - Privacy: prayer content is more sensitive than most of this app. Same RLS as
+    everything else, or something stricter?
+  - Overlap with notes: reading reflections mirror into `notes`; prayer could too, or
+    could justify its own store.
+
 ### Spirit / Soul / Body — roadmap (design captured 2026-08-02)
 - [x] **Monthly Alignment retired 2026-08-02.** It overlapped the Flourishing survey by
   ~70% (both monthly, both covering faith/health/relationships/calling) and had never
