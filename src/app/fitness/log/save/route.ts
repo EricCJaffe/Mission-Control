@@ -25,6 +25,14 @@ export async function POST(req: Request) {
     avg_hr?: number | null;
     max_hr?: number | null;
     notes: string | null;
+    class_detail?: {
+      discipline: string;
+      session_type: string | null;
+      instructor: string | null;
+      school: string | null;
+      rounds: number | null;
+      focus: string | null;
+    } | null;
     sets: SetLog[];
     cardio?: CardioLog | null;
     planned_duration_min?: number | null;
@@ -101,6 +109,24 @@ export async function POST(req: Request) {
 
   if (logError || !log) {
     return NextResponse.json({ error: logError?.message ?? 'Failed to save workout' }, { status: 500 });
+  }
+
+  // Class detail — professor, school, rounds, focus. Failing here must not
+  // lose the workout: the session is the record, the detail is colour.
+  if (workoutData.class_detail) {
+    const cd = workoutData.class_detail;
+    const { error: classError } = await supabase.from('class_sessions').insert({
+      user_id: user.id,
+      workout_log_id: log.id,
+      discipline: cd.discipline,
+      session_type: cd.session_type,
+      instructor: cd.instructor,
+      school: cd.school,
+      rounds: cd.rounds,
+      focus: cd.focus,
+      notes: workoutData.notes,
+    });
+    if (classError) console.error('[log/save] class_sessions:', classError.message);
   }
 
   // Insert set logs

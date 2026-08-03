@@ -554,7 +554,7 @@ export default async function DashboardHome() {
             Log Workout
           </Link>
           <Link
-            href="/fitness/log/class"
+            href="/fitness/log?type=jiujitsu"
             className="flex min-h-[56px] items-center justify-center rounded-2xl border-2 border-blue-700 bg-blue-50 px-4 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100"
           >
             Jiu Jitsu

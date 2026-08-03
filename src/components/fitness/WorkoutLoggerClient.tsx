@@ -80,6 +80,7 @@ type Props = {
     sets: RepeatSet[];
   } | null;
   templateId?: string | null;
+  initialModality?: string | null;
 };
 
 // ——— Internal types ———
@@ -121,7 +122,37 @@ type ExerciseBlock = {
   exercise_rpe: number | ''; // Overall RPE for the exercise
 };
 
-type WorkoutMode = 'select' | 'logging' | 'cardio' | 'complete';
+type WorkoutMode = 'select' | 'logging' | 'cardio' | 'class' | 'complete';
+
+/**
+ * What you are about to do, chosen before anything else.
+ *
+ * Previously the type sat in a dropdown BELOW the Template / AI / Manual tabs,
+ * which are strength concepts — so picking "cardio" left three irrelevant tabs
+ * on screen and the form only changed shape after pressing Start. Modality
+ * first, and everything below it adapts.
+ *
+ * Each modality carries the workout_type written to workout_logs and, for
+ * cardio, the activity_type on cardio_logs, so the classification is made once
+ * here rather than reconstructed at save time.
+ */
+type Modality = {
+  key: string;
+  label: string;
+  workoutType: string;
+  activityType?: string;
+  screen: 'logging' | 'cardio' | 'class';
+  hint: string;
+};
+
+const MODALITIES: Modality[] = [
+  { key: 'strength', label: 'Strength', workoutType: 'strength', screen: 'logging', hint: 'Sets, reps and weight' },
+  { key: 'run', label: 'Run', workoutType: 'cardio', activityType: 'run', screen: 'cardio', hint: 'Outdoor or treadmill' },
+  { key: 'bike', label: 'Bike', workoutType: 'cardio', activityType: 'bike', screen: 'cardio', hint: 'Road or indoor' },
+  { key: 'jiujitsu', label: 'Jiu-Jitsu', workoutType: 'cardio', activityType: 'martial_arts', screen: 'class', hint: 'Class, rolls and notes' },
+  { key: 'walk', label: 'Walk', workoutType: 'cardio', activityType: 'walk', screen: 'cardio', hint: 'Zone 1-2 time on feet' },
+  { key: 'mobility', label: 'Mobility', workoutType: 'mobility', screen: 'cardio', hint: 'Stretching, yoga' },
+];
 type LoggerMode = 'template' | 'ai' | 'manual';
 
 const SET_TYPE_LABELS: Record<SetType, string> = {
@@ -184,7 +215,7 @@ function SortableExerciseItem({
   );
 }
 
-export default function WorkoutLoggerClient({ exercises, templates, todayPlan, latestMetrics, repeatData, templateId }: Props) {
+export default function WorkoutLoggerClient({ exercises, templates, todayPlan, latestMetrics, repeatData, templateId, initialModality }: Props) {
   const router = useRouter();
   const [mode, setMode] = useState<WorkoutMode>('select');
   const [loggerMode, setLoggerMode] = useState<LoggerMode>('template');
@@ -192,7 +223,20 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   // you already finished (no live timer; you type the duration).
   const [isLive, setIsLive] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateRow | null>(null);
-  const [workoutType, setWorkoutType] = useState<string>('strength');
+  // ?type=jiujitsu lands straight on that modality, so the dashboard button
+  // opens the right form rather than the picker.
+  const [modalityKey, setModalityKey] = useState<string>(
+    initialModality && MODALITIES.some((m) => m.key === initialModality)
+      ? initialModality
+      : 'strength'
+  );
+  const [workoutType, setWorkoutType] = useState<string>(
+    MODALITIES.find((m) => m.key === initialModality)?.workoutType ?? 'strength'
+  );
+  // Jiu-jitsu detail, previously only reachable from a separate /log/class page.
+  const [classDetail, setClassDetail] = useState({
+    session_type: '', instructor: '', school: '', rounds: '', focus: '',
+  });
   const [blocks, setBlocks] = useState<ExerciseBlock[]>([]);
   const [duration, setDuration] = useState<number | ''>('');
   const [rpeSession, setRpeSession] = useState<number | ''>('');
@@ -261,6 +305,21 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     return `${m}:${String(s).padStart(2, '0')}`;
   }
+
+  const activeModality =
+    MODALITIES.find((m) => m.key === modalityKey) ?? MODALITIES[0];
+
+  /**
+   * Templates for the chosen modality only.
+   *
+   * Templates carry a `type` matching workout_logs.workout_type. Anything
+   * untyped is shown under strength, where the existing ones were authored,
+   * rather than being hidden everywhere.
+   */
+  const templatesForModality = templates.filter((t) => {
+    const type = (t.type ?? 'strength').toLowerCase();
+    return type === activeModality.workoutType;
+  });
 
   // Exercise picker state
   const [showExercisePicker, setShowExercisePicker] = useState(false);
@@ -990,7 +1049,9 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     const payload = {
       planned_workout_id: todayPlan?.id ?? null,
       template_id: selectedTemplate?.id ?? null,
-      workout_type: workoutType,
+      // A class is logged under its own name — "Jiu-Jitsu", not "cardio" — so
+      // history reads properly and hybrid-balance classification can see it.
+      workout_type: activeModality.screen === 'class' ? activeModality.label : workoutType,
       duration_minutes: duration !== '' ? Number(duration) : (elapsedSeconds > 60 ? Math.round(elapsedSeconds / 60) : null),
       rpe_session: rpeSession !== '' ? Number(rpeSession) : null,
       notes: sessionNotes || null,
@@ -1000,6 +1061,19 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       cardio: (workoutType === 'cardio' || workoutType === 'hybrid')
         ? { ...cardioData, hr_recovery_2min: hrRecovery2min !== '' ? Number(hrRecovery2min) : undefined }
         : null,
+      // Class detail travels with the workout so jiu-jitsu no longer needs its
+      // own page and its own round trip.
+      class_detail:
+        activeModality.screen === 'class'
+          ? {
+              discipline: activeModality.label,
+              session_type: classDetail.session_type || null,
+              instructor: classDetail.instructor || null,
+              school: classDetail.school || null,
+              rounds: classDetail.rounds ? Number(classDetail.rounds) : null,
+              focus: classDetail.focus || null,
+            }
+          : null,
     };
 
     setError(null);
@@ -1265,7 +1339,49 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             </button>
           </div>
 
-          {/* Mode Tabs */}
+          {/* What are you doing? Asked first, because everything below depends
+              on the answer — Template / AI / Manual are strength concepts and
+              have no meaning for a run. */}
+          <div className="mb-4">
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">
+              What are you doing?
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {MODALITIES.map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => {
+                    setModalityKey(m.key);
+                    setWorkoutType(m.workoutType);
+                    if (m.activityType) {
+                      setCardioData((prev) => ({ ...prev, activity_type: m.activityType }));
+                    }
+                    // A template chosen for one modality is meaningless under
+                    // another, so it is dropped rather than carried across.
+                    setSelectedTemplate(null);
+                  }}
+                  className={`min-h-[64px] rounded-xl border-2 px-2 py-2 text-left transition-colors ${
+                    modalityKey === m.key
+                      ? 'border-blue-700 bg-blue-50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`block text-sm font-bold ${
+                      modalityKey === m.key ? 'text-blue-800' : 'text-slate-800'
+                    }`}
+                  >
+                    {m.label}
+                  </span>
+                  <span className="block text-[10px] leading-tight text-slate-500">{m.hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Mode Tabs — strength only. */}
+          {activeModality.screen === 'logging' && (
           <div className="mb-4">
             <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
               <button
@@ -1294,38 +1410,52 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
               </button>
             </div>
           </div>
+          )}
 
-          <div className="mb-4">
-            <label className="text-xs text-slate-500 block mb-2">Type</label>
-            <select
-              value={workoutType}
-              onChange={(e) => setWorkoutType(e.target.value)}
-              className="rounded-xl border border-slate-200 min-h-[44px] px-3 text-base w-full capitalize"
-            >
-              {['strength', 'cardio', 'hiit', 'hybrid', 'mobility'].map((t) => (
-                <option key={t} value={t} className="capitalize">{t}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Template selector - only show in template mode */}
-          {loggerMode === 'template' && templates.length > 0 && (
+          {/* Template selector — only in template mode, and only templates
+              matching the chosen modality. Offering a Push day when you picked
+              Run is how a picker stops being trusted. */}
+          {(activeModality.screen === 'cardio' ||
+            (activeModality.screen === 'logging' && loggerMode === 'template')) && (
             <div className="mb-4">
-              <label className="text-xs text-slate-500 block mb-2">Select Template</label>
-              <select
-                value={selectedTemplate?.id ?? ''}
-                onChange={(e) => {
-                  const t = templates.find((t) => t.id === e.target.value) ?? null;
-                  setSelectedTemplate(t);
-                  if (t) setWorkoutType(t.type ?? workoutType);
-                }}
-                className="rounded-xl border border-slate-200 min-h-[44px] px-3 text-base w-full"
-              >
-                <option value="">— Choose a template —</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
+              <label className="text-xs text-slate-500 block mb-2">
+                Select Template
+                <span className="ml-1 font-normal text-slate-400">
+                  {templatesForModality.length} for {activeModality.label.toLowerCase()}
+                </span>
+              </label>
+              {templatesForModality.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-slate-300 p-3 text-xs text-slate-500">
+                  No {activeModality.label.toLowerCase()} templates yet.
+                  {activeModality.screen === 'logging'
+                    ? ' Use Manual, or build one with AI and save it as a template afterwards.'
+                    : ' You can still log it below.'}
+                </p>
+              ) : (
+                <select
+                  value={selectedTemplate?.id ?? ''}
+                  onChange={(e) => {
+                    const t = templatesForModality.find((t) => t.id === e.target.value) ?? null;
+                    setSelectedTemplate(t);
+                    if (t) {
+                      setWorkoutType(t.type ?? workoutType);
+                      // Cardio templates prescribe a duration; carrying it over
+                      // saves retyping the number the plan already specified.
+                      if (activeModality.screen === 'cardio' && t.estimated_duration_min) {
+                        setDuration(t.estimated_duration_min);
+                      }
+                    }
+                  }}
+                  className="rounded-xl border border-slate-200 min-h-[44px] px-3 text-base w-full"
+                >
+                  <option value="">
+                    {activeModality.screen === 'cardio' ? '— None (freeform) —' : '— Choose a template —'}
+                  </option>
+                  {templatesForModality.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
 
@@ -1367,7 +1497,9 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
           <button
             onClick={() => {
-              if (workoutType === 'cardio' || workoutType === 'mobility') {
+              if (activeModality.screen === 'class') {
+                setMode('class');
+              } else if (activeModality.screen === 'cardio') {
                 setMode('cardio');
               } else if (loggerMode === 'ai') {
                 // AI mode: (re)open the builder over the picker. Building it
@@ -1389,10 +1521,20 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                 setMode('logging');
               }
             }}
-            disabled={loggerMode === 'template' && !selectedTemplate && !repeatData && !todayPlan}
+            disabled={
+              activeModality.screen === 'logging' &&
+              loggerMode === 'template' &&
+              !selectedTemplate &&
+              !repeatData &&
+              !todayPlan
+            }
             className="w-full rounded-xl bg-slate-800 text-white text-sm font-semibold py-3 hover:bg-slate-700 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {repeatData ? 'Repeat Workout' : loggerMode === 'ai' ? 'Build with AI' : isLive ? 'Start Workout' : 'Log Workout'}
+            {repeatData
+              ? 'Repeat Workout'
+              : activeModality.screen === 'logging' && loggerMode === 'ai'
+                ? 'Build with AI'
+                : `${isLive ? 'Start' : 'Log'} ${activeModality.label}`}
           </button>
         </div>
 
@@ -1474,6 +1616,156 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           className="w-full rounded-xl bg-slate-800 text-white text-sm font-medium px-6 py-2.5 hover:bg-slate-700 min-h-[44px]"
         >
           Back to Dashboard
+        </button>
+      </div>
+    );
+  }
+
+  // ——— SCREEN: Class (jiu-jitsu and other coached sessions) ———
+  //
+  // Lives here rather than on its own page so the whole flow is one screen:
+  // pick Jiu-Jitsu, fill it in, save. Only duration is required — the value of
+  // a class log is that it gets written at all, and a form demanding professor
+  // and school before it will save is one you skip after training.
+  if (mode === 'class') {
+    const field =
+      'w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none';
+    const label = 'block text-xs font-semibold uppercase tracking-wider text-slate-500';
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <button onClick={() => setMode('select')} className="text-sm text-slate-500 hover:text-slate-700">
+            ← Back
+          </button>
+          {isLive && (
+            <span className="font-mono text-lg font-bold tabular-nums text-slate-900">
+              {formatElapsed(elapsedSeconds)}
+            </span>
+          )}
+        </div>
+
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-700">{activeModality.label}</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={label} htmlFor="cls-duration">Duration (minutes) *</label>
+              <input
+                id="cls-duration"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={duration}
+                onChange={(e) => setDuration(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder="60"
+                className={`${field} mt-1`}
+              />
+            </div>
+            <div>
+              <label className={label} htmlFor="cls-type">Session type</label>
+              <select
+                id="cls-type"
+                value={classDetail.session_type}
+                onChange={(e) => setClassDetail((c) => ({ ...c, session_type: e.target.value }))}
+                className={`${field} mt-1`}
+              >
+                <option value="">—</option>
+                {['Gi', 'No-Gi', 'Open mat', 'Competition class', 'Fundamentals', 'Private'].map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <span className={label}>Effort (RPE 1-10)</span>
+            <div className="mt-1.5 flex gap-1">
+              {[...Array(10)].map((_, i) => (
+                <button
+                  key={i + 1}
+                  type="button"
+                  onClick={() => setRpeSession(rpeSession === i + 1 ? '' : i + 1)}
+                  className={`min-h-[40px] flex-1 rounded-md text-sm font-semibold tabular-nums transition-colors ${
+                    rpeSession === i + 1
+                      ? 'bg-blue-700 text-white'
+                      : 'border border-slate-200 bg-white text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Optional</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={label} htmlFor="cls-prof">Professor / coach</label>
+              <input
+                id="cls-prof"
+                value={classDetail.instructor}
+                onChange={(e) => setClassDetail((c) => ({ ...c, instructor: e.target.value }))}
+                placeholder="Who taught it"
+                className={`${field} mt-1`}
+              />
+            </div>
+            <div>
+              <label className={label} htmlFor="cls-school">School / gym</label>
+              <input
+                id="cls-school"
+                value={classDetail.school}
+                onChange={(e) => setClassDetail((c) => ({ ...c, school: e.target.value }))}
+                placeholder="Where"
+                className={`${field} mt-1`}
+              />
+            </div>
+            <div>
+              <label className={label} htmlFor="cls-rounds">Rounds rolled</label>
+              <input
+                id="cls-rounds"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={classDetail.rounds}
+                onChange={(e) => setClassDetail((c) => ({ ...c, rounds: e.target.value }))}
+                placeholder="e.g. 5"
+                className={`${field} mt-1`}
+              />
+            </div>
+            <div>
+              <label className={label} htmlFor="cls-focus">Focus</label>
+              <input
+                id="cls-focus"
+                value={classDetail.focus}
+                onChange={(e) => setClassDetail((c) => ({ ...c, focus: e.target.value }))}
+                placeholder="Guard retention, armbar from mount…"
+                className={`${field} mt-1`}
+              />
+            </div>
+          </div>
+          <div className="mt-3">
+            <label className={label} htmlFor="cls-notes">Notes</label>
+            <textarea
+              id="cls-notes"
+              rows={4}
+              value={sessionNotes}
+              onChange={(e) => setSessionNotes(e.target.value)}
+              placeholder="What worked, what didn't, what to drill next time"
+              className={`${field} mt-1`}
+            />
+          </div>
+        </div>
+
+        {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+
+        <button
+          onClick={performSave}
+          disabled={saving || (duration === '' && elapsedSeconds < 60)}
+          className="min-h-[52px] w-full rounded-2xl bg-blue-700 text-base font-bold text-white hover:bg-blue-800 disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : `Save ${activeModality.label}`}
         </button>
       </div>
     );

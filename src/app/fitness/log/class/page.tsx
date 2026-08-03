@@ -1,19 +1,11 @@
-import ClassSessionForm from '@/components/fitness/ClassSessionForm';
+import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Log a class | Fitness' };
-
+/**
+ * Class logging moved into the main logger.
+ *
+ * Kept as a redirect rather than deleted: the old path exists in history, in
+ * the dashboard button before it was repointed, and possibly in a bookmark.
+ */
 export default function LogClassPage() {
-  return (
-    <div className="mx-auto max-w-3xl space-y-4 p-1">
-      <div>
-        <h1 className="text-3xl font-semibold">Log a class</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Time and effort are what count toward training balance. Everything else is
-          there so the session is worth reading back later.
-        </p>
-      </div>
-      <ClassSessionForm />
-    </div>
-  );
+  redirect('/fitness/log?type=jiujitsu');
 }
