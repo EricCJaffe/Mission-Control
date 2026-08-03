@@ -110,7 +110,20 @@ const REPS_STEP = 1;
 
 // Cap how many sets we pre-fill from last-workout history — imports can carry
 // far more than anyone actually performs in a session.
-const MAX_PREFILL_SETS = 6;
+// Eric's standard pattern is six sets, and he adds beyond it, so a cap of six
+// would silently drop whatever he added last time.
+const MAX_PREFILL_SETS = 12;
+
+/**
+ * The default shape of an exercise in a template: two warm-ups, three working
+ * sets, one drop set. Eric's standard, and a starting point he adjusts from.
+ *
+ * Templates may override it with an explicit set_pattern; this is only the
+ * fallback for anything that does not.
+ */
+export const DEFAULT_SET_PATTERN: SetType[] = [
+  'warmup', 'warmup', 'working', 'working', 'working', 'drop',
+];
 
 type ExerciseBlock = {
   id: string; // unique key for React
@@ -549,21 +562,27 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     for (const item of structure) {
       if (item.type === 'superset') {
         const groupId = `ss_${nextBlockId()}`;
+        // A template may prescribe its own pattern; otherwise every exercise
+        // gets Eric's default of two warm-ups, three working sets and a drop.
+        const pattern: SetType[] =
+          (item as { set_pattern?: SetType[] }).set_pattern ?? DEFAULT_SET_PATTERN;
         for (const ssExercise of item.exercises) {
           const ex = exerciseMap.get(ssExercise.exercise_id);
-          const sets: LoggedSet[] = [];
-          for (let r = 0; r < item.rounds; r++) {
-            sets.push({
-              id: newSetId(),
-              set_type: 'working',
-              reps: ssExercise.target_reps || '',
-              weight_lbs: ssExercise.target_weight || '',
-              rpe: '',
-              rest_seconds: r < item.rounds - 1 ? item.rest_between_exercises : null,
-              notes: '',
-              completed: false,
-            });
-          }
+          const sets: LoggedSet[] = pattern.map((setType, r) => ({
+            id: newSetId(),
+            set_type: setType,
+            // Warm-ups carry the rep target but not the working weight —
+            // prefilling a warm-up at working load is worse than leaving it
+            // blank, because it reads as a prescription.
+            reps: ssExercise.target_reps || '',
+            weight_lbs: setType === 'working' || setType === 'drop'
+              ? ssExercise.target_weight || ''
+              : '',
+            rpe: '',
+            rest_seconds: r < pattern.length - 1 ? item.rest_between_exercises : null,
+            notes: '',
+            completed: false,
+          }));
           newBlocks.push({
             id: nextBlockId(),
             exercise_id: ssExercise.exercise_id,
@@ -589,10 +608,11 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           notes: '',
           completed: false,
         }));
-        // If no sets defined, add 3 working sets as default
+        // No sets defined — fall back to the standard pattern rather than
+        // three bare working sets.
         if (sets.length === 0) {
-          for (let i = 0; i < 3; i++) {
-            sets.push({ id: newSetId(), set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false });
+          for (const setType of DEFAULT_SET_PATTERN) {
+            sets.push({ id: newSetId(), set_type: setType, reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false });
           }
         }
         newBlocks.push({
@@ -721,11 +741,10 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     if (!ex) return;
 
     // Fetch last workout data for this exercise
-    let sets: LoggedSet[] = [
-      { id: newSetId(), set_type: 'warmup', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
-      { id: newSetId(), set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
-      { id: newSetId(), set_type: 'working', reps: '', weight_lbs: '', rpe: '', rest_seconds: null, notes: '', completed: false },
-    ];
+    let sets: LoggedSet[] = DEFAULT_SET_PATTERN.map((setType) => ({
+      id: newSetId(), set_type: setType, reps: '', weight_lbs: '',
+      rpe: '', rest_seconds: null, notes: '', completed: false,
+    }));
 
     try {
       const res = await fetch(`/api/fitness/exercises/${exerciseId}/last-workout`);
@@ -2120,7 +2139,9 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             title={`${SET_TYPE_LABELS[s.set_type]} set — tap to change type`}
             className={`h-11 rounded-lg border-2 text-sm font-bold tabular-nums ${SET_TYPE_BADGE[s.set_type]}`}
           >
-            {s.set_type === 'working' ? setIdx + 1 : SET_TYPE_GLYPH[s.set_type]}
+            {s.set_type === 'working'
+              ? block.sets.slice(0, setIdx + 1).filter((x) => x.set_type === 'working').length
+              : SET_TYPE_GLYPH[s.set_type]}
           </button>
           <SetNumberInput
             value={s.weight_lbs}

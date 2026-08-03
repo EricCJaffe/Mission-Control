@@ -13,6 +13,10 @@
  * get 8 and isolation work 12-15, and target weight is left null so the
  * carry-forward from last session fills it in rather than a made-up number.
  *
+ * Set shape comes from DEFAULT_SET_PATTERN in the logger — two warm-ups, three
+ * working sets, one drop — so it is not repeated here. `rounds` below is kept
+ * for the rest calculation only; the number of sets follows the pattern.
+ *
  * Usage: node --env-file=.env.local scripts/seed-strength-templates.ts
  */
 
