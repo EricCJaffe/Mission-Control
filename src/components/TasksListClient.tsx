@@ -259,8 +259,15 @@ export default function TasksListClient({
       const body = new FormData();
       body.set("id", task.id);
       body.set("status", next);
-      const res = await fetch("/tasks/update", { method: "POST", body });
+      // Ask for JSON. Without this the route replies 307, fetch re-POSTs to
+      // /tasks, and the 405 that comes back reads as a failed save.
+      body.set("json", "1");
+      const res = await fetch("/tasks/update", { method: "POST", body, redirect: "manual" });
       if (!res.ok) throw new Error("Save failed");
+      // The override is deliberately NOT cleared here. router.refresh() is not
+      // awaitable, so dropping it now would show the old status again until the
+      // new server data lands — exactly the flash this was fixing. It is
+      // overwritten by the next render carrying the same value.
       router.refresh();
     } catch {
       setStatusOverrides((prev) => {

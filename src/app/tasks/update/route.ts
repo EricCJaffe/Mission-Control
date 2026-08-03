@@ -22,6 +22,9 @@ export async function POST(req: Request) {
   const recurrenceAnchor = String(form.get("recurrence_anchor") || "").trim();
   const isTemplate = String(form.get("is_template") || "").trim();
   const redirectTo = String(form.get("redirect") || "").trim();
+  // Programmatic callers ask for JSON. Everything else is a plain <form> post
+  // and still wants a redirect back to the page.
+  const wantsJson = String(form.get("json") || "").trim() === "1";
 
   const payload: Record<string, unknown> = {};
   if (form.has("title")) payload.title = title || null;
@@ -93,6 +96,20 @@ export async function POST(req: Request) {
       { error: error?.message ?? "Task not found" },
       { status: error ? 500 : 404 },
     );
+  }
+
+  /*
+   * This is why ticking a task never stuck.
+   *
+   * NextResponse.redirect() returns 307, and 307 PRESERVES the method — so a
+   * fetch() POST here followed the redirect by POSTing again to /tasks, which
+   * is a page with no POST handler, got a 405, and the client saw res.ok as
+   * false. The database write had already succeeded; the UI then rolled its
+   * optimistic tick back on top of it. Hence "it goes away for a second and
+   * pops right back in".
+   */
+  if (wantsJson) {
+    return NextResponse.json({ ok: true, status: payload.status ?? null });
   }
 
   if (redirectTo) {
