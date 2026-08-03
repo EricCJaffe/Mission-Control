@@ -91,12 +91,17 @@
   ```
   Add `--apply` once the dry run looks right.
 
-- [ ] **Apple Health ingest still 503s in production.** The route is deployed (it returns
+- [x] **Apple Health ingest 503 — RESOLVED 2026-08-03.** Eric set the missing env vars
+      and `CRON_SECRET`. Original note below.
+- [x] ~~Apple Health ingest still 503s in production.~~ The route is deployed (it returns
   its own "not configured" message, not a 404), so the env vars aren't reaching it.
   Either they're not set for Production, or the deployment predates them — **env changes
   need a redeploy to take effect**. Check `vercel env ls production`, then `vercel redeploy`.
 
-- [ ] **Two active training plans overlap — Eric's call** (2026-08-03)
+- [x] **Two active training plans overlap — RESOLVED 2026-08-03.** Concurrent plans by
+      discipline shipped; one active plan per discipline enforced in the database.
+      Superseded — original text below.
+- [x] ~~Two active training plans overlap — Eric's call~~ (2026-08-03)
   "Return Block — 6-Day Strength + Run" runs 07-27 → 08-09 and the new
   "Couch to 5K" runs 08-03 → 10-25, so 08-03 to 08-09 has sessions from both.
   08-04 in particular has the Return Block's "Run 4 — build" AND the 5K plan's
@@ -281,7 +286,12 @@ open decisions and deferred work, roughly in the order worth doing.
 
 - [ ] **Vercel CLI is outdated** (54.12.2 → 58.0.0): `npm i -g vercel@latest`.
 
-- [ ] **Delete the Garmin scrape — CONFIRMED OBSOLETE 2026-08-02.**
+- [x] **Garmin scrape — KEEP DORMANT, decided 2026-08-03.** Eric wants the routes left
+      in place in case we ever revert to them. Re-checked before deciding: they store
+      *encrypted tokens*, not a password (the password only transits the request body),
+      and `athlete_profile` currently holds no Garmin credentials at all — the code is
+      inert. Earlier note that these "store the Connect password" was wrong.
+- [x] ~~Delete the Garmin scrape~~ (was: CONFIRMED OBSOLETE 2026-08-02)
   Proven from Eric's own export: **21 of 31 workouts came from `Connect`** (Garmin) via
   Apple Health, plus 10 metrics (heart rate, resting HR, steps, sleep, active/basal
   energy, distance, flights, cycling distance, weight). Garmin -> Apple Health -> HAE

@@ -63,7 +63,14 @@ export async function GET() {
               diastolic: Number(getNested(snapshot, ['metrics', 'latest_bp_avg_30d', 'diastolic'])),
             }
           : null,
-        activePlanName: String(getNested(snapshot, ['training', 'active_plan', 'name']) || '') || null,
+        activePlanName:
+          (() => {
+            const many = getNested(snapshot, ['training', 'active_plans']);
+            if (Array.isArray(many) && many.length) {
+              return many.map((p) => String((p as { name?: unknown })?.name || '')).filter(Boolean).join(' + ') || null;
+            }
+            return String(getNested(snapshot, ['training', 'active_plan', 'name']) || '') || null;
+          })(),
       },
       suggestedUpdates: Array.isArray(analysis.suggested_health_doc_updates)
         ? analysis.suggested_health_doc_updates.map((update) => ({

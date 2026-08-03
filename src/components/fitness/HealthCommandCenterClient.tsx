@@ -46,7 +46,7 @@ type Snapshot = {
     form: { tsb: number | null; status: string | null; ctl: number | null; atl: number | null };
   };
   training: {
-    active_plan: { id: string; name: string; goal: string | null; start_date: string; end_date: string } | null;
+    active_plans: { id: string; name: string; discipline: string; goal: string | null; start_date: string; end_date: string }[];
     last_workout: { date: string; type: string; duration_minutes: number | null; tss: number | null } | null;
     ninety_day_summary: {
       total_workouts: number;
@@ -937,15 +937,22 @@ function normalizeSnapshot(input: Partial<Snapshot> | null | undefined): Snapsho
       },
     },
     training: {
-      active_plan: input?.training?.active_plan
-        ? {
-            id: String(input.training.active_plan.id || ''),
-            name: String(input.training.active_plan.name || ''),
-            goal: input.training.active_plan.goal == null ? null : String(input.training.active_plan.goal),
-            start_date: String(input.training.active_plan.start_date || ''),
-            end_date: String(input.training.active_plan.end_date || ''),
-          }
-        : null,
+      // Snapshots written before concurrent plans carry a single active_plan
+      // object. Read both shapes so an old saved analysis still renders.
+      active_plans: ((): Record<string, unknown>[] => {
+        const t = input?.training as Record<string, unknown> | undefined;
+        if (Array.isArray(t?.active_plans)) return t.active_plans as Record<string, unknown>[];
+        // Legacy single-plan snapshot.
+        if (t?.active_plan) return [t.active_plan as Record<string, unknown>];
+        return [];
+      })().map((p) => ({
+        id: String(p?.id || ''),
+        name: String(p?.name || ''),
+        discipline: String(p?.discipline || 'general'),
+        goal: p?.goal == null ? null : String(p.goal),
+        start_date: String(p?.start_date || ''),
+        end_date: String(p?.end_date || ''),
+      })),
       last_workout: input?.training?.last_workout
         ? {
             date: String(input.training.last_workout.date || ''),

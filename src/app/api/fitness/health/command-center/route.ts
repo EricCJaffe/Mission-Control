@@ -135,7 +135,7 @@ type Snapshot = {
     form: { tsb: number | null; status: string | null; ctl: number | null; atl: number | null };
   };
   training: {
-    active_plan: { id: string; name: string; goal: string | null; start_date: string; end_date: string } | null;
+    active_plans: { id: string; name: string; discipline: string; goal: string | null; start_date: string; end_date: string }[];
     last_workout: { date: string; type: string; duration_minutes: number | null; tss: number | null } | null;
     ninety_day_summary: {
       total_workouts: number;
@@ -349,7 +349,7 @@ async function loadSnapshot(userId: string): Promise<Snapshot> {
     { data: sleepRows },
     { data: bpRows },
     { data: workoutRows },
-    { data: activePlanRow },
+    { data: activePlanRows, error: activePlanError },
   ] = await Promise.all([
     supabase
       .from('health_documents')
@@ -463,15 +463,28 @@ async function loadSnapshot(userId: string): Promise<Snapshot> {
       .eq('user_id', userId)
       .gte('workout_date', ninetyDaysAgo.toISOString())
       .order('workout_date', { ascending: false }),
+    // Every active plan, not just one. Strength and cardio run concurrently,
+    // and the AI reasoning downstream needs to see both — a 5K block explains
+    // fatigue that a strength block alone would not.
+    //
+    // The columns here were plan_name and goal, neither of which exists on
+    // this table. PostgREST returned an error rather than rows, and because
+    // the error was never inspected the command center silently ran with no
+    // training context at all.
     supabase
       .from('training_plans')
-      .select('id, plan_name, goal, start_date, end_date')
+      .select('id, name, discipline, start_date, end_date, config')
       .eq('user_id', userId)
       .eq('status', 'active')
-      .order('start_date', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .order('start_date', { ascending: false }),
   ]);
+
+  // Surfaced deliberately. This query previously selected columns that did
+  // not exist and failed on every request; nothing checked the error, so the
+  // command center reported a complete picture while missing training data.
+  if (activePlanError) {
+    console.error('[command-center] active plan query failed:', activePlanError.message);
+  }
 
   let geneticsComprehensive: Record<string, unknown> | null = null;
   try {
@@ -629,15 +642,18 @@ async function loadSnapshot(userId: string): Promise<Snapshot> {
       },
     },
     training: {
-      active_plan: activePlanRow
-        ? {
-            id: activePlanRow.id,
-            name: activePlanRow.plan_name,
-            goal: activePlanRow.goal,
-            start_date: activePlanRow.start_date,
-            end_date: activePlanRow.end_date,
-          }
-        : null,
+      active_plans: (activePlanRows ?? []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        discipline: p.discipline,
+        goal: (() => {
+          const cfg = p.config as Record<string, unknown> | null;
+          const g = cfg?.goal ?? cfg?.objective;
+          return typeof g === 'string' && g.trim() ? g : null;
+        })(),
+        start_date: p.start_date,
+        end_date: p.end_date,
+      })),
       last_workout: workoutRows?.[0]
         ? {
             date: workoutRows[0].workout_date,
