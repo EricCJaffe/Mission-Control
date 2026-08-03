@@ -32,10 +32,57 @@ export default async function HistoryPage() {
     }
   }
 
-  const enriched = (workouts ?? []).map(w => ({
-    ...w,
-    template_name: w.template_id ? templateMap[w.template_id] ?? null : null,
+  // Recovery sessions belong in the same log. They were only visible inside the
+  // recovery module, so the training history read as if sauna, cold plunge and
+  // mobility work never happened — despite counting toward mobility in the
+  // training balance.
+  const { data: recovery } = await supabase
+    .from('recovery_sessions')
+    .select('id, session_date, modality, duration_min, timing_context, perceived_recovery, notes')
+    .eq('user_id', user.id)
+    .order('session_date', { ascending: false })
+    .limit(100);
+
+  const MODALITY_LABEL: Record<string, string> = {
+    sauna: 'Sauna',
+    cold_plunge: 'Cold plunge',
+    stretching: 'Stretching',
+    mobility: 'Mobility',
+    massage: 'Massage',
+    compression: 'Leg compression',
+  };
+
+  const recoveryRows = (recovery ?? []).map((r) => ({
+    id: r.id,
+    // Date-only in the table; noon keeps it on the right day in any timezone.
+    workout_date: `${r.session_date}T12:00:00Z`,
+    workout_type: MODALITY_LABEL[r.modality] ?? r.modality,
+    duration_minutes: r.duration_min,
+    tss: null,
+    compliance_pct: null,
+    compliance_color: null,
+    rpe_session: null,
+    notes: r.notes,
+    ai_summary: null,
+    source: 'recovery',
+    strain_score: null,
+    avg_hr: null,
+    max_hr: null,
+    template_id: null,
+    template_name: null,
+    is_recovery: true,
+    perceived_recovery: r.perceived_recovery,
+    timing_context: r.timing_context,
   }));
+
+  const enriched = [
+    ...(workouts ?? []).map(w => ({
+      ...w,
+      template_name: w.template_id ? templateMap[w.template_id] ?? null : null,
+      is_recovery: false,
+    })),
+    ...recoveryRows,
+  ].sort((a, b) => String(b.workout_date).localeCompare(String(a.workout_date)));
 
   return (
     <main className="pt-4 md:pt-8">

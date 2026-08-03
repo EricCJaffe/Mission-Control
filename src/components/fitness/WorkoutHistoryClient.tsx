@@ -7,6 +7,10 @@ import type { ReactNode } from 'react';
 import { Dumbbell, PersonStanding, Zap, RefreshCw } from 'lucide-react';
 
 type WorkoutRow = {
+  /** Recovery sessions share this list — see the history page. */
+  is_recovery?: boolean;
+  perceived_recovery?: number | null;
+  timing_context?: string | null;
   id: string;
   workout_date: string;
   workout_type: string;
@@ -336,7 +340,14 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
                         <span className="shrink-0">{WORKOUT_ICONS[w.workout_type] ?? <Dumbbell size={20} />}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-slate-700 capitalize">{w.workout_type}</p>
+                            <p className="flex items-center gap-1.5 text-sm font-medium text-slate-700 capitalize">
+                              {w.workout_type}
+                              {w.is_recovery && (
+                                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-700">
+                                  Recovery
+                                </span>
+                              )}
+                            </p>
                             {w.template_name && (
                               <span className="text-xs text-slate-400 truncate">({w.template_name})</span>
                             )}

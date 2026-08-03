@@ -96,6 +96,21 @@
   Either they're not set for Production, or the deployment predates them — **env changes
   need a redeploy to take effect**. Check `vercel env ls production`, then `vercel redeploy`.
 
+- [ ] **Readiness does not use recovery data — decide whether it should** (2026-08-03)
+  `readiness.ts` scores five inputs: HRV vs baseline, RHR vs baseline, sleep duration +
+  score, TSB (training stress balance), and blood pressure. Recovery sessions are read
+  by `health-context.ts` for AI prompts but feed NO score.
+  - Arguments for adding it: sauna, cold plunge and mobility are deliberate recovery
+    actions, and doing them should plausibly move a recovery number.
+  - Arguments against: readiness currently measures OUTCOMES the body reports (HRV, RHR,
+    sleep). Recovery sessions are INPUTS. Mixing them means logging a sauna raises your
+    readiness score without your body having recovered at all — the number starts
+    measuring diligence rather than state, and stops being a useful stop/go signal.
+  - Middle option: keep readiness outcome-only, and show recovery-session count beside
+    it as context rather than folded in — the same separation used for the Spirit
+    survey-vs-practice scores.
+  - Eric asked how this works; needs his call before changing it.
+
 - [ ] **Cycling from Garmin — richer than the Apple Health path** (Eric, 2026-08-03)
   Bike workouts reach the app today via Garmin → Apple Health → HAE, which is enough to
   count minutes but loses what Garmin actually records: power, cadence, normalised power,
