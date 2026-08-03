@@ -54,7 +54,13 @@ const SOURCE_PREFERENCE: Record<TrainingCategory, 'native' | 'apple'> = {
   mobility: 'native',
 };
 
-/** Checked in order — first match wins, so put specific terms before loose ones. */
+/**
+ * Checked in order — first match wins, so put specific terms before loose ones.
+ *
+ * Stems carry \w* rather than relying on the trailing \b: "wrestl" followed by
+ * a word boundary never matches "wrestling", which is exactly the word people
+ * actually write.
+ */
 const CATEGORY_PATTERNS: Array<{ category: TrainingCategory; patterns: RegExp }> = [
   {
     category: 'mobility',
@@ -66,10 +72,14 @@ const CATEGORY_PATTERNS: Array<{ category: TrainingCategory; patterns: RegExp }>
     patterns:
       /\b(strength|lifting|weight|weights|weightlifting|resistance|core training|functional strength|traditional strength|calisthenic|bodyweight)\b/,
   },
+  // Grappling and striking classes count as cardio. They're genuinely hybrid —
+  // there is real strength work in a hard roll — but the conditioning demand is
+  // what dominates the session, and splitting one class across two categories
+  // would make the balance impossible to reason about.
   {
     category: 'cardio',
     patterns:
-      /\b(run|running|jog|walk|walking|hike|hiking|cycl|cycling|bike|biking|spin|swim|swimming|row|rowing|elliptical|stair|cardio|hiit|interval|jump rope|skiing|skating|dance|tennis|basketball|soccer|boxing|kickbox)\b/,
+      /\b(run|running|jog|walk|walking|hike|hiking|cycl\w*|bike|biking|spin|swim|swimming|row|rowing|elliptical|stair|cardio|hiit|interval|jump rope|ski\w*|skating|dance|tennis|basketball|soccer|box\w*|kickbox\w*|jiu.?jitsu|bjj|grappl\w*|wrestl\w*|judo|muay thai|martial\w*|karate|mma|sparring)\b/,
   },
 ];
 

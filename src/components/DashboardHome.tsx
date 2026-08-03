@@ -516,13 +516,21 @@ export default async function DashboardHome() {
             <p className="mt-1 text-sm text-slate-500">Nothing scheduled — log whatever you do.</p>
           )}
         </div>
-        <Link
-          href="/fitness/log"
-          className="flex min-h-[72px] items-center justify-center gap-2 rounded-2xl bg-lime-500 px-6 text-base font-bold text-white shadow-sm transition-colors hover:bg-lime-600"
-        >
-          <Dumbbell className="h-5 w-5" />
-          Log Workout
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/fitness/log"
+            className="flex min-h-[72px] flex-1 items-center justify-center gap-2 rounded-2xl bg-lime-500 px-6 text-base font-bold text-white shadow-sm transition-colors hover:bg-lime-600"
+          >
+            <Dumbbell className="h-5 w-5" />
+            Log Workout
+          </Link>
+          <Link
+            href="/fitness/log/class"
+            className="flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-lime-500 bg-lime-50 px-4 text-sm font-bold text-lime-700 transition-colors hover:bg-lime-100"
+          >
+            Class
+          </Link>
+        </div>
       </section>
 
       {/* Health vitals at a glance. */}

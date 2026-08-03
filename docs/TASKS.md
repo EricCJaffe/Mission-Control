@@ -96,6 +96,18 @@
   Either they're not set for Production, or the deployment predates them — **env changes
   need a redeploy to take effect**. Check `vercel env ls production`, then `vercel redeploy`.
 
+- [ ] **Cycling from Garmin — richer than the Apple Health path** (Eric, 2026-08-03)
+  Bike workouts reach the app today via Garmin → Apple Health → HAE, which is enough to
+  count minutes but loses what Garmin actually records: power, cadence, normalised power,
+  HR zones, per-lap splits. `cardio_logs` already has columns for avg/max/normalized
+  power and the zone breakdown, all currently unwritten.
+  - Options: pull from the Garmin Connect API (the credential-storing scrape is slated
+    for deletion, so this would need proper OAuth), or import .FIT files from the bike
+    computer — `/api/fitness/garmin/import-fit` already exists and parses them.
+  - The FIT route is probably the better answer: no credentials, and the file straight
+    off the head unit has everything the API would give.
+  - Not urgent — Eric isn't back on the bike yet. Worth settling before he is.
+
 - [ ] **Prayer module — NOT BUILT, needs a design conversation** (Eric, 2026-08-03)
   Confirmed absent: prayer exists only as a boolean on `daily_anchors`, a checkbox in
   the `practices` table, and three survey questions. No tables, no pages, no history.
