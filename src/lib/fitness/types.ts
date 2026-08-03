@@ -36,6 +36,8 @@ export type SetTarget = {
   type: SetType;
   target_reps?: number;
   target_weight?: number;
+  /** Prescribed rest after this set, seconds. */
+  rest_seconds?: number | null;
 };
 
 export type StandaloneExercise = {

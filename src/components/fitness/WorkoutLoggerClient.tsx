@@ -583,7 +583,9 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           reps: st.target_reps || '',
           weight_lbs: st.target_weight || '',
           rpe: '',
-          rest_seconds: null,
+          // Standalone sets used to discard any prescribed rest, so a template
+          // could only express rest inside a superset.
+          rest_seconds: st.rest_seconds ?? null,
           notes: '',
           completed: false,
         }));
