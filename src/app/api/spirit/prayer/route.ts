@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 const MODES = ['praise', 'submission', 'provision', 'repentance', 'protection', 'kingdom'];
 const STATUSES = ['open', 'waiting', 'answered', 'closed'];
+const CADENCES = ['daily', 'weekly', 'monthly', 'once', 'rotation'];
 const CATEGORIES = [
   'family', 'friends', 'church', 'missions', 'government',
   'world', 'work', 'finances', 'self', 'other',
@@ -86,8 +87,11 @@ export async function POST(req: NextRequest) {
       mode: MODES.includes(body?.mode) ? body.mode : null,
       status: STATUSES.includes(body?.status) ? body.status : 'open',
       urgent: body?.urgent === true,
+      cadence: CADENCES.includes(body?.cadence) ? body.cadence : 'rotation',
+      cadence_anchor: str(body?.cadence_anchor),
+      due_date: str(body?.due_date),
     })
-    .select('id, subject_id, body, mode, status, urgent, last_prayed_at, prayed_count')
+    .select('id, subject_id, body, mode, status, urgent, last_prayed_at, prayed_count, cadence, cadence_anchor, due_date')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -143,25 +147,39 @@ export async function PATCH(req: NextRequest) {
   const action = body?.action;
 
   if (action === 'prayed') {
-    const { data: current } = await supabase
-      .from('prayer_requests')
-      .select('prayed_count')
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .maybeSingle();
+    const prayedAt = new Date().toISOString();
+
+    // The log is the record; last_prayed_at and prayed_count are a denormalised
+    // convenience for sorting. Write the log first so a failure halfway leaves
+    // a real entry rather than an incremented counter with nothing behind it.
+    const { error: logError } = await supabase.from('prayer_logs').insert({
+      user_id: user.id,
+      request_id: id,
+      prayed_at: prayedAt,
+      note: str(body?.note),
+    });
+    if (logError) return NextResponse.json({ error: logError.message }, { status: 500 });
+
+    // Count from the log rather than incrementing, so a retried request cannot
+    // inflate the total past the number of entries that actually exist.
+    const { count } = await supabase
+      .from('prayer_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('request_id', id)
+      .eq('user_id', user.id);
 
     const { error } = await supabase
       .from('prayer_requests')
       .update({
-        last_prayed_at: new Date().toISOString(),
-        prayed_count: (current?.prayed_count ?? 0) + 1,
-        updated_at: new Date().toISOString(),
+        last_prayed_at: prayedAt,
+        prayed_count: count ?? 1,
+        updated_at: prayedAt,
       })
       .eq('id', id)
       .eq('user_id', user.id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, prayed_at: prayedAt, prayed_count: count ?? 1 });
   }
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -184,6 +202,9 @@ export async function PATCH(req: NextRequest) {
   if ('mode' in body) patch.mode = MODES.includes(body.mode) ? body.mode : null;
   if ('urgent' in body) patch.urgent = body.urgent === true;
   if ('subject_id' in body) patch.subject_id = str(body.subject_id);
+  if ('cadence' in body && CADENCES.includes(body.cadence)) patch.cadence = body.cadence;
+  if ('cadence_anchor' in body) patch.cadence_anchor = str(body.cadence_anchor);
+  if ('due_date' in body) patch.due_date = str(body.due_date);
   if ('answer_note' in body && action !== 'answered') patch.answer_note = str(body.answer_note);
   if ('status' in body && !action && STATUSES.includes(body.status)) {
     patch.status = body.status;
@@ -275,8 +296,23 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
+
+  // History for one request — when it was prayed, and any note left at the time.
+  const logFor = searchParams.get('log_for');
+  if (logFor) {
+    const { data, error } = await supabase
+      .from('prayer_logs')
+      .select('prayed_at, note')
+      .eq('user_id', user.id)
+      .eq('request_id', logFor)
+      .order('prayed_at', { ascending: false })
+      .limit(100);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ logs: data ?? [] });
+  }
+
   const id = searchParams.get('subtree_of');
-  if (!id) return NextResponse.json({ error: 'subtree_of is required' }, { status: 400 });
+  if (!id) return NextResponse.json({ error: 'subtree_of or log_for is required' }, { status: 400 });
 
   const { data: all } = await supabase
     .from('prayer_subjects')

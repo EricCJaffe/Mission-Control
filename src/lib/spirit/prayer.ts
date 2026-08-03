@@ -24,6 +24,35 @@ export type PrayerRequest = {
   prayed_count: number;
   answered_at?: string | null;
   answer_note?: string | null;
+  cadence?: PrayerCadence;
+  cadence_anchor?: string | null;
+  due_date?: string | null;
+};
+
+/**
+ * How often a request should come round.
+ *
+ * daily / weekly / monthly match the calendar's vocabulary so the two
+ * schedulers cannot disagree about what "weekly" means. 'once' is a one-off
+ * petition with a date. 'rotation' is the default and means no fixed schedule:
+ * surfaced least-recently-prayed first, which is right for the long tail of a
+ * list this size — you want to reach the school board eventually, not on a
+ * particular Tuesday.
+ */
+export type PrayerCadence = 'daily' | 'weekly' | 'monthly' | 'once' | 'rotation';
+
+export const CADENCES: Array<{ key: PrayerCadence; label: string; hint: string }> = [
+  { key: 'daily', label: 'Every day', hint: 'Surfaces every day until answered' },
+  { key: 'weekly', label: 'Weekly', hint: 'Once every 7 days' },
+  { key: 'monthly', label: 'Monthly', hint: 'Once every month' },
+  { key: 'once', label: 'One time', hint: 'A single occasion — pick the day' },
+  { key: 'rotation', label: 'In the rotation', hint: 'No fixed schedule; comes round least-recently-prayed first' },
+];
+
+const CADENCE_DAYS: Partial<Record<PrayerCadence, number>> = {
+  daily: 1,
+  weekly: 7,
+  monthly: 30,
 };
 
 export type PrayerMode =
@@ -101,7 +130,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
-/** How many requests a daily session offers by default. */
+/** How many rotation items top up a day's list once scheduled ones are in. */
 export const DAILY_ROTATION_SIZE = 12;
 
 function ageInDays(iso: string | null, now: Date): number {
@@ -110,24 +139,87 @@ function ageInDays(iso: string | null, now: Date): number {
   return (now.getTime() - new Date(iso).getTime()) / 86_400_000;
 }
 
+function dayOnly(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 /**
- * Picks today's rotation.
+ * Is this request due today?
  *
- * Urgent first, then longest-untouched. Ties break on lowest prayed_count so a
- * newly added request is not stuck behind older ones that have already had
- * many turns, then on id so the order is stable across renders rather than
- * reshuffling under the user mid-session.
+ * Scheduled cadences count from when it was last prayed rather than from a
+ * fixed calendar grid, unless an anchor pins them. That is deliberate: missing
+ * a Tuesday should not mean waiting until the next Tuesday, and a prayer list
+ * that accrues a backlog of "overdue" items is one you stop opening.
  */
-export function selectDailyRotation(
+export function isDueToday(r: PrayerRequest, now: Date = new Date()): boolean {
+  if (r.status !== 'open' && r.status !== 'waiting') return false;
+  const cadence = r.cadence ?? 'rotation';
+  if (cadence === 'rotation') return false;
+
+  if (cadence === 'once') {
+    if (r.last_prayed_at) return false;
+    return !r.due_date || r.due_date <= dayOnly(now);
+  }
+
+  const interval = CADENCE_DAYS[cadence];
+  if (!interval) return false;
+
+  if (!r.last_prayed_at) return true;
+
+  if (r.cadence_anchor) {
+    const anchor = new Date(`${r.cadence_anchor}T00:00:00Z`);
+    const elapsed = Math.floor((now.getTime() - anchor.getTime()) / 86_400_000);
+    if (elapsed < 0) return false;
+    const onGrid =
+      cadence === 'monthly'
+        ? anchor.getUTCDate() === now.getUTCDate()
+        : elapsed % interval === 0;
+    // Still show it if it was missed, rather than hiding it until the grid
+    // comes back round.
+    return onGrid || ageInDays(r.last_prayed_at, now) >= interval;
+  }
+
+  return ageInDays(r.last_prayed_at, now) >= interval;
+}
+
+export type TodaysList = {
+  /** Due because of their cadence. */
+  scheduled: PrayerRequest[];
+  /** Topping up from the unscheduled long tail. */
+  rotation: PrayerRequest[];
+};
+
+/**
+ * Builds today's list: everything genuinely due, then rotation items to fill.
+ *
+ * Scheduled items are never truncated — if you asked for something daily, it
+ * appears daily, and silently dropping it because the list was full would make
+ * the schedule a suggestion rather than a schedule.
+ */
+export function selectTodaysList(
   requests: PrayerRequest[],
   opts: { size?: number; now?: Date } = {}
-): PrayerRequest[] {
+): TodaysList {
   const size = opts.size ?? DAILY_ROTATION_SIZE;
   const now = opts.now ?? new Date();
 
-  const eligible = requests.filter((r) => r.status === 'open' || r.status === 'waiting');
+  const active = requests.filter((r) => r.status === 'open' || r.status === 'waiting');
+  const scheduled = active.filter((r) => isDueToday(r, now));
+  const scheduledIds = new Set(scheduled.map((r) => r.id));
 
-  const sorted = [...eligible].sort((a, b) => {
+  const pool = active.filter(
+    (r) => !scheduledIds.has(r.id) && (r.cadence ?? 'rotation') === 'rotation'
+  );
+  const slots = Math.max(0, size - scheduled.length);
+
+  return {
+    scheduled: sortByPriority(scheduled, now),
+    rotation: sortByPriority(pool, now).slice(0, slots),
+  };
+}
+
+function sortByPriority(list: PrayerRequest[], now: Date): PrayerRequest[] {
+  return [...list].sort((a, b) => {
     if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
 
     const ageA = ageInDays(a.last_prayed_at, now);
@@ -141,8 +233,15 @@ export function selectDailyRotation(
     if (a.prayed_count !== b.prayed_count) return a.prayed_count - b.prayed_count;
     return a.id.localeCompare(b.id);
   });
+}
 
-  return sorted.slice(0, size);
+/** Backwards-compatible rotation-only view, used by the dashboard card. */
+export function selectDailyRotation(
+  requests: PrayerRequest[],
+  opts: { size?: number; now?: Date } = {}
+): PrayerRequest[] {
+  const { scheduled, rotation } = selectTodaysList(requests, opts);
+  return [...scheduled, ...rotation].slice(0, opts.size ?? DAILY_ROTATION_SIZE);
 }
 
 export type RotationHealth = {
@@ -168,7 +267,11 @@ export function rotationHealth(
     neverPrayed: active.filter((r) => !r.last_prayed_at).length,
     stale: active.filter((r) => r.last_prayed_at && ageInDays(r.last_prayed_at, now) > 30).length,
     urgent: active.filter((r) => r.urgent).length,
-    cycleDays: active.length > 0 ? Math.ceil(active.length / size) : null,
+    // Only unscheduled items cycle — a daily prayer is not waiting its turn.
+    cycleDays: (() => {
+      const inRotation = active.filter((r) => (r.cadence ?? 'rotation') === 'rotation').length;
+      return inRotation > 0 ? Math.ceil(inRotation / size) : null;
+    })(),
   };
 }
 
@@ -201,6 +304,10 @@ export function buildSubjectTree(
   }
 
   for (const r of requests) {
+    // Answered and closed requests are deliberately excluded. They live in the
+    // Answered view; leaving them struck through in the list they were
+    // resolved out of makes an active list look permanently half-finished.
+    if (r.status === 'answered' || r.status === 'closed') continue;
     if (r.subject_id && byId.has(r.subject_id)) {
       byId.get(r.subject_id)!.requests.push(r);
     }

@@ -1,24 +1,30 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Check, ChevronRight, Clock, Flame, Loader2, Pencil, Plus, Sparkles, Trash2, X,
+  CalendarClock, Check, CheckCircle2, ChevronRight, Clock, Flame, History,
+  Loader2, Pencil, Plus, RefreshCw, Sparkles, Trash2, X,
 } from 'lucide-react';
 import {
+  CADENCES,
   CATEGORY_LABELS,
   PRAYER_MODES,
   buildSubjectTree,
   flattenTree,
   recentAnswers,
   rotationHealth,
-  selectDailyRotation,
+  selectTodaysList,
   type PrayerRequest,
   type PrayerSubjectNode,
 } from '@/lib/spirit/prayer';
 
 type SubjectRow = Omit<PrayerSubjectNode, 'children' | 'requests'>;
 type Tab = 'today' | 'list' | 'answered';
+
+const CADENCE_LABEL: Record<string, string> = {
+  daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', once: 'One time', rotation: 'Rotation',
+};
 
 const FIELD =
   'w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none';
@@ -49,7 +55,8 @@ export default function PrayerClient({
 
   const tree = useMemo(() => buildSubjectTree(subjects, requests), [subjects, requests]);
   const flatSubjects = useMemo(() => flattenTree(tree), [tree]);
-  const rotation = useMemo(() => selectDailyRotation(requests), [requests]);
+  const todays = useMemo(() => selectTodaysList(requests), [requests]);
+  const todaysAll = useMemo(() => [...todays.scheduled, ...todays.rotation], [todays]);
   const health = useMemo(() => rotationHealth(requests), [requests]);
   const answers = useMemo(() => recentAnswers(requests, 20), [requests]);
 
@@ -80,8 +87,8 @@ export default function PrayerClient({
   }
 
   const tabs: Array<{ key: Tab; label: string; count: number }> = [
-    { key: 'today', label: 'Today', count: rotation.length },
-    { key: 'list', label: 'Full list', count: health.total },
+    { key: 'today', label: 'Due today', count: todaysAll.length },
+    { key: 'list', label: 'All prayers', count: health.total },
     { key: 'answered', label: 'Answered', count: answers.length },
   ];
 
@@ -138,9 +145,16 @@ export default function PrayerClient({
         <>
           <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <p className="text-sm text-slate-600">
-              {health.total} active requests. At {rotation.length} a day you come back round to
-              everything about every {health.cycleDays} days — nothing waits indefinitely just
-              because it sits far down the page.
+              <strong>Due today</strong> is what to pray now: anything you scheduled for today,
+              plus a few from the rotation to fill out the list.{' '}
+              <strong>All prayers</strong> is the whole list, always there to browse and edit.
+            </p>
+            <p className="mt-1.5 text-sm text-slate-600">
+              {health.total} active
+              {todays.scheduled.length > 0 && ` · ${todays.scheduled.length} scheduled for today`}
+              {health.cycleDays !== null &&
+                ` · unscheduled ones come round about every ${health.cycleDays} days`}
+              .
             </p>
             {(health.neverPrayed > 0 || health.stale > 0) && (
               <p className="mt-1.5 text-xs text-slate-500">
@@ -152,33 +166,53 @@ export default function PrayerClient({
             )}
           </div>
 
-          {rotation.length === 0 ? (
+          {todaysAll.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="space-y-2">
-              {rotation.map((r) => (
-                <RequestCard
-                  key={r.id}
-                  request={r}
-                  subject={r.subject_id ? subjectName.get(r.subject_id) : undefined}
-                  subjects={flatSubjects}
-                  done={prayed.has(r.id)}
-                  busy={busy === r.id}
-                  now={now}
-                  onPrayed={() => mark(r.id, 'prayed')}
-                  onAnswered={(note) => mark(r.id, 'answered', note)}
-                  onEdit={(patch) =>
-                    call({
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ id: r.id, ...patch }),
-                    })
-                  }
-                  onDelete={() =>
-                    call({ url: `/api/spirit/prayer?kind=request&id=${r.id}`, method: 'DELETE' })
-                  }
-                />
-              ))}
+            <div className="space-y-4">
+              {([
+                { key: 'scheduled', title: 'Scheduled for today', items: todays.scheduled },
+                { key: 'rotation', title: 'From the rotation', items: todays.rotation },
+              ] as const).map((group) =>
+                group.items.length === 0 ? null : (
+                  <div key={group.key}>
+                    <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      {group.key === 'scheduled' ? (
+                        <CalendarClock className="h-3.5 w-3.5" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      )}
+                      {group.title}
+                      <span className="font-normal text-slate-400">{group.items.length}</span>
+                    </p>
+                    <div className="space-y-2">
+                      {group.items.map((r) => (
+                        <RequestCard
+                          key={r.id}
+                          request={r}
+                          subject={r.subject_id ? subjectName.get(r.subject_id) : undefined}
+                          subjects={flatSubjects}
+                          done={prayed.has(r.id)}
+                          busy={busy === r.id}
+                          now={now}
+                          onPrayed={() => mark(r.id, 'prayed')}
+                          onAnswered={(note) => mark(r.id, 'answered', note)}
+                          onEdit={(patch) =>
+                            call({
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id: r.id, ...patch }),
+                            })
+                          }
+                          onDelete={() =>
+                            call({ url: `/api/spirit/prayer?kind=request&id=${r.id}`, method: 'DELETE' })
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              )}
             </div>
           )}
 
@@ -317,6 +351,8 @@ function AddPrayerForm({
   const [newSubject, setNewSubject] = useState('');
   const [category, setCategory] = useState('other');
   const [mode, setMode] = useState('');
+  const [cadence, setCadence] = useState<string>('rotation');
+  const [dueDate, setDueDate] = useState('');
   const [urgent, setUrgent] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -332,6 +368,8 @@ function AddPrayerForm({
         new_subject_name: creatingSubject ? newSubject : null,
         category,
         mode: mode || null,
+        cadence,
+        due_date: cadence === 'once' ? dueDate || null : null,
         urgent,
       });
       setText('');
@@ -428,6 +466,13 @@ function AddPrayerForm({
         )}
       </div>
 
+      <div className="mt-3">
+        <span className={LABEL}>How often?</span>
+        <div className="mt-1">
+          <CadencePicker cadence={cadence} dueDate={dueDate} onCadence={setCadence} onDueDate={setDueDate} />
+        </div>
+      </div>
+
       <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
         <input
           type="checkbox"
@@ -447,6 +492,58 @@ function AddPrayerForm({
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" strokeWidth={3} />}
         Add prayer
       </button>
+    </div>
+  );
+}
+
+/**
+ * Cadence picker, sharing the calendar's daily / weekly / monthly vocabulary.
+ *
+ * Rotation is offered as an equal option rather than buried, because for most
+ * of a list this size it is the right answer — you want to reach the school
+ * board eventually, not on a particular Tuesday, and a list where everything
+ * is scheduled produces a backlog of overdue guilt rather than a prayer life.
+ */
+function CadencePicker({
+  cadence,
+  dueDate,
+  onCadence,
+  onDueDate,
+}: {
+  cadence: string;
+  dueDate: string;
+  onCadence: (v: string) => void;
+  onDueDate: (v: string) => void;
+}) {
+  const active = CADENCES.find((c) => c.key === cadence);
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1">
+        {CADENCES.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => onCadence(c.key)}
+            className={`rounded-xl px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+              cadence === c.key
+                ? 'bg-indigo-600 text-white'
+                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+      {active && <p className="mt-1 text-[11px] text-slate-500">{active.hint}</p>}
+      {cadence === 'once' && (
+        <input
+          type="date"
+          value={dueDate}
+          onChange={(e) => onDueDate(e.target.value)}
+          aria-label="Date for this one-time prayer"
+          className="mt-1.5 rounded-xl border-2 border-slate-200 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+        />
+      )}
     </div>
   );
 }
@@ -481,6 +578,20 @@ function RequestCard({
   const [draft, setDraft] = useState(request.body);
   const [draftSubject, setDraftSubject] = useState(request.subject_id ?? '');
   const [draftMode, setDraftMode] = useState<string>(request.mode ?? '');
+  const [draftCadence, setDraftCadence] = useState<string>(request.cadence ?? 'rotation');
+  const [draftDue, setDraftDue] = useState<string>(request.due_date ?? '');
+  const [showLog, setShowLog] = useState(false);
+  const [log, setLog] = useState<Array<{ prayed_at: string; note: string | null }> | null>(null);
+
+  // Fetched on demand — the list would otherwise fire one request per card on
+  // mount to populate a panel almost nobody opens.
+  useEffect(() => {
+    if (!showLog || log !== null) return;
+    fetch(`/api/spirit/prayer?log_for=${request.id}`)
+      .then((r) => (r.ok ? r.json() : { logs: [] }))
+      .then((d) => setLog(d.logs ?? []))
+      .catch(() => setLog([]));
+  }, [showLog, log, request.id]);
 
   const since = request.last_prayed_at
     ? Math.floor((now - new Date(request.last_prayed_at).getTime()) / 86_400_000)
@@ -511,6 +622,25 @@ function RequestCard({
             ))}
           </select>
         </div>
+
+        <div className="mt-2">
+          <CadencePicker
+            cadence={draftCadence}
+            dueDate={draftDue}
+            onCadence={setDraftCadence}
+            onDueDate={setDraftDue}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => { setEditing(false); setAnswering(true); }}
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-emerald-300 bg-emerald-50 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          Mark as answered — moves it to Answered
+        </button>
+
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -519,6 +649,8 @@ function RequestCard({
                 body: draft,
                 subject_id: draftSubject || null,
                 mode: draftMode || null,
+                cadence: draftCadence,
+                due_date: draftCadence === 'once' ? draftDue || null : null,
               });
               setEditing(false);
             }}
@@ -613,10 +745,24 @@ function RequestCard({
                 <Clock className="h-3 w-3" /> waiting
               </span>
             )}
+            {request.cadence && request.cadence !== 'rotation' && (
+              <span className="flex items-center gap-0.5 font-semibold text-indigo-600">
+                <CalendarClock className="h-3 w-3" /> {CADENCE_LABEL[request.cadence]}
+              </span>
+            )}
             <span>
               {since === null ? 'not yet prayed here' : since === 0 ? 'prayed today' : `${since}d since last`}
             </span>
-            {request.prayed_count > 0 && <span>· {request.prayed_count}x</span>}
+            {request.prayed_count > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowLog((v) => !v)}
+                className="flex items-center gap-0.5 underline decoration-dotted hover:text-slate-600"
+              >
+                <History className="h-3 w-3" />
+                prayed {request.prayed_count}x
+              </button>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -643,6 +789,31 @@ function RequestCard({
           </button>
         </div>
       </div>
+
+      {showLog && (
+        <div className="mt-2 rounded-xl bg-slate-50 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Prayed on
+          </p>
+          {log === null ? (
+            <p className="mt-1 text-xs text-slate-400">Loading…</p>
+          ) : log.length === 0 ? (
+            <p className="mt-1 text-xs text-slate-400">No entries yet.</p>
+          ) : (
+            <ul className="mt-1 space-y-0.5">
+              {log.map((entry, i) => (
+                <li key={i} className="text-xs text-slate-600">
+                  {new Date(entry.prayed_at).toLocaleString(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
+                  {entry.note && <span className="text-slate-400"> — {entry.note}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {answering ? (
         <div className="mt-3 space-y-2">
@@ -674,9 +845,10 @@ function RequestCard({
         <button
           type="button"
           onClick={() => setAnswering(true)}
-          className="mt-2 text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+          className="mt-2 flex items-center gap-1 rounded-lg border border-emerald-300 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
         >
-          This was answered
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Mark as answered
         </button>
       )}
     </div>
@@ -982,7 +1154,7 @@ function RequestLine({
   return (
     <div className="group/req flex items-start gap-1">
       <Plus className="mt-1 h-3 w-3 shrink-0 text-indigo-400" />
-      <p className={`flex-1 text-xs ${request.status === 'answered' ? 'text-emerald-700 line-through' : 'text-slate-600'}`}>
+      <p className="flex-1 text-xs text-slate-600">
         {request.urgent && <span className="mr-1 font-bold text-rose-600">!</span>}
         {request.body}
       </p>
