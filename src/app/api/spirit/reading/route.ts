@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { addDays, today as appToday } from '@/lib/day';
 import { supabaseServer } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -52,11 +53,13 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     if (!sub) return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
 
-    const today = new Date().toISOString().slice(0, 10);
+    // The app's day, not the server's. Vercel runs in UTC, so this was
+    // stamping tomorrow's date on anything read after 8pm Eastern.
+    const todayIso = appToday();
     const { error } = await supabase
       .from('reading_plan_progress')
       .upsert(
-        { user_id: user.id, subscription_id: subscriptionId, day_number: dayNumber, completed_on: today },
+        { user_id: user.id, subscription_id: subscriptionId, day_number: dayNumber, completed_on: todayIso },
         { onConflict: 'subscription_id,day_number' }
       );
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -71,7 +74,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     if (practice) {
       await supabase.from('practice_logs').upsert(
-        { user_id: user.id, practice_id: practice.id, log_date: today, completed: true },
+        { user_id: user.id, practice_id: practice.id, log_date: todayIso, completed: true },
         { onConflict: 'user_id,practice_id,log_date' }
       );
     }
@@ -186,6 +189,54 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true, day_number: dayNumber, note_id: noteId });
+  }
+
+  /*
+   * Catch me up — YouVersion's semantics, and the right ones.
+   *
+   * Moving the subscription's start date forward makes the plan's "expected
+   * day" line up with the next unread day, so the backlog clears without
+   * marking a single skipped passage as read. The record stays honest about
+   * what was actually read; only the pace expectation moves.
+   *
+   * The alternative — bulk-inserting completions for the missed days — would
+   * make the history claim readings that never happened, which is worse than
+   * being behind.
+   */
+  if (action === 'catch_up') {
+    const subscriptionId = typeof body?.subscription_id === 'string' ? body.subscription_id : null;
+    if (!subscriptionId) {
+      return NextResponse.json({ error: 'subscription_id required' }, { status: 400 });
+    }
+
+    const { data: sub } = await supabase
+      .from('reading_plan_subscriptions')
+      .select('id, started_on')
+      .eq('id', subscriptionId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!sub) return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
+
+    const { data: progress } = await supabase
+      .from('reading_plan_progress')
+      .select('day_number')
+      .eq('subscription_id', subscriptionId);
+
+    const doneDays = new Set((progress ?? []).map((p) => p.day_number));
+    let nextUnread = 1;
+    while (doneDays.has(nextUnread)) nextUnread += 1;
+
+    // Re-anchor so that today IS the next unread day.
+    const newStart = addDays(appToday(), -(nextUnread - 1));
+
+    const { error } = await supabase
+      .from('reading_plan_subscriptions')
+      .update({ started_on: newStart, updated_at: new Date().toISOString() })
+      .eq('id', subscriptionId)
+      .eq('user_id', user.id);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, current_day: nextUnread, started_on: newStart });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

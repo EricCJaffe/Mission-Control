@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import ReadingPlans, { type ActivePlan, type PlanRow } from '@/components/spirit/ReadingPlans';
 import { fetchPassage, isBibleTextConfigured, humanReferences } from '@/lib/spirit/bible';
+import { computeProgress } from '@/lib/spirit/reading-progress';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Reading Plans | Spirit' };
@@ -14,7 +15,7 @@ export const metadata = { title: 'Reading Plans | Spirit' };
 async function buildActivePlan(
   supabase: Awaited<ReturnType<typeof supabaseServer>>,
   userId: string,
-  sub: { id: string; plan_id: string },
+  sub: { id: string; plan_id: string; started_on?: string | null },
   plan: PlanRow,
   withText: boolean
 ): Promise<ActivePlan | null> {
@@ -32,10 +33,8 @@ async function buildActivePlan(
   ]);
 
   const done = progress ?? [];
-  const doneDays = new Set(done.map((d) => d.day_number));
-  let currentDay = 1;
-  while (doneDays.has(currentDay) && currentDay <= plan.day_count) currentDay += 1;
-  currentDay = Math.min(currentDay, plan.day_count);
+  const progressState = computeProgress(done, plan.day_count, sub.started_on ?? null);
+  const currentDay = progressState.currentDay;
 
   const { data: dayRow } = await supabase
     .from('reading_plan_days')
@@ -60,7 +59,6 @@ async function buildActivePlan(
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10);
   const existingReflection = (reflections ?? []).find((r) => r.day_number === currentDay);
 
   return {
@@ -71,7 +69,11 @@ async function buildActivePlan(
     label,
     passages,
     text,
-    doneToday: done.some((d) => d.completed_on === today),
+    // Was comparing UTC dates against a UTC "today". On Vercel the server runs
+    // in UTC, so after 8pm Eastern it had already rolled to tomorrow and the
+    // afternoon's reading stopped counting — the same bug the prayer list had.
+    doneToday: progressState.doneToday,
+    progress: progressState,
     reflection: existingReflection?.content ?? '',
     recentReflections: (reflections ?? [])
       .filter((r) => r.day_number !== currentDay)

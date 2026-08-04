@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import type { PlanProgress } from '@/lib/spirit/reading-progress';
 import { Check, BookOpen, ExternalLink, ChevronDown, ChevronRight, NotebookPen } from 'lucide-react';
 
 export type PlanRow = {
@@ -23,6 +24,7 @@ export type ActivePlan = {
   /** Null when no Bible API key is configured — references still render. */
   text: { content: string; copyright: string; reference: string } | null;
   doneToday: boolean;
+  progress: PlanProgress;
   /** Reflection already written for the current day, if any. */
   reflection: string;
   recentReflections: Array<{ day: number; content: string }>;
@@ -140,39 +142,139 @@ function ActivePlanCard({
     if (ok) setSavedNote(true);
   }
 
+  const p = plan.progress;
+
   return (
     <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
-      {/* The header is the continue control — no separate button to hunt for. */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 p-4 text-left"
-      >
-        {open ? (
-          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
-        ) : (
-          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900">{plan.plan.name}</p>
-          <p className="text-xs text-slate-500">
-            Day {plan.current_day} of {plan.plan.day_count} · {plan.completed_days} read · {pct}%
-          </p>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
+      {/* The row expands the passage. The action on the right is a real
+          button that marks the day read — it was a <span> inside this same
+          toggle, so pressing "Continue" only opened the accordion and nothing
+          was ever recorded. */}
+      <div className="flex w-full items-center gap-3 p-4 text-left">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          {open ? (
+            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+          ) : (
+            <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">{plan.plan.name}</p>
+            <p className="text-xs text-slate-500">
+              Day {plan.current_day} of {plan.plan.day_count} · {plan.completed_days} read · {pct}%
+              {p.streak > 0 && <> · {p.streak}-day streak</>}
+            </p>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
+            </div>
           </div>
-        </div>
-        <span
-          className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold ${
-            plan.doneToday ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
+        </button>
+
+        <button
+          type="button"
+          disabled={busy || plan.doneToday}
+          onClick={() => {
+            setOpen(true);
+            if (!plan.doneToday) {
+              onPost({
+                action: 'complete',
+                subscription_id: plan.subscription_id,
+                day_number: plan.current_day,
+              });
+            }
+          }}
+          className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+            plan.doneToday
+              ? 'bg-emerald-600 text-white'
+              : 'bg-blue-700 text-white hover:bg-blue-800 disabled:opacity-60'
           }`}
         >
-          {plan.doneToday ? 'Read today' : 'Continue'}
-        </span>
-      </button>
+          <Check className="h-4 w-4" strokeWidth={3} />
+          {plan.doneToday ? 'Read today' : `Mark day ${plan.current_day}`}
+        </button>
+      </div>
 
       {open && (
         <div className="border-t border-slate-100 p-4">
+          {/* Pace, and a way out of a backlog. A percentage says how much is
+              done but not whether you are keeping up — day 2 of 31 is 3%
+              whether that is on schedule or three weeks late. */}
+          <div className="mb-4 rounded-xl bg-slate-50 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-slate-700">
+                {p.onTrack ? (
+                  <span className="text-emerald-700">On track</span>
+                ) : (
+                  <span className="text-amber-700">
+                    {p.daysBehind} day{p.daysBehind === 1 ? '' : 's'} behind
+                  </span>
+                )}
+                <span className="ml-2 font-normal text-slate-500">
+                  {p.completedCount} of {p.dayCount} read
+                  {p.longestStreak > 1 && ` · best streak ${p.longestStreak}`}
+                </span>
+              </p>
+              {!p.onTrack && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    onPost({ action: 'catch_up', subscription_id: plan.subscription_id })
+                  }
+                  className="rounded-lg border-2 border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                >
+                  Catch me up
+                </button>
+              )}
+            </div>
+
+            {/* One cell per day. A bar shows a number; this shows which days
+                were kept and which were dropped. */}
+            <div className="mt-2 flex flex-wrap gap-1">
+              {p.days.map((d) => (
+                <span
+                  key={d.day}
+                  title={
+                    d.state === 'done'
+                      ? `Day ${d.day} — read ${d.completedOn ?? ''}`
+                      : d.state === 'today'
+                        ? `Day ${d.day} — today`
+                        : d.state === 'missed'
+                          ? `Day ${d.day} — missed`
+                          : `Day ${d.day}`
+                  }
+                  className={`h-4 w-4 rounded-sm text-[8px] font-bold leading-4 text-center ${
+                    d.state === 'done'
+                      ? 'bg-emerald-600 text-white'
+                      : d.state === 'today'
+                        ? 'bg-blue-700 text-white ring-2 ring-blue-300'
+                        : d.state === 'missed'
+                          ? 'bg-rose-200 text-rose-700'
+                          : 'bg-slate-200 text-transparent'
+                  }`}
+                >
+                  {d.day}
+                </span>
+              ))}
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-3 text-[10px] text-slate-500">
+              <span className="flex items-center gap-1"><i className="h-2 w-2 rounded-sm bg-emerald-600" /> read</span>
+              <span className="flex items-center gap-1"><i className="h-2 w-2 rounded-sm bg-blue-700" /> today</span>
+              <span className="flex items-center gap-1"><i className="h-2 w-2 rounded-sm bg-rose-200" /> missed</span>
+              <span className="flex items-center gap-1"><i className="h-2 w-2 rounded-sm bg-slate-200" /> ahead</span>
+            </div>
+            {!p.onTrack && (
+              <p className="mt-2 text-[11px] leading-snug text-slate-500">
+                Catch me up moves the schedule forward to today. It does not mark the skipped days
+                read — the record stays honest about what you actually read.
+              </p>
+            )}
+          </div>
+
           <p className="text-lg font-bold text-slate-900">{plan.label}</p>
 
           {plan.text ? (
@@ -243,25 +345,6 @@ function ActivePlanCard({
             </div>
           )}
 
-          <button
-            type="button"
-            disabled={busy || plan.doneToday}
-            onClick={() =>
-              onPost({
-                action: 'complete',
-                subscription_id: plan.subscription_id,
-                day_number: plan.current_day,
-              })
-            }
-            className={`mt-4 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors ${
-              plan.doneToday
-                ? 'bg-emerald-600 text-white'
-                : 'bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-60'
-            }`}
-          >
-            <Check className="h-4 w-4" strokeWidth={3} />
-            {plan.doneToday ? 'Read today' : `Mark day ${plan.current_day} read`}
-          </button>
         </div>
       )}
     </div>

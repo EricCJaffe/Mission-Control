@@ -341,6 +341,12 @@ open decisions and deferred work, roughly in the order worth doing.
       annual templates kept, reachable from Templates under Admin. `monthly_reviews`
       table deliberately left intact rather than dropped.
 
+- [ ] **Reading plans — features not yet built** (surveyed 2026-08-04)
+      Built: mark-read that works, day grid, streak, behind-schedule pace, Catch Me Up.
+      Not built, seen in YouVersion and worth considering: plan sharing with friends
+      (read the same plan and see each other's progress), streak freezes, and a plan
+      library beyond the handful seeded here.
+
 ### Medium Priority
 - [ ] Email notifications for pending `health.md` updates
   - Health update detection, review, and approval exist.
