@@ -276,6 +276,22 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
     cardiac_efficiency?: { efficiency_value: number; efficiency_type: string } | null;
     recovery?: { hours_to_ready: number; next_hard_date: string; suggested_next: string } | null;
     estimated_1rms?: Array<{ exercise: string; weight: number; reps: number; estimated_1rm: number }>;
+    summary?: {
+      exercises: number;
+      total_sets: number;
+      working_sets: number;
+      total_reps: number;
+      total_volume_lbs: number;
+      duration_minutes: number | null;
+      by_exercise: Array<{
+        name: string;
+        sets: number;
+        working_sets: number;
+        reps: number;
+        volume_lbs: number;
+        top_weight_lbs: number | null;
+      }>;
+    };
   } | null>(null);
 
   // Elapsed timer
@@ -1133,6 +1149,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           cardiac_efficiency: data.cardiac_efficiency,
           recovery: data.recovery,
           estimated_1rms: data.estimated_1rms,
+          summary: data.summary,
         });
         setMode('complete');
       } else {
@@ -1606,6 +1623,45 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             </div>
           )}
         </div>
+
+        {completionData?.summary && completionData.summary.total_sets > 0 && (
+          <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div>
+                <p className="text-xl font-bold tabular-nums text-slate-900">{completionData.summary.exercises}</p>
+                <p className="text-[11px] text-slate-500">exercises</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold tabular-nums text-slate-900">{completionData.summary.total_sets}</p>
+                <p className="text-[11px] text-slate-500">
+                  sets{completionData.summary.working_sets !== completionData.summary.total_sets && ` (${completionData.summary.working_sets} working)`}
+                </p>
+              </div>
+              <div>
+                <p className="text-xl font-bold tabular-nums text-slate-900">{completionData.summary.total_reps}</p>
+                <p className="text-[11px] text-slate-500">reps</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold tabular-nums text-slate-900">
+                  {completionData.summary.total_volume_lbs.toLocaleString()}
+                </p>
+                <p className="text-[11px] text-slate-500">lbs moved</p>
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+              {completionData.summary.by_exercise.map((e) => (
+                <div key={e.name} className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate text-slate-800">{e.name}</span>
+                  <span className="shrink-0 tabular-nums text-slate-500">
+                    {e.sets}x{e.reps > 0 && ` · ${e.reps} reps`}
+                    {e.top_weight_lbs ? ` · top ${e.top_weight_lbs} lbs` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {completionData && (
           <div className="grid grid-cols-2 gap-3">

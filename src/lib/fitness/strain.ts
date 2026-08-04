@@ -73,6 +73,23 @@ export function calculateWorkoutStrain(workout: StrainInputs['workouts'][0], bet
     points = workout.duration_min * (workout.session_rpe / 10) * 3;
   } else if (workout.tss) {
     points = workout.tss * 1.5;
+  } else if (workout.total_volume_lbs && workout.total_volume_lbs > 0) {
+    /*
+     * Strength fallback. Without this a lifting session scored zero strain
+     * unless a session RPE happened to be entered — there are no heart-rate
+     * zones on the watch for lifting and no TSS, so every branch above missed
+     * and the number came back 0.0.
+     *
+     * Volume is the honest proxy available: 10,000 lbs moved is a real
+     * session, 30,000 is a heavy one. The divisor puts a typical 6-exercise
+     * day in the same range the HR branches produce for a comparable effort,
+     * so the two are not wildly different scales on the same dial.
+     */
+    points = workout.total_volume_lbs / 250;
+  } else if (workout.duration_min) {
+    // Last resort: time under load at an assumed moderate effort. Better than
+    // reporting 0.0, which reads as "this session did not count".
+    points = workout.duration_min * 1.5;
   }
 
   // Map single workout points to 0-21 scale

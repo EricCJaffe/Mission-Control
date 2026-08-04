@@ -65,6 +65,15 @@ export async function POST(req: Request) {
     actual_tss: tss,
   });
 
+  // Total load moved, used both for strain and for the completion summary.
+  // Warm-ups count — they are still weight moved — but bodyweight sets with
+  // no load contribute nothing rather than counting as zero-weight reps.
+  const totalVolumeLbs = (sets ?? []).reduce((sum, s) => {
+    const reps = Number(s.reps) || 0;
+    const weight = Number(s.weight_lbs) || 0;
+    return sum + reps * weight;
+  }, 0);
+
   // Calculate workout strain
   const strainScore = calculateWorkoutStrain({
     type: workoutData.workout_type as 'strength' | 'cardio' | 'hiit' | 'hybrid',
@@ -80,7 +89,7 @@ export async function POST(req: Request) {
     avg_power_watts: cardio?.avg_power_watts ?? null,
     tss,
     session_rpe: workoutData.rpe_session,
-    total_volume_lbs: null,
+    total_volume_lbs: totalVolumeLbs > 0 ? totalVolumeLbs : null,
   });
 
   // Insert workout log (now includes HR, source, strain)
@@ -193,7 +202,12 @@ export async function POST(req: Request) {
   }
 
   // Estimated 1RM detection for strength exercises
-  const estimated1rms: { exercise_name: string; e1rm: number }[] = [];
+  const estimated1rms: {
+    exercise_name: string;
+    e1rm: number;
+    exercise: string;
+    estimated_1rm: number;
+  }[] = [];
   if (sets && sets.length > 0) {
     // Group sets by exercise for 1RM calculation
     const exerciseSets = new Map<string, { reps: number | null; weight_lbs: number | null; set_type: string }[]>();
@@ -236,7 +250,15 @@ export async function POST(req: Request) {
             notes: `Based on ${best.based_on_weight}lbs × ${best.based_on_reps} reps`,
           });
 
-          if (ex?.name) estimated1rms.push({ exercise_name: ex.name, e1rm: best.e1rm });
+          if (ex?.name) {
+            estimated1rms.push({
+              exercise_name: ex.name,
+              e1rm: best.e1rm,
+              // The client reads these names.
+              exercise: ex.name,
+              estimated_1rm: best.e1rm,
+            });
+          }
         }
       }
     }
@@ -406,9 +428,57 @@ export async function POST(req: Request) {
     console.error('Failed to create calendar event for workout:', calError);
   }
 
+  const exerciseIdsInWorkout = [...new Set((sets ?? []).map((st) => st.exercise_id).filter(Boolean))] as string[];
+  const exerciseNames = new Map<string, string>();
+  if (exerciseIdsInWorkout.length > 0) {
+    const { data: exRows } = await supabase
+      .from('exercises')
+      .select('id, name')
+      .in('id', exerciseIdsInWorkout);
+    for (const r of exRows ?? []) exerciseNames.set(r.id, r.name);
+  }
+
+  // Per-exercise breakdown for the completion screen. Warm-ups are counted
+  // separately from working sets — "5 sets" reads differently if two of them
+  // were warm-ups.
+  const byExercise = new Map<string, { name: string; sets: number; workingSets: number; volume: number; topWeight: number; reps: number }>();
+  for (const st of sets ?? []) {
+    if (!st.exercise_id) continue;
+    const entry = byExercise.get(st.exercise_id) ?? {
+      name: exerciseNames.get(st.exercise_id) ?? 'Exercise',
+      sets: 0, workingSets: 0, volume: 0, topWeight: 0, reps: 0,
+    };
+    const reps = Number(st.reps) || 0;
+    const weight = Number(st.weight_lbs) || 0;
+    entry.sets += 1;
+    if (st.set_type === 'working') entry.workingSets += 1;
+    entry.volume += reps * weight;
+    entry.reps += reps;
+    entry.topWeight = Math.max(entry.topWeight, weight);
+    byExercise.set(st.exercise_id, entry);
+  }
+
   return NextResponse.json({
     ok: true,
     workout_id: log.id,
+    summary: {
+      exercises: byExercise.size,
+      total_sets: (sets ?? []).length,
+      working_sets: (sets ?? []).filter((st) => st.set_type === 'working').length,
+      total_reps: (sets ?? []).reduce((n, st) => n + (Number(st.reps) || 0), 0),
+      total_volume_lbs: Math.round(totalVolumeLbs),
+      duration_minutes: workoutData.duration_minutes ?? null,
+      by_exercise: [...byExercise.values()]
+        .sort((a, b) => b.volume - a.volume)
+        .map((e) => ({
+          name: e.name,
+          sets: e.sets,
+          working_sets: e.workingSets,
+          reps: e.reps,
+          volume_lbs: Math.round(e.volume),
+          top_weight_lbs: e.topWeight || null,
+        })),
+    },
     new_prs: newPRs,
     estimated_1rms: estimated1rms,
     strain_score: strainScore,
