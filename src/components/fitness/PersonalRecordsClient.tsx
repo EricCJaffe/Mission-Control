@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, RefreshCw, Search, Trash2 } from 'lucide-react';
 import OneRMProgressionChart from './OneRMProgressionChart';
 
 type PRRecord = {
@@ -19,45 +19,30 @@ type Props = {
   records: PRRecord[];
 };
 
-const RECORD_TYPE_LABELS: Record<string, string> = {
-  max_weight: 'Max Weight',
-  max_reps: 'Max Reps',
-  max_volume: 'Max Volume',
-  estimated_1rm: 'Est. 1RM',
-  best_pace: 'Best Pace',
-  longest_z2_drift: 'Longest Z2 Drift',
-  lowest_rhr: 'Lowest RHR',
-  highest_hrv: 'Highest HRV',
-  fastest_5k: 'Fastest 5K',
-  longest_ride: 'Longest Ride',
-};
+/**
+ * Record types, in the order they are offered.
+ *
+ * Estimated 1RM leads, and is the default, because it is the one number that
+ * compares across rep ranges — a heavy triple and a lighter set of eight are
+ * not otherwise comparable, and it is what you want to see going up.
+ */
+const RECORD_TYPES = [
+  { key: 'estimated_1rm', label: 'Est. 1RM' },
+  { key: 'max_weight', label: 'Max Weight' },
+  { key: 'max_reps', label: 'Max Reps' },
+  { key: 'max_volume', label: 'Max Volume' },
+  { key: 'best_pace', label: 'Best Pace' },
+  { key: 'fastest_5k', label: 'Fastest 5K' },
+  { key: 'longest_ride', label: 'Longest Ride' },
+  { key: 'longest_z2_drift', label: 'Longest Z2' },
+  { key: 'lowest_rhr', label: 'Lowest RHR' },
+  { key: 'highest_hrv', label: 'Highest HRV' },
+] as const;
 
-const RECORD_TYPE_COLORS: Record<string, string> = {
-  max_weight: 'bg-red-100 text-red-700 border-red-200',
-  max_reps: 'bg-orange-100 text-orange-700 border-orange-200',
-  max_volume: 'bg-amber-100 text-amber-700 border-amber-200',
-  estimated_1rm: 'bg-purple-100 text-purple-700 border-purple-200',
-  best_pace: 'bg-green-100 text-green-700 border-green-200',
-  longest_z2_drift: 'bg-blue-100 text-blue-700 border-blue-200',
-  lowest_rhr: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  highest_hrv: 'bg-blue-100 text-blue-700 border-blue-200',
-  fastest_5k: 'bg-green-100 text-green-700 border-green-200',
-  longest_ride: 'bg-sky-100 text-sky-700 border-sky-200',
-};
+const DEFAULT_TYPE = 'estimated_1rm';
 
-const CATEGORY_ORDER = ['strength', 'cardio', 'health'] as const;
-
-function categorize(type: string): 'strength' | 'cardio' | 'health' {
-  if (['max_weight', 'max_reps', 'max_volume', 'estimated_1rm'].includes(type)) return 'strength';
-  if (['best_pace', 'longest_z2_drift', 'fastest_5k', 'longest_ride'].includes(type)) return 'cardio';
-  return 'health';
-}
-
-const CATEGORY_LABELS: Record<string, string> = {
-  strength: 'Strength PRs',
-  cardio: 'Cardio PRs',
-  health: 'Health Milestones',
-};
+/** For these a "best" is the lowest value, not the highest. */
+const LOWER_IS_BETTER = new Set(['best_pace', 'fastest_5k', 'lowest_rhr']);
 
 function formatValue(value: number, unit: string | null, type: string): string {
   if (type === 'best_pace') {
@@ -65,22 +50,82 @@ function formatValue(value: number, unit: string | null, type: string): string {
     const secs = Math.round((value - mins) * 60);
     return `${mins}:${secs.toString().padStart(2, '0')}${unit ? ` ${unit}` : ''}`;
   }
-  if (type === 'longest_z2_drift' || type === 'fastest_5k') {
-    return `${value.toFixed(1)}${unit ? ` ${unit}` : ''}`;
-  }
-  if (Number.isInteger(value)) {
-    return `${value}${unit ? ` ${unit}` : ''}`;
-  }
+  if (Number.isInteger(value)) return `${value}${unit ? ` ${unit}` : ''}`;
   return `${value.toFixed(1)}${unit ? ` ${unit}` : ''}`;
 }
 
+function shortDate(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/**
+ * One row per exercise, alphabetical, with the record type as a filter.
+ *
+ * Previously every exercise appeared once for each record type it had — 120
+ * rows across 32 exercises, up to seven lines for a single lift — so finding
+ * "what is my bench" meant reading past six other numbers about bench. The
+ * type is now a filter and the list is alphabetical, which is how you look
+ * something up when you already know what you are after.
+ */
 export default function PersonalRecordsClient({ records: initial }: Props) {
   const [records, setRecords] = useState(initial);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'strength' | 'cardio' | 'health'>('all');
+  const [type, setType] = useState<string>(DEFAULT_TYPE);
+  const [search, setSearch] = useState('');
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [recalcLoading, setRecalcLoading] = useState(false);
   const [recalcMsg, setRecalcMsg] = useState<string | null>(null);
+
+  /** Only offer types that actually have records, with their counts. */
+  const availableTypes = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of records) counts.set(r.record_type, (counts.get(r.record_type) ?? 0) + 1);
+    return RECORD_TYPES.filter((t) => counts.has(t.key)).map((t) => ({
+      ...t,
+      count: counts.get(t.key) ?? 0,
+    }));
+  }, [records]);
+
+  /**
+   * Best record per exercise for the selected type.
+   *
+   * There are several rows per exercise and type as a lift improves, so the
+   * best wins rather than whichever came back first — and for pace-style
+   * records the best is the lowest.
+   */
+  const rows = useMemo(() => {
+    const best = new Map<string, PRRecord>();
+    for (const r of records) {
+      if (r.record_type !== type) continue;
+      const key = r.exercise_name ?? r.exercise_id ?? r.id;
+      const current = best.get(key);
+      if (!current) {
+        best.set(key, r);
+        continue;
+      }
+      const better = LOWER_IS_BETTER.has(type) ? r.value < current.value : r.value > current.value;
+      if (better) best.set(key, r);
+    }
+
+    const q = search.trim().toLowerCase();
+    return [...best.values()]
+      .filter((r) => !q || (r.exercise_name ?? '').toLowerCase().includes(q))
+      .sort((a, b) =>
+        (a.exercise_name ?? '').localeCompare(b.exercise_name ?? '', undefined, {
+          sensitivity: 'base',
+        })
+      );
+  }, [records, type, search]);
+
+  const historyFor = (exerciseName: string | null) =>
+    records
+      .filter((r) => r.exercise_name === exerciseName)
+      .sort((a, b) => b.achieved_date.localeCompare(a.achieved_date));
 
   async function handleRecalculate() {
     setRecalcLoading(true);
@@ -95,7 +140,6 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
       }
       const { exercises_analyzed, records_created } = data.summary;
       setRecalcMsg(`Calculated ${records_created} PRs across ${exercises_analyzed} exercises.`);
-      // Reload page to reflect new records
       window.location.reload();
     } catch {
       setError('Network error — could not recalculate PRs');
@@ -110,7 +154,7 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
       const res = await fetch(`/api/fitness/records?id=${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.ok) {
-        setRecords(prev => prev.filter(r => r.id !== id));
+        setRecords((prev) => prev.filter((r) => r.id !== id));
         setConfirmDeleteId(null);
       } else {
         setError(data.error || 'Failed to delete record');
@@ -120,185 +164,150 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
     }
   }
 
-  const filtered = filter === 'all' ? records : records.filter(r => categorize(r.record_type) === filter);
-
-  // Group by category for display
-  const grouped = new Map<string, PRRecord[]>();
-  for (const cat of CATEGORY_ORDER) {
-    const catRecords = filtered.filter(r => categorize(r.record_type) === cat);
-    if (catRecords.length > 0) grouped.set(cat, catRecords);
-  }
-
-  // Summary stats
-  const totalPRs = records.length;
-  const strengthCount = records.filter(r => categorize(r.record_type) === 'strength').length;
-  const cardioCount = records.filter(r => categorize(r.record_type) === 'cardio').length;
-  const recentPR = records[0];
-
-  // Group by exercise for strength PRs to show latest per exercise
-  const latestByExercise = new Map<string, PRRecord>();
-  for (const r of records) {
-    if (r.exercise_name && categorize(r.record_type) === 'strength') {
-      const key = `${r.exercise_name}:${r.record_type}`;
-      if (!latestByExercise.has(key)) {
-        latestByExercise.set(key, r);
-      }
-    }
-  }
+  const activeLabel = RECORD_TYPES.find((t) => t.key === type)?.label ?? type;
 
   return (
-    <div className="space-y-6">
-      {/* Error banner */}
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">
-          <p className="text-sm text-red-700">{error}</p>
-          <button onClick={() => setError(null)} className="text-xs text-red-500 hover:text-red-700">Dismiss</button>
-        </div>
-      )}
-
-      {/* Recalculate banner */}
-      {recalcMsg && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 flex items-center justify-between">
-          <p className="text-sm text-green-700">{recalcMsg}</p>
-          <button onClick={() => setRecalcMsg(null)} className="text-xs text-green-500 hover:text-green-700">Dismiss</button>
-        </div>
-      )}
-
-      {/* Recalculate PRs button */}
-      <div className="flex justify-end">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-slate-500">
+          {rows.length} exercise{rows.length === 1 ? '' : 's'} · {activeLabel}
+        </p>
         <button
           onClick={handleRecalculate}
           disabled={recalcLoading}
-          className="inline-flex items-center gap-2 min-h-[44px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-40 transition-colors"
+          className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
         >
-          <RefreshCw className={`w-4 h-4 ${recalcLoading ? 'animate-spin' : ''}`} />
-          {recalcLoading ? 'Calculating…' : 'Recalculate PRs from History'}
+          <RefreshCw className={`h-4 w-4 ${recalcLoading ? 'animate-spin' : ''}`} />
+          {recalcLoading ? 'Calculating…' : 'Recalculate'}
         </button>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
-          <p className="text-xs text-slate-500 mb-1">Total PRs</p>
-          <p className="text-2xl font-bold text-slate-800">{totalPRs}</p>
-        </div>
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
-          <p className="text-xs text-slate-500 mb-1">Strength</p>
-          <p className="text-2xl font-bold text-red-600">{strengthCount}</p>
-        </div>
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
-          <p className="text-xs text-slate-500 mb-1">Cardio</p>
-          <p className="text-2xl font-bold text-green-600">{cardioCount}</p>
-        </div>
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm text-center">
-          <p className="text-xs text-slate-500 mb-1">Most Recent</p>
-          {recentPR ? (
-            <p className="text-sm font-medium text-slate-700 truncate">{new Date(recentPR.achieved_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
-          ) : (
-            <p className="text-sm text-slate-400">None yet</p>
-          )}
-        </div>
-      </div>
-
-      {/* Current bests */}
-      {latestByExercise.size > 0 && (
-        <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100">
-            <h2 className="text-sm font-semibold text-slate-700">Current Bests</h2>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {[...latestByExercise.entries()].map(([key, r]) => (
-              <div key={key} className="px-5 py-3 flex items-center gap-3">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-800">{r.exercise_name}</p>
-                  <span className={`text-xs rounded-full px-2 py-0.5 border ${RECORD_TYPE_COLORS[r.record_type] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                    {RECORD_TYPE_LABELS[r.record_type] ?? r.record_type}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold tabular-nums text-slate-800">
-                    {formatValue(r.value, r.unit, r.record_type)}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {new Date(r.achieved_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {recalcMsg && (
+        <p className="rounded-xl bg-blue-50 px-3 py-2 text-sm text-blue-800">{recalcMsg}</p>
       )}
+      {error && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
-      {/* 1RM Progression Chart */}
-      <OneRMProgressionChart records={records} />
-
-      {/* Filter tabs */}
-      <div className="flex gap-1.5">
-        {(['all', 'strength', 'cardio', 'health'] as const).map(f => (
+      {/* The type is a filter now rather than a reason to repeat every row. */}
+      <div className="flex flex-wrap gap-1.5">
+        {availableTypes.map((t) => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize min-h-[32px] ${
-              filter === f ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            key={t.key}
+            type="button"
+            onClick={() => {
+              setType(t.key);
+              setExpanded(null);
+            }}
+            className={`min-h-[36px] rounded-xl px-3 text-sm font-semibold transition-colors ${
+              type === t.key
+                ? 'bg-blue-700 text-white'
+                : 'border-2 border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
-            {f}
+            {t.label}
+            <span className={`ml-1.5 text-xs ${type === t.key ? 'text-blue-200' : 'text-slate-400'}`}>
+              {t.count}
+            </span>
           </button>
         ))}
       </div>
 
-      {/* Records by category */}
-      {grouped.size > 0 ? (
-        [...grouped.entries()].map(([cat, catRecords]) => (
-          <div key={cat}>
-            <h2 className="text-sm font-semibold text-slate-600 mb-2">{CATEGORY_LABELS[cat] ?? cat}</h2>
-            <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden divide-y divide-slate-100">
-              {catRecords.map(r => (
-                <div key={r.id} className="px-5 py-3 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-slate-800">
-                        {r.exercise_name ?? (RECORD_TYPE_LABELS[r.record_type] ?? r.record_type)}
-                      </p>
-                      <span className={`text-xs rounded-full px-2 py-0.5 border shrink-0 ${RECORD_TYPE_COLORS[r.record_type] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                        {RECORD_TYPE_LABELS[r.record_type] ?? r.record_type}
-                      </span>
-                    </div>
-                    {r.notes && <p className="text-xs text-slate-400 mt-0.5 truncate">{r.notes}</p>}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-lg font-bold tabular-nums text-slate-800">
-                      {formatValue(r.value, r.unit, r.record_type)}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {new Date(r.achieved_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </div>
-                  <div className="shrink-0">
-                    {confirmDeleteId === r.id ? (
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => handleDelete(r.id)} className="text-xs text-red-600 font-medium">Yes</button>
-                        <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-slate-400">No</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setConfirmDeleteId(r.id)}
-                        className="text-xs text-slate-300 hover:text-red-400">Del</button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Find an exercise…"
+          aria-label="Search exercises"
+          className="min-h-[44px] w-full rounded-xl border-2 border-slate-300 bg-white pl-9 pr-3 text-base focus:border-blue-600 focus:outline-none"
+        />
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="rounded-2xl border-2 border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+          {search ? `Nothing matching “${search}”.` : `No ${activeLabel} records yet.`}
+        </p>
       ) : (
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-8 text-center shadow-sm">
-          <p className="text-slate-500 text-sm">
-            {records.length === 0
-              ? 'No personal records yet. PRs are auto-detected when you log workouts — your first lift or run will set the baseline!'
-              : 'No records match this filter.'}
-          </p>
+        <div className="overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
+          {rows.map((r, i) => {
+            const key = r.exercise_name ?? r.id;
+            const isOpen = expanded === key;
+            return (
+              <div key={r.id} className={i > 0 ? 'border-t border-slate-100' : ''}>
+                <button
+                  type="button"
+                  onClick={() => setExpanded(isOpen ? null : key)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
+                >
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isOpen ? '' : '-rotate-90'}`}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">
+                    {r.exercise_name ?? 'Unnamed'}
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="block text-base font-bold tabular-nums text-slate-900">
+                      {formatValue(r.value, r.unit, r.record_type)}
+                    </span>
+                    <span className="block text-[11px] text-slate-400">
+                      {shortDate(r.achieved_date)}
+                    </span>
+                  </span>
+                </button>
+
+                {/* Expanding shows every record for that exercise, which is
+                    where the other types went. */}
+                {isOpen && (
+                  <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-3">
+                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      All records for this exercise
+                    </p>
+                    <div className="space-y-1">
+                      {historyFor(r.exercise_name).map((h) => (
+                        <div key={h.id} className="flex items-center gap-2 text-xs">
+                          <span className="w-24 shrink-0 text-slate-500">
+                            {RECORD_TYPES.find((t) => t.key === h.record_type)?.label ?? h.record_type}
+                          </span>
+                          <span className="font-semibold tabular-nums text-slate-900">
+                            {formatValue(h.value, h.unit, h.record_type)}
+                          </span>
+                          <span className="text-slate-400">{shortDate(h.achieved_date)}</span>
+                          {confirmDeleteId === h.id ? (
+                            <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                              <button
+                                onClick={() => handleDelete(h.id)}
+                                className="text-xs font-bold text-rose-700"
+                              >
+                                Delete
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="text-xs text-slate-500"
+                              >
+                                Cancel
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDeleteId(h.id)}
+                              aria-label={`Delete this ${h.record_type} record`}
+                              className="ml-auto shrink-0 text-slate-300 hover:text-rose-600"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
+
+      <OneRMProgressionChart records={records} />
     </div>
   );
 }
