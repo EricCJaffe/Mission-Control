@@ -341,6 +341,15 @@ export default function FitnessDashboardClient({
       {/* Quick recovery log — sauna / cold plunge / massage / compression, one tap */}
       <QuickRecoveryLog />
 
+      {/* Recovery belongs next to training in the big picture, not only on its
+          own page — it is half of what determines whether the next session
+          goes well. */}
+      <div className="mt-2 text-right">
+        <Link href="/fitness/recovery" className="text-xs font-medium text-teal-700 hover:text-teal-800">
+          Recovery trends &rarr;
+        </Link>
+      </div>
+
       {/* Withings sync — BP and body composition come from here, and nothing
           schedules it, so the control sits next to the metrics it feeds. */}
       <WithingsSyncButton />

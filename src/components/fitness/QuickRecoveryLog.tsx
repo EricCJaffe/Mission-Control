@@ -12,6 +12,22 @@ const MODALITIES = [
   { value: 'mobility', label: 'Mobility', Icon: Waves },
 ] as const;
 
+/**
+ * Modalities where temperature is the point.
+ *
+ * A 15-minute sauna at 160F and one at 195F are different sessions, and the
+ * quick log had no way to say which — the full recovery page has the field but
+ * this is where it actually gets logged. Massage and compression have no
+ * temperature to record, so the input only appears where it means something.
+ */
+const TEMPERATURE_MODALITIES = new Set(['sauna', 'cold_plunge']);
+
+/** Sensible starting points, so the field is one tap rather than typing. */
+const TEMP_PRESETS: Record<string, number[]> = {
+  sauna: [150, 165, 180, 195],
+  cold_plunge: [38, 45, 50, 55],
+};
+
 const MASSAGE_SUBTYPES = [
   { value: 'gun', label: 'Gun' },
   { value: 'professional', label: 'Professional' },
@@ -25,6 +41,7 @@ export default function QuickRecoveryLog() {
   const [modality, setModality] = useState<string>('sauna');
   const [subType, setSubType] = useState('');
   const [minutes, setMinutes] = useState('');
+  const [temperature, setTemperature] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +63,7 @@ export default function QuickRecoveryLog() {
           modality,
           sub_type: modality === 'massage' ? subType : '',
           duration_min: duration,
+          temperature_f: TEMPERATURE_MODALITIES.has(modality) && temperature ? Number(temperature) : null,
           timing_context: 'standalone',
         }),
       });
@@ -54,6 +72,7 @@ export default function QuickRecoveryLog() {
         setSaved(true);
         setMinutes('');
         setSubType('');
+        setTemperature('');
         router.refresh();
         setTimeout(() => {
           setSaved(false);
@@ -121,6 +140,39 @@ export default function QuickRecoveryLog() {
               {s.label}
             </button>
           ))}
+        </div>
+      )}
+
+      {TEMPERATURE_MODALITIES.has(modality) && (
+        <div className="mt-3">
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Temperature (&deg;F)
+          </label>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {(TEMP_PRESETS[modality] ?? []).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTemperature(String(t))}
+                className={`min-h-[36px] rounded-lg border-2 px-2.5 text-sm font-semibold ${
+                  temperature === String(t)
+                    ? 'border-teal-500 bg-teal-50 text-teal-700'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {t}&deg;
+              </button>
+            ))}
+            <input
+              type="number"
+              inputMode="numeric"
+              value={temperature}
+              onChange={(e) => setTemperature(e.target.value)}
+              placeholder="&deg;F"
+              aria-label="Temperature in Fahrenheit"
+              className="min-h-[36px] w-20 rounded-lg border-2 border-slate-200 px-2 text-center text-sm font-semibold focus:border-teal-500 focus:outline-none"
+            />
+          </div>
         </div>
       )}
 
