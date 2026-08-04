@@ -5,9 +5,7 @@ import {
   periodTotal,
   projectPeriod,
   toIso,
-  workoutMonthlyBuckets,
   workoutPeriodTotal,
-  workoutWeeklyBuckets,
   type DayDistance,
   type PeriodKey,
   type WorkoutDistance,
@@ -92,6 +90,9 @@ export default async function MileagePage() {
     });
   }
 
+  // The client filters by discipline and by named range, so it receives the
+  // sessions themselves rather than pre-computed totals.
+
   // Training first. Everyday walking is kept for context but never merged in.
   const sessionTotals = PERIODS.map((p) => workoutPeriodTotal(workouts, p, today));
   const dailyTotals = PERIODS.map((p) => periodTotal(days, p, today));
@@ -117,10 +118,9 @@ export default async function MileagePage() {
         </p>
       </div>
       <MileageClient
-        workoutTotals={sessionTotals}
+        sessions={workouts}
+        today={today}
         dailyTotals={dailyTotals}
-        monthly={workoutMonthlyBuckets(workouts, today.slice(0, 4))}
-        weekly={workoutWeeklyBuckets(workouts, today, 12)}
         dailyMonthly={monthlyBuckets(days, today.slice(0, 4))}
         projections={projections}
         year={today.slice(0, 4)}

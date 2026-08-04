@@ -27,6 +27,77 @@ export type WorkoutDistance = {
 
 export type PeriodKey = 'week' | 'month' | 'year' | 'all';
 
+/**
+ * Disciplines, grouped from the raw workout_type strings.
+ *
+ * Apple and Garmin have written the same activity under several names over the
+ * years — "Running", "Outdoor Run" and "Indoor Run" are all running, and
+ * splitting them across three rows makes the totals meaningless. Grouping
+ * happens here so every view agrees.
+ */
+export type Discipline = 'run' | 'bike' | 'walk' | 'swim' | 'other';
+
+export const DISCIPLINES: Array<{ key: Discipline | 'all'; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'run', label: 'Run' },
+  { key: 'bike', label: 'Bike' },
+  { key: 'walk', label: 'Walk' },
+  { key: 'swim', label: 'Swim' },
+];
+
+export function disciplineOf(workoutType: string | null | undefined): Discipline {
+  const t = (workoutType ?? '').toLowerCase();
+  if (/\brun|jog|treadmill\b/.test(t)) return 'run';
+  if (/cycl|bike|spin/.test(t)) return 'bike';
+  if (/walk|hik/.test(t)) return 'walk';
+  if (/swim/.test(t)) return 'swim';
+  return 'other';
+}
+
+/**
+ * Named ranges for the activity breakdown.
+ *
+ * A single rolling window cannot answer "how did last month compare" or
+ * "what did I do last year", which are the two questions a mileage page is
+ * actually opened for.
+ */
+export type RangeKey = 'this_month' | 'last_month' | 'last_3' | 'ytd' | 'last_year';
+
+export const RANGES: Array<{ key: RangeKey; label: string }> = [
+  { key: 'this_month', label: 'This month' },
+  { key: 'last_month', label: 'Last month' },
+  { key: 'last_3', label: 'Last 3 months' },
+  { key: 'ytd', label: 'Year to date' },
+  { key: 'last_year', label: 'Last year' },
+];
+
+/** Inclusive [from, to] for a named range, both 'YYYY-MM-DD'. */
+export function rangeBounds(range: RangeKey, today: string): { from: string; to: string } {
+  const year = Number(today.slice(0, 4));
+  const month = Number(today.slice(5, 7));
+
+  if (range === 'this_month') return { from: startOfMonth(today), to: today };
+
+  if (range === 'last_month') {
+    const y = month === 1 ? year - 1 : year;
+    const m = month === 1 ? 12 : month - 1;
+    const mm = String(m).padStart(2, '0');
+    // Day 0 of the following month is the last day of this one.
+    const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(last).padStart(2, '0')}` };
+  }
+
+  if (range === 'last_3') {
+    const d = new Date(Date.UTC(year, month - 1, 1));
+    d.setUTCMonth(d.getUTCMonth() - 2);
+    return { from: d.toISOString().slice(0, 10), to: today };
+  }
+
+  if (range === 'ytd') return { from: `${year}-01-01`, to: today };
+
+  return { from: `${year - 1}-01-01`, to: `${year - 1}-12-31` };
+}
+
 export function toIso(d: Date): string {
   return d.toISOString().slice(0, 10);
 }

@@ -1,8 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Minus, Footprints } from 'lucide-react';
-import type { Bucket, PeriodTotal, WorkoutPeriodTotal } from '@/lib/fitness/mileage';
+import {
+  DISCIPLINES,
+  RANGES,
+  disciplineOf,
+  rangeBounds,
+  workoutTotals as computeWorkoutTotals,
+  workoutMonthlyBuckets,
+  workoutWeeklyBuckets,
+  workoutPeriodTotal,
+  type Bucket,
+  type Discipline,
+  type PeriodTotal,
+  type RangeKey,
+  type WorkoutDistance,
+} from '@/lib/fitness/mileage';
 
 /**
  * Training mileage by week, month and year.
@@ -17,31 +31,84 @@ import type { Bucket, PeriodTotal, WorkoutPeriodTotal } from '@/lib/fitness/mile
  * reporting a collapse and the number becomes noise you learn to skip.
  */
 export default function MileageClient({
-  workoutTotals,
+  sessions,
+  today,
   dailyTotals,
-  monthly,
-  weekly,
   dailyMonthly,
   projections,
   year,
 }: {
-  workoutTotals: WorkoutPeriodTotal[];
+  sessions: WorkoutDistance[];
+  today: string;
   dailyTotals: PeriodTotal[];
-  monthly: Bucket[];
-  weekly: Bucket[];
   dailyMonthly: Bucket[];
   projections: Record<string, number | null>;
   year: string;
 }) {
   const [focus, setFocus] = useState<string>('month');
-  const focused = workoutTotals.find((t) => t.period === focus) ?? workoutTotals[0];
+  const [discipline, setDiscipline] = useState<Discipline | 'all'>('all');
+  const [range, setRange] = useState<RangeKey>('this_month');
+
+  /** Only offer disciplines that actually have sessions with distance. */
+  const availableDisciplines = useMemo(() => {
+    const present = new Set(sessions.map((s) => disciplineOf(s.workout_type)));
+    return DISCIPLINES.filter((d) => d.key === 'all' || present.has(d.key as Discipline));
+  }, [sessions]);
+
+  const filtered = useMemo(
+    () =>
+      discipline === 'all'
+        ? sessions
+        : sessions.filter((s) => disciplineOf(s.workout_type) === discipline),
+    [sessions, discipline]
+  );
+
+  /** Period cards recompute against the chosen discipline. */
+  const periodTotals = useMemo(
+    () => (['week', 'month', 'year', 'all'] as const).map((p) => workoutPeriodTotal(filtered, p, today)),
+    [filtered, today]
+  );
+
+  /** The activity breakdown answers a named range, not the focused period. */
+  const rangeTotals = useMemo(() => {
+    const { from, to } = rangeBounds(range, today);
+    return { ...computeWorkoutTotals(filtered, from, to), from, to };
+  }, [filtered, range, today]);
+
+  const charts = useMemo(
+    () => ({
+      monthly: workoutMonthlyBuckets(filtered, today.slice(0, 4)),
+      weekly: workoutWeeklyBuckets(filtered, today, 12),
+    }),
+    [filtered, today]
+  );
+  const focused = periodTotals.find((t) => t.period === focus) ?? periodTotals[0];
   const daily = dailyTotals.find((t) => t.period === focus);
   const projection = projections[focus];
 
   return (
     <div className="space-y-4">
+      {/* Which sport. Running, Outdoor Run and Indoor Run are all running —
+          grouped so the totals mean something. */}
+      <div className="flex flex-wrap gap-1.5">
+        {availableDisciplines.map((d) => (
+          <button
+            key={d.key}
+            type="button"
+            onClick={() => setDiscipline(d.key)}
+            className={`min-h-[36px] rounded-xl px-3 text-sm font-semibold transition-colors ${
+              discipline === d.key
+                ? 'bg-blue-700 text-white'
+                : 'border-2 border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {workoutTotals.map((t) => (
+        {periodTotals.map((t) => (
           <button
             key={t.period}
             type="button"
@@ -62,6 +129,16 @@ export default function MileageClient({
             <p className="text-[11px] text-slate-500">
               {t.sessions} session{t.sessions === 1 ? '' : 's'}
             </p>
+            {/* The card said a number and nothing else. The trace shows
+                whether that number is rising or falling. */}
+            <CardSpark
+              values={
+                t.period === 'week'
+                  ? charts.weekly.slice(-8).map((b) => b.miles)
+                  : charts.monthly.map((b) => b.miles)
+              }
+              active={focus === t.period}
+            />
             {t.changePct !== null ? (
               <p
                 className={`mt-0.5 flex items-center gap-0.5 text-[11px] font-semibold ${
@@ -123,20 +200,57 @@ export default function MileageClient({
         )}
       </section>
 
-      {focused.byType.length > 0 && (
-        <section className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            By activity — {focused.label.toLowerCase()}
+            By activity
           </p>
+          <span className="text-[11px] text-slate-400">
+            {rangeTotals.from} → {rangeTotals.to}
+          </span>
+        </div>
+
+        {/* Named ranges, because a single rolling window cannot answer "how did
+            last month compare" or "what did I do last year". */}
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {RANGES.map((r) => (
+            <button
+              key={r.key}
+              type="button"
+              onClick={() => setRange(r.key)}
+              className={`min-h-[32px] rounded-lg px-2.5 text-xs font-semibold transition-colors ${
+                range === r.key
+                  ? 'bg-slate-800 text-white'
+                  : 'border-2 border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        <p className="mt-3 text-2xl font-bold tabular-nums text-slate-900">
+          {rangeTotals.miles.toFixed(1)}
+          <span className="ml-1 text-sm font-semibold text-slate-500">mi</span>
+          <span className="ml-2 text-sm font-normal text-slate-500">
+            {rangeTotals.sessions} session{rangeTotals.sessions === 1 ? '' : 's'}
+            {rangeTotals.minutes > 0 &&
+              ` · ${Math.floor(rangeTotals.minutes / 60)}h ${rangeTotals.minutes % 60}m`}
+          </span>
+        </p>
+
+        {rangeTotals.byType.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-500">Nothing logged in this range.</p>
+        ) : (
           <div className="mt-2 space-y-1.5">
-            {focused.byType.map((t) => (
+            {rangeTotals.byType.map((t) => (
               <div key={t.type} className="flex items-center gap-2 text-xs">
                 <span className="w-32 shrink-0 truncate text-slate-600">{t.type}</span>
                 <div className="h-5 flex-1 overflow-hidden rounded bg-slate-100">
                   <div
                     className="h-full bg-blue-700"
                     style={{
-                      width: `${(t.miles / Math.max(...focused.byType.map((x) => x.miles))) * 100}%`,
+                      width: `${(t.miles / Math.max(...rangeTotals.byType.map((x) => x.miles))) * 100}%`,
                     }}
                   />
                 </div>
@@ -147,11 +261,11 @@ export default function MileageClient({
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
-      <BarChart title={`Training miles — ${year} by month`} buckets={monthly} />
-      <BarChart title="Training miles — last 12 weeks" buckets={weekly} />
+      <BarChart title={`Training miles — ${year} by month`} buckets={charts.monthly} />
+      <BarChart title="Training miles — last 12 weeks" buckets={charts.weekly} />
 
       {daily && (
         <details className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
@@ -182,6 +296,47 @@ export default function MileageClient({
         </details>
       )}
     </div>
+  );
+}
+
+/**
+ * A bare trace of the last few buckets.
+ *
+ * No axes or labels — at this size they would be unreadable, and the card
+ * already states the figure. The line is only there to say which way it is
+ * going.
+ */
+function CardSpark({ values, active }: { values: number[]; active: boolean }) {
+  const points = values.filter((v) => Number.isFinite(v));
+  if (points.length < 2 || Math.max(...points) === 0) return <div className="mt-1.5 h-6" />;
+
+  const max = Math.max(...points);
+  const w = 100;
+  const h = 24;
+  const step = w / (points.length - 1);
+  const path = points
+    .map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i * step).toFixed(1)} ${(h - (v / max) * h).toFixed(1)}`)
+    .join(' ');
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      className="mt-1.5 h-6 w-full"
+      aria-hidden="true"
+    >
+      <path
+        d={`${path} L ${w} ${h} L 0 ${h} Z`}
+        className={active ? 'fill-blue-200/60' : 'fill-slate-100'}
+      />
+      <path
+        d={path}
+        fill="none"
+        strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
+        className={active ? 'stroke-blue-700' : 'stroke-slate-400'}
+      />
+    </svg>
   );
 }
 
