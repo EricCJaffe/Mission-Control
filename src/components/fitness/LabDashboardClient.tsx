@@ -925,8 +925,8 @@ export default function LabDashboardClient({ initialTab }: LabDashboardClientPro
             </div>
 
             {/* Data Table */}
-            <div className="rounded-xl border border-gray-200 overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-xl border border-gray-200">
+              <table className="w-full min-w-[520px] text-sm">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Date</th>

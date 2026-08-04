@@ -241,7 +241,8 @@ export default function WorkoutTextLogger() {
                 </div>
               )}
 
-              <table className="mt-2 w-full text-xs">
+              <div className="mt-2 overflow-x-auto">
+              <table className="w-full min-w-[420px] text-xs">
                 <thead>
                   <tr className="text-slate-400">
                     <th className="text-left font-medium">Set</th>
@@ -266,6 +267,7 @@ export default function WorkoutTextLogger() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           ))}
 
@@ -273,7 +275,7 @@ export default function WorkoutTextLogger() {
             <button
               onClick={handleConfirm}
               disabled={!readyToSave || saving}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               {saving ? 'Saving…' : 'Log this workout'}

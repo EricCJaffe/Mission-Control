@@ -327,7 +327,7 @@ export default function HealthLabReviewClient({
             <button
               onClick={confirmPanel}
               disabled={loading}
-              className="px-6 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+              className="px-6 py-3 bg-blue-700 text-white rounded-xl font-medium hover:bg-blue-800 disabled:opacity-50 transition-colors"
             >
               {loading ? 'Confirming...' : 'Confirm & Generate Analysis'}
             </button>

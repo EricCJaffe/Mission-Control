@@ -362,7 +362,7 @@ export default function ChatWidget() {
                               type="button"
                               onClick={() => handleConfirmWorkout(i)}
                               disabled={!ready || savingIndex === i}
-                              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
+                              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-800 disabled:opacity-40"
                             >
                               {savingIndex === i ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />

@@ -342,7 +342,7 @@ export default function GeneticsReviewClient({ pendingUploads, completedUploads 
             <button
               onClick={handleConfirm}
               disabled={confirming}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 disabled:opacity-50 transition-colors min-h-[44px]"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-700 text-white rounded-xl font-medium hover:bg-blue-800 disabled:opacity-50 transition-colors min-h-[44px]"
             >
               {confirming ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Generating Analysis...</>
