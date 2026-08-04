@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
-import { Brain, FileText, Flame, Pin, HeartPulse, BarChart3, Settings } from 'lucide-react';
+import { Brain, FileText, Flame, Pin, HeartPulse, BarChart3, Plug, Settings } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin | Mission Control' };
@@ -56,6 +56,14 @@ export default async function AdminPage() {
       body: 'Medical history, medications, supplements, training constraints and vital targets. Drives workout planning and supplement analysis.',
       meta: healthDoc ? `Version ${healthDoc.version} · ${String(healthDoc.last_updated_at).slice(0, 10)}` : 'Not initialised',
       meta2: pendingUpdates ? `${pendingUpdates} update${pendingUpdates === 1 ? '' : 's'} awaiting review` : null,
+    },
+    {
+      href: '/fitness/settings',
+      icon: <Plug className="h-5 w-5 text-emerald-600" />,
+      title: 'Connections & sync',
+      body: 'Withings, Apple Health and Garmin. Set up once, then they run themselves — this is not something to look at daily.',
+      meta: null,
+      meta2: null,
     },
     {
       href: '/spirit',

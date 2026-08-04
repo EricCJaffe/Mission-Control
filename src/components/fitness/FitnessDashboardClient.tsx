@@ -1,8 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import QuickRecoveryLog from '@/components/fitness/QuickRecoveryLog';
-import WithingsSyncButton from './WithingsSyncButton';
 import { bpFlagTailwindClass, bpFlagLabel } from '@/lib/fitness/alerts';
 import type { BPFlagLevel } from '@/lib/fitness/types';
 import type { ReactNode } from 'react';
@@ -10,10 +10,9 @@ import {
   Dumbbell, PersonStanding, Zap, Flame, Moon,
   AlertTriangle, AlertCircle,
   Sunrise, Scale, Heart, FileEdit, History, Trophy,
-  ClipboardList, FileHeart, FlaskConical, Pill, CalendarDays,
-  Settings, Footprints, Activity, BedDouble, Gauge, Droplets, Utensils, Waves, Compass,
-  ChevronRight, CalendarPlus, PenLine,
-} from 'lucide-react';
+  ClipboardList, FlaskConical, Pill, CalendarDays,
+  Plus, Settings, Footprints, Activity, BedDouble, Gauge, Droplets, Utensils, Waves, Compass,
+  CalendarPlus, } from 'lucide-react';
 
 type Props = {
   today: string;
@@ -24,15 +23,6 @@ type Props = {
     prescribed: Record<string, unknown>;
     template_id?: string | null;
   } | null;
-  recentLogs: Array<{
-    id: string;
-    workout_date: string;
-    workout_type: string;
-    duration_minutes: number | null;
-    tss: number | null;
-    compliance_color: string | null;
-    rpe_session: number | null;
-  }>;
   latestMetrics: {
     resting_hr: number | null;
     hrv_ms: number | null;
@@ -88,6 +78,7 @@ type Props = {
     strain_score: number;
     strain_level: string;
   } | null;
+  briefing: { summary: string; isToday: boolean } | null;
   latestWeight: {
     weight_lbs: number | null;
     body_fat_pct: number | null;
@@ -113,12 +104,6 @@ const WORKOUT_ICONS: Record<string, ReactNode> = {
   rest: <Moon size={20} />,
 };
 
-const COMPLIANCE_BG: Record<string, string> = {
-  green: 'bg-green-500',
-  yellow: 'bg-yellow-400',
-  orange: 'bg-orange-500',
-  red: 'bg-red-500',
-};
 
 function formStatusColor(status: string | null) {
   switch (status) {
@@ -142,12 +127,6 @@ function formStatusBg(status: string | null) {
   }
 }
 
-function bodyBatteryColor(bb: number) {
-  if (bb >= 75) return 'text-green-600';
-  if (bb >= 40) return 'text-yellow-600';
-  if (bb >= 25) return 'text-orange-600';
-  return 'text-red-600';
-}
 
 const readinessColorClasses: Record<string, string> = {
   green: 'border-emerald-200 bg-emerald-50',
@@ -161,11 +140,6 @@ const readinessTextColor: Record<string, string> = {
   red: 'text-red-600',
 };
 
-const readinessRingColor: Record<string, string> = {
-  green: 'stroke-emerald-500',
-  yellow: 'stroke-amber-500',
-  red: 'stroke-red-500',
-};
 
 /*
  * Five sections instead of eight tabs.
@@ -184,17 +158,6 @@ const TABS = [
   { href: '/fitness/recovery', label: 'Recovery' },
 ];
 
-function ScoreRing({ score, size = 80, strokeWidth = 6, color }: { score: number; size?: number; strokeWidth?: number; color: string }) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-  return (
-    <svg width={size} height={size} className="transform -rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={strokeWidth} className="text-slate-100" />
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={strokeWidth} strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} className={color} />
-    </svg>
-  );
-}
 
 /** "Today" / "3 days ago" / "Jul 1" — weight is only as current as the
     last weigh-in, and the card should say so. */
@@ -211,7 +174,6 @@ function weightAgeLabel(metricDate: string): string {
 export default function FitnessDashboardClient({
   today,
   todayPlan,
-  recentLogs,
   latestMetrics,
   latestBP,
   latestForm,
@@ -222,19 +184,35 @@ export default function FitnessDashboardClient({
   strain,
   latestSleep,
   latestWeight,
+  briefing,
 }: Props) {
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
   const logsByDate = new Map(weekLogs.map((l) => [l.workout_date.slice(0, 10), l]));
 
   return (
     <div className="space-y-6 relative">
-      {/* Floating Action Button - Log Workout */}
-      <Link
-        href="/fitness/log"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all md:h-16 md:w-16"
-        title="Log Workout"
-      >
-        <Dumbbell size={24} />
-      </Link>
+      {/* Actions live together, top right. Previously Log Workout was a
+          floating button that sat over the content on a phone, and Log
+          Recovery was a full-width panel far down the page. */}
+      <div className="flex items-center justify-end gap-2">
+        <Link
+          href="/fitness/log"
+          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-blue-700 px-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
+        >
+          <Plus size={16} strokeWidth={3} />
+          Workout
+        </Link>
+        <button
+          type="button"
+          onClick={() => setRecoveryOpen((v) => !v)}
+          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-blue-700 px-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
+        >
+          <Plus size={16} strokeWidth={3} />
+          Recovery
+        </button>
+      </div>
+
+      {recoveryOpen && <QuickRecoveryLog />}
 
       {/* Pill tab navigation */}
       <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -276,91 +254,50 @@ export default function FitnessDashboardClient({
         </div>
       )}
 
-      {/* Hero: Readiness + Strain + Today's workout */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {/* Readiness hero */}
-        <Link href="/fitness/morning" className={`rounded-2xl border p-5 shadow-sm hover:shadow transition-shadow ${readinessColorClasses[readiness?.readiness_color ?? ''] ?? 'border-slate-100 bg-white'}`}>
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Readiness</p>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <ScoreRing score={readiness?.readiness_score ?? 0} size={80} color={readinessRingColor[readiness?.readiness_color ?? ''] ?? 'stroke-slate-300'} />
-              <span className={`absolute inset-0 flex items-center justify-center text-2xl font-bold ${readinessTextColor[readiness?.readiness_color ?? ''] ?? 'text-slate-400'}`}>
-                {readiness?.readiness_score ?? '—'}
-              </span>
-            </div>
-            <div>
-              <p className={`text-lg font-semibold ${readinessTextColor[readiness?.readiness_color ?? ''] ?? 'text-slate-700'}`}>
-                {readiness?.readiness_label ?? 'No data'}
-              </p>
-              {readiness?.recommendation && (
-                <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{readiness.recommendation}</p>
-              )}
-            </div>
-          </div>
+      {/*
+        One block for everything measured. Readiness, strain and today's
+        session were three large hero cards above a separate grid of small
+        metric cards — the same kind of information at two different sizes,
+        which made the page read as two dashboards stacked. They are all one
+        grid now, at the size the metric cards already were.
+      */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Link
+          href="/fitness/morning"
+          className={`rounded-2xl border-2 p-4 shadow-sm transition-shadow hover:shadow ${readinessColorClasses[readiness?.readiness_color ?? ''] ?? 'border-slate-300 bg-white'}`}
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Readiness</p>
+          <p className={`mt-0.5 text-2xl font-bold tabular-nums ${readinessTextColor[readiness?.readiness_color ?? ''] ?? 'text-slate-400'}`}>
+            {readiness?.readiness_score ?? '—'}
+          </p>
+          <p className="text-[11px] text-slate-500">{readiness?.readiness_label ?? 'No data'}</p>
         </Link>
 
-        {/* Strain hero */}
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Strain</p>
-          <div className="flex items-center gap-4">
-            <div className="flex h-[80px] w-[80px] items-center justify-center rounded-full bg-slate-800">
-              <span className="text-3xl font-bold text-white tabular-nums">
-                {strain?.strain_score ?? '—'}
-              </span>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-slate-700 capitalize">{strain?.strain_level ?? 'No data'}</p>
-              <p className="text-xs text-slate-500 mt-0.5">Scale 0–21</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Today's workout hero */}
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm flex flex-col justify-between">
-          <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Today</p>
-            <p className="text-xs text-slate-400">{new Date(today + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-            {todayPlan ? (
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-slate-600">{WORKOUT_ICONS[todayPlan.workout_type ?? 'strength'] ?? <Dumbbell size={20} />}</span>
-                <p className="text-lg font-semibold text-slate-800">{todayPlan.day_label ?? todayPlan.workout_type ?? 'Planned Workout'}</p>
-              </div>
-            ) : (
-              <p className="text-lg font-semibold text-slate-500 mt-2">Rest day</p>
-            )}
-            {latestMetrics?.body_battery != null && (
-              <p className={`text-sm mt-2 font-medium ${bodyBatteryColor(latestMetrics.body_battery)}`}>
-                <span className="inline-flex items-center gap-1"><Activity size={14} /> Battery: {latestMetrics.body_battery}/100</span>
-              </p>
-            )}
-          </div>
-          <Link
-            href="/fitness/log"
-            className="mt-4 rounded-xl bg-blue-700 text-white text-sm font-medium px-4 py-2.5 hover:bg-blue-600 min-h-[44px] flex items-center justify-center gap-2 transition-colors"
-          >
-            <Dumbbell size={16} /> Log Workout
-          </Link>
-        </div>
-      </div>
-
-      {/* Quick recovery log — sauna / cold plunge / massage / compression, one tap */}
-      <QuickRecoveryLog />
-
-      {/* Recovery belongs next to training in the big picture, not only on its
-          own page — it is half of what determines whether the next session
-          goes well. */}
-      <div className="mt-2 text-right">
-        <Link href="/fitness/recovery" className="text-xs font-medium text-blue-700 hover:text-blue-800">
-          Recovery trends &rarr;
+        <Link
+          href="/fitness/body?view=trends"
+          className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm transition-shadow hover:shadow"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Strain</p>
+          <p className="mt-0.5 text-2xl font-bold tabular-nums text-slate-900">
+            {strain?.strain_score != null ? strain.strain_score.toFixed(1) : '—'}
+          </p>
+          <p className="text-[11px] text-slate-500">{strain?.strain_level ?? 'Scale 0–21'}</p>
         </Link>
-      </div>
 
-      {/* Withings sync — BP and body composition come from here, and nothing
-          schedules it, so the control sits next to the metrics it feeds. */}
-      <WithingsSyncButton />
+        <Link
+          href={todayPlan ? '/fitness/log' : '/fitness/plans'}
+          className="col-span-2 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm transition-shadow hover:shadow"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Today</p>
+          <p className="mt-0.5 truncate text-base font-bold text-slate-900">
+            {todayPlan?.day_label ?? todayPlan?.workout_type ?? 'Nothing scheduled'}
+          </p>
+          <p className="text-[11px] text-slate-500">
+            {todayPlan ? 'Tap to start' : 'Log whatever you do'}
+          </p>
+        </Link>
 
-      {/* Metric cards — 2x3 grid with larger numbers */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {/* The metric cards continue in the same grid — same size, same block. */}
         <MetricCard
           label="Resting HR"
           value={latestMetrics?.resting_hr != null ? latestMetrics.resting_hr : null}
@@ -464,64 +401,85 @@ export default function FitnessDashboardClient({
         )}
       </div>
 
-      {/* Weekly calendar strip */}
+      {/* The morning briefing, read from cache. Generating it costs an AI
+          call, so the dashboard shows the last one and links out for a fresh
+          one rather than generating on every load. */}
+      <Link
+        href="/fitness/morning"
+        className="block rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm transition-shadow hover:shadow"
+      >
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Morning briefing
+          </p>
+          {briefing && !briefing.isToday && (
+            <span className="text-[11px] font-medium text-amber-700">from an earlier day</span>
+          )}
+        </div>
+        {briefing ? (
+          <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-slate-700">
+            {briefing.summary}
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-slate-500">
+            No briefing yet today — tap to generate one.
+          </p>
+        )}
+      </Link>
+
+      {/*
+        The week, as sessions rather than icons.
+        
+        This was a strip of weekday initials with a coloured dot, which told
+        you a workout existed but not what it was — so it said nothing you
+        could act on. Each day is a card now with the session name, coloured by
+        what actually happened: done, still to come, or missed.
+      */}
       {weekPlanned.length > 0 && (
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-700 mb-3">This Week</h2>
-          <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-slate-700">This week</h2>
+          <div className="space-y-1.5">
             {weekPlanned.map((pw) => {
               const dateStr = pw.scheduled_date;
               const log = logsByDate.get(dateStr);
               const isToday = dateStr === today;
+              // Missed means the day has passed with nothing logged. A future
+              // day with nothing logged is simply pending.
+              const isMissed = !log && dateStr < today;
+              const style = log
+                ? 'border-emerald-300 bg-emerald-50'
+                : isMissed
+                  ? 'border-rose-300 bg-rose-50'
+                  : isToday
+                    ? 'border-blue-400 bg-blue-50'
+                    : 'border-slate-200 bg-white';
+              const status = log ? 'Done' : isMissed ? 'Missed' : isToday ? 'Today' : 'Planned';
+              const statusColor = log
+                ? 'text-emerald-700'
+                : isMissed
+                  ? 'text-rose-700'
+                  : isToday
+                    ? 'text-blue-700'
+                    : 'text-slate-400';
               return (
-                <div
+                <Link
                   key={pw.id}
-                  className={`flex flex-col items-center gap-1.5 rounded-xl p-2.5 min-w-[60px] shrink-0 border transition-colors ${
-                    isToday ? 'border-blue-300 bg-blue-50' : 'border-slate-100 bg-slate-50/50'
-                  }`}
+                  href={log ? `/fitness/history/${log.id}` : `/fitness/log?planned_workout_id=${pw.id}`}
+                  className={`flex items-center gap-3 rounded-xl border-2 px-3 py-2 transition-shadow hover:shadow-sm ${style}`}
                 >
-                  <span className="text-xs text-slate-400">
+                  <span className="w-9 shrink-0 text-xs font-semibold text-slate-500">
                     {new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
                   </span>
-                  <span className="text-slate-600">{WORKOUT_ICONS[pw.workout_type ?? ''] ?? <Dumbbell size={20} />}</span>
-                  {log ? (
-                    <span className={`h-2 w-2 rounded-full ${COMPLIANCE_BG[log.compliance_color ?? 'green'] ?? 'bg-green-500'}`} title="Completed" />
-                  ) : (
-                    <span className="h-2 w-2 rounded-full bg-slate-200" title="Pending" />
-                  )}
-                </div>
+                  <span className="shrink-0 text-slate-500">
+                    {WORKOUT_ICONS[pw.workout_type ?? ''] ?? <Dumbbell size={16} />}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">
+                    {pw.day_label ?? pw.workout_type ?? 'Session'}
+                  </span>
+                  <span className={`shrink-0 text-[11px] font-semibold ${statusColor}`}>{status}</span>
+                </Link>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {/* Recent workouts */}
-      {recentLogs.length > 0 && (
-        <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700">Recent Workouts</h2>
-            <Link href="/fitness/history" className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-0.5">
-              View all <ChevronRight size={14} />
-            </Link>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {recentLogs.map((log) => (
-              <Link key={log.id} href="/fitness/history" className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50/50 transition-colors">
-                <span className="shrink-0 text-slate-500">{WORKOUT_ICONS[log.workout_type] ?? <Dumbbell size={20} />}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-700 capitalize">{log.workout_type}</p>
-                  <p className="text-xs text-slate-400">
-                    {log.duration_minutes ? `${log.duration_minutes} min · ` : ''}
-                    {log.tss ? `TSS ${Math.round(log.tss)} · ` : ''}
-                    {new Date(log.workout_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </p>
-                </div>
-                {log.compliance_color && (
-                  <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${COMPLIANCE_BG[log.compliance_color] ?? ''}`} />
-                )}
-              </Link>
-            ))}
           </div>
         </div>
       )}
@@ -559,7 +517,6 @@ export default function FitnessDashboardClient({
               { href: '/fitness/records', label: 'Personal Records', icon: <Trophy size={20} /> },
               { href: '/fitness/equipment', label: 'Equipment', icon: <Footprints size={20} /> },
               { href: '/calendar', label: 'Schedule Workout', icon: <CalendarPlus size={20} /> },
-              { href: '/fitness/log', label: 'Log Workout', icon: <PenLine size={20} /> },
             ] as { href: string; label: string; icon: ReactNode }[]).map((link) => (
               <Link
                 key={link.href}
@@ -578,12 +535,9 @@ export default function FitnessDashboardClient({
           <h2 className="text-sm font-semibold text-slate-700 mb-3">Health</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {([
-              { href: '/fitness/metrics', label: 'Body Metrics', icon: <Scale size={20} /> },
-              { href: '/fitness/body-composition', label: 'Body Composition', icon: <Scale size={20} /> },
-              { href: '/fitness/metrics/history?metric=body_fat_pct&range=90d', label: 'Body Comp History', icon: <History size={20} /> },
-              { href: '/fitness/health/view', label: 'Health Profile', icon: <FileHeart size={20} /> },
+              { href: '/fitness/body?view=composition', label: 'Body & Composition', icon: <Scale size={20} /> },
               { href: '/fitness/health/command-center', label: 'Command Center', icon: <Activity size={20} /> },
-              { href: '/fitness/health/labs', label: 'Lab Review', icon: <FlaskConical size={20} /> },
+              { href: '/fitness/health/labs/dashboard', label: 'Lab Review', icon: <FlaskConical size={20} /> },
               { href: '/fitness/medications', label: 'Medications', icon: <Pill size={20} /> },
               { href: '/fitness/hydration', label: 'Hydration', icon: <Droplets size={20} /> },
               { href: '/fitness/nutrition', label: 'Nutrition', icon: <Utensils size={20} /> },
@@ -601,6 +555,14 @@ export default function FitnessDashboardClient({
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Recovery sits at the bottom for now — it matters, but it is not what
+          you open this page to check. */}
+      <div className="text-right">
+        <Link href="/fitness/recovery" className="text-xs font-medium text-blue-700 hover:text-blue-800">
+          Recovery trends &rarr;
+        </Link>
       </div>
     </div>
   );

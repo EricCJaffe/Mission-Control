@@ -13,9 +13,21 @@ export default async function FitnessPage() {
   const today = new Date().toISOString().slice(0, 10);
   const weekStart = getWeekStart(today);
 
+  // The briefing is AI-generated on demand, so the dashboard reads the cache
+  // rather than triggering a generation on every page load. If it is missing
+  // or stale the card says so and links to the page that makes a fresh one.
+  const { data: briefingCache } = await supabase
+    .from('ai_output_cache')
+    .select('payload, generated_at')
+    .eq('user_id', user.id)
+    .eq('cache_key', 'morning_briefing')
+    .maybeSingle();
+
+  const cachedBriefing =
+    (briefingCache?.payload as { briefing?: { summary?: string }; date?: string } | null) ?? null;
+
   const [
     { data: todayPlan },
-    { data: recentLogs },
     { data: latestMetrics },
     { data: latestBP },
     { data: latestForm },
@@ -31,12 +43,6 @@ export default async function FitnessPage() {
       .eq('user_id', user.id)
       .eq('scheduled_date', today)
       .maybeSingle(),
-    supabase
-      .from('workout_logs')
-      .select('id, workout_date, workout_type, duration_minutes, tss, compliance_color, rpe_session')
-      .eq('user_id', user.id)
-      .order('workout_date', { ascending: false })
-      .limit(5),
     // Get latest body metrics record
     supabase
       .from('body_metrics')
@@ -160,7 +166,6 @@ export default async function FitnessPage() {
       <FitnessDashboardClient
         today={today}
         todayPlan={todayPlan}
-        recentLogs={recentLogs ?? []}
         latestMetrics={latestMetrics}
         latestBP={latestBP}
         latestForm={latestForm}
@@ -170,6 +175,14 @@ export default async function FitnessPage() {
         readiness={readiness}
         strain={strain}
         latestSleep={latestSleep}
+        briefing={
+          cachedBriefing?.briefing?.summary
+            ? {
+                summary: cachedBriefing.briefing.summary,
+                isToday: cachedBriefing.date === today,
+              }
+            : null
+        }
         latestWeight={latestWeightRow ?? null}
       />
     </main>
