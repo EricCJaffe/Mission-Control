@@ -755,14 +755,28 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       rpe: '', rest_seconds: null, notes: '', completed: false,
     }));
 
+    /*
+     * Uses the same endpoint template loading uses.
+     *
+     * The single-exercise endpoint this called instead took the last 20 sets
+     * for the exercise ordered by date and treated them as one session — it
+     * never filtered to a single workout. Leg Extension came back as 14 sets
+     * spanning four workouts across two years, stamped with the newest date.
+     * The bulk endpoint already isolates each exercise's most recent
+     * workout_log_id correctly, so there is no reason for a second
+     * implementation to disagree with it.
+     */
     try {
-      const res = await fetch(`/api/fitness/exercises/${exerciseId}/last-workout`);
+      const res = await fetch('/api/fitness/exercises/last-workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exercise_ids: [exerciseId] }),
+      });
       const data = await res.json();
+      const hist = data?.ok ? data.last?.[exerciseId] : null;
 
-      if (data.ok && data.has_history && data.sets.length > 0) {
-        // Pre-fill with last workout data, but cap it — a stray import can carry
-        // dozens of sets, and you'd rarely do more than ~6. Add more by hand if needed.
-        sets = data.sets
+      if (hist && hist.sets?.length > 0) {
+        sets = hist.sets
           .slice(0, MAX_PREFILL_SETS)
           .map((s: { set_type: SetType; reps: number | null; weight_lbs: number | null; rest_seconds: number | null }) => ({
             id: newSetId(),
@@ -775,19 +789,17 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             completed: false,
           }));
 
-        // Create summary string
-        const firstWorkingSet = data.sets.find((s: { set_type: SetType }) => s.set_type === 'working') as
-          | { reps: number | null; weight_lbs: number | null }
-          | undefined;
-        if (firstWorkingSet && data.workout_date) {
-          const summary = `${data.sets.length}x${firstWorkingSet.reps || '?'} @ ${firstWorkingSet.weight_lbs || 0}lbs`;
-          const date = new Date(data.workout_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          setExerciseHistory(prev => new Map(prev).set(exerciseId, { date, summary }));
+        const firstWorking =
+          hist.sets.find((s: { set_type: SetType }) => s.set_type === 'working') ?? hist.sets[0];
+        if (firstWorking && hist.workout_date) {
+          const summary = `${hist.sets.length}x${firstWorking.reps ?? '?'} @ ${firstWorking.weight_lbs ?? 0}lbs`;
+          const date = new Date(hist.workout_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          setExerciseHistory((prev) => new Map(prev).set(exerciseId, { date, summary }));
         }
       }
     } catch (error) {
       console.error('Failed to fetch last workout:', error);
-      // Continue with default sets
+      // Fall through with the default pattern.
     }
 
     const newBlock: ExerciseBlock = {
