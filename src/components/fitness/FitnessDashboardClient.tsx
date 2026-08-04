@@ -167,16 +167,21 @@ const readinessRingColor: Record<string, string> = {
   red: 'stroke-red-500',
 };
 
-// Pill tab navigation for fitness sub-sections
+/*
+ * Five sections instead of eight tabs.
+ *
+ * The old row was Dashboard, Briefing, Metrics, BP, Trends, Body Comp,
+ * History and Labs — four of which were variations on "look at a chart" — and
+ * on a phone it was a horizontal scroll of chips. Each section now has a
+ * landing page that says what is inside it, which also gives the fifty-odd
+ * fitness routes somewhere to be found other than by knowing the URL.
+ */
 const TABS = [
-  { href: '/fitness', label: 'Dashboard' },
-  { href: '/fitness/morning', label: 'Briefing' },
-  { href: '/fitness/metrics', label: 'Metrics' },
-  { href: '/fitness/bp', label: 'BP' },
-  { href: '/fitness/trends', label: 'Trends' },
-  { href: '/fitness/body-composition', label: 'Body Comp' },
-  { href: '/fitness/history', label: 'History' },
-  { href: '/fitness/labs', label: 'Labs' },
+  { href: '/fitness', label: 'Today' },
+  { href: '/fitness/train', label: 'Train' },
+  { href: '/fitness/body', label: 'Body' },
+  { href: '/fitness/health-overview', label: 'Health' },
+  { href: '/fitness/recovery', label: 'Recovery' },
 ];
 
 function ScoreRing({ score, size = 80, strokeWidth = 6, color }: { score: number; size?: number; strokeWidth?: number; color: string }) {
@@ -385,11 +390,11 @@ export default function FitnessDashboardClient({
           statusColor={formStatusColor(latestForm?.form_status ?? null)}
           statusBg={formStatusBg(latestForm?.form_status ?? null)}
           icon={<Gauge size={16} className="text-slate-400" />}
-          href="/fitness/trends"
+          href="/fitness/body?view=trends"
         />
         {/* BP mini card */}
         {latestBP ? (
-          <Link href="/fitness/bp" className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm hover:shadow transition-shadow">
+          <Link href="/fitness/body?view=bp" className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm hover:shadow transition-shadow">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs text-slate-500 flex items-center gap-1"><Heart size={14} className="text-slate-400" /> Blood Pressure</p>
               <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 border ${bpFlagTailwindClass(latestBP.flag_level)}`}>
@@ -400,7 +405,7 @@ export default function FitnessDashboardClient({
             {latestBP.pulse && <p className="text-xs text-slate-400 mt-0.5">{latestBP.pulse} bpm</p>}
           </Link>
         ) : (
-          <Link href="/fitness/bp" className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors flex flex-col items-center justify-center gap-1">
+          <Link href="/fitness/body?view=bp" className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors flex flex-col items-center justify-center gap-1">
             <Heart size={20} className="text-slate-300" />
             <span>Log BP</span>
           </Link>
@@ -408,7 +413,7 @@ export default function FitnessDashboardClient({
 
         {/* Sleep mini card */}
         {latestSleep ? (
-          <Link href="/fitness/sleep" className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4 shadow-sm hover:shadow transition-shadow">
+          <Link href="/fitness/body?view=sleep" className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4 shadow-sm hover:shadow transition-shadow">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs text-indigo-600 font-medium flex items-center gap-1"><BedDouble size={14} /> Sleep</p>
               {latestSleep.sleep_score && (
@@ -433,7 +438,7 @@ export default function FitnessDashboardClient({
             </div>
           </Link>
         ) : (
-          <Link href="/fitness/sleep" className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors flex flex-col items-center justify-center gap-1">
+          <Link href="/fitness/body?view=sleep" className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors flex flex-col items-center justify-center gap-1">
             <BedDouble size={20} className="text-slate-300" />
             <span>Track Sleep</span>
           </Link>
@@ -441,7 +446,7 @@ export default function FitnessDashboardClient({
 
         {/* Weight / Body Comp mini card */}
         {latestWeight?.weight_lbs ? (
-          <Link href="/fitness/body-composition" className="rounded-2xl border border-green-100 bg-green-50/30 p-4 shadow-sm hover:shadow transition-shadow">
+          <Link href="/fitness/body?view=composition" className="rounded-2xl border border-green-100 bg-green-50/30 p-4 shadow-sm hover:shadow transition-shadow">
             <p className="text-xs text-green-600 font-medium flex items-center gap-1 mb-1"><Scale size={14} /> Weight</p>
             <p className="text-2xl font-bold tabular-nums text-green-900">{latestWeight.weight_lbs.toFixed(1)}<span className="text-sm text-green-500"> lbs</span></p>
             {/* The scale only reports on days you step on it, so show WHEN —
@@ -452,7 +457,7 @@ export default function FitnessDashboardClient({
             </p>
           </Link>
         ) : (
-          <Link href="/fitness/trends" className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors flex flex-col items-center justify-center gap-1">
+          <Link href="/fitness/body?view=trends" className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4 text-center text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-100 transition-colors flex flex-col items-center justify-center gap-1">
             <Scale size={20} className="text-slate-300" />
             <span>Track Weight</span>
           </Link>

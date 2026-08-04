@@ -347,6 +347,13 @@ open decisions and deferred work, roughly in the order worth doing.
       (read the same plan and see each other's progress), streak freezes, and a plan
       library beyond the handful seeded here.
 
+- [x] **Fitness restructured to five sections** (Eric's call, 2026-08-04). Eight tabs to
+      five — Today / Train / Body / Health / Recovery. Body merges trends, composition,
+      BP and sleep behind one view selector. Train and Health are hub pages so the ~50
+      fitness routes are findable without knowing URLs. Four redirect-only stubs deleted
+      (/fitness/labs, /fitness/metrics/trends, /fitness/health, /fitness/log/class).
+      Old URLs still work — nothing was moved, only the navigation around them.
+
 ### Medium Priority
 - [ ] Email notifications for pending `health.md` updates
   - Health update detection, review, and approval exist.
