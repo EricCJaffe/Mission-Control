@@ -164,3 +164,43 @@ dialog.task-modal::backdrop {
   margin: 0.5rem 0;
 }
 .markdown-preview hr { border: 0; border-top: 1px solid #cbd5e1; margin: 0.75rem 0; }
+
+/*
+ * ── Mobile ──────────────────────────────────────────────────────────────
+ *
+ * iOS Safari zooms the whole page in when a form control smaller than 16px
+ * takes focus, then leaves it zoomed. Around fifty inputs across the app are
+ * text-sm or text-xs, so this fired constantly — tap a field, the page jumps
+ * and you are panning to find the rest of the form.
+ *
+ * Forcing 16px on phones only is the standard fix, and doing it here rather
+ * than editing fifty class lists means the next input added is covered too.
+ * The desktop sizes are untouched.
+ */
+@media (max-width: 640px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/*
+ * Nothing may scroll the page sideways. Wide content — the week calendar,
+ * tables, code blocks — scrolls inside its own container instead. Without
+ * this, one over-wide grid drags the entire layout and every screen gains a
+ * horizontal wobble.
+ */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Tap targets. Anything interactive should be reachable with a thumb. */
+@media (max-width: 640px) {
+  dialog.task-modal {
+    width: calc(100vw - 1.5rem);
+    max-width: calc(100vw - 1.5rem);
+  }
+}

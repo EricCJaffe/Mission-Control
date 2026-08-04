@@ -166,9 +166,10 @@ export default function MonthView({
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
           <div
             key={day}
-            className="py-2 text-center text-xs font-medium text-slate-500"
+            className="py-1 text-center text-[10px] font-medium text-slate-500 sm:py-2 sm:text-xs"
           >
-            {day}
+            <span className="sm:hidden">{day[0]}</span>
+            <span className="hidden sm:inline">{day}</span>
           </div>
         ))}
       </div>
@@ -191,7 +192,7 @@ export default function MonthView({
               key={index}
               onClick={() => onDateClick(dateStr)}
               className={`
-                min-h-[80px] rounded-lg border p-2 text-left transition-colors
+                min-h-[52px] rounded-lg border p-1 text-left transition-colors sm:min-h-[80px] sm:p-2
                 ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'}
                 ${!isInCurrentMonth ? 'text-slate-400' : 'text-slate-900'}
               `}
@@ -200,16 +201,31 @@ export default function MonthView({
               <div className="mb-1 flex items-center justify-between">
                 <span
                   className={`
-                    text-sm font-medium
-                    ${isTodayDate && isInCurrentMonth ? 'flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white' : ''}
+                    text-xs font-medium sm:text-sm
+                    ${isTodayDate && isInCurrentMonth ? 'flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-blue-600 text-white' : ''}
                   `}
                 >
                   {date.getDate()}
                 </span>
               </div>
 
+              {/* Phones: dots, because a chip truncated to 29px shows one
+                  letter and looks broken. The dot says something is on this
+                  day; tapping the cell opens the day. */}
+              <div className="flex flex-wrap gap-0.5 sm:hidden">
+                {regularEvents.slice(0, 4).map((event) => (
+                  <span key={event.id} className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                ))}
+                {workoutEvents.slice(0, 4).map((event) => (
+                  <span key={event.id} className="h-1.5 w-1.5 rounded-full bg-lime-600" />
+                ))}
+                {regularEvents.length + workoutEvents.length > 8 && (
+                  <span className="text-[8px] leading-none text-slate-400">+</span>
+                )}
+              </div>
+
               {/* Event badges */}
-              <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
+              <div className="hidden space-y-1 sm:block" onClick={(e) => e.stopPropagation()}>
                 {/* Show first 2 regular events */}
                 {regularEvents.slice(0, 2).map((event) => (
                   <button

@@ -159,8 +159,8 @@ export default function WeekView({
       </div>
 
       {/* Week grid with time slots */}
-      <div className="max-h-[600px] overflow-y-auto">
-        <div className="grid grid-cols-8 gap-px bg-slate-200">
+      <div className="max-h-[600px] overflow-auto">
+        <div className="grid min-w-[720px] grid-cols-8 gap-px bg-slate-200">
           {/* Time column header (empty) */}
           <div className="bg-white p-2 text-center text-xs font-medium text-slate-500">
             Time

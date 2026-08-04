@@ -182,6 +182,15 @@ const SET_TYPE_BADGE: Record<SetType, string> = {
   failure: 'border-red-400 text-red-700 bg-red-50',
   amrap: 'border-orange-400 text-orange-700 bg-orange-50',
 };
+/**
+ * The types the indicator cycles through, in order.
+ *
+ * warmup -> working -> drop, and back. The schema still allows cooldown,
+ * failure and AMRAP so old rows keep rendering, but nothing can now reach them
+ * by tapping.
+ */
+const SET_TYPE_CYCLE: SetType[] = ['warmup', 'working', 'drop'];
+
 // Short glyph shown on the badge for non-working sets (working shows its number).
 const SET_TYPE_GLYPH: Record<SetType, string> = {
   working: '', warmup: 'W', cooldown: 'C', drop: 'D', failure: 'F', amrap: 'A',
@@ -2117,9 +2126,13 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   // One tappable row per set: [type/number badge] [lbs] [reps] [done] [remove].
   // Compact and thumb-sized for one-handed logging at the gym.
   function renderSetRow(block: ExerciseBlock, s: LoggedSet, setIdx: number) {
-    const typeKeys = Object.keys(SET_TYPE_LABELS) as SetType[];
+    // Only the three types Eric uses. Cycling through all six meant a tap
+    // could land on cooldown, failure or AMRAP, which rendered as a bare C, F
+    // or A in the indicator column — codes with no meaning to him and no way
+    // back except tapping through the rest.
     const cycleType = () => {
-      const next = typeKeys[(typeKeys.indexOf(s.set_type) + 1) % typeKeys.length];
+      const i = SET_TYPE_CYCLE.indexOf(s.set_type);
+      const next = SET_TYPE_CYCLE[(i + 1) % SET_TYPE_CYCLE.length];
       updateSetInBlock(block.id, setIdx, 'set_type', next);
     };
     // The rest chip only shows once the set is logged — it's the moment you'd
