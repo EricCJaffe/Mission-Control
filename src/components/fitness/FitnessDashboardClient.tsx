@@ -345,7 +345,7 @@ export default function FitnessDashboardClient({
           own page — it is half of what determines whether the next session
           goes well. */}
       <div className="mt-2 text-right">
-        <Link href="/fitness/recovery" className="text-xs font-medium text-teal-700 hover:text-teal-800">
+        <Link href="/fitness/recovery" className="text-xs font-medium text-blue-700 hover:text-blue-800">
           Recovery trends &rarr;
         </Link>
       </div>

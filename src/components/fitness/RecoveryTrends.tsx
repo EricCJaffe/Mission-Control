@@ -76,7 +76,7 @@ export default function RecoveryTrends({ trends }: { trends: RecoveryTrends }) {
             const Icon = ICONS[m.modality] ?? Waves;
             return (
               <div key={m.modality} className="flex items-center gap-3">
-                <Icon className="h-4 w-4 shrink-0 text-teal-600" />
+                <Icon className="h-4 w-4 shrink-0 text-blue-700" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-900">
                     {LABELS[m.modality] ?? m.modality}
@@ -113,7 +113,7 @@ export default function RecoveryTrends({ trends }: { trends: RecoveryTrends }) {
                   {w.minutes || ''}
                 </span>
                 <div
-                  className="w-full rounded-t bg-teal-600"
+                  className="w-full rounded-t bg-blue-700"
                   style={{ height: `${Math.max((w.minutes / maxWeek) * 100, 3)}%` }}
                   title={`Week of ${w.weekStart}: ${w.sessions} sessions, ${w.minutes} min`}
                 />

@@ -513,9 +513,9 @@ export default function MorningBriefingClient(props: Props) {
             )}
 
             {readiness.recovery_context && (
-              <div className="mt-3 rounded-xl bg-teal-50 p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">Recovery</p>
-                <p className="mt-1 text-xs text-teal-900">
+              <div className="mt-3 rounded-xl bg-blue-50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-700">Recovery</p>
+                <p className="mt-1 text-xs text-blue-900">
                   {readiness.recovery_context.sessions_last_14d > 0 ? (
                     <>
                       {readiness.recovery_context.sessions_last_14d} session
@@ -530,9 +530,9 @@ export default function MorningBriefingClient(props: Props) {
                   )}
                 </p>
                 {readiness.recovery_context.nudge && (
-                  <p className="mt-1 text-xs text-teal-700">{readiness.recovery_context.nudge}</p>
+                  <p className="mt-1 text-xs text-blue-700">{readiness.recovery_context.nudge}</p>
                 )}
-                <p className="mt-1.5 text-[11px] text-teal-600">
+                <p className="mt-1.5 text-[11px] text-blue-700">
                   Sauna, plunge and massage are shown here but do not change the score —
                   if they worked, the effect already shows up in HRV, resting HR and sleep.
                   Only what you rate (soreness, perceived recovery) counts, above.

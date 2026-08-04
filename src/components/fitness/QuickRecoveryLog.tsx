@@ -93,7 +93,7 @@ export default function QuickRecoveryLog() {
         onClick={() => setOpen(true)}
         className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border-2 border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:border-slate-400"
       >
-        <Plus className="h-4 w-4 text-teal-600" />
+        <Plus className="h-4 w-4 text-blue-700" />
         Log Recovery
       </button>
     );
@@ -115,7 +115,7 @@ export default function QuickRecoveryLog() {
             onClick={() => setModality(value)}
             className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border-2 px-3 text-sm font-medium ${
               modality === value
-                ? 'border-teal-500 bg-teal-50 text-teal-700'
+                ? 'border-blue-700 bg-blue-50 text-blue-700'
                 : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
             }`}
           >
@@ -133,7 +133,7 @@ export default function QuickRecoveryLog() {
               onClick={() => setSubType(s.value)}
               className={`min-h-[36px] rounded-lg border px-3 text-xs font-medium ${
                 subType === s.value
-                  ? 'border-teal-400 bg-teal-50 text-teal-700'
+                  ? 'border-blue-600 bg-blue-50 text-blue-700'
                   : 'border-slate-200 text-slate-500 hover:bg-slate-50'
               }`}
             >
@@ -156,7 +156,7 @@ export default function QuickRecoveryLog() {
                 onClick={() => setTemperature(String(t))}
                 className={`min-h-[36px] rounded-lg border-2 px-2.5 text-sm font-semibold ${
                   temperature === String(t)
-                    ? 'border-teal-500 bg-teal-50 text-teal-700'
+                    ? 'border-blue-700 bg-blue-50 text-blue-700'
                     : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
@@ -170,7 +170,7 @@ export default function QuickRecoveryLog() {
               onChange={(e) => setTemperature(e.target.value)}
               placeholder="&deg;F"
               aria-label="Temperature in Fahrenheit"
-              className="min-h-[36px] w-20 rounded-lg border-2 border-slate-200 px-2 text-center text-sm font-semibold focus:border-teal-500 focus:outline-none"
+              className="min-h-[36px] w-20 rounded-lg border-2 border-slate-200 px-2 text-center text-sm font-semibold focus:border-blue-700 focus:outline-none"
             />
           </div>
         </div>
@@ -183,13 +183,13 @@ export default function QuickRecoveryLog() {
           value={minutes}
           onChange={(e) => setMinutes(e.target.value)}
           placeholder="min"
-          className="min-h-[44px] w-24 rounded-xl border border-slate-200 px-3 text-center text-base font-semibold focus:border-teal-500 focus:outline-none"
+          className="min-h-[44px] w-24 rounded-xl border border-slate-200 px-3 text-center text-base font-semibold focus:border-blue-700 focus:outline-none"
         />
         <button
           onClick={save}
           disabled={saving || saved}
           className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold text-white ${
-            saved ? 'bg-teal-500' : 'bg-teal-600 hover:bg-teal-700'
+            saved ? 'bg-blue-700' : 'bg-blue-700 hover:bg-blue-800'
           } disabled:opacity-60`}
         >
           {saving ? (

@@ -191,18 +191,18 @@ export default function GarminMassImportForm() {
           </label>
 
           {/* Wellness Metrics */}
-          <label className="flex items-start gap-3 p-4 border border-slate-200 rounded-xl hover:border-teal-300 hover:bg-teal-50/50 cursor-pointer transition-colors">
+          <label className="flex items-start gap-3 p-4 border border-slate-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 cursor-pointer transition-colors">
             <input
               type="checkbox"
               checked={options.wellness}
               onChange={(e) => setOptions({ ...options, wellness: e.target.checked })}
-              className="mt-1 h-4 w-4 text-teal-600 rounded focus:ring-teal-500"
+              className="mt-1 h-4 w-4 text-blue-700 rounded focus:ring-blue-600"
             />
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <Activity className="h-5 w-5 text-teal-600" />
+                <Activity className="h-5 w-5 text-blue-700" />
                 <span className="font-semibold text-slate-800">Daily Wellness Metrics</span>
-                <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded">Phase 2</span>
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Phase 2</span>
               </div>
               <p className="text-sm text-slate-600">
                 Daily HRV, resting heart rate, skin temperature, and health status data
@@ -387,13 +387,13 @@ export default function GarminMassImportForm() {
 
             {/* Wellness */}
             {options.wellness && results.wellness && (
-              <div className="p-4 bg-white rounded-lg border border-teal-200">
+              <div className="p-4 bg-white rounded-lg border border-blue-200">
                 <div className="flex items-center gap-2 mb-2">
-                  <Activity className="h-4 w-4 text-teal-600" />
+                  <Activity className="h-4 w-4 text-blue-700" />
                   <span className="font-semibold text-slate-800">Wellness</span>
                 </div>
                 <div className="space-y-1 text-sm">
-                  <p className="text-teal-700">
+                  <p className="text-blue-700">
                     <span className="font-semibold">{results.wellness.imported}</span> imported
                   </p>
                   <p className="text-slate-600">

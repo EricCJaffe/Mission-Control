@@ -40,7 +40,7 @@ const RECORD_TYPE_COLORS: Record<string, string> = {
   best_pace: 'bg-green-100 text-green-700 border-green-200',
   longest_z2_drift: 'bg-blue-100 text-blue-700 border-blue-200',
   lowest_rhr: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  highest_hrv: 'bg-teal-100 text-teal-700 border-teal-200',
+  highest_hrv: 'bg-blue-100 text-blue-700 border-blue-200',
   fastest_5k: 'bg-green-100 text-green-700 border-green-200',
   longest_ride: 'bg-sky-100 text-sky-700 border-sky-200',
 };

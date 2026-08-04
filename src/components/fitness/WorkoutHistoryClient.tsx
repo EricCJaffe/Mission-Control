@@ -343,7 +343,7 @@ export default function WorkoutHistoryClient({ workouts }: Props) {
                             <p className="flex items-center gap-1.5 text-sm font-medium text-slate-700 capitalize">
                               {w.workout_type}
                               {w.is_recovery && (
-                                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-700">
+                                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
                                   Recovery
                                 </span>
                               )}
