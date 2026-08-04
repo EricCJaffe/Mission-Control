@@ -13,6 +13,7 @@ import {
   PRAYER_MODES,
   buildSubjectIndex,
   buildSubjectTree,
+  calendarDaysBetween,
   flattenTree,
   recentAnswers,
   rotationHealth,
@@ -615,8 +616,11 @@ function RequestCard({
       .catch(() => setLog([]));
   }, [showLog, log, request.id]);
 
+  // Calendar days, matching the filter that decides whether this is still
+  // outstanding. Elapsed hours said "prayed today" for something prayed at
+  // 9pm yesterday, while the filter correctly counted it as a different day.
   const since = request.last_prayed_at
-    ? Math.floor((now - new Date(request.last_prayed_at).getTime()) / 86_400_000)
+    ? calendarDaysBetween(request.last_prayed_at, new Date(now))
     : null;
 
   if (editing) {

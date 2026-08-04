@@ -142,8 +142,27 @@ function ageInDays(iso: string | null, now: Date): number {
   return (now.getTime() - new Date(iso).getTime()) / 86_400_000;
 }
 
-function dayOnly(d: Date): string {
-  return d.toISOString().slice(0, 10);
+/**
+ * The calendar day in the viewer's own timezone.
+ *
+ * toISOString() gives the UTC day, and that is what "prayed today" was
+ * comparing against. East of UTC-0 the two diverge every evening: praying at
+ * 4pm in Jacksonville is 20:00 UTC the same day, but by 8pm local it is
+ * already tomorrow in UTC — so the morning's prayers stopped counting as
+ * today's and the whole list came back. A prayer list has to agree with the
+ * day the person is actually living in.
+ */
+function localDay(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Whole calendar days between two instants, in local time. */
+export function calendarDaysBetween(fromIso: string, now: Date): number {
+  const from = new Date(fromIso);
+  const a = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
 }
 
 /**
@@ -161,13 +180,18 @@ export function isDueToday(r: PrayerRequest, now: Date = new Date()): boolean {
 
   if (cadence === 'once') {
     if (r.last_prayed_at) return false;
-    return !r.due_date || r.due_date <= dayOnly(now);
+    return !r.due_date || r.due_date <= localDay(now);
   }
 
   const interval = CADENCE_DAYS[cadence];
   if (!interval) return false;
 
   if (!r.last_prayed_at) return true;
+
+  // Calendar days, not elapsed hours: something prayed at 9am yesterday is due
+  // again this morning, even though only 22 hours have passed.
+  const daysSince = calendarDaysBetween(r.last_prayed_at, now);
+  if (!r.cadence_anchor) return daysSince >= interval;
 
   if (r.cadence_anchor) {
     const anchor = new Date(`${r.cadence_anchor}T00:00:00Z`);
@@ -179,10 +203,10 @@ export function isDueToday(r: PrayerRequest, now: Date = new Date()): boolean {
         : elapsed % interval === 0;
     // Still show it if it was missed, rather than hiding it until the grid
     // comes back round.
-    return onGrid || ageInDays(r.last_prayed_at, now) >= interval;
+    return onGrid || daysSince >= interval;
   }
 
-  return ageInDays(r.last_prayed_at, now) >= interval;
+  return daysSince >= interval;
 }
 
 export type TodaysList = {
@@ -198,7 +222,7 @@ export type TodaysList = {
 
 function prayedToday(r: PrayerRequest, now: Date): boolean {
   if (!r.last_prayed_at) return false;
-  return r.last_prayed_at.slice(0, 10) === dayOnly(now);
+  return localDay(new Date(r.last_prayed_at)) === localDay(now);
 }
 
 /**
