@@ -15,15 +15,9 @@ import {
  * whether a session moved the block forward — a four-mile walk with jogging
  * sprinkled through it is not the same as a mile straight.
  */
-export default function RunBreakdown({
-  analysis,
-  avgHr,
-  maxHr,
-}: {
-  analysis: RunAnalysis;
-  avgHr: number | null;
-  maxHr: number | null;
-}) {
+// Heart rate is rendered by HeartRateZones above this, which says everything
+// the old avg/max card did and places it against the zone ladder.
+export default function RunBreakdown({ analysis }: { analysis: RunAnalysis }) {
   const a = analysis;
   const runShare = a.runSeconds + a.walkSeconds > 0
     ? a.runSeconds / (a.runSeconds + a.walkSeconds)
@@ -187,28 +181,6 @@ export default function RunBreakdown({
         </div>
       </section>
 
-      {(avgHr || maxHr) && (
-        <section className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Heart rate
-          </p>
-          <div className="mt-1 flex gap-6">
-            <div>
-              <p className="text-2xl font-bold tabular-nums text-slate-900">{avgHr ?? '—'}</p>
-              <p className="text-xs text-slate-500">average bpm</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold tabular-nums text-slate-900">{maxHr ?? '—'}</p>
-              <p className="text-xs text-slate-500">max bpm</p>
-            </div>
-          </div>
-          <p className="mt-2 text-xs text-slate-500">
-            Only the session average and peak arrive from Apple Health today. Per-second heart
-            rate would let this show HR against each run segment — see the note in the task list
-            about enabling it in Health Auto Export.
-          </p>
-        </section>
-      )}
     </div>
   );
 }
