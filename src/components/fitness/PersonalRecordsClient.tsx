@@ -3,6 +3,13 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, RefreshCw, Search, Trash2 } from 'lucide-react';
 import OneRMProgressionChart from './OneRMProgressionChart';
+import {
+  WINDOWS,
+  computeCurrentBests,
+  monthsAgo,
+  type CurrentBest,
+  type SetRow,
+} from '@/lib/fitness/current-bests';
 
 type PRRecord = {
   id: string;
@@ -16,7 +23,10 @@ type PRRecord = {
 };
 
 type Props = {
+  /** All-time bests, from personal_records. */
   records: PRRecord[];
+  /** Twelve months of sets, for computing where he is now. */
+  recentSets: SetRow[];
 };
 
 /**
@@ -71,10 +81,11 @@ function shortDate(iso: string): string {
  * type is now a filter and the list is alphabetical, which is how you look
  * something up when you already know what you are after.
  */
-export default function PersonalRecordsClient({ records: initial }: Props) {
+export default function PersonalRecordsClient({ records: initial, recentSets }: Props) {
   const [records, setRecords] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState<string>(DEFAULT_TYPE);
+  const [windowKey, setWindowKey] = useState<string>('12');
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -98,6 +109,22 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
    * best wins rather than whichever came back first — and for pace-style
    * records the best is the lowest.
    */
+  const currentBests = useMemo(() => {
+    const months = WINDOWS.find((w) => w.key === windowKey)?.months ?? 12;
+    // 'All time' still needs a floor; the fetch only covers twelve months, so
+    // that option shows the all-time column as the headline instead.
+    return computeCurrentBests(recentSets, months > 0 ? monthsAgo(months) : '0000-01-01');
+  }, [recentSets, windowKey]);
+
+  /** Current value for the selected record type, where one can be derived. */
+  const currentValue = (best: CurrentBest | undefined): number | null => {
+    if (!best) return null;
+    if (type === 'estimated_1rm') return best.e1rm || null;
+    if (type === 'max_weight') return best.maxWeight || null;
+    if (type === 'max_reps') return best.maxReps || null;
+    return null;
+  };
+
   const rows = useMemo(() => {
     const best = new Map<string, PRRecord>();
     for (const r of records) {
@@ -170,7 +197,8 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-slate-500">
-          {rows.length} exercise{rows.length === 1 ? '' : 's'} · {activeLabel}
+          {rows.length} exercise{rows.length === 1 ? '' : 's'} · {activeLabel} ·{' '}
+          <span className="text-amber-700">amber</span> is your all-time best
         </p>
         <button
           onClick={handleRecalculate}
@@ -211,6 +239,27 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
         ))}
       </div>
 
+      {/* How recent counts as "now". */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          Current =
+        </span>
+        {WINDOWS.map((w) => (
+          <button
+            key={w.key}
+            type="button"
+            onClick={() => setWindowKey(w.key)}
+            className={`min-h-[32px] rounded-lg px-2.5 text-xs font-semibold transition-colors ${
+              windowKey === w.key
+                ? 'bg-slate-800 text-white'
+                : 'border-2 border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {w.label}
+          </button>
+        ))}
+      </div>
+
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
@@ -245,14 +294,47 @@ export default function PersonalRecordsClient({ records: initial }: Props) {
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">
                     {r.exercise_name ?? 'Unnamed'}
                   </span>
-                  <span className="shrink-0 text-right">
-                    <span className="block text-base font-bold tabular-nums text-slate-900">
-                      {formatValue(r.value, r.unit, r.record_type)}
-                    </span>
-                    <span className="block text-[11px] text-slate-400">
-                      {shortDate(r.achieved_date)}
-                    </span>
-                  </span>
+                  {(() => {
+                    const best = r.exercise_id ? currentBests.get(r.exercise_id) : undefined;
+                    const now = currentValue(best);
+                    const allTime = r.value;
+                    // "Where I am now" is the headline; the all-time peak sits
+                    // beneath it only when it is actually higher, so it reads
+                    // as something to aim at rather than as noise on every row.
+                    const showPast = now !== null && allTime > now;
+                    return (
+                      <span className="shrink-0 text-right">
+                        {now !== null ? (
+                          <>
+                            <span className="block text-base font-bold tabular-nums text-slate-900">
+                              {formatValue(now, r.unit, r.record_type)}
+                            </span>
+                            <span className="block text-[11px] text-slate-400">
+                              {best ? shortDate(best.achievedOn) : ''}
+                            </span>
+                            {showPast && (
+                              <span className="mt-0.5 block text-[11px] text-amber-700">
+                                was {formatValue(allTime, r.unit, r.record_type)} ·{' '}
+                                {r.achieved_date.slice(0, 4)}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <span className="block text-base font-bold tabular-nums text-slate-400">
+                              {formatValue(allTime, r.unit, r.record_type)}
+                            </span>
+                            <span className="block text-[11px] text-amber-700">
+                              all-time · {r.achieved_date.slice(0, 4)}
+                            </span>
+                            <span className="block text-[11px] text-slate-400">
+                              not trained recently
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    );
+                  })()}
                 </button>
 
                 {/* Expanding shows every record for that exercise, which is
