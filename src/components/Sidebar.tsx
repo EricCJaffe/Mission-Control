@@ -108,7 +108,6 @@ export default function Sidebar({
             <div className={`text-xs uppercase tracking-[0.2em] text-violet-700 ${isCollapsed ? "sr-only" : ""}`}>Soul</div>
             <div className={`mt-2 grid gap-2 ${isCollapsed ? "place-items-center" : ""}`}>
               <NavLink href="/flourishing" label="Flourishing" shortLabel="FL" collapsed={isCollapsed} icon={<Sparkles size={18} className="text-violet-600" />} onClick={handleNavigate} />
-              <NavLink href="/reviews" label="Reviews" shortLabel="RV" collapsed={isCollapsed} icon={<ClipboardList size={18} className="text-teal-600" />} onClick={handleNavigate} />
               {FEATURES.books && (
                 <NavLink href="/books" label="Books" shortLabel="BK" collapsed={isCollapsed} icon={<BookOpen size={18} className="text-amber-600" />} onClick={handleNavigate} />
               )}

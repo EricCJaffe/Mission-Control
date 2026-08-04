@@ -334,6 +334,13 @@ open decisions and deferred work, roughly in the order worth doing.
       ever. Open question for him: should Outlook events feed the morning briefing
       and dashboard, or only /calendar?
 
+- [x] **Reviews retired** (Eric's call, 2026-08-03). The monthly alignment survey was
+      already flag-disabled with zero rows ever completed; its priority weighting had
+      moved to DOMAIN_WEIGHTS. Flourishing is the assessment that actually gets taken
+      and already has a history tab, so periodic self-review lives there. Quarterly and
+      annual templates kept, reachable from Templates under Admin. `monthly_reviews`
+      table deliberately left intact rather than dropped.
+
 ### Medium Priority
 - [ ] Email notifications for pending `health.md` updates
   - Health update detection, review, and approval exist.

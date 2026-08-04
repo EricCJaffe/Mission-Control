@@ -77,7 +77,7 @@ export default async function AdminPage() {
       href: '/templates',
       icon: <FileText className="h-5 w-5 text-sky-600" />,
       title: 'Templates',
-      body: 'Reusable structures, including the workout templates the logger pre-fills from.',
+      body: 'Reusable structures — workout templates the logger pre-fills from, plus the quarterly and annual review templates.',
       meta: `${templateCount ?? 0} workout template${templateCount === 1 ? '' : 's'}`,
       meta2: null,
     },

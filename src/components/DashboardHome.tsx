@@ -20,7 +20,6 @@ import {
   type PrayerRequest,
 } from "@/lib/spirit/prayer";
 import { Dumbbell, Plus, CalendarDays, Target, CheckSquare, HeartPulse, Activity, Gauge } from "lucide-react";
-import { FEATURES } from "@/lib/feature-flags";
 
 function formatTime(value: string) {
   const date = new Date(value);
@@ -42,17 +41,6 @@ function endOfDay(date: Date) {
   const d = new Date(date);
   d.setHours(23, 59, 59, 999);
   return d;
-}
-
-function alignmentLabel(status?: string | null, score?: number | null, flags?: string[] | null) {
-  if (status) return status;
-  const hasFlags = (flags || []).length > 0;
-  if (score !== null && score !== undefined) {
-    if (score < 4 || hasFlags) return "off-track";
-    if (score < 6) return "drifting";
-    return "aligned";
-  }
-  return "unknown";
 }
 
 /** Compact vital readout for the dashboard strip. */
@@ -158,7 +146,6 @@ export default async function DashboardHome() {
   ).toISOString();
 
   const [
-    alignmentResult,
     flourishingResult,
     prioritiesResult,
     eventsResult,
@@ -177,12 +164,6 @@ export default async function DashboardHome() {
     practiceLogsResult,
     readingSubsResult,
   ] = await Promise.all([
-    supabase
-      .from("monthly_reviews")
-      .select("id,alignment_score,alignment_status,drift_flags,period_start")
-      .order("period_start", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
     supabase
       .from("flourishing_profiles")
       .select("display_index,strongest_domains,growth_domains,overall_message,updated_at,domain_scores")
@@ -290,13 +271,7 @@ export default async function DashboardHome() {
       .eq("status", "active"),
   ]);
 
-  const alignment = alignmentResult.data;
   const flourishing = flourishingResult.data;
-  const alignmentStatus = alignmentLabel(
-    alignment?.alignment_status,
-    alignment?.alignment_score,
-    alignment?.drift_flags || []
-  );
 
   const priorities = prioritiesResult.data || [];
   const events = eventsResult.data || [];
@@ -307,12 +282,6 @@ export default async function DashboardHome() {
 
 
 
-  const statusStyles: Record<string, string> = {
-    aligned: "bg-blue-700 text-white",
-    drifting: "bg-amber-500 text-white",
-    "off-track": "bg-rose-600 text-white",
-    unknown: "bg-slate-400 text-white",
-  };
 
   const hybridSessions = [
     ...(hybridWorkoutsResult.data ?? []).map((w) => ({
@@ -465,59 +434,6 @@ export default async function DashboardHome() {
         })}
       </section>
 
-      {FEATURES.monthlyAlignment && (
-        <section className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-[0.3em] text-blue-800">
-                Alignment Status
-              </div>
-              <div className="mt-2 text-2xl font-semibold">Monthly Alignment</div>
-              <div className="mt-1 text-sm text-slate-500">
-                Based on the latest review score and drift flags.
-              </div>
-            </div>
-            <div className={`rounded-full px-4 py-2 text-sm font-semibold ${statusStyles[alignmentStatus]}`}>
-              {alignmentStatus === "aligned" && "Aligned"}
-              {alignmentStatus === "drifting" && "Drifting"}
-              {alignmentStatus === "off-track" && "Off-track"}
-              {alignmentStatus === "unknown" && "No data yet"}
-            </div>
-          </div>
-
-          <form className="mt-4 grid gap-3 md:grid-cols-[1fr_auto_auto]" action="/dashboard/alignment" method="post">
-            <input type="hidden" name="period_start" value={todayIso.slice(0, 7) + "-01"} />
-            <input
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-              name="alignment_score"
-              type="number"
-              min="0"
-              max="10"
-              placeholder="Alignment score (0-10)"
-              defaultValue={alignment?.alignment_score ?? ""}
-            />
-            <select
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-              name="alignment_status"
-              defaultValue={alignment?.alignment_status ?? ""}
-            >
-              <option value="">Auto</option>
-              <option value="aligned">Aligned</option>
-              <option value="drifting">Drifting</option>
-              <option value="off-track">Off-track</option>
-            </select>
-            <input
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-              name="drift_flags"
-              placeholder="Drift flags (comma-separated)"
-              defaultValue={(alignment?.drift_flags || []).join(", ")}
-            />
-            <button className="md:col-span-3 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-              Update Alignment
-            </button>
-          </form>
-        </section>
-      )}
 
       {/* Act row: the two things wanted most days — start a workout, and see
           what's already planned. */}

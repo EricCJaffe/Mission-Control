@@ -299,7 +299,7 @@ export default function FlourishingClient({
               <div className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Assessment History</div>
               <h2 className="mt-2 text-2xl font-semibold text-slate-900">Track your season over time</h2>
             </div>
-            <Link href="/reviews" className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">Back to Reviews</Link>
+            <button type="button" onClick={() => setActiveTab('overview')} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">Back to overview</button>
           </div>
           <div className="mt-6 grid gap-3">
             {history.length === 0 && <div className="rounded-2xl border border-dashed border-slate-200 p-5 text-sm text-slate-500">No flourishing history yet.</div>}
