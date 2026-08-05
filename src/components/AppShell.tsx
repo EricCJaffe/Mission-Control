@@ -30,7 +30,7 @@ export default function AppShell({ userEmail, children }: AppShellProps) {
       <div className="min-h-screen md:flex">
         <div className={`fixed inset-0 z-40 bg-slate-900/30 transition-opacity md:hidden ${sidebarOpen ? "block" : "hidden"}`} onClick={() => setSidebarOpen(false)} />
         <div
-          className={`fixed inset-y-0 left-0 z-50 w-72 transform transition-transform md:static md:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-50 w-72 shrink-0 transform transition-transform md:static md:translate-x-0 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
           } ${sidebarCollapsed ? "md:w-0 md:overflow-hidden md:border-r-0" : "md:w-64"}`}
         >
@@ -43,7 +43,7 @@ export default function AppShell({ userEmail, children }: AppShellProps) {
           />
         </div>
 
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-100 bg-white/90 px-4 py-3 backdrop-blur md:px-6">
             <div className="flex items-center gap-2">
               {/* One toggle at every width. Below md the sidebar is a drawer,
