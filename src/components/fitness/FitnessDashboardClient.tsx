@@ -490,17 +490,17 @@ export default function FitnessDashboardClient({
         <div className="flex gap-3">
           <Link
             href="/fitness/morning"
-            className="flex-1 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+            className="flex flex-1 items-center gap-3 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm transition-all hover:border-slate-200 hover:shadow"
           >
-            <span className="text-blue-700/70"><Sunrise size={20} /></span>
-            <span className="text-sm font-medium text-slate-700">Morning Brief</span>
+            <span className="shrink-0 text-blue-700/70"><Sunrise size={20} /></span>
+            <span className="min-w-0 text-sm font-medium text-slate-700">Morning Brief</span>
           </Link>
           <Link
             href="/fitness/settings"
-            className="flex-1 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+            className="flex flex-1 items-center gap-3 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm transition-all hover:border-slate-200 hover:shadow"
           >
-            <span className="text-blue-700/70"><Settings size={20} /></span>
-            <span className="text-sm font-medium text-slate-700">Settings</span>
+            <span className="shrink-0 text-blue-700/70"><Settings size={20} /></span>
+            <span className="min-w-0 text-sm font-medium text-slate-700">Settings</span>
           </Link>
         </div>
 
@@ -521,10 +521,16 @@ export default function FitnessDashboardClient({
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+                className="flex items-center gap-3 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm transition-all hover:border-slate-200 hover:shadow"
               >
-                <span className="text-blue-700/70">{link.icon}</span>
-                <span className="text-sm font-medium text-slate-700">{link.label}</span>
+                {/* A flex child defaults to min-width:auto, so the label could
+                    not shrink below its text and broke out of the card on a
+                    tablet. min-w-0 lets it wrap; shrink-0 keeps the icon from
+                    being squashed instead. */}
+                <span className="shrink-0 text-blue-700/70">{link.icon}</span>
+                <span className="min-w-0 text-sm font-medium leading-snug text-slate-700">
+                  {link.label}
+                </span>
               </Link>
             ))}
           </div>
@@ -547,10 +553,16 @@ export default function FitnessDashboardClient({
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm hover:shadow hover:border-slate-200 transition-all flex items-center gap-3"
+                className="flex items-center gap-3 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm transition-all hover:border-slate-200 hover:shadow"
               >
-                <span className="text-blue-700/70">{link.icon}</span>
-                <span className="text-sm font-medium text-slate-700">{link.label}</span>
+                {/* A flex child defaults to min-width:auto, so the label could
+                    not shrink below its text and broke out of the card on a
+                    tablet. min-w-0 lets it wrap; shrink-0 keeps the icon from
+                    being squashed instead. */}
+                <span className="shrink-0 text-blue-700/70">{link.icon}</span>
+                <span className="min-w-0 text-sm font-medium leading-snug text-slate-700">
+                  {link.label}
+                </span>
               </Link>
             ))}
           </div>
