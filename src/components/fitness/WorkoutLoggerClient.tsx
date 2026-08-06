@@ -112,6 +112,35 @@ const REPS_STEP = 1;
 // far more than anyone actually performs in a session.
 // Eric's standard pattern is six sets, and he adds beyond it, so a cap of six
 // would silently drop whatever he added last time.
+/**
+ * One line describing last session's sets.
+ *
+ * "7x5 @ 25lbs" was built from the first working set and applied to all of
+ * them, which claimed a uniformity that often is not there — a pull-up pyramid
+ * of 0/15/25/25/25/15/0 was reported as seven sets of 25. When the sets vary
+ * it now shows the actual range, so the line either matches the session or
+ * says it did not.
+ */
+function summariseLastSets(
+  sets: Array<{ set_type?: string | null; reps: number | null; weight_lbs: number | null }>
+): string | null {
+  const working = sets.filter((s) => !s.set_type || s.set_type === 'working' || s.set_type === 'amrap');
+  const use = working.length > 0 ? working : sets;
+  if (use.length === 0) return null;
+
+  const weights = use.map((s) => s.weight_lbs ?? 0);
+  const reps = use.map((s) => s.reps ?? 0);
+  const sameWeight = new Set(weights).size === 1;
+  const sameReps = new Set(reps).size === 1;
+
+  const w = sameWeight
+    ? `${weights[0]}lbs`
+    : `${Math.min(...weights)}\u2013${Math.max(...weights)}lbs`;
+  const r = sameReps ? `${reps[0]}` : `${Math.min(...reps)}\u2013${Math.max(...reps)}`;
+
+  return `${use.length}x${r} @ ${w}`;
+}
+
 const MAX_PREFILL_SETS = 12;
 
 /**
@@ -560,7 +589,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         if (firstWorking && hist.workout_date) {
           summaries.set(b.exercise_id!, {
             date: new Date(hist.workout_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            summary: `${hist.sets.length}x${firstWorking.reps ?? '?'} @ ${firstWorking.weight_lbs ?? 0}lbs`,
+            summary: summariseLastSets(hist.sets) ?? '',
           });
         }
         return { ...b, sets };
@@ -808,7 +837,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         const firstWorking =
           hist.sets.find((s: { set_type: SetType }) => s.set_type === 'working') ?? hist.sets[0];
         if (firstWorking && hist.workout_date) {
-          const summary = `${hist.sets.length}x${firstWorking.reps ?? '?'} @ ${firstWorking.weight_lbs ?? 0}lbs`;
+          const summary = summariseLastSets(hist.sets) ?? '';
           const date = new Date(hist.workout_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           setExerciseHistory((prev) => new Map(prev).set(exerciseId, { date, summary }));
         }

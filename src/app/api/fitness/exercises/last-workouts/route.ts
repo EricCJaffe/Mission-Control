@@ -39,9 +39,14 @@ export async function POST(req: NextRequest) {
   // exercise so we can isolate each one's most recent workout.
   const { data, error } = await supabase
     .from('set_logs')
-    .select('exercise_id, set_type, reps, weight_lbs, rpe, rest_seconds, workout_log_id, workout_logs!inner(workout_date)')
+    .select('exercise_id, set_number, set_type, reps, weight_lbs, rpe, rest_seconds, workout_log_id, workout_logs!inner(workout_date)')
     .in('exercise_id', exerciseIds)
     .order('workout_logs(workout_date)', { ascending: false })
+    // Within a workout, sets must come back in the order they were performed.
+    // Without this Postgres returns them arbitrarily, so a pull-up pyramid of
+    // 0/15/25/25/25/15/0 pre-filled as 25/15/15/0/25/0/25 — the same numbers
+    // in an order that makes no sense as a session.
+    .order('set_number', { ascending: true })
     .limit(1000);
 
   if (error) {
