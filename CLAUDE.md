@@ -68,7 +68,7 @@ Optional:
 - `GARMIN_EMAIL`
 - `GARMIN_PASSWORD`
 
-## Current Status (March 10, 2026)
+## Current Status (August 6, 2026)
 ### Shipped
 - Full fitness module: logging, templates, plans, metrics, PRs, trends, equipment, history
 - Flourishing module with review-centered assessments, current profile, historical trends, AI coaching, and persona proposal review/apply flow
@@ -82,6 +82,22 @@ Optional:
 - Withings OAuth/manual sync for health metrics with legacy CSV fallback
 - Morning briefing with hydration, nutrition, recovery, scripture, fitness quote, and daily learning
 - Notes schema cleanup, Turbopack root pinning, broad doc hygiene
+
+### Recently shipped (Aug 3-6)
+- Fitness restructured to five sections: Today / Train / Body / Health / Recovery
+- Prayer module seeded from Eric's 2025 journal — rotation, scheduling, history
+- Reading-plan pace, streaks, day grid and Catch Me Up
+- Mileage page with sport switcher, named date ranges and charts
+- Personal records show current capability with all-time bests alongside
+- Heart-rate zones on cardio workouts; recovery trends
+- Reviews retired — Flourishing is the periodic self-review
+
+### Conventions worth knowing before editing UI
+- Blue is every primary action; green means DONE and nothing else
+- Use `src/lib/day.ts` for "today" — never `toISOString().slice(0,10)`, the
+  server runs in UTC and that breaks every evening east of UTC-0
+- Missing inputs drop out of derived scores rather than being given a value;
+  anything estimated says so on screen
 
 ### Open
 - Garmin OAuth full automation

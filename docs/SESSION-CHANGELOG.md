@@ -10,6 +10,60 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-08-03 → 08-06 — Fitness restructure, prayer/reading modules, and a run of real bugs
+
+### What changed
+**New modules.** Prayer (121 subjects seeded from Eric's 2025 journal, rotation,
+scheduling, prayer_logs history, full CRUD). Reading-plan pace/streak/day-grid
+and Catch Me Up. Mileage page. Running-dynamics clinical markers. Recovery
+trends. Heart-rate zones on cardio workouts.
+
+**Fitness restructured** from 8 tabs and 53 routes to 5 sections — Today /
+Train / Body / Health / Recovery. Body merges trends, composition, BP and sleep
+behind a view selector; Train and Health are hub pages with live counts. Four
+redirect-only stubs deleted. Reviews retired entirely (Flourishing is the
+periodic self-review).
+
+**Design.** Green reserved for completion only; every primary action is now
+Mission Control blue (teal swept too). Grey box borders darkened globally in
+one CSS rule. Mobile pass: iOS 16px input rule, calendar month/week views,
+two clipped tables.
+
+### Bugs found and fixed (the substantive ones)
+- **307 redirect** — /tasks/update always redirected, and 307 preserves POST, so
+  fetch re-POSTed to /tasks, got 405, and the client rolled back a write that
+  had already succeeded. This is why ticking a task never stuck.
+- **UTC day boundaries** — prayer and reading plans compared UTC dates against a
+  UTC "today". After 8pm Eastern it was already tomorrow, so the day's work
+  stopped counting. Fixed by stating the app's timezone explicitly in
+  `src/lib/day.ts` rather than inheriting it from wherever code runs.
+- **Prefill returned every session ever** for an exercise, not the last one —
+  Leg Extension came back as 14 sets across four workouts spanning two years.
+- **Prefill set order was arbitrary** — no ORDER BY set_number, so a pull-up
+  pyramid pre-filled shuffled and gave the wrong starting weights.
+- **Strength workouts always scored 0.0 strain** — the function branched on HR
+  zones, RPE and TSS, none of which a lifting session has. Added a volume
+  branch; backfilled 359 workouts.
+- **Command centre had never seen a training plan** — queried plan_name/goal,
+  neither of which exists; the error was never checked.
+- **flex min-width:auto** caused two overflow bugs: quick-link labels breaking
+  out of cards, then the whole dashboard overflowing right on tablets.
+
+### Why
+Eric works from a phone and tablet as much as a desktop, and several of these
+made the app quietly wrong rather than visibly broken — which is worse.
+
+### Follow-ups
+- 16 tasks were marked done on Aug 3 21:45–22:26, during the window when the
+  307 bug made clicks look like they did nothing. Some may need reopening.
+- A pull-up set on 2026-07-26 records 110 reps — likely a typo for 10 or 11.
+- Two swim records deleted (80+ mph); backed up in the session scratchpad. The
+  HR and calorie data looked real, only the distance was wrong.
+- prayer_sessions table is written by nothing yet.
+- Office 365 calendar: setup written up, blocked on Eric's Azure registration.
+
+---
+
 - 2026-08-01 09:40 ET — Withings as source of truth for BP and body composition
   - What changed:
     - Apple Health ingest no longer writes `bp_readings` at all. The two paths cannot be de-duplicated: Apple flattens a reading to local midnight while the Withings API keeps the real measurement time, so the same cuff reading arrives with different timestamps. Two duplicates already existed (2026-03-02 142/90, 2026-03-08 153/91).
