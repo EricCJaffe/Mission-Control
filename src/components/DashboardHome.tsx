@@ -16,6 +16,7 @@ import {
 import {
   buildSubjectIndex,
   selectDailyRotation,
+  activeRequests,
   CATEGORY_LABELS as PRAYER_CATEGORY_LABELS,
   type PrayerRequest,
 } from "@/lib/spirit/prayer";
@@ -244,9 +245,8 @@ export default async function DashboardHome() {
       .in("status", ["open", "waiting"]),
     supabase
       .from("prayer_subjects")
-      .select("id, name, category, parent_id")
-      .eq("user_id", user.id)
-      .eq("archived", false),
+      .select("id, name, category, parent_id, archived")
+      .eq("user_id", user.id),
     supabase
       .from("notes")
       .select("content_md")
@@ -335,11 +335,20 @@ export default async function DashboardHome() {
 
   // Today's rotation, computed here so the card shows real items rather than a
   // count. A number tells you the list exists; the names get you praying.
-  const prayerRotation = selectDailyRotation((prayerResult.data ?? []) as PrayerRequest[], { size: 3 });
-  const prayerActive = (prayerResult.data ?? []).length;
+  // Requests belonging to a retired subject drop out here too. Archiving
+  // someone removed them from the list but left their prayers surfacing every
+  // morning attached to a name the dashboard could no longer resolve.
+  const prayerLive = activeRequests(
+    (prayerResult.data ?? []) as PrayerRequest[],
+    prayerSubjectsResult.data ?? [],
+  );
+  const prayerRotation = selectDailyRotation(prayerLive, { size: 3 });
+  const prayerActive = prayerLive.length;
   // Who each request is for. "Freedom from alcoholism" with no name attached
   // is not something you can act on from a dashboard.
-  const prayerSubjects = buildSubjectIndex(prayerSubjectsResult.data ?? []);
+  const prayerSubjects = buildSubjectIndex(
+    (prayerSubjectsResult.data ?? []).filter((s) => !s.archived),
+  );
   const practiceLogs = (practiceLogsResult.data ?? []) as PracticeLog[];
 
   // Where each active reading plan stands. Progress is counted per

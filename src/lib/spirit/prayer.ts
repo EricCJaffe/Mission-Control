@@ -120,18 +120,88 @@ export const PRAYER_MODES: Array<{
   },
 ];
 
-export const CATEGORY_LABELS: Record<string, string> = {
-  family: 'Family',
-  friends: 'Friends',
-  church: 'The Church',
-  missions: 'Missions',
-  government: 'Government & Authority',
-  world: 'World Issues',
-  work: 'Work & Business',
-  finances: 'Finances',
-  self: 'Spirit, Soul & Body',
-  other: 'Other',
+/**
+ * A heading in the list — "Family", "Missions", "Government & Authority".
+ *
+ * These used to be a CHECK constraint, which made them unchangeable without a
+ * migration. They are now rows the user owns, so the app has to treat any key
+ * it is handed as legitimate rather than validating against a constant.
+ */
+export type PrayerCategory = {
+  id: string;
+  key: string;
+  label: string;
+  position: number;
+  archived: boolean;
 };
+
+/**
+ * The ten headings from Eric's 2025 journal, in the order he wrote them.
+ *
+ * Still the starting taxonomy for a new list and the fallback when the
+ * categories table has not been seeded yet — but a starting point now, not a
+ * fixed set.
+ */
+export const DEFAULT_CATEGORIES: Array<{ key: string; label: string }> = [
+  { key: 'family', label: 'Family' },
+  { key: 'friends', label: 'Friends' },
+  { key: 'church', label: 'The Church' },
+  { key: 'missions', label: 'Missions' },
+  { key: 'government', label: 'Government & Authority' },
+  { key: 'world', label: 'World Issues' },
+  { key: 'work', label: 'Work & Business' },
+  { key: 'finances', label: 'Finances' },
+  { key: 'self', label: 'Spirit, Soul & Body' },
+  { key: 'other', label: 'Other' },
+];
+
+/** Fallback labels for the defaults, used where no category rows are loaded. */
+export const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
+  DEFAULT_CATEGORIES.map((c) => [c.key, c.label])
+);
+
+/**
+ * Builds the stable slug stored on every subject from a typed-in label.
+ *
+ * The slug is what 120 subject rows point at, so it is generated once at
+ * creation and never regenerated on rename — renaming "Friends" to "Friends &
+ * Neighbours" must not silently detach everyone filed under it.
+ */
+export function slugifyCategory(label: string): string {
+  const base = label
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  return base || 'category';
+}
+
+/** Ensures a generated slug does not collide with one already in use. */
+export function uniqueCategoryKey(label: string, taken: Iterable<string>): string {
+  const used = new Set(taken);
+  const base = slugifyCategory(label);
+  if (!used.has(base)) return base;
+  for (let i = 2; i < 100; i += 1) {
+    const candidate = `${base}-${i}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return `${base}-${Math.abs(hashString(base))}`;
+}
+
+/** Small deterministic hash, only used as a last-resort slug suffix. */
+function hashString(value: string): number {
+  let h = 0;
+  for (let i = 0; i < value.length; i += 1) h = (h * 31 + value.charCodeAt(i)) | 0;
+  return h;
+}
+
+/** Labels for whatever categories the user actually has, defaults filled in. */
+export function categoryLabels(categories: PrayerCategory[]): Record<string, string> {
+  const map: Record<string, string> = { ...CATEGORY_LABELS };
+  for (const c of categories) map[c.key] = c.label;
+  return map;
+}
 
 /** How many rotation items top up a day's list once scheduled ones are in. */
 export const DAILY_ROTATION_SIZE = 12;
@@ -344,6 +414,8 @@ export type PrayerSubjectNode = {
   scripture_refs: string[];
   parent_id: string | null;
   position: number;
+  /** Retired from the active list without being deleted. */
+  archived: boolean;
   children: PrayerSubjectNode[];
   requests: PrayerRequest[];
 };
@@ -451,4 +523,91 @@ export function recentAnswers(requests: PrayerRequest[], limit = 5): PrayerReque
     .filter((r) => r.status === 'answered' && r.answered_at)
     .sort((a, b) => new Date(b.answered_at!).getTime() - new Date(a.answered_at!).getTime())
     .slice(0, limit);
+}
+
+/**
+ * One line of a prayer's history.
+ *
+ * 'prayed' is the checkmark — it advances the rotation and is the reason the
+ * item left today's list. 'note' is a reflection written on a day, which
+ * changes nothing about the schedule. They share a timeline because that is
+ * how the history gets reread: what was happening, and when.
+ */
+export type PrayerLogEntry = {
+  id: string;
+  kind: 'prayed' | 'note';
+  prayed_at: string;
+  note: string | null;
+};
+
+/**
+ * Requests still worth showing, given which subjects have been retired.
+ *
+ * Archiving "the Hendersons" has to take their requests out of the rotation
+ * too. Without this the subject vanishes from the list while its prayers keep
+ * surfacing every morning attached to nothing — which reads as a bug and, more
+ * to the point, means marking a subject inactive does not actually do the one
+ * thing it was pressed to do.
+ *
+ * Unattached requests are always kept: they belong to no subject, so no
+ * subject can retire them.
+ */
+export function activeRequests(
+  requests: PrayerRequest[],
+  subjects: Array<{ id: string; archived?: boolean }>
+): PrayerRequest[] {
+  const retired = new Set(subjects.filter((s) => s.archived).map((s) => s.id));
+  if (retired.size === 0) return requests;
+  return requests.filter((r) => !r.subject_id || !retired.has(r.subject_id));
+}
+
+/**
+ * The order to write back after a drag, as a sparse list of changed rows.
+ *
+ * Positions are respaced by tens rather than renumbered 0..n so that the next
+ * drag usually only has to move one row. Only rows that actually changed are
+ * returned — sending 120 updates because one item moved is how a reorder ends
+ * up feeling slower than the list it is reordering.
+ */
+export function reorderMoves(
+  siblings: Array<{ id: string; position: number; parent_id: string | null; category: string }>,
+  target: { parentId: string | null; category: string }
+): Array<{ id: string; position: number; parent_id: string | null; category: string }> {
+  const moves: Array<{ id: string; position: number; parent_id: string | null; category: string }> = [];
+  siblings.forEach((s, i) => {
+    const position = (i + 1) * 10;
+    if (
+      s.position !== position ||
+      s.parent_id !== target.parentId ||
+      s.category !== target.category
+    ) {
+      moves.push({ id: s.id, position, parent_id: target.parentId, category: target.category });
+    }
+  });
+  return moves;
+}
+
+/**
+ * Would reparenting `id` under `parentId` create a loop?
+ *
+ * The subject picker excludes descendants, but a drag onto a collapsed branch
+ * and a stale client both get here, and a cycle in this tree means the render
+ * never terminates. Cheap to check, catastrophic to miss.
+ */
+export function wouldCycle(
+  subjects: Array<{ id: string; parent_id: string | null }>,
+  id: string,
+  parentId: string | null
+): boolean {
+  if (!parentId) return false;
+  if (parentId === id) return true;
+  const byId = new Map(subjects.map((s) => [s.id, s]));
+  const seen = new Set<string>();
+  let cursor = byId.get(parentId);
+  while (cursor && !seen.has(cursor.id)) {
+    if (cursor.id === id) return true;
+    seen.add(cursor.id);
+    cursor = cursor.parent_id ? byId.get(cursor.parent_id) : undefined;
+  }
+  return false;
 }
