@@ -47,11 +47,16 @@ export default function AIWorkoutBuilder({ isOpen, onClose, onAddExercises, mode
         body: JSON.stringify({ description }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to parse workout');
+      // The route already returns a specific reason in `error` — a bad model
+      // name, an expired key, a missing library. Replacing it with "Failed to
+      // parse workout" threw away the only thing that made the failure
+      // diagnosable, and it hid a broken OPENAI_MODEL for days.
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.ok === false) {
+        throw new Error(data?.error || `Parse failed (HTTP ${response.status})`);
       }
+      if (!data) throw new Error('The server returned an empty response');
 
-      const data = await response.json();
       setParsedResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse workout');
@@ -200,6 +205,26 @@ export default function AIWorkoutBuilder({ isOpen, onClose, onAddExercises, mode
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* The parser returns an empty structure when the model's reply
+                isn't valid JSON. That used to render as nothing at all — no
+                preview, no button, no explanation. */}
+            {parsedResult.structure.length === 0 && parsedResult.unmatched_exercises.length === 0 && (
+              <div className="rounded-lg bg-yellow-50 p-4">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-600" />
+                  <div>
+                    <p className="text-sm font-medium text-yellow-900">
+                      Nothing could be read from that description
+                    </p>
+                    <p className="text-xs text-yellow-700">
+                      Try naming each exercise with its sets and reps, e.g. “dumbbell curls 3x12 at
+                      25lbs”.
+                    </p>
                   </div>
                 </div>
               </div>

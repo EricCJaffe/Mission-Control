@@ -97,11 +97,12 @@ export default function ScheduleWorkoutModal({
         body: JSON.stringify({ description: aiDescription }),
       });
 
-      if (!parseResponse.ok) {
-        throw new Error('Failed to parse workout description');
+      // Keep the server's reason — a generic message here hides config
+      // failures like a rejected OPENAI_MODEL behind "AI is broken".
+      const parsed = await parseResponse.json().catch(() => null);
+      if (!parseResponse.ok || parsed?.ok === false) {
+        throw new Error(parsed?.error || `Parse failed (HTTP ${parseResponse.status})`);
       }
-
-      const parsed = await parseResponse.json();
 
       // If the AI referenced exercises not in the library, stop and let the user
       // create them — otherwise they'd be silently dropped from the workout.
