@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import { NotebookPen } from 'lucide-react';
 import { supabaseServer } from '@/lib/supabase/server';
 import ReadingPlans, { type ActivePlan, type PlanRow } from '@/components/spirit/ReadingPlans';
 import { fetchPassage, isBibleTextConfigured, humanReferences } from '@/lib/spirit/bible';
@@ -26,7 +28,7 @@ async function buildActivePlan(
       .eq('subscription_id', sub.id),
     supabase
       .from('reading_plan_reflections')
-      .select('day_number, content')
+      .select('day_number, content, passage_label, updated_at')
       .eq('subscription_id', sub.id)
       .order('day_number', { ascending: false })
       .limit(5),
@@ -78,7 +80,14 @@ async function buildActivePlan(
     recentReflections: (reflections ?? [])
       .filter((r) => r.day_number !== currentDay)
       .slice(0, 3)
-      .map((r) => ({ day: r.day_number, content: r.content })),
+      .map((r) => ({
+        day: r.day_number,
+        content: r.content,
+        // A reflection is only worth re-reading if you can tell what it was
+        // written against and when.
+        passageLabel: r.passage_label ?? null,
+        writtenOn: r.updated_at ? String(r.updated_at).slice(0, 10) : null,
+      })),
   };
 }
 
@@ -119,13 +128,21 @@ export default async function ReadingPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 p-1">
-      <div>
-        <h1 className="text-3xl font-semibold">Reading Plans</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {withText
-            ? 'Today’s passage, in full.'
-            : 'References and a link out — add BIBLE_API_KEY to read inline.'}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-semibold">Reading Plans</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {withText
+              ? 'Today’s passage, in full.'
+              : 'References and a link out — add BIBLE_API_KEY to read inline.'}
+          </p>
+        </div>
+        <Link
+          href="/spirit/reading/reflections"
+          className="inline-flex items-center gap-1.5 rounded-xl border-2 border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <NotebookPen className="h-4 w-4" /> Reflections
+        </Link>
       </div>
 
       <ReadingPlans active={active} available={available} />

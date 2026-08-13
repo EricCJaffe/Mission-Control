@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
 
     const { data: allReflections } = await supabase
       .from('reading_plan_reflections')
-      .select('day_number, passage_label, content, created_at')
+      .select('day_number, passage_label, content, created_at, updated_at')
       .eq('subscription_id', subscriptionId)
       .order('day_number');
 
@@ -153,12 +153,18 @@ export async function POST(req: NextRequest) {
     const markdown = [
       `# ${title}`,
       '',
-      ...(allReflections ?? []).flatMap((r) => [
-        `## Day ${r.day_number}${r.passage_label ? ` — ${r.passage_label}` : ''}`,
-        '',
-        r.content,
-        '',
-      ]),
+      ...(allReflections ?? []).flatMap((r) => {
+        // Day, passage and date on the heading — a reflection read months
+        // later is only useful if it says what it was written against.
+        const writtenOn = String(r.updated_at ?? r.created_at ?? '').slice(0, 10);
+        return [
+          `## Day ${r.day_number}${r.passage_label ? ` — ${r.passage_label}` : ''}`,
+          '',
+          ...(writtenOn ? [`*${writtenOn}*`, ''] : []),
+          r.content,
+          '',
+        ];
+      }),
     ].join('\n');
 
     let noteId = sub.note_id as string | null;

@@ -43,7 +43,14 @@ export type PlanProgress = {
   streak: number;
   longestStreak: number;
   days: PlanDay[];
+  /** Something was read today. Informational only — see `currentDayDone`. */
   doneToday: boolean;
+  /**
+   * The day being offered is itself already read, which only happens once the
+   * whole plan is finished. Gate "mark read" on THIS, never on `doneToday`:
+   * reading two days in one sitting to catch up is the normal way back on pace.
+   */
+  currentDayDone: boolean;
 };
 
 export type ProgressRow = { day_number: number; completed_on: string | null };
@@ -131,6 +138,7 @@ export function computeProgress(
     longestStreak: longestRun(uniqueDates),
     days,
     doneToday: completedDates.includes(todayIso),
+    currentDayDone: doneByDay.has(currentDay),
   };
 }
 
