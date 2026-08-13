@@ -45,6 +45,8 @@ export default async function HistoryPage() {
 
   const MODALITY_LABEL: Record<string, string> = {
     sauna: 'Sauna',
+    steam_room: 'Steam room',
+    jacuzzi: 'Jacuzzi',
     cold_plunge: 'Cold plunge',
     stretching: 'Stretching',
     mobility: 'Mobility',

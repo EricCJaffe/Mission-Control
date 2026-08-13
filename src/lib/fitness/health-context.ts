@@ -708,10 +708,11 @@ You are providing nutrition advice for a cardiac patient. Consider:
 Practical, actionable suggestions. Acknowledge current diet is simple and functional.
 `,
     recovery_advice: `
-You are analyzing sauna, cold plunge, stretching, and mobility as recovery tools for a cardiac patient with mild CKD.
+You are analyzing sauna, steam room, jacuzzi, cold plunge, stretching, and mobility as recovery tools for a cardiac patient with mild CKD.
 Consider:
 - Recovery modalities should support the training plan, not add hidden stress
 - Sauna may support relaxation and circulation, but watch hydration, BP response, and heat tolerance on beta-blockers
+- Steam room and jacuzzi are heat exposure too, at lower temperatures but with humidity or immersion. Treat them alongside sauna rather than as separate categories, and be specific about fluid loss and standing up from hot water on BP-lowering medication
 - Cold plunge should be conservative and symptom-aware; avoid framing it as universally beneficial
 - Stretching and mobility are usually low-risk and valuable when they improve movement quality, stiffness, and recovery adherence
 - Look for timing patterns: post-workout vs. evening vs. standalone

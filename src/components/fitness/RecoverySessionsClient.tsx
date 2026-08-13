@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dumbbell, Loader2, Snowflake, Sparkles, StretchHorizontal, Waves, Flame, Hand, Footprints } from 'lucide-react';
+import { Dumbbell, Loader2, Snowflake, Sparkles, StretchHorizontal, Waves, Flame, Hand, Footprints, Droplets, Bath } from 'lucide-react';
 import { modalityLabel } from '@/lib/fitness/recovery-modalities';
 import type { RecoverySession } from '@/lib/fitness/types';
 
@@ -18,12 +18,18 @@ type Props = {
 
 const MODALITY_OPTIONS = [
   { value: 'sauna', label: 'Sauna', icon: Flame },
+  { value: 'steam_room', label: 'Steam Room', icon: Droplets },
+  { value: 'jacuzzi', label: 'Jacuzzi', icon: Bath },
   { value: 'cold_plunge', label: 'Cold Plunge', icon: Snowflake },
   { value: 'massage', label: 'Massage', icon: Hand },
   { value: 'compression', label: 'Leg Compression', icon: Footprints },
   { value: 'stretching', label: 'Stretching', icon: StretchHorizontal },
   { value: 'mobility', label: 'Mobility', icon: Waves },
 ] as const;
+
+/** Modalities where the temperature is the point of the session. */
+const HEAT_MODALITIES = new Set(['sauna', 'steam_room', 'jacuzzi']);
+const TEMPERATURE_MODALITIES = new Set([...HEAT_MODALITIES, 'cold_plunge']);
 
 // Massage detail — Massage Envy etc. is "professional", a Theragun is "gun".
 const MASSAGE_SUBTYPES = [
@@ -62,7 +68,9 @@ export default function RecoverySessionsClient({ initialSessions, recentWorkouts
     return {
       total: last7.length,
       minutes: last7.reduce((sum, session) => sum + Number(session.duration_min || 0), 0),
-      sauna: last7.filter((s) => s.modality === 'sauna').length,
+      // The tile says "Heat / Cold", so every heat modality counts — a week of
+      // steam rooms reading as zero heat exposure would be wrong.
+      heat: last7.filter((s) => HEAT_MODALITIES.has(s.modality)).length,
       cold: last7.filter((s) => s.modality === 'cold_plunge').length,
       mobility: last7.filter((s) => s.modality === 'mobility' || s.modality === 'stretching').length,
     };
@@ -115,7 +123,7 @@ export default function RecoverySessionsClient({ initialSessions, recentWorkouts
       <section className="grid gap-4 md:grid-cols-4">
         <StatCard label="Last 7 Sessions" value={String(weeklySummary.total)} />
         <StatCard label="Recovery Minutes" value={String(weeklySummary.minutes)} />
-        <StatCard label="Heat / Cold" value={`${weeklySummary.sauna}/${weeklySummary.cold}`} />
+        <StatCard label="Heat / Cold" value={`${weeklySummary.heat}/${weeklySummary.cold}`} />
         <StatCard label="Mobility Work" value={String(weeklySummary.mobility)} />
       </section>
 
@@ -168,7 +176,7 @@ export default function RecoverySessionsClient({ initialSessions, recentWorkouts
                 <option value="evening">Evening</option>
               </select>
             </label>
-            <Field label={form.modality === 'cold_plunge' ? 'Temp (F)' : 'Temp (F, optional)'} value={form.temperature_f} onChange={(value) => setForm((prev) => ({ ...prev, temperature_f: value }))} />
+            <Field label={TEMPERATURE_MODALITIES.has(form.modality) ? 'Temp (F)' : 'Temp (F, optional)'} value={form.temperature_f} onChange={(value) => setForm((prev) => ({ ...prev, temperature_f: value }))} />
             <Field label="Rounds" value={form.rounds} onChange={(value) => setForm((prev) => ({ ...prev, rounds: value }))} />
             <Field label="Energy before (1-10)" value={form.energy_before} onChange={(value) => setForm((prev) => ({ ...prev, energy_before: value }))} />
             <Field label="Energy after (1-10)" value={form.energy_after} onChange={(value) => setForm((prev) => ({ ...prev, energy_after: value }))} />

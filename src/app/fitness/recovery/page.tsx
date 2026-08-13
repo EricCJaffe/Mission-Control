@@ -55,7 +55,8 @@ export default async function RecoveryPage() {
       <div className="mb-6">
         <h1 className="text-3xl font-semibold">Recovery</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Track sauna, cold plunge, stretching, and mobility as structured recovery inputs.
+          Track sauna, steam room, jacuzzi, cold plunge, stretching, and mobility as structured
+          recovery inputs.
         </p>
       </div>
       <div className="mb-6">

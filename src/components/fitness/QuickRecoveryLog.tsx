@@ -2,10 +2,24 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Flame, Snowflake, Hand, Footprints, Waves, Check, Loader2, Plus, X } from 'lucide-react';
+import {
+  Flame,
+  Snowflake,
+  Hand,
+  Footprints,
+  Waves,
+  Droplets,
+  Bath,
+  Check,
+  Loader2,
+  Plus,
+  X,
+} from 'lucide-react';
 
 const MODALITIES = [
   { value: 'sauna', label: 'Sauna', Icon: Flame },
+  { value: 'steam_room', label: 'Steam Room', Icon: Droplets },
+  { value: 'jacuzzi', label: 'Jacuzzi', Icon: Bath },
   { value: 'cold_plunge', label: 'Cold Plunge', Icon: Snowflake },
   { value: 'massage', label: 'Massage', Icon: Hand },
   { value: 'compression', label: 'Compression', Icon: Footprints },
@@ -20,11 +34,19 @@ const MODALITIES = [
  * this is where it actually gets logged. Massage and compression have no
  * temperature to record, so the input only appears where it means something.
  */
-const TEMPERATURE_MODALITIES = new Set(['sauna', 'cold_plunge']);
+const TEMPERATURE_MODALITIES = new Set(['sauna', 'steam_room', 'jacuzzi', 'cold_plunge']);
 
-/** Sensible starting points, so the field is one tap rather than typing. */
+/**
+ * Sensible starting points, so the field is one tap rather than typing.
+ *
+ * The heat modalities sit in genuinely different ranges — a steam room runs
+ * near 115F because it is saturated, a jacuzzi is capped around 104F, a dry
+ * sauna goes to 195F. Presets per modality, not one shared list.
+ */
 const TEMP_PRESETS: Record<string, number[]> = {
   sauna: [150, 165, 180, 195],
+  steam_room: [110, 115, 120],
+  jacuzzi: [98, 100, 102, 104],
   cold_plunge: [38, 45, 50, 55],
 };
 

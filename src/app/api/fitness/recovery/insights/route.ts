@@ -61,7 +61,7 @@ Return valid JSON only:
   "summary": "2 short paragraphs on how recovery work is supporting or missing from the plan",
   "priorities": ["2-4 actions"],
   "warnings": ["0-3 watchouts"],
-  "modality_observations": ["3-5 observations about sauna/cold/stretching/mobility patterns"],
+  "modality_observations": ["3-5 observations about heat (sauna/steam/jacuzzi), cold, stretching and mobility patterns"],
   "next_step": "1 sentence recommendation for the next 24-48h"
 }`;
 

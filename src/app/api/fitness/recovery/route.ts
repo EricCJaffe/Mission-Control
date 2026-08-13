@@ -3,7 +3,16 @@ import { supabaseServer } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-const VALID_MODALITIES = ['sauna', 'cold_plunge', 'stretching', 'mobility', 'massage', 'compression'] as const;
+const VALID_MODALITIES = [
+  'sauna',
+  'steam_room',
+  'jacuzzi',
+  'cold_plunge',
+  'stretching',
+  'mobility',
+  'massage',
+  'compression',
+] as const;
 const VALID_MASSAGE_SUBTYPES = ['gun', 'professional', 'self'] as const;
 const VALID_TIMING = ['pre_workout', 'post_workout', 'standalone', 'morning', 'afternoon', 'evening'] as const;
 

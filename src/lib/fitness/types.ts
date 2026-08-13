@@ -307,6 +307,8 @@ export type NutritionTarget = {
 
 export type RecoveryModality =
   | 'sauna'
+  | 'steam_room'
+  | 'jacuzzi'
   | 'cold_plunge'
   | 'stretching'
   | 'mobility'

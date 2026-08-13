@@ -12,6 +12,8 @@ type RecoverySummary = {
 export function summarizeRecoverySessions(sessions: RecoverySession[]): RecoverySummary {
   const modalityCounts: Record<RecoveryModality, number> = {
     sauna: 0,
+    steam_room: 0,
+    jacuzzi: 0,
     cold_plunge: 0,
     stretching: 0,
     mobility: 0,
@@ -59,6 +61,10 @@ export function modalityLabel(modality: RecoveryModality) {
   switch (modality) {
     case 'sauna':
       return 'Sauna';
+    case 'steam_room':
+      return 'Steam Room';
+    case 'jacuzzi':
+      return 'Jacuzzi';
     case 'cold_plunge':
       return 'Cold Plunge';
     case 'stretching':

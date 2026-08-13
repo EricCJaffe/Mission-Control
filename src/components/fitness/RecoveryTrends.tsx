@@ -1,10 +1,12 @@
 'use client';
 
-import { Flame, Snowflake, Hand, Footprints, Waves, Info } from 'lucide-react';
+import { Flame, Snowflake, Hand, Footprints, Waves, Droplets, Bath, Info } from 'lucide-react';
 import type { RecoveryTrends } from '@/lib/fitness/recovery-trends';
 
 const ICONS: Record<string, typeof Flame> = {
   sauna: Flame,
+  steam_room: Droplets,
+  jacuzzi: Bath,
   cold_plunge: Snowflake,
   massage: Hand,
   compression: Footprints,
@@ -14,6 +16,8 @@ const ICONS: Record<string, typeof Flame> = {
 
 const LABELS: Record<string, string> = {
   sauna: 'Sauna',
+  steam_room: 'Steam room',
+  jacuzzi: 'Jacuzzi',
   cold_plunge: 'Cold plunge',
   massage: 'Massage',
   compression: 'Compression',
