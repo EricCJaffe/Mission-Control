@@ -507,7 +507,11 @@ export default function TasksListClient({
             <form className="mt-4 grid gap-4" action="/tasks/update" method="post" data-toast="Task saved">
               <input type="hidden" name="id" value={selectedTask.id} />
               <input type="hidden" name="redirect" value="/tasks" />
-              <div className="grid gap-3 md:grid-cols-2">
+              {/* min-w-0 on the children: a grid item defaults to
+                  min-width:auto, so Safari's native date field — which has a
+                  wide intrinsic size — stretched the track past the dialog
+                  and pushed the form off the right edge. */}
+              <div className="grid min-w-0 gap-3 md:grid-cols-2 [&>div]:min-w-0">
                 <div>
                   <label className="text-xs text-slate-500">Title</label>
                   <input
@@ -582,7 +586,11 @@ export default function TasksListClient({
                 <MarkdownEditor value={editWhy} onChange={setEditWhy} placeholder="Add details…" minHeight="96px" />
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
+              {/* min-w-0 on the children: a grid item defaults to
+                  min-width:auto, so Safari's native date field — which has a
+                  wide intrinsic size — stretched the track past the dialog
+                  and pushed the form off the right edge. */}
+              <div className="grid min-w-0 gap-3 md:grid-cols-2 [&>div]:min-w-0">
 
                 <div>
                   <label className="text-xs text-slate-500">Recurrence Anchor</label>
@@ -596,13 +604,21 @@ export default function TasksListClient({
                 </div>
               </div>
 
-              <label className="inline-flex items-center gap-2 text-xs text-slate-500">
-                <input type="checkbox" name="is_template" checked={editTemplate} onChange={(e) => setEditTemplate(e.target.checked)} />
+              {/* A bare checkbox is a ~13px target. min-h on the label gives
+                  the whole row a thumb-sized hit area. */}
+              <label className="inline-flex min-h-[44px] items-center gap-2 text-sm text-slate-500 sm:min-h-0 sm:text-xs">
+                <input
+                  type="checkbox"
+                  name="is_template"
+                  checked={editTemplate}
+                  onChange={(e) => setEditTemplate(e.target.checked)}
+                  className="h-5 w-5 sm:h-4 sm:w-4"
+                />
                 Save as template
               </label>
               <div>
                 <button
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs"
+                  className="min-h-[40px] rounded-full border border-slate-200 bg-white px-4 text-sm sm:min-h-0 sm:px-3 sm:py-1 sm:text-xs"
                   type="button"
                   onClick={() => {
                     setEditPriority(editPriority === "1" ? "" : "1");
@@ -612,18 +628,31 @@ export default function TasksListClient({
                 </button>
               </div>
 
-              <div className="flex justify-end gap-2">
+              {/* Save is the primary action and sits under the thumb on a
+                  phone; Delete is destructive and gets pushed to the far
+                  left rather than sitting next to it. */}
+              <div className="flex items-center gap-2">
                 <form action="/tasks/delete" method="post" data-toast="Task deleted">
                   <input type="hidden" name="id" value={selectedTask.id} />
                   <input type="hidden" name="redirect" value="/tasks" />
-                  <button className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" type="submit">
+                  <button
+                    className="min-h-[44px] rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm text-rose-700"
+                    type="submit"
+                  >
                     Delete
                   </button>
                 </form>
-                <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" type="button" onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}>
+                <button
+                  className="ml-auto min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                  type="button"
+                  onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement)?.close()}
+                >
                   Cancel
                 </button>
-                <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
+                <button
+                  className="min-h-[44px] rounded-xl bg-blue-700 px-5 text-sm font-medium text-white shadow-sm"
+                  type="submit"
+                >
                   Save
                 </button>
               </div>
@@ -813,7 +842,7 @@ export default function TasksListClient({
               />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid min-w-0 gap-3 sm:grid-cols-3 [&>div]:min-w-0">
               <div className="sm:col-span-2">
                 <label className="text-xs font-semibold text-slate-500" htmlFor="nt-category">Category</label>
                 <select

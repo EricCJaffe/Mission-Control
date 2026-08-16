@@ -52,12 +52,13 @@ export default function RecurrencePicker({
     <div>
       <input type="hidden" name={name} value={serialised} />
 
-      <label className="flex items-center gap-2 text-sm text-slate-700">
+      {/* The label is the tap target, not just the 16px box. */}
+      <label className="flex min-h-[44px] items-center gap-2 text-sm text-slate-700 sm:min-h-0">
         <input
           type="checkbox"
           checked={enabled}
           onChange={(e) => setEnabled(e.target.checked)}
-          className="h-4 w-4 rounded border-slate-300"
+          className="h-5 w-5 rounded border-slate-300 sm:h-4 sm:w-4"
         />
         Repeats
       </label>
@@ -97,7 +98,7 @@ export default function RecurrencePicker({
                     key={d}
                     type="button"
                     onClick={() => toggleDay(d)}
-                    className={`h-8 w-10 rounded-lg text-xs font-semibold transition-colors ${
+                    className={`h-10 w-11 rounded-lg text-xs font-semibold transition-colors sm:h-8 sm:w-10 ${
                       rule.byDay.includes(d)
                         ? 'bg-blue-700 text-white'
                         : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'

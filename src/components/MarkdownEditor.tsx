@@ -105,7 +105,10 @@ export default function MarkdownEditor({
 
   return (
     <div className="overflow-hidden rounded-xl border-2 border-slate-300 bg-white">
-      <div className="flex items-center gap-0.5 border-b-2 border-slate-200 bg-slate-50 px-1.5 py-1">
+      {/* Wraps rather than overflowing: seven icon buttons plus Write/Preview
+          are wider than a phone, and without this the Preview button was cut
+          off past the right edge of the dialog. */}
+      <div className="flex flex-wrap items-center gap-0.5 border-b-2 border-slate-200 bg-slate-50 px-1.5 py-1">
         <button type="button" className={btn} onClick={() => apply('**', '**')} title="Bold (⌘B)" aria-label="Bold">
           <Bold className="h-4 w-4" />
         </button>

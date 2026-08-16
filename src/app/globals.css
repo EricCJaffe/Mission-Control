@@ -200,8 +200,18 @@ body {
 /* Tap targets. Anything interactive should be reachable with a thumb. */
 @media (max-width: 640px) {
   dialog.task-modal {
-    width: calc(100vw - 1.5rem);
-    max-width: calc(100vw - 1.5rem);
+    /* Was 1.5rem, which left 12px a side and read as "not quite fitting".
+       A visible gutter makes it look deliberate. */
+    width: calc(100vw - 2.5rem);
+    max-width: calc(100vw - 2.5rem);
+  }
+
+  /* Nothing inside may push the dialog wider than the dialog. Native date
+     fields and the editor toolbar both have intrinsic widths that beat a
+     percentage width, and the overflow showed as fields running off the
+     right edge. */
+  dialog.task-modal * {
+    max-width: 100%;
   }
 
   /* iOS Safari zooms the whole page in when a focused field's text is under
