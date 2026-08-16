@@ -5,6 +5,7 @@ import MarkdownEditor from "@/components/MarkdownEditor";
 import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import RecurrencePicker from "@/components/tasks/RecurrencePicker";
+import { today } from "@/lib/day";
 
 type Task = {
   id: string;
@@ -75,10 +76,11 @@ function TaskRow({
   busy: boolean;
 }) {
   const isDone = task.status === "done";
-  const overdue =
-    task.due_date &&
-    new Date(task.due_date).getTime() < new Date().setHours(0, 0, 0, 0) &&
-    !isDone;
+  // `new Date("2026-08-16")` is UTC midnight, which is BEFORE local midnight
+  // anywhere west of UTC — so a task due today rendered as "Overdue" all day.
+  // Both sides are 'YYYY-MM-DD', which compares correctly as a string.
+  const overdue = Boolean(task.due_date && task.due_date < today() && !isDone);
+  const dueToday = task.due_date === today();
 
   return (
     // The whole row opens the task. It was previously only the small circle
@@ -93,11 +95,11 @@ function TaskRow({
           onOpen(task);
         }
       }}
-      className={`flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-lg border-2 bg-white px-3 py-2 transition-colors hover:border-slate-400 hover:bg-slate-50 ${
+      className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border-2 bg-white px-3 py-2.5 transition-colors hover:border-slate-400 hover:bg-slate-50 ${
         isDone ? "border-emerald-300 bg-emerald-50/40" : "border-slate-300"
       }`}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         {/* stopPropagation so completing doesn't also open the task. */}
         <button
           type="button"
@@ -108,37 +110,47 @@ function TaskRow({
           }}
           aria-label={isDone ? `Mark ${task.title} not done` : `Mark ${task.title} done`}
           aria-pressed={isDone}
-          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-50 ${
+          // 44px touch target on a phone; the visual circle stays small on
+          // desktop where a cursor is doing the aiming.
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-50 sm:h-6 sm:w-6 ${
             isDone
               ? "border-emerald-600 bg-emerald-600 text-white"
               : "border-slate-300 bg-white text-transparent hover:border-emerald-500 hover:text-emerald-300"
           }`}
         >
-          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+          <Check className="h-5 w-5 sm:h-3.5 sm:w-3.5" strokeWidth={3} />
         </button>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div
-            className={`truncate text-sm font-medium ${
+            className={`text-sm font-medium ${
+              // Truncating to one line on a 390px screen cut most titles in
+              // half. Two lines on a phone, one on the desktop table.
               isDone ? "text-slate-400 line-through" : "text-slate-900"
-            }`}
+            } line-clamp-2 sm:truncate`}
           >
             {task.title}
           </div>
-          <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-slate-500">
+          <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-slate-500">
             <span className="rounded-full bg-slate-100 px-2 py-0.5">{normalizeStatus(task.status)}</span>
             {task.priority && <span className="rounded-full bg-amber-100 px-2 py-0.5">P{task.priority}</span>}
             {task.due_date && (
-              <span className={`rounded-full px-2 py-0.5 ${overdue ? "bg-rose-100 text-rose-700" : "bg-rose-50"}`}>
-                {overdue ? "Overdue" : `Due ${task.due_date}`}
+              <span
+                className={`rounded-full px-2 py-0.5 ${
+                  overdue ? "bg-rose-100 text-rose-700" : dueToday ? "bg-blue-50 text-blue-700" : "bg-rose-50"
+                }`}
+              >
+                {overdue ? "Overdue" : dueToday ? "Due today" : `Due ${task.due_date}`}
               </span>
             )}
             {task.category && <span className="rounded-full bg-blue-50 px-2 py-0.5">{task.category}</span>}
           </div>
-          {task.why && <div className="mt-1 text-xs text-slate-500">{snippet(task.why)}</div>}
+          {task.why && <div className="mt-1 line-clamp-2 text-xs text-slate-500">{snippet(task.why)}</div>}
         </div>
       </div>
+      {/* Hidden on phones: the whole row already opens the task, so this only
+          stole horizontal space from the title and pushed the layout to wrap. */}
       <button
-        className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs hover:bg-slate-100"
+        className="hidden shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs hover:bg-slate-100 sm:block"
         type="button"
         onClick={(event) => {
           event.stopPropagation();
@@ -309,42 +321,48 @@ export default function TasksListClient({
   }
 
   return (
-    <div className="mt-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold">Tasks</div>
-          <div className="text-xs text-slate-500">Manage your tasks and assignments.</div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            className="rounded-xl bg-blue-700 px-3 py-2 text-xs font-medium text-white shadow-sm"
-            type="button"
-            onClick={() => (document.getElementById("new-task-dialog") as HTMLDialogElement | null)?.showModal()}
-          >
-            + New Task
-          </button>
-          <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm" type="button">
-            Manage Lists
-          </button>
-        </div>
+    <div className="mt-4">
+      {/* The page already renders an <h1>Tasks</h1> with this same subtitle
+          directly above. Repeating it cost a phone screen ~60px before a
+          single task was visible. */}
+      <div className="flex items-center gap-2">
+        <button
+          className="min-h-[44px] flex-1 rounded-xl bg-blue-700 px-3 text-sm font-medium text-white shadow-sm sm:flex-none"
+          type="button"
+          onClick={() => (document.getElementById("new-task-dialog") as HTMLDialogElement | null)?.showModal()}
+        >
+          + New Task
+        </button>
+        <button
+          className="hidden min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm sm:block"
+          type="button"
+        >
+          Manage Lists
+        </button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+        {/* These two are placeholders with a single option and no handler.
+            They're kept for desktop but hidden on a phone, where a dead
+            control costs a whole row above the actual list. */}
+        <select className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 sm:block">
           <option>All Projects</option>
         </select>
-        <select className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+        <select className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 sm:block">
           <option>All Tags</option>
         </select>
         <input
-          className="w-56 rounded-xl border border-slate-200 bg-white px-3 py-2"
+          className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-base sm:w-56 sm:text-xs"
           placeholder="Search tasks..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+      {/* Two rows, not one wrapping row. Nine pills at 390px wrapped into a
+          ragged block with a vertical divider stranded mid-line, and every
+          pill was a 26px tap target. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
         {[
           { key: "my", label: "My Tasks" },
           { key: "all", label: "All Tasks" },
@@ -353,16 +371,16 @@ export default function TasksListClient({
         ].map((item) => (
           <button
             key={item.key}
-            className={`rounded-full border px-3 py-1 ${tab === item.key ? "bg-blue-700 text-white" : "bg-white"}`}
+            className={`min-h-[36px] rounded-full border px-3 ${tab === item.key ? "bg-blue-700 text-white" : "bg-white"}`}
             type="button"
             onClick={() => setTab(item.key)}
           >
             {item.label}
           </button>
         ))}
+      </div>
 
-        <span className="mx-1 h-4 w-px bg-slate-300" />
-
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
         {[
           { key: "all", label: "All" },
           { key: "todo", label: "To Do", count: todo.length + pinned.length },
@@ -377,7 +395,7 @@ export default function TasksListClient({
               setStatusFilter(item.key);
               if (item.key === "done") setShowDone(true);
             }}
-            className={`rounded-full border px-3 py-1 ${
+            className={`min-h-[36px] rounded-full border px-3 ${
               statusFilter === item.key ? "bg-blue-700 text-white" : "bg-white"
             }`}
           >
@@ -472,8 +490,10 @@ export default function TasksListClient({
         id="task-detail-dialog"
         className="task-modal w-[92vw] max-w-3xl rounded-2xl border-2 border-slate-300 p-0 shadow-2xl"
       >
-        <div className="max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6">
-          <div className="sticky -top-6 z-10 -mx-6 -mt-6 mb-2 flex items-center justify-between border-b-2 border-slate-200 bg-white px-6 py-4">
+        {/* Padding and the sticky header's negative offsets move together —
+            they're the same number expressed twice. */}
+        <div className="max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-4 sm:p-6">
+          <div className="sticky -top-4 z-10 -mx-4 -mt-4 mb-2 flex items-center justify-between border-b-2 border-slate-200 bg-white px-4 py-3 sm:-top-6 sm:-mx-6 sm:-mt-6 sm:px-6 sm:py-4">
             <h3 className="text-lg font-semibold">Task Details</h3>
             <button
               className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm"

@@ -203,4 +203,15 @@ body {
     width: calc(100vw - 1.5rem);
     max-width: calc(100vw - 1.5rem);
   }
+
+  /* iOS Safari zooms the whole page in when a focused field's text is under
+     16px, and it does not zoom back out on blur — so opening a task on an
+     iPhone left the app scaled up and scrolled sideways. The form is styled
+     text-sm (14px) throughout, so the floor is set here in one place rather
+     than by touching thirty class lists. */
+  dialog.task-modal input,
+  dialog.task-modal select,
+  dialog.task-modal textarea {
+    font-size: 16px;
+  }
 }
