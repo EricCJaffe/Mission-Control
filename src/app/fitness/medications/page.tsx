@@ -1,6 +1,8 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import Link from 'next/link';
 import MedicationsClient from '@/components/fitness/MedicationsClient';
+import PersonSwitcher from '@/components/health/PersonSwitcher';
+import { activePerson } from '@/lib/health/people';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,11 +88,17 @@ export default async function MedicationsPage() {
     .eq('user_id', user.id)
     .single();
 
+  const { person, people } = await activePerson(supabase, user.id);
+
   // Check if medications exist — use select(*) and sort client-side to avoid column name issues
-  let { data: medications } = await supabase
-    .from('medications')
-    .select('*')
-    .eq('user_id', user.id);
+  let medsQuery = supabase.from('medications').select('*').eq('user_id', user.id);
+  if (person) {
+    // Rows written before the person column existed belong to the account holder.
+    medsQuery = person.is_self
+      ? medsQuery.or(`person_id.eq.${person.id},person_id.is.null`)
+      : medsQuery.eq('person_id', person.id);
+  }
+  let { data: medications } = await medsQuery;
 
   // Normalize column names — DB might use name/type or medication_name/medication_type
   if (medications) {
@@ -152,6 +160,7 @@ export default async function MedicationsPage() {
         </div>
         <Link href="/fitness" className="text-xs text-slate-400 hover:text-slate-600">← Dashboard</Link>
       </div>
+      <PersonSwitcher people={people} activeId={person?.id ?? null} />
       <MedicationsClient
         medications={medications ?? []}
         regimenReview={profile?.regimen_ai_review}

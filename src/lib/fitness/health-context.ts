@@ -152,12 +152,33 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+  /*
+   * Person scoping. This context feeds health.md, the morning briefing,
+   * supplement analysis and cardiologist prep — it must describe the ACCOUNT
+   * HOLDER and nobody else. Records for a spouse or child live in the same
+   * account under a different person_id and must never reach it.
+   *
+   * If the people table does not exist yet (migration not applied), selfId is
+   * undefined and every query below behaves exactly as it did before.
+   */
+  const { data: selfPerson } = await supabase
+    .from('people')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('is_self', true)
+    .maybeSingle();
+  const selfId: string | undefined = selfPerson?.id;
+  // Rows predating the person column are the account holder's by definition.
+  const selfFilter = selfId ? `person_id.eq.${selfId},person_id.is.null` : null;
+
   // Load active medications
-  const { data: meds } = await supabase
+  let medsQuery = supabase
     .from('medications')
     .select('*')
     .eq('user_id', userId)
     .eq('active', true);
+  if (selfFilter) medsQuery = medsQuery.or(selfFilter);
+  const { data: meds } = await medsQuery;
 
   const { data: imagingUploads } = await supabase
     .from('health_file_uploads')
@@ -286,12 +307,14 @@ async function loadHealthContext(userId: string): Promise<HealthContext> {
   // which meant every AI surface built from it — health.md updates, supplement
   // analysis, appointment prep — ran without ever seeing a lab value, and
   // wrote "unknown baseline" while hundreds of results sat in the database.
-  const { data: labPanels } = await supabase
+  let panelsQuery = supabase
     .from('lab_panels')
     .select('id,panel_date,lab_name,notes')
     .eq('user_id', userId)
     .order('panel_date', { ascending: false })
     .limit(12);
+  if (selfFilter) panelsQuery = panelsQuery.or(selfFilter);
+  const { data: labPanels } = await panelsQuery;
 
   const panelIds = (labPanels ?? []).map((p) => p.id as string);
   const { data: labResults } = panelIds.length
