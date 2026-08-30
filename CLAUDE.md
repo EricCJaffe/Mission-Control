@@ -85,7 +85,8 @@ Optional:
 
 ### Recently shipped (Aug 3-6)
 - Fitness restructured to five sections: Today / Train / Body / Health / Recovery
-- Prayer module seeded from Eric's 2025 journal — rotation, scheduling, history
+- Prayer module seeded from Eric's 2025 journal — rotation, scheduling, history,
+  an Organise tab for the subject tree, editable headings, and dated reflections
 - Reading-plan pace, streaks, day grid and Catch Me Up
 - Mileage page with sport switcher, named date ranges and charts
 - Personal records show current capability with all-time bests alongside

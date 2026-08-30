@@ -10,6 +10,44 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+- 2026-08-12 10:00 ET — Prayer: an Organise tab, editable headings, and reflections
+  - What changed:
+    - Categories are now rows (`prayer_categories`) instead of a CHECK constraint, so
+      headings can be added, renamed, reordered, retired and deleted from the app.
+      Renaming never touches the stored key, so it cannot detach subjects; deleting a
+      heading always reassigns what was filed under it and reports where it went.
+    - New Organise tab: drag-and-drop reordering within a sibling group (dnd-kit, with
+      keyboard and arrow-button equivalents), an explicit Move control for changing
+      parent or heading, and an inactive/active toggle with a Show inactive view.
+    - `prayer_subjects.position` is now actually written. It defaulted to 0 on every
+      row, so the tree silently fell back to alphabetical and a drag had nothing to
+      persist into; the migration backfills the current on-screen order.
+    - Reflections: `prayer_logs.kind` splits the checkmark ('prayed') from a dated note
+      ('note'). A reflection records where a prayer stands without advancing the
+      rotation or taking it off today's list. Reachable from both Due today and All
+      prayers, with edit/delete, shown as one timeline with the prayed marks.
+  - Bugs fixed along the way:
+    - `/spirit/prayer` did not select `cadence`, `cadence_anchor` or `due_date`, so
+      every request arrived with an undefined cadence. Nothing was ever "scheduled for
+      today" and every repeat control read "Once" regardless of what was stored — the
+      whole scheduling feature was inert. The dashboard had always selected them.
+    - Archiving a subject hid the name but left its requests surfacing in the rotation
+      and on the dashboard, attached to a subject that could no longer be resolved.
+    - `prayed_count` counted every log row; it now counts only 'prayed' entries.
+    - Backdating a prayed mark could drag `last_prayed_at` backwards and make a
+      request fall due again.
+  - Why:
+    - The taxonomy was fixed at migration time and archiving was reachable only from
+      inside the delete confirmation, so there was no way to administer the list.
+      Separately, the only way to say anything about a prayer was to close it out —
+      which is backwards for a journal whose value is the record, not the checkmarks.
+  - Follow-ups:
+    - `prayer_sessions` is still written by nothing.
+    - Reflections do not mirror into `notes` yet.
+    - Cross-group drag is deliberately not supported — moving between parents is an
+      explicit control, because dropping onto a collapsed branch in a 123-subject tree
+      is how people lose track of where someone went.
+
 ## 2026-08-03 → 08-06 — Fitness restructure, prayer/reading modules, and a run of real bugs
 
 ### What changed

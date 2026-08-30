@@ -1,30 +1,34 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CalendarClock, Check, CheckCircle2, ChevronRight, Clock, Flame, History,
-  Loader2, Pencil, Plus, RefreshCw, Sparkles, Trash2, X,
+  Loader2, MessageSquareText, Pencil, Plus, RefreshCw, Sparkles, Trash2, X,
 } from 'lucide-react';
 import {
   CADENCES,
-  CATEGORY_LABELS,
   DEFAULT_CADENCE,
   PRAYER_MODES,
+  activeRequests,
   buildSubjectIndex,
   buildSubjectTree,
   calendarDaysBetween,
+  categoryLabels,
   flattenTree,
   recentAnswers,
   rotationHealth,
   selectTodaysList,
+  type PrayerCategory,
   type PrayerRequest,
   type PrayerSubjectNode,
   type SubjectContext,
 } from '@/lib/spirit/prayer';
+import PrayerHistory from './PrayerHistory';
+import PrayerOrganise from './PrayerOrganise';
 
 type SubjectRow = Omit<PrayerSubjectNode, 'children' | 'requests'>;
-type Tab = 'today' | 'list' | 'answered';
+type Tab = 'today' | 'list' | 'answered' | 'organise';
 
 const CADENCE_LABEL: Record<string, string> = {
   daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', once: 'One time', rotation: 'Rotation',
@@ -37,9 +41,12 @@ const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-slate-5
 export default function PrayerClient({
   subjects,
   requests,
+  categories,
 }: {
+  /** Every subject, including retired ones — Organise has to show those. */
   subjects: SubjectRow[];
   requests: PrayerRequest[];
+  categories: PrayerCategory[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('today');
@@ -51,11 +58,33 @@ export default function PrayerClient({
   // last" change between renders of the same list for no user-visible reason.
   const [now] = useState(() => Date.now());
 
-  const subjectIndex = useMemo(() => buildSubjectIndex(subjects), [subjects]);
+  // Retired subjects are fetched so Organise can show and restore them, but
+  // every praying view works from the live list — and, critically, so do the
+  // requests underneath them. Archiving someone used to hide the name while
+  // leaving their prayers surfacing every morning attached to nothing.
+  const liveSubjects = useMemo(() => subjects.filter((s) => !s.archived), [subjects]);
+  const liveRequests = useMemo(() => activeRequests(requests, subjects), [requests, subjects]);
 
-  const tree = useMemo(() => buildSubjectTree(subjects, requests), [subjects, requests]);
+  const labels = useMemo(() => categoryLabels(categories), [categories]);
+  const subjectIndex = useMemo(() => buildSubjectIndex(liveSubjects), [liveSubjects]);
+
+  const tree = useMemo(
+    () => buildSubjectTree(liveSubjects, liveRequests),
+    [liveSubjects, liveRequests]
+  );
   const flatSubjects = useMemo(() => flattenTree(tree), [tree]);
-  const todays = useMemo(() => selectTodaysList(requests), [requests]);
+  const todays = useMemo(() => selectTodaysList(liveRequests), [liveRequests]);
+
+  /** Outstanding prayers per subject, so Organise can say what retiring one silences. */
+  const requestCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of requests) {
+      if (!r.subject_id) continue;
+      if (r.status !== 'open' && r.status !== 'waiting') continue;
+      counts.set(r.subject_id, (counts.get(r.subject_id) ?? 0) + 1);
+    }
+    return counts;
+  }, [requests]);
   // Prayed items disappear rather than lingering in a done state. `prayed`
   // hides them optimistically so the card goes on tap instead of waiting for
   // the server round trip and refetch.
@@ -71,8 +100,8 @@ export default function PrayerClient({
     [outstanding]
   );
   const doneCount = todays.done.length + prayed.size;
-  const health = useMemo(() => rotationHealth(requests), [requests]);
-  const answers = useMemo(() => recentAnswers(requests, 20), [requests]);
+  const health = useMemo(() => rotationHealth(liveRequests), [liveRequests]);
+  const answers = useMemo(() => recentAnswers(liveRequests, 20), [liveRequests]);
 
   async function call(init: RequestInit & { url?: string }) {
     setError(null);
@@ -104,6 +133,7 @@ export default function PrayerClient({
     { key: 'today', label: 'Due today', count: todaysAll.length },
     { key: 'list', label: 'All prayers', count: health.total },
     { key: 'answered', label: 'Answered', count: answers.length },
+    { key: 'organise', label: 'Organise', count: liveSubjects.length },
   ];
 
   return (
@@ -143,6 +173,7 @@ export default function PrayerClient({
       {adding && (
         <AddPrayerForm
           subjects={flatSubjects}
+          categories={categories}
           onCancel={() => setAdding(false)}
           onSave={async (payload) => {
             const ok = await call({
@@ -208,6 +239,7 @@ export default function PrayerClient({
                           request={r}
                           context={r.subject_id ? subjectIndex.get(r.subject_id) : undefined}
                           subjects={flatSubjects}
+                          labels={labels}
                           busy={busy === r.id}
                           now={now}
                           onPrayed={() => mark(r.id, 'prayed')}
@@ -222,6 +254,7 @@ export default function PrayerClient({
                           onDelete={() =>
                             call({ url: `/api/spirit/prayer?kind=request&id=${r.id}`, method: 'DELETE' })
                           }
+                          onChanged={() => router.refresh()}
                         />
                       ))}
                     </div>
@@ -256,6 +289,7 @@ export default function PrayerClient({
         <SubjectTree
           nodes={tree}
           subjects={flatSubjects}
+          labels={labels}
           onSubjectEdit={(id, patch) =>
             call({
               method: 'PATCH',
@@ -290,6 +324,7 @@ export default function PrayerClient({
               body: JSON.stringify({ kind: 'subject', ...payload }),
             })
           }
+          onChanged={() => router.refresh()}
         />
       )}
 
@@ -310,7 +345,7 @@ export default function PrayerClient({
                   <div className="min-w-0">
                     {r.subject_id && subjectIndex.has(r.subject_id) && (
                       <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                        {CATEGORY_LABELS[subjectIndex.get(r.subject_id)!.category] ??
+                        {labels[subjectIndex.get(r.subject_id)!.category] ??
                           subjectIndex.get(r.subject_id)!.category}
                         <span className="mx-1 text-emerald-400">·</span>
                         {subjectIndex.get(r.subject_id)!.name}
@@ -334,6 +369,57 @@ export default function PrayerClient({
             ))
           )}
         </div>
+      )}
+
+      {tab === 'organise' && (
+        <PrayerOrganise
+          subjects={subjects}
+          categories={categories}
+          requestCounts={requestCounts}
+          onCategoryCreate={(label) =>
+            call({
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ kind: 'category', label }),
+            })
+          }
+          onCategoryEdit={(id, patch) =>
+            call({
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ kind: 'category', id, ...patch }),
+            })
+          }
+          onCategoryDelete={(id, reassignTo) =>
+            call({
+              url: `/api/spirit/prayer?kind=category&id=${id}${
+                reassignTo ? `&reassign_to=${encodeURIComponent(reassignTo)}` : ''
+              }`,
+              method: 'DELETE',
+            })
+          }
+          onSubjectEdit={(id, patch) =>
+            call({
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ kind: 'subject', id, ...patch }),
+            })
+          }
+          onSubjectReorder={(moves) =>
+            call({
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ kind: 'subject-order', moves }),
+            })
+          }
+          onSubjectCreate={(payload) =>
+            call({
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ kind: 'subject', ...payload }),
+            })
+          }
+        />
       )}
     </div>
   );
@@ -364,17 +450,24 @@ function EmptyState({ doneCount }: { doneCount: number }) {
  */
 function AddPrayerForm({
   subjects,
+  categories,
   onCancel,
   onSave,
 }: {
   subjects: Array<PrayerSubjectNode & { depth: number }>;
+  categories: PrayerCategory[];
   onCancel: () => void;
   onSave: (payload: Record<string, unknown>) => Promise<void>;
 }) {
   const [text, setText] = useState('');
   const [subjectId, setSubjectId] = useState('');
   const [newSubject, setNewSubject] = useState('');
-  const [category, setCategory] = useState('other');
+  // Retired headings are not offered for new subjects — that is what retiring
+  // one means — but the fallback keeps the form usable if every one is retired.
+  const openCategories = categories.filter((c) => !c.archived);
+  const [category, setCategory] = useState(
+    () => openCategories.find((c) => c.key === 'other')?.key ?? openCategories[0]?.key ?? 'other'
+  );
   const [mode, setMode] = useState('');
   const [cadence, setCadence] = useState<string>(DEFAULT_CADENCE);
   const [dueDate, setDueDate] = useState('');
@@ -483,8 +576,8 @@ function AddPrayerForm({
               onChange={(e) => setCategory(e.target.value)}
               className={`${FIELD} mt-1`}
             >
-              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
+              {openCategories.map((c) => (
+                <option key={c.key} value={c.key}>{c.label}</option>
               ))}
             </select>
           </div>
@@ -577,22 +670,26 @@ function RequestCard({
   request,
   context,
   subjects,
+  labels,
   busy,
   now,
   onPrayed,
   onAnswered,
   onEdit,
   onDelete,
+  onChanged,
 }: {
   request: PrayerRequest;
   context?: SubjectContext;
   subjects: Array<PrayerSubjectNode & { depth: number }>;
+  labels: Record<string, string>;
   busy: boolean;
   now: number;
   onPrayed: () => void;
   onAnswered: (note: string) => void;
   onEdit: (patch: Record<string, unknown>) => Promise<unknown>;
   onDelete: () => Promise<unknown>;
+  onChanged: () => void;
 }) {
   const [answering, setAnswering] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -604,17 +701,6 @@ function RequestCard({
   const [draftCadence, setDraftCadence] = useState<string>(request.cadence ?? 'rotation');
   const [draftDue, setDraftDue] = useState<string>(request.due_date ?? '');
   const [showLog, setShowLog] = useState(false);
-  const [log, setLog] = useState<Array<{ prayed_at: string; note: string | null }> | null>(null);
-
-  // Fetched on demand — the list would otherwise fire one request per card on
-  // mount to populate a panel almost nobody opens.
-  useEffect(() => {
-    if (!showLog || log !== null) return;
-    fetch(`/api/spirit/prayer?log_for=${request.id}`)
-      .then((r) => (r.ok ? r.json() : { logs: [] }))
-      .then((d) => setLog(d.logs ?? []))
-      .catch(() => setLog([]));
-  }, [showLog, log, request.id]);
 
   // Calendar days, matching the filter that decides whether this is still
   // outstanding. Elapsed hours said "prayed today" for something prayed at
@@ -755,7 +841,7 @@ function RequestCard({
           {context && (
             <p className="flex flex-wrap items-center gap-x-1 text-xs font-semibold text-indigo-600">
               <span className="uppercase tracking-wider text-indigo-500">
-                {CATEGORY_LABELS[context.category] ?? context.category}
+                {labels[context.category] ?? context.category}
               </span>
               {context.ancestors.map((a) => (
                 <span key={a} className="font-normal text-slate-400">
@@ -788,15 +874,27 @@ function RequestCard({
               {since === null ? 'not yet prayed here' : since === 0 ? 'prayed today' : `${since}d since last`}
             </span>
             {request.prayed_count > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowLog((v) => !v)}
-                className="flex items-center gap-0.5 underline decoration-dotted hover:text-slate-600"
-              >
+              <span className="flex items-center gap-0.5">
                 <History className="h-3 w-3" />
                 prayed {request.prayed_count}x
-              </button>
+              </span>
             )}
+            {/* Always reachable, not just once something has been prayed. The
+                first reflection is usually the one worth writing, and it used
+                to be the one there was no way to reach. */}
+            <button
+              type="button"
+              onClick={() => setShowLog((v) => !v)}
+              aria-expanded={showLog}
+              className={`flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-semibold transition-colors ${
+                showLog
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'text-amber-700 hover:bg-amber-50'
+              }`}
+            >
+              <MessageSquareText className="h-3 w-3" />
+              {showLog ? 'Hide history' : 'Reflect'}
+            </button>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -841,30 +939,7 @@ function RequestCard({
         ))}
       </div>
 
-      {showLog && (
-        <div className="mt-2 rounded-xl bg-slate-50 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            Prayed on
-          </p>
-          {log === null ? (
-            <p className="mt-1 text-xs text-slate-400">Loading…</p>
-          ) : log.length === 0 ? (
-            <p className="mt-1 text-xs text-slate-400">No entries yet.</p>
-          ) : (
-            <ul className="mt-1 space-y-0.5">
-              {log.map((entry, i) => (
-                <li key={i} className="text-xs text-slate-600">
-                  {new Date(entry.prayed_at).toLocaleString(undefined, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  })}
-                  {entry.note && <span className="text-slate-400"> — {entry.note}</span>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      {showLog && <PrayerHistory requestId={request.id} onChanged={onChanged} />}
 
       {answering ? (
         <div className="mt-3 space-y-2">
@@ -909,21 +984,25 @@ function RequestCard({
 function SubjectTree({
   nodes,
   subjects,
+  labels,
   onSubjectEdit,
   onSubjectDelete,
   onRequestEdit,
   onRequestDelete,
   onAddRequest,
   onAddSubject,
+  onChanged,
 }: {
   nodes: PrayerSubjectNode[];
   subjects: Array<PrayerSubjectNode & { depth: number }>;
+  labels: Record<string, string>;
   onSubjectEdit: (id: string, patch: Record<string, unknown>) => Promise<unknown>;
   onSubjectDelete: (id: string) => Promise<unknown>;
   onRequestEdit: (id: string, patch: Record<string, unknown>) => Promise<unknown>;
   onRequestDelete: (id: string) => Promise<unknown>;
   onAddRequest: (subjectId: string, text: string) => Promise<unknown>;
   onAddSubject: (payload: Record<string, unknown>) => Promise<unknown>;
+  onChanged: () => void;
 }) {
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [newSubjectIn, setNewSubjectIn] = useState<string | null>(null);
@@ -944,7 +1023,7 @@ function SubjectTree({
         <details key={category} className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
           <summary className="flex cursor-pointer items-center gap-2 p-4 text-sm font-semibold text-slate-900">
             <ChevronRight className="h-4 w-4 text-slate-400" />
-            {CATEGORY_LABELS[category] ?? category}
+            {labels[category] ?? category}
             <span className="text-xs font-normal text-slate-400">{flattenTree(roots).length}</span>
           </summary>
           <div className="border-t border-slate-100 p-3">
@@ -963,6 +1042,7 @@ function SubjectTree({
                 onRequestDelete={onRequestDelete}
                 onAddRequest={onAddRequest}
                 onAddSubject={onAddSubject}
+                onChanged={onChanged}
               />
             ))}
             <button
@@ -970,7 +1050,7 @@ function SubjectTree({
               onClick={() => setNewSubjectIn(newSubjectIn === `root:${category}` ? null : `root:${category}`)}
               className="mt-2 flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
             >
-              <Plus className="h-3.5 w-3.5" /> Add to {CATEGORY_LABELS[category] ?? category}
+              <Plus className="h-3.5 w-3.5" /> Add to {labels[category] ?? category}
             </button>
             {newSubjectIn === `root:${category}` && (
               <InlineInput
@@ -1002,6 +1082,7 @@ function SubjectRowView({
   onRequestDelete,
   onAddRequest,
   onAddSubject,
+  onChanged,
 }: {
   node: PrayerSubjectNode & { depth: number };
   subjects: Array<PrayerSubjectNode & { depth: number }>;
@@ -1015,6 +1096,7 @@ function SubjectRowView({
   onRequestDelete: (id: string) => Promise<unknown>;
   onAddRequest: (subjectId: string, text: string) => Promise<unknown>;
   onAddSubject: (payload: Record<string, unknown>) => Promise<unknown>;
+  onChanged: () => void;
 }) {
   const [renaming, setRenaming] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -1109,6 +1191,7 @@ function SubjectRowView({
           subjects={subjects}
           onEdit={(patch) => onRequestEdit(r.id, patch)}
           onDelete={() => onRequestDelete(r.id)}
+          onChanged={onChanged}
         />
       ))}
 
@@ -1142,14 +1225,17 @@ function RequestLine({
   subjects,
   onEdit,
   onDelete,
+  onChanged,
 }: {
   request: PrayerRequest;
   subjects: Array<PrayerSubjectNode & { depth: number }>;
   onEdit: (patch: Record<string, unknown>) => Promise<unknown>;
   onDelete: () => Promise<unknown>;
+  onChanged: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   if (editing) {
     return (
@@ -1203,30 +1289,53 @@ function RequestLine({
   }
 
   return (
-    <div className="group/req flex items-start gap-1">
-      <Plus className="mt-1 h-3 w-3 shrink-0 text-indigo-400" />
-      <p className="flex-1 text-xs text-slate-600">
-        {request.urgent && <span className="mr-1 font-bold text-rose-600">!</span>}
-        {request.body}
-      </p>
-      <select
-        value={request.cadence ?? 'once'}
-        onChange={(e) => onEdit({ cadence: e.target.value })}
-        aria-label="How often to pray this"
-        className="shrink-0 rounded border border-slate-200 bg-white px-1 py-0.5 text-[10px] font-semibold text-slate-500"
-      >
-        {CADENCES.map((c) => (
-          <option key={c.key} value={c.key}>{c.label}</option>
-        ))}
-      </select>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        aria-label="Edit request"
-        className="shrink-0 opacity-0 transition-opacity group-hover/req:opacity-100 focus:opacity-100"
-      >
-        <Pencil className="h-3 w-3 text-slate-400 hover:text-slate-600" />
-      </button>
+    <div>
+      <div className="group/req flex items-start gap-1">
+        <Plus className="mt-1 h-3 w-3 shrink-0 text-indigo-400" />
+        <p className="flex-1 text-xs text-slate-600">
+          {request.urgent && <span className="mr-1 font-bold text-rose-600">!</span>}
+          {request.body}
+        </p>
+        {/* Reflections belong here as much as on Due today. Browsing the whole
+            list is exactly when you notice something worth writing down about
+            a prayer that is not due for another fortnight. */}
+        <button
+          type="button"
+          onClick={() => setShowHistory((v) => !v)}
+          aria-label={showHistory ? 'Hide history' : 'Reflect on this prayer'}
+          aria-expanded={showHistory}
+          title="Reflections and history"
+          className={`flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-semibold transition-colors ${
+            showHistory ? 'bg-amber-100 text-amber-800' : 'text-amber-700 hover:bg-amber-50'
+          }`}
+        >
+          <MessageSquareText className="h-3 w-3" />
+          {request.prayed_count > 0 ? request.prayed_count : ''}
+        </button>
+        <select
+          value={request.cadence ?? 'once'}
+          onChange={(e) => onEdit({ cadence: e.target.value })}
+          aria-label="How often to pray this"
+          className="shrink-0 rounded border border-slate-200 bg-white px-1 py-0.5 text-[10px] font-semibold text-slate-500"
+        >
+          {CADENCES.map((c) => (
+            <option key={c.key} value={c.key}>{c.label}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          aria-label="Edit request"
+          className="shrink-0 opacity-0 transition-opacity group-hover/req:opacity-100 focus:opacity-100"
+        >
+          <Pencil className="h-3 w-3 text-slate-400 hover:text-slate-600" />
+        </button>
+      </div>
+      {showHistory && (
+        <div className="ml-4">
+          <PrayerHistory requestId={request.id} onChanged={onChanged} />
+        </div>
+      )}
     </div>
   );
 }
