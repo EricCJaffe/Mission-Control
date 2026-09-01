@@ -368,3 +368,32 @@ open decisions and deferred work, roughly in the order worth doing.
 - `.claude/` stays local-only and untracked.
 - The stale checkout under `/Users/ericjaffe/Documents/Digital Missions Project` is not the active synced repo.
 - Active repo for ongoing work is `~/Mission-Control`.
+
+## Open at 2026-09-01 session close
+
+### Blocking the shared-database migration
+- [ ] Supply session-pooler connection strings: `~/.config/supabase/mission-control.dburl`
+      and `~/.config/supabase/shared.dburl`, both `chmod 600`. Session pooler, not
+      direct (IPv6-only) and not transaction pooler (cannot dump a schema).
+- [ ] Decide the isolation trade-off — see `docs/DECISIONS/0002-mission-control-into-shared-database.md`.
+
+### Decisions waiting on Eric (not bugs)
+- [ ] **Shilo's access.** She is in no household and sees zero of Eric's data.
+      Sharing now works end to end; this is one action, not a fix.
+- [ ] **BusinessOSv2 / CoachOS Supabase projects.** Reported as empty; they are
+      not — each holds 9 uploaded documents and task attachments. Pull the files
+      down before deleting. TestProject was verifiably empty and was deleted.
+- [ ] **Jobber transport rule** (Microsoft 365, Exchange admin → Mail flow → Rules).
+      "Jobber Payments" silently deletes every mail from `noreply@txn.getjobber.com`
+      to any `@foundationstoneadvisors.com` recipient, notifying neither party.
+      It is working as written, but it is swallowing payment confirmations.
+
+### Security follow-ups
+- [ ] Rotate three credentials per `~/BibleOS/docs/CREDENTIAL-ROTATION.md`.
+      Priority order: Supabase access token (owner-scoped over all 17 projects),
+      then the Vercel PAT, then GoDaddy. Verified: no GitHub Actions secret, cron
+      job or LaunchAgent consumes any of them, so rotation breaks no automation.
+- [ ] Shilo's password — deferred by Eric until after her training.
+- [ ] **BibleOS has no git remote.** 13 commits exist only on this Mac, including
+      the waitlist, dashboard, both `core` migrations and the rotation runbook.
+      Needs a private GitHub repo.

@@ -47,3 +47,24 @@
 - Rebuilt calendar module with month/week/day views and planned workout scheduling.
 - Shipped `health.md` auto-updater with triggers, approval workflow, and version control.
 - Added richer metric dashboards, RHR/HRV insight pages, and dashboard UI polish.
+
+## 2026-09-01 — FinanceOS shipped, Mission Control unchanged
+
+Seven changes went to production on `finance.bibleos.app`. Nothing shipped for
+Mission Control; only its migration plan was written.
+
+- Estate checklist derives from real data instead of six hardcoded strings
+- Digital assets consolidated onto the Assets page, one editor not two
+- Per-user module visibility, so a menu of 40 items can be cut down per person
+- Stale-chunk recovery — a deploy no longer breaks an already-open tab
+- Trusted contacts can be edited
+- Sharing actually shares: ported from the orphaned `shared_access` to
+  `core.access_grants`
+- Removed a redundant `created_by = me` filter that hid shared rows RLS allowed
+
+Database, shared project (`uivawtdmxqutqelwibra`):
+- `users.hidden_modules`, admin read/update policies, and a trigger so
+  visibility is assigned rather than self-chosen
+- `core` grant hardening: default privileges were granting every signed-in user
+  full DML on every new `core` table. RLS denied it, so nothing leaked, but RLS
+  was the only lock. Disarmed for future tables; unusable grants dropped.

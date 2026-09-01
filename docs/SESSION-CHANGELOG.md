@@ -10,6 +10,83 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-08-10 — DJ Shipley functional strength template
+
+### What changed
+Added `scripts/seed-shipley-template.ts`, seeding one `hybrid` template,
+"DJ Shipley - Functional Strength", transcribed from a whiteboard photo:
+10-minute warm-up, trap-bar deadlift 5x5, pull-ups 5 sets to near failure,
+walking lunges 3x20 steps, a five-round conditioning circuit for time, and a
+20-30 minute ruck finisher. Created five exercises the library was missing:
+Burpee, Air Squat, Farmer's Carry, Ruck (Deadlift (Trap Bar) already existed).
+
+### Why the shape is what it is
+`workout_templates.structure` only speaks `standalone` and `superset`. There is
+no for-time block, no warm-up phase and no finisher, so:
+- warm-up and finisher are standalone blocks with a single set and the real
+  prescription in the block notes
+- the circuit is a superset at zero rest, matching the "Continuous block"
+  convention already used in `seed-strength-templates.ts`
+- `set_pattern: [working x5]` pins the circuit to five rounds; without it the
+  logger applies `DEFAULT_SET_PATTERN` and inserts warm-ups and a drop set into
+  a conditioning piece
+
+Two prescriptions the schema cannot hold, recorded in notes instead: the
+farmer's carry is **100 meters** stored as `target_reps: 100` (there is no
+distance field), and pull-ups carry no rep target because the source gives
+none. The 70 lb carry weight is the board's Rx, not an estimate.
+
+### Follow-ups
+- Editing this template in TemplateBuilderClient may drop the `set_pattern`
+  escape hatch, since it is read but not part of `WorkoutStructureItem`.
+
+---
+
+## 2026-08-10 — Standards: fixed protocols, retested and scored
+
+### What changed
+New module at `/fitness/standards`, linked from the Train hub.
+
+- Migration `20260810120000_fitness_standards.sql` adds `fitness_standards`
+  (the protocol, how it is scored, tiers, retest cadence, optional link to a
+  template) and `standard_attempts` (one row per retest: score, bodyweight
+  snapshot, Rx/scaled, conditions, notes). Both RLS-owned.
+- `src/lib/fitness/standards.ts` holds the scoring rules — direction-aware
+  comparison, tier lookup, bests, trend, retest status, and mm:ss parsing.
+- `scripts/seed-fitness-standards.ts` seeds nine: Murph, the Shipley
+  conditioning circuit, trap-bar deadlift 1RM, max unbroken pull-ups,
+  push-ups in 2 min, plank hold, 1 mile, 5K, 3 mile ruck.
+- API at `/api/fitness/standards` (personal fields only) and
+  `/api/fitness/standards/attempts` (POST/DELETE).
+
+### Why it is not personal_records or a template
+`personal_records` is movement-level and derived from whatever got logged, so
+two "max pull-ups" rows are not necessarily the same test. `workout_templates`
+say what to do but carry no score. A standard is protocol + score + cadence,
+which is a third thing.
+
+### Three rules baked in
+- **Direction is per-standard.** Time goes down, reps and load go up. Nothing
+  assumes an improvement direction.
+- **Scaled never sets a best.** Scaled attempts chart and are kept, but cannot
+  beat an Rx mark — different test.
+- **Ungraded stays ungraded.** Only 2 of the 9 ship with tiers: Murph
+  (community brackets, labelled as such) and the deadlift ratio (relative
+  strength convention, noted as generous for trap bar). The other 7 have no
+  published table, so they show mark, trend and target and no grade. A CHECK
+  constraint refuses tiers without a `tier_source`, so a grade can never appear
+  without provenance. Bodyweight-relative lifts with no weigh-in show no
+  ratio rather than grading the raw pounds.
+
+### Follow-ups
+- Push-ups in 2 min and the runs would grade properly against the Navy PRT or
+  ACFT age-bracket tables — drop the real numbers in and they self-grade.
+- Attempts are entered by hand. Nothing yet derives a Murph time or a 5K from
+  an existing workout log, though `standard_attempts.workout_log_id` is there
+  for it.
+
+---
+
 ## 2026-08-03 → 08-06 — Fitness restructure, prayer/reading modules, and a run of real bugs
 
 ### What changed
@@ -182,3 +259,38 @@ made the app quietly wrong rather than visibly broken — which is worse.
     - Genetic and imaging data needed to affect the broader decision-making system, not stay isolated.
   - Follow-ups:
     - Keep doctor-prep prompts aligned with newer health context additions.
+
+- 2026-09-01 — Shared-database groundwork, FinanceOS fixes, and a migration plan
+  - What changed:
+    - Wrote `docs/DECISIONS/0002-mission-control-into-shared-database.md`: the
+      plan to move this project's data into a `mission` schema inside the shared
+      Supabase project (`uivawtdmxqutqelwibra`) alongside FinanceOS and BibleOS.
+      Grounded in a survey of both databases, not assumptions.
+    - Nothing in this repo's data or schema was touched. Mission Control still
+      runs entirely on `npxirjaawlpubrtjovpy`.
+  - Why:
+    - One login and one bill, but the only reason that is about capability is
+      that health and financial data become queryable together.
+  - The three findings that shape the plan:
+    - **Zero foreign keys reference `auth.users`** — the usual hardest part of
+      this migration does not exist here.
+    - **One user, so identity is a single UUID substitution** across the 79
+      tables carrying `user_id`: `96982dec-d682-4dd0-9498-1d2d226dab83` here
+      becomes `e22a6d93-9b90-444c-a77c-8c731424a92f` there. Miss a table and it
+      fails silently — RLS filters on `user_id`, so a stale UUID reads as empty
+      rather than erroring.
+    - **Only `tasks` collides by name**, and a separate schema moots it.
+  - Blocked on:
+    - Session-pooler connection strings for both projects, in
+      `~/.config/supabase/mission-control.dburl` and `~/.config/supabase/shared.dburl`
+      (600). `pg_dump` cannot run without them and the Management API cannot
+      dump a schema.
+    - Eric's decision on the isolation trade-off: today a FinanceOS mistake
+      cannot reach lab results; afterwards it can.
+  - Follow-ups:
+    - Phases 1-4 are reversible by `drop schema mission cascade`. Do not begin
+      Phase 5 (app cutover) without confirming with Eric.
+    - Uncommitted in this repo at session close: the fitness **standards**
+      module (migration, API route, page, client, lib, two seed scripts) plus
+      edits to `CLAUDE.md`, this changelog and the train page. Pre-existing work
+      from an earlier sitting, deliberately left uncommitted.
