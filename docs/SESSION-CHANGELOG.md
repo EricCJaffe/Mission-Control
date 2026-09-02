@@ -262,7 +262,8 @@ made the app quietly wrong rather than visibly broken — which is worse.
 
 - 2026-09-01 — Shared-database groundwork, FinanceOS fixes, and a migration plan
   - What changed:
-    - Wrote `docs/DECISIONS/0002-mission-control-into-shared-database.md`: the
+    - Wrote the migration ADR (never reached this repo; reconstructed 2026-09-02 as
+      `docs/DECISIONS/0010-mission-control-into-shared-database.md`): the
       plan to move this project's data into a `mission` schema inside the shared
       Supabase project (`uivawtdmxqutqelwibra`) alongside FinanceOS and BibleOS.
       Grounded in a survey of both databases, not assumptions.
@@ -294,3 +295,37 @@ made the app quietly wrong rather than visibly broken — which is worse.
       module (migration, API route, page, client, lib, two seed scripts) plus
       edits to `CLAUDE.md`, this changelog and the train page. Pre-existing work
       from an earlier sitting, deliberately left uncommitted.
+
+- 2026-09-02 — Migration ADR reconstructed, and the survey it rests on corrected
+  - What changed:
+    - Added `docs/DECISIONS/0010-mission-control-into-shared-database.md`. The
+      2026-09-01 ADR was written on the Mac and never reached this repo; only the
+      entry above survived, and the filename it claimed (`0002-…`) collides with
+      `0002-notes-vault-export.md`. Rebuilt from that summary plus a fresh survey
+      of both live databases.
+    - Fixed the stale ADR references in `docs/TASKS.md` and the entry above, and
+      indexed the new file in `docs/DECISIONS/README.md`.
+    - No schema or data change. Mission Control still runs entirely on
+      `npxirjaawlpubrtjovpy`; the shared project has no `mission` schema.
+  - The survey contradicted the old summary in four places:
+    - **"Zero foreign keys reference `auth.users`" is wrong.** There are **101 FK
+      constraints across 97 of 108 public tables**. The claim was true of
+      FinanceOS, which keys off `created_by` text, and appears to have been
+      carried across. Net effect is favourable — the FKs make a wrong UUID raise
+      a constraint violation instead of reading as empty — but Phase 2 gains work.
+    - **The substitution covers 97 tables, not 79.** 79 carry `user_id`; the owner
+      column is `org_id` on 21 more and `created_by` on 5, plus `profiles.id`.
+    - **Storage was missing from the plan.** `health-files` holds 45 objects whose
+      paths embed the old UUID (ADR 0006), so every path must be rewritten on copy
+      or the owner cannot read their own files.
+    - **`vector` was missing.** The shared project lacks the extension; five
+      columns depend on it.
+  - Unchanged and still true:
+    - Only `tasks` collides by name between the two `public` schemas, and a
+      separate schema moots it. Verified by comparing all 108 against all 53.
+    - One user, so identity is one substitution: `96982dec-d682-4dd0-9498-1d2d226dab83`
+      here becomes `e22a6d93-9b90-444c-a77c-8c731424a92f` there.
+    - Phases 1-4 are reversible by `drop schema mission cascade`. Phase 5 is not.
+  - Blocked on:
+    - The two session-pooler `.dburl` files. `~/.config/supabase/` does not exist.
+    - Eric's decision on the isolation trade-off.

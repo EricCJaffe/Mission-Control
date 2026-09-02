@@ -25,3 +25,4 @@ Use lightweight ADRs to capture high-impact decisions and their rationale.
 - `0007-fitness-module-cardiac-aware-architecture.md`
 - `0008-tiptap-rich-text-editor.md`
 - `0009-react-19-compiler.md`
+- `0010-mission-control-into-shared-database.md`

@@ -375,7 +375,7 @@ open decisions and deferred work, roughly in the order worth doing.
 - [ ] Supply session-pooler connection strings: `~/.config/supabase/mission-control.dburl`
       and `~/.config/supabase/shared.dburl`, both `chmod 600`. Session pooler, not
       direct (IPv6-only) and not transaction pooler (cannot dump a schema).
-- [ ] Decide the isolation trade-off — see `docs/DECISIONS/0002-mission-control-into-shared-database.md`.
+- [ ] Decide the isolation trade-off — see `docs/DECISIONS/0010-mission-control-into-shared-database.md`.
 
 ### Decisions waiting on Eric (not bugs)
 - [ ] **Shilo's access.** She is in no household and sees zero of Eric's data.
