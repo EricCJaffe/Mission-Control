@@ -205,9 +205,25 @@ five columns need it.
 
 - [ ] **Session-pooler connection strings**, both `chmod 600`:
       `~/.config/supabase/mission-control.dburl` and `~/.config/supabase/shared.dburl`.
-      Session pooler specifically — direct is IPv6-only and the transaction pooler
-      cannot dump a schema. The Management API cannot dump one either. Neither file
-      exists yet; `~/.config/supabase/` has not been created.
+      Session pooler specifically — direct is IPv6-only from this box and the
+      transaction pooler (6543) cannot dump a schema. The Management API cannot
+      dump one either. Neither file exists yet.
+
+      Run `~/.config/devenv/supabase-dburl-setup.sh` from a terminal; it writes
+      both files and verifies each with `psql`. Everything but the password is
+      already known, taken from each project's `supabase/.temp/pooler-url`:
+
+      | | user | host | port |
+      |---|---|---|---|
+      | Mission Control | `postgres.npxirjaawlpubrtjovpy` | `aws-0-us-west-2.pooler.supabase.com` | 5432 |
+      | Shared | `postgres.uivawtdmxqutqelwibra` | `aws-1-us-east-1.pooler.supabase.com` | 5432 |
+
+      **The database password cannot be retrieved by anyone** — Supabase stores it
+      hashed, and `GET /v1/projects/{ref}/config/database/pooler` returns the
+      literal string `[YOUR-PASSWORD]` in place of it. It is either known already
+      or it must be reset at Project Settings → Database. Resetting is safe:
+      no environment variable on `mission-control`, `myfinancialplanner-ai` or
+      `bibleos` carries a DB connection string, so nothing deployed depends on it.
 - [x] ~~Eric's decision on the isolation trade-off~~ — **accepted 2026-09-02**,
       see Consequences.
 
