@@ -4,7 +4,9 @@
 2026-09-02
 
 ## Status
-Proposed — blocked. Do not begin without the two items under "Blocked on".
+Accepted 2026-09-02 — the isolation trade-off is decided. Execution is still
+blocked on the connection strings under "Blocked on"; Phase 5 still needs a
+separate confirmation from Eric before the app cuts over.
 
 > **Reconstruction note.** A version of this decision was written on 2026-09-01 as
 > `docs/DECISIONS/0002-mission-control-into-shared-database.md`. That file never
@@ -177,10 +179,20 @@ five columns need it.
 ## Consequences
 
 - Health and financial data become queryable together — the point of the exercise.
-- **The isolation the current split provides is given up.** Today a FinanceOS
-  mistake cannot reach lab results; afterwards it can, and the service-role key in
-  either app acts as every user at once. This is the trade-off Eric has to accept
-  explicitly; it is not reversible by any technical control after the fact.
+- **The isolation the current split provides is given up — accepted 2026-09-02.**
+  Today a FinanceOS mistake cannot reach lab results; afterwards it can, and the
+  service-role key in either app acts as every user at once. Eric accepted this
+  deliberately: cross-pollination across apps, keyed to one user, is the entire
+  point of BibleOS — a single view of his whole life, where health, finances and
+  practice can be read together. Isolation was never the goal; it was a side
+  effect of three projects growing up separately.
+
+  What this does **not** license: the boundary that still matters is between
+  *users*, not between apps. Every table keeps RLS keyed to `auth.uid()`, and the
+  shared project now holds three users, not one. The service-role key is the
+  hazard — it acts as every user at once and bypasses RLS entirely, so a
+  service-role query that forgets to filter by `user_id` now reaches Shilo's rows
+  as well as Eric's. Filter by `user_id` yourself; nothing else will.
 - One project, one bill, one region. Mission Control leaves `us-west-2`, which
   slightly increases latency from the east coast rather than decreasing it.
 - Migration files in `supabase/migrations/` become `mission`-schema migrations from
@@ -196,7 +208,8 @@ five columns need it.
       Session pooler specifically — direct is IPv6-only and the transaction pooler
       cannot dump a schema. The Management API cannot dump one either. Neither file
       exists yet; `~/.config/supabase/` has not been created.
-- [ ] **Eric's decision on the isolation trade-off**, above under Consequences.
+- [x] ~~Eric's decision on the isolation trade-off~~ — **accepted 2026-09-02**,
+      see Consequences.
 
 ## Links
 - `~/dev/BibleOS/docs/decisions/0001-one-database-uuid-identity.md` — the parent decision

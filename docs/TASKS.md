@@ -375,7 +375,10 @@ open decisions and deferred work, roughly in the order worth doing.
 - [ ] Supply session-pooler connection strings: `~/.config/supabase/mission-control.dburl`
       and `~/.config/supabase/shared.dburl`, both `chmod 600`. Session pooler, not
       direct (IPv6-only) and not transaction pooler (cannot dump a schema).
-- [ ] Decide the isolation trade-off — see `docs/DECISIONS/0010-mission-control-into-shared-database.md`.
+- [x] Decide the isolation trade-off — **accepted 2026-09-02.** Cross-app data
+      sharing keyed to one user is the point of BibleOS, not a risk to mitigate.
+      See `docs/DECISIONS/0010-mission-control-into-shared-database.md`.
+      Still open: Phase 5 (app cutover) needs its own confirmation before it runs.
 
 ### Decisions waiting on Eric (not bugs)
 - [ ] **Shilo's access.** She is in no household and sees zero of Eric's data.

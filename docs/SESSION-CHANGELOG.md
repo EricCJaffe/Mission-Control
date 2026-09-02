@@ -326,6 +326,15 @@ made the app quietly wrong rather than visibly broken — which is worse.
     - One user, so identity is one substitution: `96982dec-d682-4dd0-9498-1d2d226dab83`
       here becomes `e22a6d93-9b90-444c-a77c-8c731424a92f` there.
     - Phases 1-4 are reversible by `drop schema mission cascade`. Phase 5 is not.
+  - Decided:
+    - **The isolation trade-off is accepted.** Cross-pollination across apps,
+      keyed to one user, is the point of BibleOS — one view of a whole life — not
+      a risk to be mitigated. ADR 0010 moves to Accepted. The boundary that still
+      matters is between users, not apps: the shared project holds three users,
+      so a service-role query that forgets `user_id` now reaches more than Eric's
+      rows.
+    - Confirmed Vercel deploys this project on push to `main` (`githubDeployment`
+      on the `5048fe2` production build), unlike BibleOS which ships by CLI.
   - Blocked on:
     - The two session-pooler `.dburl` files. `~/.config/supabase/` does not exist.
-    - Eric's decision on the isolation trade-off.
+    - Phase 5 (app cutover) still needs its own confirmation before it runs.
