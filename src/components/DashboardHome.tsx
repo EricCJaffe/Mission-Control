@@ -517,7 +517,7 @@ export default async function DashboardHome() {
           value={rhr?.resting_hr ?? null}
           unit="bpm"
           asOf={rhr?.metric_date ?? null}
-          href="/fitness/rhr"
+          href="/fitness/metrics/rhr"
         />
         <VitalCard
           icon={<Activity className="h-4 w-4 text-violet-500" />}
@@ -525,7 +525,7 @@ export default async function DashboardHome() {
           value={hrv?.hrv_ms ?? null}
           unit="ms"
           asOf={hrv?.metric_date ?? null}
-          href="/fitness/hrv"
+          href="/fitness/metrics/hrv"
         />
         <VitalCard
           icon={<Gauge className="h-4 w-4 text-sky-500" />}
