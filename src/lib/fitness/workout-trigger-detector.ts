@@ -8,6 +8,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { DB_SCHEMA } from '@/lib/supabase/schema'
 
 export type WorkoutPattern = {
   pattern_type: 'training_load_spike' | 'exercise_intolerance' | 'cardiac_anomaly';
@@ -22,7 +23,7 @@ export class WorkoutTriggerDetector {
   constructor(supabaseUrl?: string, supabaseKey?: string) {
     const url = supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const key = supabaseKey || process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    this.supabase = createClient(url, key);
+    this.supabase = createClient(url, key, { db: { schema: DB_SCHEMA } });
   }
 
   /**

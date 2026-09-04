@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { decryptWithingsTokens, encryptWithingsTokens } from '@/lib/fitness/withings-tokens';
 import { WithingsSyncService } from '@/lib/fitness/withings-sync-service';
+import { DB_SCHEMA } from '@/lib/supabase/schema'
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -47,6 +48,7 @@ export async function GET(req: Request) {
   }
 
   const supabase = createClient(supabaseUrl, serviceKey, {
+    db: { schema: DB_SCHEMA },
     auth: { persistSession: false, autoRefreshToken: false },
   });
 

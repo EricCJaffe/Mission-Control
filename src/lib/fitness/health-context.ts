@@ -5,6 +5,7 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { summariseLabs, formatLabsForPrompt, type LabSummary } from './lab-context';
+import { DB_SCHEMA } from '@/lib/supabase/schema'
 
 export type FunctionType =
   | 'morning_briefing'
@@ -122,6 +123,7 @@ async function contextClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (url && serviceKey) {
     return createClient(url, serviceKey, {
+      db: { schema: DB_SCHEMA },
       auth: { persistSession: false, autoRefreshToken: false },
     });
   }

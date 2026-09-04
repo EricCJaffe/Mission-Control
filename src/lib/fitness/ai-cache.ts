@@ -1,4 +1,5 @@
 // ============================================================
+import type { MissionClient } from '@/lib/supabase/schema'
 // AI OUTPUT CACHE
 //
 // Thin wrapper over the ai_output_cache table. Exists so AI routes can follow
@@ -15,7 +16,6 @@
 // read another user's cache by passing a different uuid.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type CacheKey = 'morning_briefing' | 'metrics_analytics';
 
@@ -30,7 +30,7 @@ export type CachedOutput<T> = {
  * Returns found:false rather than throwing when nothing has been generated yet.
  */
 export async function readAiCache<T>(
-  supabase: SupabaseClient,
+  supabase: MissionClient,
   userId: string,
   key: CacheKey
 ): Promise<CachedOutput<T>> {
@@ -64,7 +64,7 @@ export async function readAiCache<T>(
  * result either way.
  */
 export async function writeAiCache<T>(
-  supabase: SupabaseClient,
+  supabase: MissionClient,
   userId: string,
   key: CacheKey,
   payload: T

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { timingSafeEqual } from 'crypto';
 import {
   normalizeApplePayload,
   type HaePayload,
   type NormalizedAppleHealth,
 } from '@/lib/fitness/apple-health-import';
+import { DB_SCHEMA } from '@/lib/supabase/schema'
+import type { MissionClient } from '@/lib/supabase/schema'
 
 /**
  * Ingest endpoint for Health Auto Export running on the phone.
@@ -81,7 +83,7 @@ type Row = Record<string, unknown>;
  * that every row in it actually supplies.
  */
 async function upsertGrouped(
-  supabase: SupabaseClient,
+  supabase: MissionClient,
   table: string,
   rows: Row[],
   onConflict: string
@@ -200,6 +202,7 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createClient(supabaseUrl, serviceKey, {
+    db: { schema: DB_SCHEMA },
     auth: { persistSession: false, autoRefreshToken: false },
   });
 

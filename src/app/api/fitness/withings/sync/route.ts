@@ -6,6 +6,7 @@ import { WithingsSyncService, type WithingsSyncMode } from '@/lib/fitness/within
 import { HealthDocUpdater, type UpdateTrigger } from '@/lib/fitness/health-doc-updater';
 import { MetricShiftDetector } from '@/lib/fitness/metric-shift-detector';
 import type { SectionUpdate } from '@/lib/fitness/health-doc-updater';
+import { DB_SCHEMA } from '@/lib/supabase/schema'
 
 export const dynamic = 'force-dynamic';
 
@@ -207,7 +208,8 @@ async function triggerHealthDocFollowThrough(
 
   const serviceSupabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { db: { schema: DB_SCHEMA } }
   );
   const { data: recentUpdates } = await serviceSupabase
     .from('health_doc_pending_updates')

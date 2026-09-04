@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import { buildAISystemPrompt } from './health-context';
 import { callOpenAI } from '@/lib/openai';
 import { diffLines } from 'diff';
+import { DB_SCHEMA } from '@/lib/supabase/schema'
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
 
@@ -76,7 +77,7 @@ export class HealthDocUpdater {
    * Get Supabase client
    */
   private getClient() {
-    return createClient(this.supabaseUrl, this.supabaseKey);
+    return createClient(this.supabaseUrl, this.supabaseKey, { db: { schema: DB_SCHEMA } });
   }
 
   /**

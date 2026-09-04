@@ -6,7 +6,7 @@
  * same tables with the same dedupe behavior.
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import Papa from 'papaparse';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -23,6 +23,8 @@ import type {
   WithingsMeasureGroup,
   WithingsSleepSeries,
 } from './withings-client';
+import { DB_SCHEMA } from '@/lib/supabase/schema'
+import type { MissionClient } from '@/lib/supabase/schema'
 
 export type ImportProgress = {
   category: string;
@@ -42,7 +44,7 @@ export type ImportResults = {
 };
 
 export class WithingsImporter {
-  private supabase: SupabaseClient;
+  private supabase: MissionClient;
   private userId: string;
   private progressCallback?: (progress: ImportProgress) => void;
 
@@ -54,7 +56,8 @@ export class WithingsImporter {
   ) {
     this.supabase = createClient(
       supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      supabaseKey || process.env.SUPABASE_SERVICE_ROLE_KEY!
+      supabaseKey || process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { db: { schema: DB_SCHEMA } }
     );
     this.userId = userId;
     this.progressCallback = progressCallback;

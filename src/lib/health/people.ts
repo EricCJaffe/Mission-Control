@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { MissionClient } from '@/lib/supabase/schema'
 
 /**
  * Who a health record is about.
@@ -29,7 +29,7 @@ export type Person = {
 export const PERSON_COOKIE = 'mc_person';
 
 export async function listPeople(
-  supabase: SupabaseClient,
+  supabase: MissionClient,
   userId: string
 ): Promise<Person[]> {
   const { data } = await supabase
@@ -50,7 +50,7 @@ export async function listPeople(
  * NOT to the viewed person.
  */
 export async function selfPersonId(
-  supabase: SupabaseClient,
+  supabase: MissionClient,
   userId: string
 ): Promise<string | null> {
   const { data } = await supabase
@@ -68,7 +68,7 @@ export async function selfPersonId(
  * deleted person cannot leave the health module unusable.
  */
 export async function activePerson(
-  supabase: SupabaseClient,
+  supabase: MissionClient,
   userId: string
 ): Promise<{ person: Person | null; people: Person[] }> {
   const people = await listPeople(supabase, userId);

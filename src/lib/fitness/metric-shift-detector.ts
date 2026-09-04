@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { DB_SCHEMA } from '@/lib/supabase/schema'
 
 export type MetricShift = {
   metric: 'rhr' | 'bp_systolic' | 'bp_diastolic' | 'weight' | 'hrv' | 'body_fat' | 'muscle_mass';
@@ -27,7 +28,7 @@ export class MetricShiftDetector {
   }
 
   private getClient() {
-    return createClient(this.supabaseUrl, this.supabaseKey);
+    return createClient(this.supabaseUrl, this.supabaseKey, { db: { schema: DB_SCHEMA } });
   }
 
   /**

@@ -1,6 +1,6 @@
-import { SupabaseClient } from '@supabase/supabase-js';
 import fs from 'fs/promises';
 import path from 'path';
+import type { MissionClient } from '@/lib/supabase/schema'
 
 export interface GarminImportOptions {
   activities?: boolean;
@@ -22,11 +22,11 @@ export interface GarminImportResults {
 }
 
 export class GarminImporter {
-  private supabase: SupabaseClient;
+  private supabase: MissionClient;
   private userId: string;
   private options: GarminImportOptions;
 
-  constructor(supabase: SupabaseClient, userId: string, options: GarminImportOptions) {
+  constructor(supabase: MissionClient, userId: string, options: GarminImportOptions) {
     this.supabase = supabase;
     this.userId = userId;
     this.options = options;

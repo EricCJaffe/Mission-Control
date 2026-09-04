@@ -10,13 +10,15 @@ import {
 } from './withings-normalizers';
 import { WithingsClient } from './withings-client';
 import type { WithingsTokens } from './withings-tokens';
+import { DB_SCHEMA } from '@/lib/supabase/schema'
 
 export type WithingsSyncMode = 'initial' | 'incremental' | 'manual';
 
 export class WithingsSyncService {
   private supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { db: { schema: DB_SCHEMA } }
   );
 
   /** Held on the instance so a caller can recover rotated tokens after a

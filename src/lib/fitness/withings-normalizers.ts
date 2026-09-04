@@ -1,9 +1,9 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   WithingsActivityRecord,
   WithingsMeasureGroup,
   WithingsSleepSeries,
 } from './withings-client';
+import type { MissionClient } from '@/lib/supabase/schema'
 
 export type DomainSyncStats = {
   imported: number;
@@ -63,7 +63,7 @@ function extractMeasureMap(group: WithingsMeasureGroup): Map<number, number> {
 }
 
 export async function upsertBloodPressureFromMeasureGroup(
-  supabase: SupabaseClient,
+  supabase: MissionClient,
   userId: string,
   group: WithingsMeasureGroup
 ): Promise<'imported' | 'updated' | 'skipped'> {
@@ -124,7 +124,7 @@ export async function upsertBloodPressureFromMeasureGroup(
 }
 
 export async function upsertBodyMetricsFromMeasureGroup(
-  supabase: SupabaseClient,
+  supabase: MissionClient,
   userId: string,
   group: WithingsMeasureGroup
 ): Promise<'imported' | 'updated' | 'skipped'> {
@@ -184,7 +184,7 @@ export async function upsertBodyMetricsFromMeasureGroup(
 }
 
 export async function upsertDailySummaryFromActivity(
-  supabase: SupabaseClient,
+  supabase: MissionClient,
   userId: string,
   activity: WithingsActivityRecord
 ): Promise<'imported' | 'updated' | 'skipped'> {
@@ -233,7 +233,7 @@ export async function upsertDailySummaryFromActivity(
 }
 
 export async function upsertSleepFromSeries(
-  supabase: SupabaseClient,
+  supabase: MissionClient,
   userId: string,
   series: WithingsSleepSeries
 ): Promise<'imported' | 'updated' | 'skipped'> {
