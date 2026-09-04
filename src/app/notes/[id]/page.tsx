@@ -1,3 +1,6 @@
+import { Paperclip } from "lucide-react";
+
+import AttachmentUploadButton from "@/components/AttachmentUploadButton";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -79,85 +82,102 @@ export default async function NoteDetailPage({ params }: { params: Promise<{ id:
         </form>
       </div>
 
-      <section className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold">Attachments</h2>
-        <form className="mt-3 grid gap-2" action="/attachments/upload" method="post" encType="multipart/form-data" data-progress="true" data-toast="Attachment uploading">
-          <input type="hidden" name="scope_type" value="note" />
-          <input type="hidden" name="scope_id" value={String(note.id)} />
-          <input className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" name="file" type="file" />
-          <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-            Upload Attachment
-          </button>
+      <div className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
+        <form id="note-form" className="grid gap-4" action="/notes/update" method="post" data-toast="Note saved">
+          <input type="hidden" name="id" value={String(note.id)} />
+
+          <div>
+            <label className="text-xs uppercase tracking-wide text-slate-500" htmlFor="note-title">
+              Title
+            </label>
+            <input
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+              id="note-title"
+              name="title"
+              defaultValue={String(note.title || "")}
+              required
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="text-xs uppercase tracking-wide text-slate-500" htmlFor="note-status">
+                Status
+              </label>
+              <select
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+                id="note-status"
+                name="status"
+                defaultValue={String(note.status || "inbox")}
+              >
+                <option value="inbox">Inbox</option>
+                <option value="in_process">In Process</option>
+                <option value="review">Review</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs uppercase tracking-wide text-slate-500" htmlFor="note-tags">
+                Tags
+              </label>
+              <input
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+                id="note-tags"
+                name="tags"
+                defaultValue={formatTags((note.tags as string[] | string | null) ?? null)}
+                placeholder="comma-separated"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs uppercase tracking-wide text-slate-500" htmlFor="note-content">
+              Markdown
+            </label>
+            <textarea
+              className="mt-2 min-h-[320px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm"
+              id="note-content"
+              name="content"
+              defaultValue={String(note.content_md || "")}
+            />
+          </div>
         </form>
-        <div className="mt-3 grid gap-2 text-xs">
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <AttachmentUploadButton scopeType="note" scopeId={String(note.id)} />
           {(attachments || []).map((file) => (
-            <div key={file.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-medium">{file.filename}</div>
-                <a className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px]" href={`/attachments/${file.id}/download`}>
-                  Download
-                </a>
-              </div>
-              {file.mime_type?.startsWith("image/") && (
+            <span
+              key={file.id}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600"
+            >
+              {file.mime_type?.startsWith("image/") ? (
                 <img
                   src={`/attachments/${file.id}/download`}
                   alt={file.filename}
-                  className="mt-2 max-h-48 rounded border border-slate-200 object-contain"
+                  className="h-5 w-5 rounded border border-slate-200 object-cover"
                 />
+              ) : (
+                <Paperclip className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
               )}
-              <div className="text-slate-500">
-                {Math.round((file.size_bytes || 0) / 1024)} KB · {new Date(file.created_at).toLocaleString()}
-              </div>
-            </div>
+              <a className="font-medium hover:underline" href={`/attachments/${file.id}/download`}>
+                {file.filename}
+              </a>
+              <span className="text-slate-400">{Math.round((file.size_bytes || 0) / 1024)} KB</span>
+            </span>
           ))}
-          {attachments && attachments.length === 0 && <div className="text-xs text-slate-500">No attachments yet.</div>}
-        </div>
-      </section>
-
-      <form className="mt-6 grid gap-4" action="/notes/update" method="post" data-toast="Note saved">
-        <input type="hidden" name="id" value={String(note.id)} />
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-          <label className="text-xs uppercase tracking-wide text-slate-500">Title</label>
-          <input
-            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
-            name="title"
-            defaultValue={String(note.title || "")}
-            required
-          />
         </div>
 
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-          <label className="text-xs uppercase tracking-wide text-slate-500">Status</label>
-          <select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" name="status" defaultValue={String(note.status || "inbox")}>
-            <option value="inbox">Inbox</option>
-            <option value="in_process">In Process</option>
-            <option value="review">Review</option>
-          </select>
+        <div className="mt-5 border-t border-slate-200 pt-4">
+          <button
+            className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm"
+            form="note-form"
+            type="submit"
+          >
+            Save Changes
+          </button>
         </div>
+      </div>
 
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-          <label className="text-xs uppercase tracking-wide text-slate-500">Tags</label>
-          <input
-            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
-            name="tags"
-            defaultValue={formatTags((note.tags as string[] | string | null) ?? null)}
-            placeholder="comma-separated"
-          />
-        </div>
-
-        <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-          <label className="text-xs uppercase tracking-wide text-slate-500">Markdown</label>
-          <textarea
-            className="mt-2 min-h-[320px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm"
-            name="content"
-            defaultValue={String(note.content_md || "")}
-          />
-        </div>
-
-        <button className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm" type="submit">
-          Save Changes
-        </button>
-      </form>
     </main>
   );
 }

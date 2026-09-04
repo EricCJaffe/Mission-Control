@@ -19,7 +19,14 @@ import {
   CATEGORY_LABELS as PRAYER_CATEGORY_LABELS,
   type PrayerRequest,
 } from "@/lib/spirit/prayer";
-import { Dumbbell, Plus, CalendarDays, Target, CheckSquare, HeartPulse, Activity, Gauge } from "lucide-react";
+import { Dumbbell, Plus, CalendarDays, Target, CheckSquare, HeartPulse, Activity, Gauge, Zap } from "lucide-react";
+
+/** Icon for a planned session, so the start buttons read at a glance. */
+function workoutIcon(type: string | null) {
+  if (type === "cardio") return <HeartPulse className="h-4 w-4" />;
+  if (type === "hiit") return <Zap className="h-4 w-4" />;
+  return <Dumbbell className="h-4 w-4" />;
+}
 
 function formatTime(value: string) {
   const date = new Date(value);
@@ -315,6 +322,9 @@ export default async function DashboardHome() {
   const hrv = hrvResult.data;
   const bp = bpResult.data;
   const plannedWorkouts = plannedWorkoutResult.data ?? [];
+  // Only sessions still to do get a start button; a completed one would send
+  // you to log work you have already logged.
+  const startableWorkouts = plannedWorkouts.filter((w) => w.status !== "completed");
   const goals = goalsResult.data ?? [];
   const missionContent = parseMission(personaResult.data?.content_md ?? null);
   const allPractices = (practicesResult.data ?? []) as Practice[];
@@ -382,8 +392,35 @@ export default async function DashboardHome() {
             Mission alignment for Spirit, Soul, and Body.
           </p>
         </div>
-        <div className="text-sm text-slate-500">
-          Signed in as: <span className="font-medium text-slate-900">{user.email}</span>
+        <div className="flex flex-col gap-2 md:items-end">
+          {/* Start a workout from the top of the page, without scrolling to
+              today's training. Today's unfinished sessions each get their own
+              button; with nothing planned, one button opens a blank log. */}
+          <div className="flex flex-wrap gap-2 md:justify-end">
+            {startableWorkouts.length > 0 ? (
+              startableWorkouts.map((w) => (
+                <Link
+                  key={w.id}
+                  href={`/fitness/log?planned_workout_id=${w.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800"
+                >
+                  {workoutIcon(w.workout_type)}
+                  <span className="max-w-[12rem] truncate">Start {w.day_label || w.workout_type}</span>
+                </Link>
+              ))
+            ) : (
+              <Link
+                href="/fitness/log"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800"
+              >
+                <Dumbbell className="h-4 w-4" />
+                Start Workout
+              </Link>
+            )}
+          </div>
+          <div className="text-sm text-slate-500">
+            Signed in as: <span className="font-medium text-slate-900">{user.email}</span>
+          </div>
         </div>
       </div>
 
