@@ -1888,8 +1888,17 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
         <button
-          onClick={performSave}
-          disabled={saving || (duration === '' && elapsedSeconds < 60)}
+          onClick={() => {
+            // Duration is the one required field, but a greyed-out button says
+            // nothing about why. Stay clickable and name the missing field —
+            // a dead Save button reads as the save being broken.
+            if (duration === '' && elapsedSeconds < 60) {
+              setError('Enter how long the class was, in minutes.');
+              return;
+            }
+            performSave();
+          }}
+          disabled={saving}
           className="min-h-[52px] w-full rounded-2xl bg-blue-700 text-base font-bold text-white hover:bg-blue-800 disabled:opacity-50"
         >
           {saving ? 'Saving…' : `Save ${activeModality.label}`}
