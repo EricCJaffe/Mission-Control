@@ -4,9 +4,22 @@
 2026-09-02
 
 ## Status
-Accepted 2026-09-02 — the isolation trade-off is decided. Execution is still
-blocked on the connection strings under "Blocked on"; Phase 5 still needs a
-separate confirmation from Eric before the app cuts over.
+**Phases 1-4 executed and verified 2026-09-03.** The `mission` schema is live in
+the shared project with all 108 tables, 10,204 rows, 131 policies and all 45
+storage objects. Mission Control still runs on its own project — nothing has
+cut over. **Phase 5 (app cutover) has not been done and needs its own
+confirmation from Eric.**
+
+Rollback for everything done so far, in the shared project:
+
+    drop schema mission cascade;
+    delete from storage.objects where bucket_id in ('health-files','attachments','book_uploads');
+    delete from storage.buckets where id in ('health-files','attachments','book_uploads');
+    drop policy "mission_health_files_owner" on storage.objects;
+    drop policy "mission_attachments_owner"  on storage.objects;
+    drop policy "mission_book_uploads_owner" on storage.objects;
+
+Tooling and per-script gotchas: `scripts/mission-migration/`.
 
 > **Reconstruction note.** A version of this decision was written on 2026-09-01 as
 > `docs/DECISIONS/0002-mission-control-into-shared-database.md`. That file never
@@ -201,9 +214,89 @@ five columns need it.
 - `supabase db push` remains blocked until the 3 remote-only migrations are pulled.
   Use the Management API in the meantime, per `~/dev/BibleOS/docs/CONTROL-PLANE.md`.
 
-## Blocked on
+## Execution record — 2026-09-03
 
-- [ ] **Session-pooler connection strings**, both `chmod 600`:
+Ran with `scripts/mission-migration/`. Verified counts, source -> target:
+
+| | source | target | |
+|---|---|---|---|
+| Tables | 108 | 108 | every table matched row-for-row |
+| Rows | 10,204 | 10,204 | zero per-table differences |
+| Functions | 14 | 14 | |
+| Triggers | 4 | 4 | |
+| RLS policies | 131 | 131 | |
+| Tables with RLS | 106 | 106 | |
+| FKs to `auth.users` | 101 | 101 | |
+| All FK constraints | 172 | 172 | **all validated post-load, 0 orphans** |
+| `health-files` objects | 45 (32.41 MB) | 45 (32.41 MB) | paths re-prefixed |
+| Old UUID in 289 uuid columns | — | **0** | |
+
+FinanceOS was untouched throughout: still 53 public tables, 3 users, 16 objects
+in `documents`.
+
+### What the plan got wrong, found by executing it
+
+1. **The `.dburl` files were never needed.** `supabase db dump --linked`
+   provisions a short-lived `cli_login_postgres` role through the Management API
+   and connects without the database password. The entire "Blocked on" section
+   below was a false blocker.
+2. **14 functions needed rewriting, not 132.** The other 118 belong to pgvector.
+3. **pgvector is installed in `public`** in the source, so columns type as
+   `public.vector(1536)`. A plain `public` -> `mission` rename would have
+   repointed them at a type that does not exist. They are repointed at
+   `extensions`, where the target now has the extension.
+4. **`db dump --data-only` is not public-only.** It also emits `auth.users`,
+   `auth.identities`, `auth.sessions`, `auth.refresh_tokens`,
+   `auth.mfa_amr_claims`, `storage.buckets` and `storage.objects`. Loading them
+   into the shared project failed on `users_pkey` — Eric already exists there.
+   They are filtered out; storage is handled properly in Phase 4 instead.
+5. **The re-key is better done in the dump file than as post-load UPDATEs.**
+   5,408 occurrences replaced before loading, so the FKs validate it on insert
+   rather than a missed table reading as empty.
+6. **`session_replication_role = replica` in the dump disables FK checks during
+   load**, which undercuts point 5 on its own. All 172 constraints were
+   therefore validated explicitly afterwards.
+7. **The Management API caps request bodies** somewhere between 2 MB and 3.2 MB.
+   The data had to be chunked, splitting two oversized INSERTs at row
+   boundaries — quote-aware, because rows contain newlines inside strings.
+
+### A security finding, fixed rather than copied
+
+The source `health-files` bucket policies were **unscoped** — four policies
+keyed only on `bucket_id = 'health-files'`, with no user check. Harmless with
+one user; not harmless in a project with three. They were **not** copied. The
+target has owner-scoped policies matching `attachments` and `book_uploads` and
+ADR 0006: `(storage.foldername(name))[1] = auth.uid()::text`. Every write path
+in the app already builds `{user_id}/...`, so this is compatible.
+
+**The same fix should be applied to the source project**, which still has the
+permissive policies. Not done here — it is a change to a live app outside this
+migration's scope.
+
+### One pre-existing inconsistency, faithfully reproduced
+
+`health_file_uploads` has a row from 2026-03-06 pointing at
+`imaging/manual/cardiac-mri-function-hx-cabg-2026-03-03.txt`, which does not
+exist in storage and never did. It is an orphan in the source too. Copied as-is
+rather than silently dropped.
+
+## Remaining: Phase 5 (not done)
+
+Needs Eric's explicit go-ahead. Requires, in order:
+1. Add `mission` to the shared project's exposed schemas — PostgREST serves only
+   `public` until then.
+2. Point `MC_SUPABASE_*` / `NEXT_PUBLIC_SUPABASE_*` at `uivawtdmxqutqelwibra`.
+3. Set the supabase-js client's default schema to `mission`.
+4. Re-point the `health-files` signed-URL paths — already correct in the data.
+5. Deploy, verify, and only then consider retiring `npxirjaawlpubrtjovpy`.
+
+Leave the old project running until the shared copy has been live long enough to
+trust. It is the rollback.
+
+## Blocked on (superseded — see the execution record above)
+
+- [x] ~~**Session-pooler connection strings**~~ — **not required.** See finding 1
+      above. Left here for the record:
       `~/.config/supabase/mission-control.dburl` and `~/.config/supabase/shared.dburl`.
       Session pooler specifically — direct is IPv6-only from this box and the
       transaction pooler (6543) cannot dump a schema. The Management API cannot
