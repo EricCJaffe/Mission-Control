@@ -84,7 +84,7 @@ export default function TrainingPlanActionsClient({ planId }: { planId: string }
           Schedule Recovery Blocks
         </button>
         <Link
-          href="/fitness/calendar"
+          href="/calendar"
           className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           Open Calendar
