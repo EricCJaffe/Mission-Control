@@ -46,7 +46,11 @@ The user runs multiple projects at once. Never use broad kill commands like `kil
 ## Remote Services
 - GitHub: `EricCJaffe/Mission-Control`
 - Vercel: `mission-control` (`prj_jQyhulWy1MqJP6FzNBu2MzP65Bo4`)
-- Supabase: `npxirjaawlpubrtjovpy`
+- Supabase: `uivawtdmxqutqelwibra` (shared with FinanceOS and BibleOS), schema **`mission`**
+  - Every Supabase client MUST pass `db: { schema: DB_SCHEMA }` from `src/lib/supabase/schema.ts`.
+    Omitting it falls back to `public`, which is FinanceOS — and `tasks` exists in both,
+    so the query succeeds and returns the wrong rows.
+  - Old project `npxirjaawlpubrtjovpy` is retained as the rollback and is no longer read or written.
 
 ## Environment Variables
 Required:

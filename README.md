@@ -22,7 +22,7 @@ Mission Control is a personal operating system built with Next.js, Supabase, and
 ## Current Status
 - `main` is the active branch
 - Vercel project linked: `mission-control`
-- Supabase project linked: `npxirjaawlpubrtjovpy`
+- Supabase project: `uivawtdmxqutqelwibra` (shared), schema `mission`
 - Production build is currently passing
 - Major fitness/health workflows are live, including Withings API sync, genetics multi-report analysis, command center, training plans, hydration, nutrition, and recovery tracking
 

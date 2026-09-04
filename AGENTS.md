@@ -51,7 +51,8 @@ npm run build
 ## Connected Services
 - GitHub repo: `EricCJaffe/Mission-Control`
 - Vercel project: `mission-control` (`prj_jQyhulWy1MqJP6FzNBu2MzP65Bo4`)
-- Supabase project ref: `npxirjaawlpubrtjovpy`
+- Supabase project ref: `uivawtdmxqutqelwibra` (shared), schema `mission`
+- Old ref `npxirjaawlpubrtjovpy` is the retained rollback, not the live database
 
 ## Environment
 Required env vars:

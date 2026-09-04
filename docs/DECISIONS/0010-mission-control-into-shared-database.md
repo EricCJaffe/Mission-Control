@@ -4,7 +4,9 @@
 2026-09-02
 
 ## Status
-**Phases 1-4 executed and verified 2026-09-03.** The `mission` schema is live in
+**Phases 1-5 executed. Cut over 2026-09-04** — the app now runs on the shared
+project. The old project is retained as the rollback and is no longer read or
+written. Originally recorded as phases 1-4 on 2026-09-03: The `mission` schema is live in
 the shared project with all 108 tables, 10,204 rows, 131 policies and all 45
 storage objects. Mission Control still runs on its own project — nothing has
 cut over. **Phase 5 (app cutover) has not been done and needs its own
@@ -280,18 +282,56 @@ migration's scope.
 exist in storage and never did. It is an orphan in the source too. Copied as-is
 rather than silently dropped.
 
-## Remaining: Phase 5 (not done)
+## Phase 5 — done 2026-09-04
 
-Needs Eric's explicit go-ahead. Requires, in order:
-1. Add `mission` to the shared project's exposed schemas — PostgREST serves only
-   `public` until then.
-2. Point `MC_SUPABASE_*` / `NEXT_PUBLIC_SUPABASE_*` at `uivawtdmxqutqelwibra`.
-3. Set the supabase-js client's default schema to `mission`.
-4. Re-point the `health-files` signed-URL paths — already correct in the data.
-5. Deploy, verify, and only then consider retiring `npxirjaawlpubrtjovpy`.
+Pre-flight: **verified there was no drift** before cutting over. Per-table row
+counts were identical across all 108 tables, and `max(updated_at)` was identical
+across the 55 tables that carry it — so nothing had been written to the old
+database after the 2026-09-03 snapshot. Had there been drift, the snapshot would
+have needed re-taking; row counts alone would not have caught an in-place edit.
 
-Leave the old project running until the shared copy has been live long enough to
-trust. It is the rollback.
+What changed:
+
+1. `mission` added to the shared project's exposed schemas. **`db_extra_search_path`
+   was deliberately left as `public, extensions`** — adding `mission` there could
+   change name resolution for FinanceOS, which has its own `tasks`.
+2. All **13** Supabase client constructions now pass `db: { schema: DB_SCHEMA }`,
+   with the name defined once in `src/lib/supabase/schema.ts`. Exhaustiveness is
+   the whole point: a client that omits it falls back to `public`, which is
+   FinanceOS, and because `tasks` exists in both schemas the query would succeed
+   and return the wrong rows rather than erroring.
+3. A `MissionClient` type replaced the bare `SupabaseClient` annotations across 6
+   files, whose default schema generic is `public`.
+4. `APPLE_HEALTH_USER_ID` still held the **old** owner UUID and would have written
+   orphans on the first sync. Repointed with the three Supabase variables in both
+   `.env.local` and Vercel (development, preview, production).
+
+Verified before touching any environment variable: over REST, `mission.tasks`
+returned Mission Control rows, `public.tasks` still returned FinanceOS rows, and
+an anon request to `mission.tasks` returned `[]` with HTTP 200 — RLS intact.
+After deploying, the production client bundle references `uivawtdmxqutqelwibra`
+and contains **zero** references to the old project.
+
+## Retiring the old project — staged, not yet started
+
+`npxirjaawlpubrtjovpy` is the rollback. Retiring it is a sequence of increasingly
+irreversible steps, and there is no reason to rush any of them.
+
+1. **Soak.** Run on the shared database for at least two weeks of ordinary use —
+   including one full cycle of the weekly and monthly things (Withings sync, the
+   cron jobs, a health.md approval, an Apple Health sync).
+2. **Confirm it is truly idle.** `max(updated_at)` across the old project's 55
+   timestamped tables must stay frozen at the cutover values. Anything moving
+   means a client is still pointed at it.
+3. **Take a keepable backup** — `supabase db dump --linked` for schema and data,
+   plus the 45 storage objects, stored **off** Supabase. A paused project is not
+   a backup.
+4. **Pause** the project. Reversible, and stops any cost.
+5. **Delete** only after the backup has been proven restorable, and not before
+   roughly 30 days of the paused state being uneventful.
+
+Do not compress this. The migration verified cleanly, but "verified clean" and
+"lived in for a month" are different kinds of confidence.
 
 ## Blocked on (superseded — see the execution record above)
 
