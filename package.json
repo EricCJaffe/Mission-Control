@@ -8,7 +8,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:migrate:fitness": "node scripts/run-fitness-migration.mjs"
+    "db:migrate:fitness": "node scripts/run-fitness-migration.mjs",
+    "sync:projects": "node --env-file-if-exists=.env.local scripts/sync/projects.ts",
+    "test:sync": "node --test scripts/sync/parse/*.test.ts",
+    "typecheck:sync": "tsc -p scripts/tsconfig.json"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
