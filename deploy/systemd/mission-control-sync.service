@@ -1,0 +1,30 @@
+[Unit]
+# Harvests every project task list under ~/dev into Mission Control.
+# Installed as a USER unit, not a system one: it reads the user's repos and
+# the user's .env, and has no business running as root.
+Description=Mission Control — project task sync
+Documentation=file:///home/admxn/dev/mission-control/docs/runbook.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+
+# Secrets live outside the repo, mode 600. See docs/runbook.md.
+EnvironmentFile=%h/.config/mission-control/sync.env
+
+WorkingDirectory=%h/dev/mission-control
+
+# Absolute path on purpose. A systemd user service does not source ~/.profile,
+# so the fnm shims that put `node` on an interactive PATH are not present here.
+# `ExecStart=node …` would fail with 203/EXEC and nothing would say why.
+ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/projects.ts
+
+# The harvester only ever reads other repos and writes its own database, but
+# there is no reason to leave it able to do more than that.
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.npm
+TimeoutStartSec=600

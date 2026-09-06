@@ -1,0 +1,21 @@
+[Unit]
+Description=Run the Mission Control project sync every two hours
+Documentation=file:///home/admxn/dev/mission-control/docs/runbook.md
+
+[Timer]
+# Every two hours between 06:00 and 22:00 America/New_York. Task files are
+# edited by people during the day; syncing hourly overnight would only burn
+# API calls to confirm nothing changed.
+OnCalendar=Mon..Sun 06,08,10,12,14,16,18,20,22:00 America/New_York
+
+# Spread the start so a sync and a reboot do not collide, and so two timers
+# added later do not both fire on the hour.
+RandomizedDelaySec=300
+
+# If the box was asleep or off when a run was due, run once on resume rather
+# than skipping until the next slot. Without this a laptop lid or a Proxmox
+# cold boot silently costs a day of syncs.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
