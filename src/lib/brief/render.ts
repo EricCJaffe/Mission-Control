@@ -18,7 +18,7 @@
  * exception.
  */
 
-import { MATRIX_LABEL, type BriefNarrative, type BriefPayload, type DayCell, type MatrixKey } from './types';
+import { MATRIX_LABEL, byMatrix, type BriefNarrative, type BriefPayload, type DayCell, type MatrixKey } from './types';
 
 // ---------------------------------------------------------------------------
 // Palette. Fixed, and used by name everywhere.
@@ -194,7 +194,17 @@ function stalenessBanner(payload: BriefPayload): string {
 function alignmentSection(payload: BriefPayload, narrative: BriefNarrative | null): string {
   const a = payload.alignment;
 
-  const rows = a.byMatrix
+  /*
+   * Sorted here, not trusted from the payload.
+   *
+   * collect.ts already builds this in matrix order, so nothing is broken
+   * today — but the order IS the document. God First before Impact is the
+   * claim the brief exists to make, and a renderer that inherits whatever
+   * order it was handed would invert it silently the first time a caller
+   * built the array differently. Cheap to enforce where it is displayed.
+   */
+  const rows = [...a.byMatrix]
+    .sort((x, y) => byMatrix(x.key, y.key))
     .filter((m) => m.key !== 'admin' || m.hours > 0)
     .map((m, i) => {
       const pct = Math.round(m.share * 100);

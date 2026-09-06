@@ -250,6 +250,7 @@ export default function TasksListClient({
   attachmentsByTask,
   categories,
   domains,
+  initialDomain,
   projects,
   subtasks,
   links,
@@ -260,6 +261,8 @@ export default function TasksListClient({
   attachmentsByTask: Record<string, TaskAttachment[]>;
   categories: string[];
   domains: DomainOption[];
+  /** From ?domain= — a single domain, a comma list, "none" or "all". */
+  initialDomain: string;
   projects: ProjectOption[];
   subtasks: Subtask[];
   links: TaskLink[];
@@ -271,7 +274,7 @@ export default function TasksListClient({
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDone, setShowDone] = useState(false);
   const [tab, setTab] = useState("my");
-  const [domainFilter, setDomainFilter] = useState("all");
+  const [domainFilter, setDomainFilter] = useState(initialDomain);
   const [projectFilter, setProjectFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -308,8 +311,11 @@ export default function TasksListClient({
     return tasks.filter((task) => {
       // Status is applied at the section level, not here — filtering twice
       // meant picking "Done" emptied every section including Done.
-      if (domainFilter === "none" ? task.domain : domainFilter !== "all" && task.domain !== domainFilter) {
-        return false;
+      if (domainFilter === "none") {
+        if (task.domain) return false;
+      } else if (domainFilter !== "all") {
+        // A comma list, because the Health tile owns two domains.
+        if (!task.domain || !domainFilter.split(",").includes(task.domain)) return false;
       }
       if (projectFilter !== "all" && task.project_id !== projectFilter) return false;
       if (sourceFilter === "manual" && task.source && task.source !== "manual") return false;
@@ -441,6 +447,10 @@ export default function TasksListClient({
               {d.label}
             </option>
           ))}
+          {/* The matrix's Health tile spans two domains and links here with
+              both. Without a matching option the select renders blank on
+              arrival, which reads as a broken filter rather than a set one. */}
+          <option value="body,soul">Health — Body and Soul</option>
           <option value="none">Unclassified</option>
         </select>
         {projects.length > 0 && (

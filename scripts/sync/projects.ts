@@ -26,8 +26,17 @@ import { createSyncClient, type SyncClient } from './lib/db.ts';
 import { discoverRepos, taskFilesIn, blobUrl, type Repo } from './lib/repos.ts';
 import { guessDomain, PROJECT_SEEDS } from './lib/domains.ts';
 import { parseTaskMarkdown, sourceRef, isEric, type ParsedTask } from './parse/markdown.ts';
+import { fetchIssues, issueIsMine, ghReady } from './lib/issues.ts';
+import { fetchCodeTodos, codeTodoRef, MAX_PER_PROJECT } from './lib/codeTodos.ts';
 
 const SOURCE = 'todo_md';
+
+/*
+ * GitHub logins that mean Eric. `gh` reports the account login, which is not
+ * the handle the markdown files use — trellisv2 writes [@eric], GitHub says
+ * EricCJaffe.
+ */
+const MY_LOGINS = ['ericcjaffe', 'eric'];
 
 type Args = {
   dryRun: boolean;
@@ -35,16 +44,20 @@ type Args = {
   only: string | null;
   /** Ingest tasks at this priority or more urgent. 1 = urgent only. */
   maxPriority: number;
+  issues: boolean;
+  codeTodos: boolean;
 };
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { dryRun: false, all: false, only: null, maxPriority: 1 };
+  const args: Args = { dryRun: false, all: false, only: null, maxPriority: 1, issues: false, codeTodos: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
     else if (a === '--all') args.all = true;
     else if (a === '--project') args.only = argv[++i] ?? null;
     else if (a.startsWith('--project=')) args.only = a.slice('--project='.length);
+    else if (a === '--issues') args.issues = true;
+    else if (a === '--code-todos') args.codeTodos = true;
     else if (a === '--max-priority') args.maxPriority = Number(argv[++i]);
     else if (a.startsWith('--max-priority=')) args.maxPriority = Number(a.slice('--max-priority='.length));
     else if (a === '--help' || a === '-h') {
@@ -53,6 +66,8 @@ function parseArgs(argv: string[]): Args {
           '  --dry-run             read and report, write nothing\n' +
           '  --all                 ingest every open task, not only yours\n' +
           '  --max-priority <1-3>  ingest this urgency or higher (default 1)\n' +
+          '  --issues              also harvest open GitHub issues (needs gh)\n' +
+          '  --code-todos          also harvest TODO/FIXME markers in source\n' +
           '  --project <slug>      one project only\n',
       );
       process.exit(0);
@@ -83,6 +98,40 @@ type Harvested = {
   sourceUrl: string | null;
   relPath: string;
 };
+
+/*
+ * What every source reduces to before it is written.
+ *
+ * A markdown checkbox, a GitHub issue and a `// FIXME` are different things to
+ * read and the same thing to store, so the reconciliation below only ever sees
+ * this. It keeps the "not seen this run means gone" logic in one place instead
+ * of three, which matters because that logic is the one that closes tasks.
+ */
+type Incoming = {
+  title: string;
+  body: string;
+  status: 'todo' | 'done';
+  priority: number;
+  assignees: string[];
+  sourceRef: string;
+  sourceUrl: string | null;
+  why: string;
+};
+
+function fromMarkdown(h: Harvested): Incoming {
+  return {
+    title: h.task.title,
+    body: h.task.body,
+    status: h.task.status,
+    priority: h.task.priority,
+    assignees: h.task.assignees,
+    sourceRef: h.sourceRef,
+    sourceUrl: h.sourceUrl,
+    why: h.task.section.length
+      ? `From ${h.relPath} › ${h.task.section.join(' › ')}`
+      : `From ${h.relPath}`,
+  };
+}
 
 
 /*
@@ -186,9 +235,10 @@ async function main() {
       `${repos.length} repos under ${env.devRoot}` +
       `${args.all ? '  (everyone)' : '  (yours only)'}  P${args.maxPriority} and above\n`,
   );
+  const extraCols = (args.issues ? 'iss'.padStart(5) : '') + (args.codeTodos ? 'todo'.padStart(6) : '');
   console.log(
-    'project'.padEnd(18) + 'open'.padStart(6) + 'mine'.padStart(6) + 'new'.padStart(6) +
-      'upd'.padStart(6) + 'closed'.padStart(8) + '  files',
+    'project'.padEnd(18) + 'open'.padStart(6) + 'mine'.padStart(6) + extraCols +
+      'new'.padStart(6) + 'upd'.padStart(6) + 'closed'.padStart(8) + '  files',
   );
 
   for (const repo of repos) {
@@ -211,11 +261,57 @@ async function main() {
     let repoUpdated = 0;
     let repoClosed = 0;
 
+    // GitHub issues and code markers are separate sources, reconciled
+    // separately: each has to be able to close its own vanished items without
+    // the others looking abandoned.
+    const issues = args.issues
+      ? fetchIssues(repo)
+          .filter((i) => i.priority <= args.maxPriority)
+          .filter((i) => args.all || issueIsMine(i, MY_LOGINS))
+          .map((i) => ({
+            title: i.title,
+            body: i.body,
+            status: 'todo' as const,
+            priority: i.priority,
+            assignees: i.assignees,
+            sourceRef: i.url,
+            sourceUrl: i.url,
+            why: `GitHub issue #${i.number}${i.labels.length ? ` · ${i.labels.join(', ')}` : ''}`,
+          }))
+      : [];
+
+    const todos = args.codeTodos
+      ? fetchCodeTodos(repo)
+          .filter((t) => t.priority <= args.maxPriority)
+          .map((t) => ({
+            title: `${t.kind}: ${t.text}`,
+            body: '',
+            status: 'todo' as const,
+            priority: t.priority,
+            assignees: [],
+            sourceRef: codeTodoRef(t),
+            sourceUrl: blobUrl(repo, t.file, t.line),
+            why: `${t.file}:${t.line}`,
+          }))
+      : [];
+
+    seen += issues.length + todos.length;
+
     if (!args.dryRun && project) {
-      const result = await reconcile(db, env.userId, project.id, project.domain, wanted);
-      repoCreated = result.created;
-      repoUpdated = result.updated;
-      repoClosed = result.closed;
+      for (const [items, source] of [
+        [wanted.map(fromMarkdown), 'todo_md'],
+        [issues, 'github_issue'],
+        [todos, 'code_todo'],
+      ] as Array<[Incoming[], string]>) {
+        // Only reconcile a source that was actually collected this run, or a
+        // sync without --issues would close every issue it imported last time.
+        if (source === 'github_issue' && !args.issues) continue;
+        if (source === 'code_todo' && !args.codeTodos) continue;
+        const result = await reconcile(db, env.userId, project.id, project.domain, items, source);
+        repoCreated += result.created;
+        repoUpdated += result.updated;
+        repoClosed += result.closed;
+      }
       created += repoCreated;
       updated += repoUpdated;
       closed += repoClosed;
@@ -227,6 +323,8 @@ async function main() {
       parsed: all.length,
       open: openTotal,
       mine: mine.length,
+      issues: issues.length,
+      code_todos: todos.length,
       names_people: namesPeople,
       created: repoCreated,
       updated: repoUpdated,
@@ -238,6 +336,8 @@ async function main() {
       repo.slug.padEnd(18) +
         String(openTotal).padStart(6) +
         String(mine.length).padStart(6) +
+        (args.issues ? String(issues.length).padStart(5) : '') +
+        (args.codeTodos ? String(todos.length).padStart(6) : '') +
         String(repoCreated).padStart(6) +
         String(repoUpdated).padStart(6) +
         String(repoClosed).padStart(8) +
@@ -305,7 +405,8 @@ async function reconcile(
   userId: string,
   projectId: string,
   projectDomain: string | null,
-  harvested: Harvested[],
+  harvested: Incoming[],
+  source: string,
 ) {
   const now = new Date().toISOString();
 
@@ -314,7 +415,7 @@ async function reconcile(
     .select('id, source_ref, status, edited_at, title, description')
     .eq('user_id', userId)
     .eq('project_id', projectId)
-    .eq('source', SOURCE);
+    .eq('source', source);
   if (error) throw new Error(`Could not read existing tasks: ${error.message}`);
 
   const byRef = new Map((existing ?? []).map((t) => [t.source_ref, t]));
@@ -325,28 +426,27 @@ async function reconcile(
   for (const h of harvested) {
     seenRefs.add(h.sourceRef);
     const prior = byRef.get(h.sourceRef);
-    const why = h.task.section.length ? `From ${h.relPath} › ${h.task.section.join(' › ')}` : `From ${h.relPath}`;
 
     if (!prior) {
       const { error: insertError } = await db.from('tasks').insert({
         user_id: userId,
         project_id: projectId,
-        title: h.task.title.slice(0, 500),
-        description: h.task.body || null,
-        status: h.task.status,
-        priority: h.task.priority,
+        title: h.title.slice(0, 500),
+        description: h.body || null,
+        status: h.status,
+        priority: h.priority,
         domain: projectDomain,
         category: null,
-        why,
-        source: SOURCE,
+        why: h.why,
+        source,
         source_ref: h.sourceRef,
         source_url: h.sourceUrl,
         external_status: 'open',
-        assignee: h.task.assignees.join(', ') || null,
+        assignee: h.assignees.join(', ') || null,
         last_seen_at: now,
         synced_at: now,
       });
-      if (insertError) throw new Error(`Insert failed for "${h.task.title}": ${insertError.message}`);
+      if (insertError) throw new Error(`Insert failed for "${h.title}": ${insertError.message}`);
       created += 1;
       continue;
     }
@@ -359,13 +459,13 @@ async function reconcile(
     };
     // Untouched here? Then the source is still authoritative for everything.
     if (!prior.edited_at) {
-      patch.title = h.task.title.slice(0, 500);
-      patch.description = h.task.body || null;
-      patch.status = h.task.status;
-      patch.priority = h.task.priority;
+      patch.title = h.title.slice(0, 500);
+      patch.description = h.body || null;
+      patch.status = h.status;
+      patch.priority = h.priority;
     }
     const { error: updateError } = await db.from('tasks').update(patch).eq('id', prior.id);
-    if (updateError) throw new Error(`Update failed for "${h.task.title}": ${updateError.message}`);
+    if (updateError) throw new Error(`Update failed for "${h.title}": ${updateError.message}`);
     updated += 1;
   }
 

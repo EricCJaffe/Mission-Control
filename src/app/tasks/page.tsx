@@ -34,7 +34,14 @@ const CATEGORIES = [
   "Writing / Content",
 ];
 
-export default async function TasksPage() {
+export default async function TasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ domain?: string }>;
+}) {
+  // The dashboard's priority matrix links here with its own slice already
+  // chosen — a tile you click should land on that tile's tasks, not on all 206.
+  const { domain: initialDomain } = await searchParams;
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -116,6 +123,7 @@ export default async function TasksPage() {
         attachmentsByTask={attachmentsByTask}
         categories={CATEGORIES}
         domains={DOMAINS}
+        initialDomain={initialDomain ?? "all"}
         projects={projects || []}
         subtasks={subtasks || []}
         links={links || []}

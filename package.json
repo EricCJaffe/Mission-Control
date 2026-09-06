@@ -12,7 +12,9 @@
     "sync:projects": "node --env-file-if-exists=.env.local scripts/sync/projects.ts",
     "sync:m365": "node --env-file-if-exists=.env.local scripts/sync/m365.ts",
     "test:sync": "node --test scripts/sync/parse/*.test.ts",
-    "typecheck:sync": "tsc -p scripts/tsconfig.json"
+    "test:brief": "node --test src/lib/brief/*.test.ts",
+    "typecheck:sync": "tsc -p scripts/tsconfig.json",
+    "test": "npm run test:sync && npm run test:brief"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

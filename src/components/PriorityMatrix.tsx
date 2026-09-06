@@ -61,6 +61,7 @@ function MatrixTile({
   overdue,
   hours,
   warn,
+  href,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -68,10 +69,11 @@ function MatrixTile({
   overdue: number;
   hours: number;
   warn: boolean;
+  href: string;
 }) {
   return (
     <Link
-      href="/tasks"
+      href={href}
       className={
         warn
           ? "rounded-2xl border-2 border-amber-500 bg-amber-50 p-4 shadow-sm transition-shadow hover:shadow"
@@ -174,6 +176,10 @@ export default async function PriorityMatrix() {
     open: tile.domains.reduce((sum, d) => sum + (openByDomain.get(d) ?? 0), 0),
     overdue: tile.domains.reduce((sum, d) => sum + (overdueByDomain.get(d) ?? 0), 0),
     hours: tile.domains.reduce((sum, d) => sum + (hoursByDomain.get(d) ?? 0), 0),
+    // Health is body + soul, so the link carries both and the Tasks filter
+    // reads a comma list. A tile that dropped half its own domain on the way
+    // through would be worse than not linking at all.
+    href: `/tasks?domain=${tile.domains.join(',')}`,
   }));
 
   // Share is measured against the four tiles only. Unclassified hours are
@@ -208,6 +214,7 @@ export default async function PriorityMatrix() {
             overdue={row.overdue}
             hours={row.hours}
             warn={row.key === "impact" && impactDominates}
+            href={row.href}
           />
         ))}
       </div>
@@ -234,7 +241,7 @@ export default async function PriorityMatrix() {
           {unclassifiedTasks > 0 && unclassifiedHours > 0 && " and "}
           {unclassifiedHours > 0 && <>{unclassifiedHours.toFixed(1)}h unclassified time</>}
           {" — not counted above. "}
-          <Link href="/tasks" className="font-medium text-blue-600 hover:text-blue-700">
+          <Link href="/tasks?domain=none" className="font-medium text-blue-600 hover:text-blue-700">
             Triage →
           </Link>
         </p>
