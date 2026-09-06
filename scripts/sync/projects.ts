@@ -192,6 +192,46 @@ async function ensureProject(db: SyncClient, userId: string, repo: Repo, dryRun:
     .maybeSingle();
 
   if (existing) return existing;
+
+  /*
+   * ADOPT A HAND-MADE PROJECT RATHER THAN SHADOWING IT.
+   *
+   * Projects created in the UI have no slug, so the lookup above misses them
+   * and the first sync happily creates a second row with the same name. That
+   * is what happened to BibleOS: one row with 23 tasks entered by hand, and a
+   * new empty one beside it, both called BibleOS in the same list.
+   *
+   * A name collision here is not ambiguity, it is the same project — so claim
+   * it and fill in what the sync knows, leaving its title, status and any
+   * domain already chosen alone.
+   */
+  const { data: byName } = await db
+    .from('projects')
+    .select('id, domain, sync_enabled')
+    .eq('user_id', userId)
+    .is('slug', null)
+    .ilike('title', repo.slug)
+    .maybeSingle();
+
+  if (byName) {
+    if (dryRun) return byName;
+    const seedForName = PROJECT_SEEDS[repo.slug];
+    const { data: adopted, error: adoptError } = await db
+      .from('projects')
+      .update({
+        slug: repo.slug,
+        repo_path: repo.path,
+        domain: byName.domain ?? guessDomain(repo.slug),
+        client: seedForName?.client ?? null,
+      })
+      .eq('id', byName.id)
+      .select('id, domain, sync_enabled')
+      .single();
+    if (adoptError) throw new Error(`Could not adopt project ${repo.slug}: ${adoptError.message}`);
+    console.log(`  adopted existing project "${repo.slug}" rather than creating a second`);
+    return adopted;
+  }
+
   if (dryRun) return null;
 
   const seed = PROJECT_SEEDS[repo.slug];

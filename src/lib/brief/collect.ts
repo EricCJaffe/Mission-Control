@@ -577,12 +577,31 @@ function buildAlignment(days: DayCell[]): Alignment {
   const winning = totalHours > 0 && ranked[0].hours > 0 ? ranked[0].key : null;
   const impact = byMatrix.find((m) => m.key === 'impact');
 
+  /*
+   * The amber test measures Impact against the four matrix domains only,
+   * excluding unclassified Admin time.
+   *
+   * PriorityMatrix.tsx already did it this way and this did not, so the
+   * dashboard tile and the brief could disagree about the same week — the
+   * worst kind of inconsistency, because both look authoritative and neither
+   * says which denominator it used.
+   *
+   * Excluding Admin is the right side of that disagreement: unclassified hours
+   * are the ones nobody has decided about yet, and letting them swell the
+   * denominator would quietly suppress the warning. A week that is 8 hours
+   * work and 4 hours untriaged is not a balanced week.
+   */
+  const matrixHours = byMatrix
+    .filter((m) => m.key !== 'admin')
+    .reduce((sum, m) => sum + m.hours, 0);
+  const impactShareOfMatrix = matrixHours > 0 ? (impact?.hours ?? 0) / matrixHours : 0;
+
   return {
     totalHours: Math.round(totalHours * 10) / 10,
     byMatrix,
     winning,
     absent: byMatrix.filter((m) => m.key !== 'admin' && m.hours === 0).map((m) => m.key),
-    impactCrowding: (impact?.share ?? 0) > IMPACT_WARN_SHARE,
+    impactCrowding: impactShareOfMatrix > IMPACT_WARN_SHARE,
   };
 }
 

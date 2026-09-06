@@ -72,6 +72,11 @@ against the priority matrix. Read `docs/runbook.md` before touching it.
 - **The five domains** are `spirit | body | soul | family | work`, carrying
   God First → Health → Family → Impact. Null is legal and means unclassified —
   never default an unknown to `work` to make a count tidy.
+- **Where the sync surfaces.** `/tasks` filters by domain, project and source;
+  `/projects` shows each repo's rollup — what was imported against what the
+  repo actually holds, so a project with three tracked tasks and six hundred
+  real ones cannot look finished; `/brief` is this week as a page; `/briefs` is
+  the email history; `/sync` says whether any of it is current.
 - **Migrations: `supabase db push` does not work from this repo and cannot.**
   The database is shared with FinanceOS, so the migration ledger is shared too
   and most of its rows have no file here. Apply through `apply_migration` and

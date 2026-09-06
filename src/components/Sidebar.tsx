@@ -1,7 +1,7 @@
 "use client";
 
 import NavLink from "@/components/NavLink";
-import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity } from "lucide-react";
+import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
 type SidebarProps = {
@@ -91,6 +91,8 @@ export default function Sidebar({
                 <NavLink href="/metrics" label="Metrics" shortLabel="MX" collapsed={isCollapsed} icon={<BarChart3 size={18} className="text-purple-600" />} onClick={handleNavigate} />
               )}
               <NavLink href="/projects" label="Projects" shortLabel="PR" collapsed={isCollapsed} icon={<Compass size={18} className="text-indigo-600" />} onClick={handleNavigate} />
+              {/* This week as a page; /briefs is the email history behind it. */}
+              <NavLink href="/brief" label="This Week" shortLabel="TW" collapsed={isCollapsed} icon={<Newspaper size={18} className="text-sky-600" />} onClick={handleNavigate} />
               <NavLink href="/briefs" label="Briefs" shortLabel="BR" collapsed={isCollapsed} icon={<Mail size={18} className="text-sky-600" />} onClick={handleNavigate} />
               {/* Low in the group on purpose: you only look at it when
                   something upstream has stopped feeding the rest. */}

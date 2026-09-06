@@ -251,6 +251,7 @@ export default function TasksListClient({
   categories,
   domains,
   initialDomain,
+  initialProject,
   projects,
   subtasks,
   links,
@@ -263,6 +264,8 @@ export default function TasksListClient({
   domains: DomainOption[];
   /** From ?domain= — a single domain, a comma list, "none" or "all". */
   initialDomain: string;
+  /** From ?project= — a project id, or "all". */
+  initialProject: string;
   projects: ProjectOption[];
   subtasks: Subtask[];
   links: TaskLink[];
@@ -275,7 +278,7 @@ export default function TasksListClient({
   const [showDone, setShowDone] = useState(false);
   const [tab, setTab] = useState("my");
   const [domainFilter, setDomainFilter] = useState(initialDomain);
-  const [projectFilter, setProjectFilter] = useState("all");
+  const [projectFilter, setProjectFilter] = useState(initialProject);
   const [sourceFilter, setSourceFilter] = useState("all");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   /** Optimistic status overrides, keyed by task id. */
