@@ -86,8 +86,15 @@ const GROUP_HEADER_RE = /^\*\*(@[\w-]+)[^*]*\*\*\s*$/;
  */
 const NOT_PEOPLE = new Set(['handle', 'unassigned', 'alleva']);
 
-/** EDEN's ids: backticked PREFIX-NN with an optional letter, e.g. `GOAL-01a`. */
-const EDEN_ID_RE = /^`([A-Z]{2,6}-\d{1,3}[a-z]?)`\s*/;
+/*
+ * Backticked ids at the head of a task.
+ *
+ * `T-a3f9` is the standard in docs/TASK-FORMAT.md, assigned by tasks-lint.
+ * `GOAL-01a` is EDEN's older scheme, still in use and still meaningful, so
+ * both are read. The standard one is matched first because it is the one that
+ * is guaranteed unique.
+ */
+const EDEN_ID_RE = /^`(T-[0-9a-f]{4}|[A-Z]{2,6}-\d{1,3}[a-z]?)`\s*/;
 /** trellisv2's ad-hoc ids, which live inside the bold run: **TV2-90** … */
 const LOOSE_ID_RE = /^([A-Z][A-Z0-9]{1,}(?:-[A-Z0-9]+)+)\b[:\s—-]*/;
 
@@ -100,7 +107,10 @@ function handlesIn(text: string): string[] {
   for (const m of text.matchAll(BRACKET_HANDLES_RE)) {
     for (const h of m[1].split('/')) found.push(h.replace(/^@/, '').toLowerCase());
   }
-  const prefix = text.match(PREFIX_HANDLES_RE);
+  // The prefix pattern is anchored at the start, so a leading id has to come
+  // off first — otherwise adding ids to a file silently loses every prefix
+  // assignee in it. See extractTitle for the same trap.
+  const prefix = text.replace(EDEN_ID_RE, '').match(PREFIX_HANDLES_RE);
   if (prefix) {
     for (const h of prefix[1].split('/')) found.push(h.replace(/^@/, '').toLowerCase());
   }
@@ -117,15 +127,26 @@ function handlesIn(text: string): string[] {
 function extractTitle(rest: string): { title: string; externalId: string | null } {
   let text = stripHandles(rest);
 
-  // honeylakeos leads with `@katie: ` or `⚠️ @katie — `.
-  text = text.replace(PREFIX_HANDLES_RE, '').trim();
-
+  /*
+   * The id comes off BEFORE the prefix assignee, and the order is load-bearing.
+   *
+   * honeylakeos writes `- [ ] @eric/@katie: the task`, and the prefix pattern
+   * is anchored at the start of the line. Once tasks-lint inserts an id the
+   * line reads `- [ ] \`T-89be\` @eric/@katie: the task`, the prefix no longer
+   * sits at the start, and stripping in the other order leaves the handle
+   * embedded in the title while the assignee goes unread. Caught by
+   * round-tripping the fixer over a copy of the real file: 506 tasks in and
+   * out, but one title had grown an `@eric/@katie:`.
+   */
   let externalId: string | null = null;
   const eden = text.match(EDEN_ID_RE);
   if (eden) {
     externalId = eden[1];
     text = text.slice(eden[0].length);
   }
+
+  // honeylakeos leads with `@katie: ` or `⚠️ @katie — `.
+  text = text.replace(PREFIX_HANDLES_RE, '').trim();
 
   // ~~struck~~ titles keep their words; the strikethrough is read as status.
   text = text.replace(/^~~(.*?)~~/, '$1').trim();
