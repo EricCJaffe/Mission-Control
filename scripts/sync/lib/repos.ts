@@ -40,19 +40,47 @@ const TASK_FILES = [
   'TODO.md',
 ];
 
-/** Sub-directory task files, e.g. honeylakeos/docs/intranet-migration/TASKS.md. */
+/*
+ * Task files anywhere under docs/, at any depth.
+ *
+ * This used to walk one level and match two exact filenames, which missed
+ * `docs/planning/2026/TODO-q4.md` — a real shape, since these repos date and
+ * suffix their planning files. Any depth now, and any name that starts TASKS
+ * or TODO.
+ *
+ * Depth is capped and node_modules skipped because `docs/` occasionally
+ * contains a vendored site build, and walking one of those costs seconds per
+ * repo for nothing.
+ */
+const NESTED_NAME_RE = /^(TASKS|TODO)[\w.-]*\.md$/i;
+const MAX_DEPTH = 4;
+
 function nestedTaskFiles(repoPath: string): string[] {
-  const docs = join(repoPath, 'docs');
-  if (!existsSync(docs)) return [];
   const out: string[] = [];
-  for (const entry of readdirSync(docs, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    for (const name of ['TASKS.md', 'TODO.md']) {
-      const rel = `docs/${entry.name}/${name}`;
-      if (existsSync(join(repoPath, rel))) out.push(rel);
+
+  const walk = (relDir: string, depth: number) => {
+    if (depth > MAX_DEPTH) return;
+    let entries;
+    try {
+      entries = readdirSync(join(repoPath, relDir), { withFileTypes: true });
+    } catch {
+      return;
     }
-  }
-  return out;
+    for (const entry of entries) {
+      const rel = `${relDir}/${entry.name}`;
+      if (entry.isDirectory()) {
+        if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+        walk(rel, depth + 1);
+      } else if (NESTED_NAME_RE.test(entry.name)) {
+        out.push(rel);
+      }
+    }
+  };
+
+  if (existsSync(join(repoPath, 'docs'))) walk('docs', 1);
+  // `docs/TASKS.md` and `docs/TODO.md` are already in TASK_FILES; drop the
+  // duplicates rather than harvesting the same file twice under two names.
+  return out.filter((rel) => !TASK_FILES.includes(rel));
 }
 
 function git(repoPath: string, args: string[]): string | null {
