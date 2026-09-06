@@ -118,6 +118,8 @@ export type CalendarEventRow = {
   location: string | null;
   web_link: string | null;
   attendees: string[] | null;
+  recurrence_rule?: string | null;
+  recurrence_until?: string | null;
 };
 
 export type InboxItemRow = {

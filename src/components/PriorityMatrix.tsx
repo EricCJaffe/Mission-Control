@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Compass, HeartPulse, Users, Briefcase, AlertTriangle, Target } from "lucide-react";
 import { supabaseServer } from "@/lib/supabase/server";
-import { today as todayInAppTz, dayOf, addDays } from "@/lib/day";
+import { expandInRange } from "@/lib/calendar/recurrence";
+import { today as todayInAppTz, addDays } from "@/lib/day";
 
 /**
  * Eric's priority matrix — God first, Health, Family, Impact.
@@ -127,10 +128,13 @@ export default async function PriorityMatrix() {
       .neq("status", "done"),
     supabase
       .from("calendar_events")
-      .select("start_at,end_at,domain")
+      .select("start_at,end_at,domain,recurrence_rule,recurrence_until")
       .eq("user_id", user.id)
-      .gte("start_at", fetchFrom)
-      .lt("start_at", fetchTo),
+      // A recurring event's stored row sits on the date it was created, which
+      // is usually months behind this week. Filtering on start_at alone would
+      // drop every standing commitment — and the standing ones are the hours
+      // most reliably kept.
+      .or(`and(start_at.gte.${fetchFrom},start_at.lt.${fetchTo}),recurrence_rule.not.is.null`),
   ]);
 
   const tasks = tasksResult.data ?? [];
@@ -156,14 +160,27 @@ export default async function PriorityMatrix() {
   const hoursByDomain = new Map<string, number>();
   let unclassifiedHours = 0;
 
-  for (const event of events) {
-    const startAt = event.start_at as string | null;
-    if (!startAt) continue;
-    const day = dayOf(startAt);
-    if (day < weekStartIso || day > weekEndIso) continue;
-    const hours = hoursBetween(startAt, event.end_at as string | null);
+  // Expanded, so a Mon–Sat anchor counts six times this week rather than once
+  // on whatever day it was first created.
+  const occurrences = expandInRange(
+    events
+      .filter((e) => e.start_at && e.end_at)
+      .map((e) => ({
+        start_at: e.start_at as string,
+        end_at: e.end_at as string,
+        recurrence_rule: (e.recurrence_rule as string | null) ?? null,
+        recurrence_until: (e.recurrence_until as string | null) ?? null,
+        domain: (e.domain as string | null) ?? null,
+      })),
+    weekStartIso,
+    weekEndIso,
+  );
+
+  for (const event of occurrences) {
+    const startAt = event.startAt;
+    const hours = hoursBetween(startAt, event.endAt);
     if (hours <= 0) continue;
-    const domain = (event.domain as string | null) ?? null;
+    const domain = event.domain;
     if (!domain) {
       unclassifiedHours += hours;
       continue;

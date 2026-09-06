@@ -13,6 +13,7 @@
  * comment at the top of `/sync`.
  */
 
+import { expandInRange } from '@/lib/calendar/recurrence';
 import { APP_TIMEZONE, addDays, dayOf, daysBetween, today as todayInAppTz } from '@/lib/day';
 import type { MissionClient } from '@/lib/supabase/schema';
 import {
@@ -283,10 +284,18 @@ export async function collect(
     supabase.from('projects').select('id,title,slug,domain,client').eq('user_id', userId).limit(500),
     supabase
       .from('calendar_events')
-      .select('id,title,start_at,end_at,domain,is_external,has_prep,location,web_link,attendees')
+      .select(
+        'id,title,start_at,end_at,domain,is_external,has_prep,location,web_link,attendees,recurrence_rule,recurrence_until',
+      )
       .eq('user_id', userId)
-      .gte('start_at', calendarFrom)
-      .lt('start_at', calendarTo)
+      /*
+       * A recurring event's row sits on the date it was created, usually
+       * months before the week being reported. Filtering on start_at alone
+       * dropped every standing commitment — training, church, the weekly
+       * client call — which are precisely the hours most reliably kept, and
+       * therefore the ones the alignment check most needs.
+       */
+      .or(`and(start_at.gte.${calendarFrom},start_at.lt.${calendarTo}),recurrence_rule.not.is.null`)
       .order('start_at', { ascending: true })
       .limit(500),
     supabase
@@ -309,7 +318,28 @@ export async function collect(
   const openTasks = (tasksResult.data ?? []) as TaskRow[];
   const closedTasks = (closedResult.data ?? []) as TaskRow[];
   const projects = (projectsResult.data ?? []) as ProjectRow[];
-  const events = (eventsResult.data ?? []) as CalendarEventRow[];
+  /*
+   * Expanded into the reporting window before anything reads them.
+   *
+   * Everything downstream — the day table, the prep warnings, the alignment
+   * hours — treats an event as a single dated thing, which is right. Doing the
+   * expansion once here means none of them has to know recurrence exists.
+   */
+  const storedEvents = (eventsResult.data ?? []) as CalendarEventRow[];
+  const events: CalendarEventRow[] = expandInRange(
+    storedEvents
+      .filter((e) => e.start_at && e.end_at)
+      .map((e) => ({ ...e, start_at: e.start_at as string, end_at: e.end_at as string })),
+    calendarFrom.slice(0, 10),
+    calendarTo.slice(0, 10),
+  ).map((o) => ({
+    ...o,
+    // A recurring row would otherwise repeat one id across every occurrence,
+    // and React keys and the prep-warning matcher both assume it is unique.
+    id: o.occurrenceDate === o.start_at.slice(0, 10) ? o.id : `${o.id}:${o.occurrenceDate}`,
+    start_at: o.startAt,
+    end_at: o.endAt,
+  }));
   const inbox = (inboxResult.data ?? []) as InboxItemRow[];
   const runs = (runsResult.data ?? []) as Array<{
     source: string;
