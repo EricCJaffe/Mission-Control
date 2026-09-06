@@ -84,6 +84,26 @@ type Harvested = {
   relPath: string;
 };
 
+
+/*
+ * Make every ref unique within a repo.
+ *
+ * Two tasks can legitimately share a heading trail and a title — trellisv2 has
+ * a "Pre-go-live notification verification on training" under two different
+ * dates, and EDEN's own file documents an `FND-25` used twice for different
+ * work. The nth duplicate gets `~n` appended, which is stable as long as their
+ * order in the file is, and that is the same assumption the rest of the
+ * identity scheme already makes.
+ */
+function uniquifyRefs(items: Harvested[]): Harvested[] {
+  const counts = new Map<string, number>();
+  return items.map((h) => {
+    const n = counts.get(h.sourceRef) ?? 0;
+    counts.set(h.sourceRef, n + 1);
+    return n === 0 ? h : { ...h, sourceRef: `${h.sourceRef}~${n + 1}` };
+  });
+}
+
 function harvestRepo(repo: Repo, maxPriority: number): { all: ParsedTask[]; mine: Harvested[]; namesPeople: boolean } {
   const all: ParsedTask[] = [];
   const found: Harvested[] = [];
@@ -107,7 +127,8 @@ function harvestRepo(repo: Repo, maxPriority: number): { all: ParsedTask[]; mine
   }
 
   const namesPeople = all.some((t) => t.assignees.length > 0);
-  const mine = found.filter(
+  const unique = uniquifyRefs(found);
+  const mine = unique.filter(
     (h) => h.task.status === 'todo' && h.task.priority <= maxPriority && isMine(h.task, namesPeople),
   );
   return { all, mine, namesPeople };
@@ -268,7 +289,7 @@ function harvestAllOpen(repo: Repo, maxPriority: number): Harvested[] {
       out.push({ task, sourceRef: sourceRef(relPath, task), sourceUrl: blobUrl(repo, relPath, task.line), relPath });
     }
   }
-  return out;
+  return uniquifyRefs(out);
 }
 
 /*
