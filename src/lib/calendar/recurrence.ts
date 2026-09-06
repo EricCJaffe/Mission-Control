@@ -112,12 +112,64 @@ export type RecurringEvent = {
   recurrence_until?: string | null;
 };
 
+/** The wall-clock parts of an instant, as read in a given zone. */
+function localPartsIn(iso: string, timeZone: string): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(iso));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00';
+  // Intl renders midnight as hour 24 in some engines.
+  const hour = get('hour') === '24' ? '00' : get('hour');
+  return {
+    date: `${get('year')}-${get('month')}-${get('day')}`,
+    time: `${hour}:${get('minute')}:${get('second')}`,
+  };
+}
+
+/** Minutes a zone is ahead of UTC at a given instant. */
+function offsetMinutesAt(instant: Date, timeZone: string): number {
+  const { date, time } = localPartsIn(instant.toISOString(), timeZone);
+  const asIfUtc = Date.parse(`${date}T${time}Z`);
+  return (asIfUtc - instant.getTime()) / 60_000;
+}
+
+/**
+ * A wall-clock time in a zone, as a real instant.
+ *
+ * Two passes: guess by reading the local time as though it were UTC, measure
+ * the zone's offset at that guess, then correct. The second pass is what makes
+ * it right across a DST boundary, where the offset on the occurrence date is
+ * not the offset on the base date.
+ */
+function zonedToUtc(dateIso: string, timeIso: string, timeZone: string): Date {
+  const guess = new Date(`${dateIso}T${timeIso}Z`);
+  const corrected = new Date(guess.getTime() - offsetMinutesAt(guess, timeZone) * 60_000);
+  // One more pass, because the offset at the guess can differ from the offset
+  // at the corrected instant right at a transition.
+  return new Date(guess.getTime() - offsetMinutesAt(corrected, timeZone) * 60_000);
+}
+
 /**
  * Every occurrence of `events` between two dates, as concrete start/end pairs.
  *
- * The time of day is carried over from the base event and the date is
- * replaced, which is what makes a 6:30am anchor stay at 6:30am rather than
- * drifting by the offset between the base date and the target.
+ * THE LOCAL WALL CLOCK IS WHAT REPEATS, not the UTC one. A 6:30am anchor is at
+ * 6:30am on every occurrence, which means the instant it maps to changes when
+ * the clocks do.
+ *
+ * An earlier version built each occurrence as `${localDate}T${utcClock}` —
+ * mixing a date read in the app timezone with a clock read in UTC. Anything
+ * scheduled after 8pm Eastern is stored as the NEXT day in UTC, so it came
+ * back a day early: an 8pm Tuesday dinner rendered on Monday. It went
+ * unnoticed because the events being tested were all mid-morning, where the
+ * two dates happen to agree. Evening commitments are disproportionately Family
+ * and Health, which are exactly the buckets the matrix exists to protect.
  */
 export function expandInRange<T extends RecurringEvent>(
   events: T[],
@@ -128,30 +180,36 @@ export function expandInRange<T extends RecurringEvent>(
   const out: Array<T & { occurrenceDate: string; startAt: string; endAt: string }> = [];
 
   for (const event of events) {
-    const baseDate = dayIn(event.start_at, timeZone);
-    const startClock = event.start_at.slice(11, 19) || '00:00:00';
-    const endClock = event.end_at?.slice(11, 19) || startClock;
-    // An event whose end time is before its start crosses midnight.
-    const endsNextDay = endClock < startClock;
+    const base = localPartsIn(event.start_at, timeZone);
+    const durationMs = Math.max(
+      0,
+      new Date(event.end_at ?? event.start_at).getTime() - new Date(event.start_at).getTime(),
+    );
 
     for (let d = fromDate; d <= toDate; d = addDay(d)) {
-      if (!occursOn(baseDate, event.recurrence_rule, d, event.recurrence_until)) continue;
+      if (!occursOn(base.date, event.recurrence_rule, d, event.recurrence_until)) continue;
+
+      // The base occurrence is already a correct instant; leave it alone
+      // rather than round-tripping it through the zone maths.
+      if (d === base.date) {
+        out.push({ ...event, occurrenceDate: d, startAt: event.start_at, endAt: event.end_at });
+        continue;
+      }
+
+      const start = zonedToUtc(d, base.time, timeZone);
+      // Duration rather than a rebuilt end clock: it carries a meeting across
+      // midnight without special-casing, and stays right across a DST change.
+      const end = new Date(start.getTime() + durationMs);
       out.push({
         ...event,
         occurrenceDate: d,
-        startAt: `${d}T${startClock}${zoneSuffix(event.start_at)}`,
-        endAt: `${endsNextDay ? addDay(d) : d}T${endClock}${zoneSuffix(event.end_at ?? event.start_at)}`,
+        startAt: start.toISOString(),
+        endAt: end.toISOString(),
       });
     }
   }
 
   return out.sort((a, b) => (a.startAt < b.startAt ? -1 : 1));
-}
-
-/** Keep whatever offset the stored timestamp carried, `Z` included. */
-function zoneSuffix(iso: string): string {
-  const m = iso.match(/(Z|[+-]\d{2}:?\d{2})$/);
-  return m ? m[1] : 'Z';
 }
 
 function addDay(dateIso: string): string {

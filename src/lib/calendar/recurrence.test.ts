@@ -112,3 +112,54 @@ test('results come back in time order across events', () => {
   const times = out.map((o) => o.startAt);
   assert.deepEqual([...times].sort(), times);
 });
+
+test('an evening event keeps its own date, not the UTC one', () => {
+  // 8:00 PM Eastern on Tuesday is stored as Wednesday 00:00Z. Building the
+  // occurrence from a local date and a UTC clock put it on Monday evening —
+  // every commitment after 8pm landed a day early, and evenings are
+  // disproportionately Family and Health.
+  const out = expandInRange(
+    [{ start_at: '2026-09-09T00:00:00Z', end_at: '2026-09-09T01:30:00Z', recurrence_rule: null }],
+    '2026-09-07',
+    '2026-09-13',
+  );
+  assert.equal(out.length, 1);
+  assert.equal(out[0].occurrenceDate, '2026-09-08', 'Tuesday, the local date');
+  assert.equal(out[0].startAt, '2026-09-09T00:00:00Z', 'the stored instant is untouched');
+});
+
+test('a recurring evening event repeats on the right local evenings', () => {
+  const out = expandInRange(
+    [{ start_at: '2026-09-08T00:00:00Z', end_at: '2026-09-08T01:00:00Z', recurrence_rule: 'daily' }],
+    '2026-09-07',
+    '2026-09-09',
+  );
+  // 8pm Eastern on the 7th, 8th and 9th.
+  assert.deepEqual(out.map((o) => o.occurrenceDate), ['2026-09-07', '2026-09-08', '2026-09-09']);
+  for (const o of out) {
+    const localHour = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', hour: '2-digit', hour12: false,
+    }).format(new Date(o.startAt));
+    assert.equal(localHour, '20', o.occurrenceDate);
+  }
+});
+
+test('the wall clock survives the end of daylight saving', () => {
+  // US DST ends 2026-11-01. A 6:30am anchor is at 6:30am on both sides of it,
+  // which means the UTC instant it maps to has to shift by an hour.
+  const out = expandInRange(
+    [{ start_at: '2026-10-30T10:30:00Z', end_at: '2026-10-30T11:30:00Z', recurrence_rule: 'daily' }],
+    '2026-10-30',
+    '2026-11-03',
+  );
+  for (const o of out) {
+    const local = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(new Date(o.startAt));
+    assert.equal(local, '06:30', o.occurrenceDate);
+  }
+  // And the UTC instants really do differ either side of the change.
+  const before = out.find((o) => o.occurrenceDate === '2026-10-31')!.startAt.slice(11, 16);
+  const after = out.find((o) => o.occurrenceDate === '2026-11-02')!.startAt.slice(11, 16);
+  assert.notEqual(before, after);
+});
