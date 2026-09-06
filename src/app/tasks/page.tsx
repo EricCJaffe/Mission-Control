@@ -12,6 +12,19 @@ type TaskAttachment = {
   mime_type: string | null;
 };
 
+/*
+ * The five domains, in matrix order: God First → Health → Family → Impact.
+ * Kept beside CATEGORIES rather than replacing it — category is the older,
+ * free-text grouping and 36 tasks still rely on it.
+ */
+const DOMAINS = [
+  { value: "spirit", label: "Spirit — God First" },
+  { value: "body", label: "Body — Health" },
+  { value: "soul", label: "Soul — Health" },
+  { value: "family", label: "Family" },
+  { value: "work", label: "Work — Impact" },
+];
+
 const CATEGORIES = [
   "God First",
   "Health",
@@ -29,7 +42,10 @@ export default async function TasksPage() {
 
   const { data: tasks, error } = await supabase
     .from("tasks")
-    .select("id,title,status,priority,due_date,created_at,category,why,recurrence_rule,recurrence_anchor,book_id,chapter_id,is_template")
+    // One literal string, not a concatenation: supabase-js infers the row type
+    // from the select text, and a `+` between two halves erases it back to
+    // GenericStringError.
+    .select("id,title,status,priority,due_date,created_at,category,why,recurrence_rule,recurrence_anchor,book_id,chapter_id,is_template,domain,source,source_ref,source_url,project_id,assignee,external_status")
     .order("created_at", { ascending: false });
 
   const taskIds = (tasks || []).map((task) => task.id);
@@ -68,6 +84,13 @@ export default async function TasksPage() {
         .in("task_id", taskIds)
     : { data: [] };
 
+  // Projects carry the slug the harvester syncs under, so a synced task can
+  // say which repo it came from rather than showing a bare uuid.
+  const { data: projects } = await supabase
+    .from("projects")
+    .select("id,title,slug,domain,client,sync_enabled,last_synced_at")
+    .order("title", { ascending: true });
+
   const { data: notes } = await supabase
     .from("notes")
     .select("id,title")
@@ -92,6 +115,8 @@ export default async function TasksPage() {
         tasks={tasks || []}
         attachmentsByTask={attachmentsByTask}
         categories={CATEGORIES}
+        domains={DOMAINS}
+        projects={projects || []}
         subtasks={subtasks || []}
         links={links || []}
         noteLinks={noteLinks || []}

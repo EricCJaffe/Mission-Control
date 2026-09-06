@@ -17,6 +17,7 @@ export async function POST(req: Request) {
   const priorityRaw = String(form.get("priority") || "").trim();
   const dueDate = String(form.get("due_date") || "").trim();
   const category = String(form.get("category") || "").trim();
+  const domain = String(form.get("domain") || "").trim();
   const why = String(form.get("why") || "").trim();
   const recurrenceRule = String(form.get("recurrence_rule") || "").trim();
   const recurrenceAnchor = String(form.get("recurrence_anchor") || "").trim();
@@ -26,7 +27,16 @@ export async function POST(req: Request) {
   // and still wants a redirect back to the page.
   const wantsJson = String(form.get("json") || "").trim() === "1";
 
-  const payload: Record<string, unknown> = {};
+  /*
+   * Any edit made here claims the task from the project harvester.
+   *
+   * scripts/sync reads `edited_at`: while it is null the source file still
+   * owns the title, status and priority, and once it is set the sync may only
+   * refresh the wording. Without this line a two-hourly cron would quietly
+   * revert every status you changed by hand, which is the fastest way to teach
+   * someone to stop using the app.
+   */
+  const payload: Record<string, unknown> = { edited_at: new Date().toISOString() };
   if (form.has("title")) payload.title = title || null;
   if (form.has("status")) payload.status = status || null;
 
@@ -41,6 +51,7 @@ export async function POST(req: Request) {
 
   if (form.has("due_date")) payload.due_date = dueDate || null;
   if (form.has("category")) payload.category = category || null;
+  if (form.has("domain")) payload.domain = domain || null;
   if (form.has("why")) payload.why = why || null;
   if (form.has("recurrence_rule")) payload.recurrence_rule = recurrenceRule || null;
   if (form.has("recurrence_anchor")) payload.recurrence_anchor = recurrenceAnchor || null;

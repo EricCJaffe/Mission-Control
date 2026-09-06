@@ -39,6 +39,7 @@ export const PROJECT_SEEDS: Record<string, { domain: Domain; client?: string; sy
   EDEN: { domain: 'work', client: 'Value Driven Life' },
   financeos: { domain: 'work' },
   honeylakeos: { domain: 'work', client: 'Honey Lake Clinic' },
+  linksy: { domain: 'work', client: 'Linksi — Impact Works' },
   'mac-setup': { domain: 'work', sync: false },
   'mission-control': { domain: 'work' },
   TKOS: { domain: 'work', client: 'Thermo King of the Southeast' },

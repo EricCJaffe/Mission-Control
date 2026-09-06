@@ -5,6 +5,7 @@ import { computeHybridBalance } from "@/lib/fitness/hybrid-balance";
 import { computePillarScores } from "@/lib/flourishing/spirit-soul-body";
 import { statusForScore } from "@/lib/status-colors";
 import MissionBanner from "@/components/MissionBanner";
+import PriorityMatrix from "@/components/PriorityMatrix";
 import PracticeTracker from "@/components/spirit/PracticeTracker";
 import { parseMission } from "@/lib/persona/mission";
 import {
@@ -535,6 +536,12 @@ export default async function DashboardHome() {
           asOf={bp?.reading_date?.slice(0, 10) ?? null}
           href="/fitness/bp"
         />
+      </section>
+
+      {/* The matrix itself — God First, Health, Family, Impact — reading the
+          five domains that tasks and calendar events are now filed under. */}
+      <section className="mt-3">
+        <PriorityMatrix />
       </section>
 
       {/* Priority matrix — horizontal so it reads as a strip, not a list. */}

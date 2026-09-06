@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   const priorityRaw = String(form.get("priority") || "").trim();
   const dueDate = String(form.get("due_date") || "").trim();
   const category = String(form.get("category") || "").trim();
+  const domain = String(form.get("domain") || "").trim();
   const why = String(form.get("why") || "").trim();
   const recurrenceRule = String(form.get("recurrence_rule") || "").trim();
   const recurrenceAnchor = String(form.get("recurrence_anchor") || "").trim();
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
   }
   if (dueDate) payload.due_date = dueDate;
   if (category) payload.category = category;
+  if (domain) payload.domain = domain;
   if (why) payload.why = why;
   if (recurrenceRule) payload.recurrence_rule = recurrenceRule;
   if (recurrenceAnchor) payload.recurrence_anchor = recurrenceAnchor;

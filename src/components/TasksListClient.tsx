@@ -21,6 +21,34 @@ type Task = {
   book_id: string | null;
   chapter_id: string | null;
   is_template?: boolean | null;
+  domain: string | null;
+  source: string | null;
+  source_ref: string | null;
+  source_url: string | null;
+  project_id: string | null;
+  assignee: string | null;
+  external_status: string | null;
+};
+
+type DomainOption = { value: string; label: string };
+
+type ProjectOption = {
+  id: string;
+  title: string | null;
+  slug: string | null;
+  domain: string | null;
+  client: string | null;
+  sync_enabled: boolean | null;
+  last_synced_at: string | null;
+};
+
+/** Short pill labels; the select carries the long form. */
+const DOMAIN_LABEL: Record<string, string> = {
+  spirit: "Spirit",
+  body: "Body",
+  soul: "Soul",
+  family: "Family",
+  work: "Work",
 };
 
 type TaskAttachment = {
@@ -69,11 +97,13 @@ function TaskRow({
   onOpen,
   onToggleDone,
   busy,
+  projectName,
 }: {
   task: Task;
   onOpen: (task: Task) => void;
   onToggleDone: (task: Task) => void;
   busy: boolean;
+  projectName?: string | null;
 }) {
   const isDone = task.status === "done";
   // `new Date("2026-08-16")` is UTC midnight, which is BEFORE local midnight
@@ -143,6 +173,33 @@ function TaskRow({
               </span>
             )}
             {task.category && <span className="rounded-full bg-blue-50 px-2 py-0.5">{task.category}</span>}
+            {task.domain && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
+                {DOMAIN_LABEL[task.domain] ?? task.domain}
+              </span>
+            )}
+            {/* Where a synced task came from. Slate, not blue: blue is for
+                things you act on, and this is provenance. */}
+            {task.source && task.source !== "manual" && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-slate-500">
+                {projectName ?? task.source}
+                {task.source_url && (
+                  <a
+                    className="text-blue-700 hover:underline"
+                    href={task.source_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(event) => event.stopPropagation()}
+                    title="Open where this task is written"
+                  >
+                    open
+                  </a>
+                )}
+              </span>
+            )}
+            {task.external_status === "gone" && (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">no longer in source</span>
+            )}
           </div>
           {task.why && <div className="mt-1 line-clamp-2 text-xs text-slate-500">{snippet(task.why)}</div>}
         </div>
@@ -192,6 +249,8 @@ export default function TasksListClient({
   tasks,
   attachmentsByTask,
   categories,
+  domains,
+  projects,
   subtasks,
   links,
   noteLinks,
@@ -200,6 +259,8 @@ export default function TasksListClient({
   tasks: Task[];
   attachmentsByTask: Record<string, TaskAttachment[]>;
   categories: string[];
+  domains: DomainOption[];
+  projects: ProjectOption[];
   subtasks: Subtask[];
   links: TaskLink[];
   noteLinks: TaskNoteLink[];
@@ -210,6 +271,9 @@ export default function TasksListClient({
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDone, setShowDone] = useState(false);
   const [tab, setTab] = useState("my");
+  const [domainFilter, setDomainFilter] = useState("all");
+  const [projectFilter, setProjectFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   /** Optimistic status overrides, keyed by task id. */
   const [statusOverrides, setStatusOverrides] = useState<Record<string, string>>({});
@@ -220,6 +284,7 @@ export default function TasksListClient({
   const [editPriority, setEditPriority] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
   const [editCategory, setEditCategory] = useState("");
+  const [editDomain, setEditDomain] = useState("");
   const [editRecurrence, setEditRecurrence] = useState("");
   const [editRecurrenceAnchor, setEditRecurrenceAnchor] = useState("");
   const [editTemplate, setEditTemplate] = useState(false);
@@ -229,6 +294,7 @@ export default function TasksListClient({
   const [newNoteId, setNewNoteId] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState("");
+  const [newDomain, setNewDomain] = useState("");
   const [newPriority, setNewPriority] = useState("");
   const [newDue, setNewDue] = useState("");
   const [newWhy, setNewWhy] = useState("");
@@ -242,11 +308,27 @@ export default function TasksListClient({
     return tasks.filter((task) => {
       // Status is applied at the section level, not here — filtering twice
       // meant picking "Done" emptied every section including Done.
+      if (domainFilter === "none" ? task.domain : domainFilter !== "all" && task.domain !== domainFilter) {
+        return false;
+      }
+      if (projectFilter !== "all" && task.project_id !== projectFilter) return false;
+      if (sourceFilter === "manual" && task.source && task.source !== "manual") return false;
+      if (sourceFilter === "synced" && (!task.source || task.source === "manual")) return false;
       if (!search.trim()) return true;
-      const hay = `${task.title} ${task.category || ""} ${task.why || ""}`.toLowerCase();
+      const hay = `${task.title} ${task.category || ""} ${task.why || ""} ${task.assignee || ""}`.toLowerCase();
       return hay.includes(search.toLowerCase());
     });
-  }, [tasks, search]);
+  }, [tasks, search, domainFilter, projectFilter, sourceFilter]);
+
+  const projectById = useMemo(
+    () => new Map(projects.map((p) => [p.id, p])),
+    [projects],
+  );
+  const syncedCount = useMemo(
+    () => tasks.filter((t) => t.source && t.source !== "manual").length,
+    [tasks],
+  );
+  const manualCount = tasks.length - syncedCount;
 
   const visibleTasks = useMemo(() => {
     if (tab === "recurring") return filtered.filter((task) => task.recurrence_rule);
@@ -309,6 +391,7 @@ export default function TasksListClient({
     setEditPriority(task.priority ? String(task.priority) : "");
     setEditDueDate(toDateInput(task.due_date));
     setEditCategory(task.category || "");
+    setEditDomain(task.domain || "");
     setEditWhy(task.why || "");
     setEditRecurrence(task.recurrence_rule || "");
     setEditRecurrenceAnchor(toDateInput(task.recurrence_anchor));
@@ -342,15 +425,51 @@ export default function TasksListClient({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-        {/* These two are placeholders with a single option and no handler.
-            They're kept for desktop but hidden on a phone, where a dead
-            control costs a whole row above the actual list. */}
-        <select className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 sm:block">
-          <option>All Projects</option>
+        {/* These were dead placeholders with one option and no handler. They
+            do something now: the project harvester can add hundreds of rows
+            from ten repos, and a list you cannot narrow is a list you stop
+            opening. */}
+        <select
+          aria-label="Filter by domain"
+          className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2"
+          value={domainFilter}
+          onChange={(e) => setDomainFilter(e.target.value)}
+        >
+          <option value="all">All domains</option>
+          {domains.map((d) => (
+            <option key={d.value} value={d.value}>
+              {d.label}
+            </option>
+          ))}
+          <option value="none">Unclassified</option>
         </select>
-        <select className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 sm:block">
-          <option>All Tags</option>
-        </select>
+        {projects.length > 0 && (
+          <select
+            aria-label="Filter by project"
+            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2"
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+          >
+            <option value="all">All projects</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title || p.slug}
+              </option>
+            ))}
+          </select>
+        )}
+        {syncedCount > 0 && (
+          <select
+            aria-label="Filter by source"
+            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+          >
+            <option value="all">All sources ({tasks.length})</option>
+            <option value="manual">Typed here ({manualCount})</option>
+            <option value="synced">From projects ({syncedCount})</option>
+          </select>
+        )}
         <input
           className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-base sm:w-56 sm:text-xs"
           placeholder="Search tasks..."
@@ -421,7 +540,7 @@ export default function TasksListClient({
                 <div className="text-xs font-semibold text-slate-500">Pinned</div>
                 <div className="mt-2 grid gap-2">
                   {pinned.map((task) => (
-                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
+                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} projectName={projectById.get(task.project_id ?? "")?.title ?? projectById.get(task.project_id ?? "")?.slug ?? null} />
                   ))}
                 </div>
               </div>
@@ -432,7 +551,7 @@ export default function TasksListClient({
               <div className="text-xs font-semibold text-slate-500">To Do</div>
               <div className="mt-2 grid gap-2">
                 {todo.map((task) => (
-                  <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
+                  <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} projectName={projectById.get(task.project_id ?? "")?.title ?? projectById.get(task.project_id ?? "")?.slug ?? null} />
                 ))}
                 {todo.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
               </div>
@@ -444,7 +563,7 @@ export default function TasksListClient({
                 <div className="text-xs font-semibold text-slate-500">In Progress</div>
                 <div className="mt-2 grid gap-2">
                   {inProgress.map((task) => (
-                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
+                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} projectName={projectById.get(task.project_id ?? "")?.title ?? projectById.get(task.project_id ?? "")?.slug ?? null} />
                   ))}
                 </div>
               </div>
@@ -464,7 +583,7 @@ export default function TasksListClient({
               {showDone && (
                 <div className="mt-2 grid gap-2">
                   {done.map((task) => (
-                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
+                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} projectName={projectById.get(task.project_id ?? "")?.title ?? projectById.get(task.project_id ?? "")?.slug ?? null} />
                   ))}
                   {done.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
                 </div>
@@ -477,7 +596,7 @@ export default function TasksListClient({
                 <div className="text-xs font-semibold text-slate-500">Blocked</div>
                 <div className="mt-2 grid gap-2">
                   {blocked.map((task) => (
-                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} />
+                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} projectName={projectById.get(task.project_id ?? "")?.title ?? projectById.get(task.project_id ?? "")?.slug ?? null} />
                   ))}
                 </div>
               </div>
@@ -558,7 +677,23 @@ export default function TasksListClient({
                     onChange={(e) => setEditDueDate(e.target.value)}
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div>
+                  <label className="text-xs text-slate-500">Domain</label>
+                  <select
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                    name="domain"
+                    value={editDomain}
+                    onChange={(e) => setEditDomain(e.target.value)}
+                  >
+                    <option value="">Unclassified</option>
+                    {domains.map((d) => (
+                      <option key={d.value} value={d.value}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="text-xs text-slate-500">Category</label>
                   <select
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
@@ -844,6 +979,25 @@ export default function TasksListClient({
 
             <div className="grid min-w-0 gap-3 sm:grid-cols-3 [&>div]:min-w-0">
               <div className="sm:col-span-2">
+                <label className="text-xs font-semibold text-slate-500" htmlFor="nt-domain">
+                  Domain
+                </label>
+                {/* Asked for on creation, because a task with no domain is
+                    invisible to the priority matrix — and the matrix is the
+                    whole point of the frame. */}
+                <select
+                  id="nt-domain"
+                  className="mt-1 mb-3 w-full rounded-xl border-2 border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+                  name="domain"
+                  value={newDomain}
+                  onChange={(e) => setNewDomain(e.target.value)}
+                  required
+                >
+                  <option value="">Choose one…</option>
+                  {domains.map((d) => (
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                  ))}
+                </select>
                 <label className="text-xs font-semibold text-slate-500" htmlFor="nt-category">Category</label>
                 <select
                   id="nt-category"
