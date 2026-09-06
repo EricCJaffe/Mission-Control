@@ -1,0 +1,18 @@
+[Unit]
+Description=Run the monthly expense sweep on the 1st
+Documentation=file:///home/admxn/dev/mission-control/docs/m365-setup.md
+
+[Timer]
+# The 1st of each month, reconciling the month that just ended. 06:17 rather
+# than 06:00 so it does not land on the same instant as every other cron on
+# the box, and early enough that the CSV is waiting before the day starts.
+OnCalendar=*-*-01 06:17
+RandomizedDelaySec=600
+
+# If the box was asleep or rebooted across the 1st, run on the next boot
+# instead of skipping the month entirely — a missed month is not recoverable
+# by waiting, it has to be run by hand with --month.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

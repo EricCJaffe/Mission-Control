@@ -50,3 +50,6 @@ Projects/
 # supabase temp
 supabase/.temp
 .env*.local
+
+# Working files for the expense sweep (PDFs live in OneDrive, not here)
+scratch/

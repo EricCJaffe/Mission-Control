@@ -1,0 +1,35 @@
+[Unit]
+# Monthly expense sweep: attribute the prior month's receipts to the five
+# paying entities and write a reconciliation CSV.
+#
+# NOT ENABLED YET, and enabling it early would be worse than leaving it off.
+# It needs BOTH:
+#
+#   1. MS_TENANT_ID / MS_CLIENT_ID / MS_CLIENT_SECRET / MS_MAILBOX in
+#      ~/.config/mission-control/sync.env — the same four the m365 sync wants.
+#   2. A headless Gmail credential, which does not exist yet. Without it the
+#      run covers Outlook only and omits most of the spend.
+#
+# It is safe to run by hand at any time: it prints its gaps and refuses to
+# pretend a partial sweep is a complete one.
+#
+#   systemctl --user enable --now mission-control-expenses.timer
+Description=Mission Control — monthly expense sweep and entity split
+Documentation=file:///home/admxn/dev/mission-control/docs/m365-setup.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/mission-control/sync.env
+WorkingDirectory=%h/dev/mission-control
+
+# Absolute path: a user service does not source ~/.profile, so fnm's shims are
+# not on PATH and a bare `node` fails with 203/EXEC and no explanation.
+ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/expenses.ts
+
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+TimeoutStartSec=900
