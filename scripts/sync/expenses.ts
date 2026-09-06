@@ -27,7 +27,8 @@
  * not will be signed off, and the gap becomes invisible.
  */
 
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { loadGraphEnv, graphGet, mailboxPath, type GraphEnv } from './lib/graph.ts';
 import { attribute, ENTITY_LABEL, type Entity } from './lib/expenses/entities.ts';
 import { monthFromKey, previousMonth, type Month } from './lib/expenses/month.ts';
@@ -176,7 +177,16 @@ async function main() {
     console.log(`  ${k.padEnd(28)} ${String(v.n).padStart(3)}   $${v.total.toFixed(2)}`);
   }
 
-  const path = args.out ?? `expenses-${month.key}.csv`;
+  /*
+   * One folder per month from October 2026 onward. The OneDrive side follows
+   * the same shape - Expense Backup 2026/<YYYY-MM>/ - because a single flat
+   * folder stops being navigable somewhere around a hundred files, and a
+   * reconciliation is always asking "what happened in one month". Everything
+   * before October stays in the flat folder it was filed into while catching
+   * up; renaming history would break the links already emailed out.
+   */
+  const path = args.out ?? `expenses-${month.key}/expenses-${month.key}.csv`;
+  mkdirSync(dirname(path), { recursive: true });
   if (args.dryRun) {
     console.log(`\n[expenses] --dry-run: would write ${path}`);
   } else {

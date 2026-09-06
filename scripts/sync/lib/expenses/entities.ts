@@ -43,6 +43,14 @@ export type Attribution = {
   basis: Basis;
   /** Shown verbatim in the reconciliation sheet so the call can be audited. */
   reason: string;
+  /*
+   * Set when Eric pays a cost that is then billed on to someone else. It is
+   * still HIS expense - it hits his card and belongs in his books - but it
+   * carries a receivable, so it must not be netted away or dropped. The
+   * ahavaekklesia.com domain is the case that produced this field: it looked
+   * like another entity's cost and was very nearly excluded as "not yours".
+   */
+  rebillTo?: string;
 };
 
 export type ReceiptFacts = {
@@ -53,6 +61,8 @@ export type ReceiptFacts = {
   accountName?: string | null;
   /** Last four of the card charged. */
   cardLast4?: string | null;
+  /** Subject or line-item text, searched for rebilled domains. */
+  description?: string | null;
 };
 
 /*
@@ -69,6 +79,8 @@ const INVOICE_SERIES: Record<string, { entity: Entity; note: string }> = {
   IPM6ZSGF: { entity: 'fsa', note: 'Resend, FSA account' },
   '5B76C7AA': { entity: 'fsa', note: 'Loom, FSA seats' },
   '8A28EB5A': { entity: 'personal', note: 'Bitwarden Families Plan' },
+  B72XZV2C: { entity: 'fsa', note: 'Lovable Pro Lite, app-building tooling' },
+  V088VTOF: { entity: 'fsa', note: 'OpusClip Pro, video tooling' },
 };
 
 /*
@@ -78,6 +90,10 @@ const INVOICE_SERIES: Record<string, { entity: Entity; note: string }> = {
  * where a second account is implausible, or where the invoice series is
  * checked first anyway.
  */
+const REBILLED_DOMAINS: Record<string, string> = {
+  'ahavaekklesia.com': 'Ahava Ekklesia Inc',
+};
+
 const VENDOR_DEFAULT: Record<string, { entity: Entity; note: string }> = {
   uptimerobot: { entity: 'fsa', note: 'uptime monitoring for FSA-hosted projects' },
   github: { entity: 'fsa', note: 'Enterprise Cloud usage, everymotheradvocate org' },
@@ -95,6 +111,24 @@ function seriesOf(invoiceNumber: string | null | undefined): string | null {
 }
 
 export function attribute(facts: ReceiptFacts): Attribution {
+  /*
+   * Checked before anything else. A rebilled line names another organisation
+   * all over it, so every later rule would either misfile it to that entity or
+   * give up and leave it blank - and a blank on a cost that carries a
+   * receivable is the one that quietly loses money.
+   */
+  const haystack = `${facts.description ?? ''} ${facts.vendor}`.toLowerCase();
+  for (const [domain, org] of Object.entries(REBILLED_DOMAINS)) {
+    if (haystack.includes(domain)) {
+      return {
+        entity: 'fsa',
+        basis: 'account-name',
+        reason: `${domain} - paid by FSA and billed on to ${org}`,
+        rebillTo: org,
+      };
+    }
+  }
+
   const series = seriesOf(facts.invoiceNumber);
   if (series && INVOICE_SERIES[series]) {
     const hit = INVOICE_SERIES[series];

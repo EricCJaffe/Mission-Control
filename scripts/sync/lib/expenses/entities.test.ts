@@ -78,3 +78,27 @@ test('the five entities are exactly the ones reconciled monthly', async () => {
   assert.deepEqual([...ENTITIES], ['fsa', '4lot', 'integrity', 'journey', 'personal']);
   for (const e of ENTITIES) assert.ok(ENTITY_LABEL[e], `${e} needs a label`);
 });
+
+test('a rebilled domain stays an FSA cost and carries the receivable', () => {
+  // Eric pays the ahavaekklesia.com domain and bills it on. It is his expense
+  // with a receivable attached — not somebody else's cost to be excluded.
+  const r = attribute({
+    vendor: 'GoDaddy',
+    description: 'Conversations Deluxe - Renewal, ahavaekklesia.com',
+  });
+  assert.equal(r.entity, 'fsa');
+  assert.equal(r.rebillTo, 'Ahava Ekklesia Inc');
+  assert.match(r.reason, /billed on to/);
+});
+
+test('the rebill check runs before vendor defaults so it cannot be misfiled', () => {
+  // Apple would otherwise fall to personal by vendor default.
+  const r = attribute({ vendor: 'Apple', description: 'renewal for ahavaekklesia.com' });
+  assert.equal(r.rebillTo, 'Ahava Ekklesia Inc');
+  assert.equal(r.entity, 'fsa');
+});
+
+test('an ordinary receipt carries no rebill marker', () => {
+  const r = attribute({ vendor: 'Vercel Inc.', invoiceNumber: 'O85LRNWQ-0009' });
+  assert.equal(r.rebillTo, undefined);
+});
