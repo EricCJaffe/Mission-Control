@@ -3,11 +3,13 @@ import {
   AlertTriangle,
   Briefcase,
   CalendarDays,
+  CheckCircle2,
   CheckSquare,
   Clock,
   Compass,
   ExternalLink,
   HeartPulse,
+  Hourglass,
   Mail,
   Target,
   Users,
@@ -23,6 +25,9 @@ import {
   type DayCell,
   type MatrixKey,
   type SourceHealth,
+  type StaleTask,
+  type StaleVerdict,
+  TASK_STALE_AFTER_DAYS,
 } from "@/lib/brief/types";
 
 /**
@@ -84,6 +89,27 @@ function dueLabel(task: BriefTask): string {
   if (task.daysUntilDue === 0) return "due today";
   if (task.daysUntilDue === 1) return "due tomorrow";
   return `due in ${task.daysUntilDue} days`;
+}
+
+/**
+ * The verdict `collect()` already reached, said out loud.
+ *
+ * The heuristic lives in `buildTaskSections` and is deterministic — priority,
+ * date, and how many siblings on the same project have also gone quiet. This
+ * page only names it. Inventing a second opinion here would put two different
+ * answers on the same task depending on whether you read the page or the email.
+ */
+const VERDICT_LABEL: Record<StaleVerdict, string> = {
+  kill: "Kill it",
+  collapse: "Collapse",
+  schedule: "Schedule it",
+};
+
+function sittingLabel(ageDays: number | null): string {
+  if (ageDays === null) return "untouched";
+  if (ageDays >= 365) return "untouched over a year";
+  if (ageDays >= 60) return `untouched ${Math.floor(ageDays / 30)} months`;
+  return `untouched ${ageDays} days`;
 }
 
 /** One task line. Everything links to /tasks; the brief points, it does not edit. */
@@ -222,6 +248,14 @@ export default async function BriefPage() {
   const overdueGroups = [...tasks.overdue].sort(
     (a, b) => MATRIX_ORDER.indexOf(a.key) - MATRIX_ORDER.indexOf(b.key),
   );
+
+  // Same rule as the overdue groups: matrix order is enforced at render, not
+  // trusted from the payload, so a change in collect() cannot quietly put
+  // client work above God First.
+  const byMatrixOrder = <T extends { matrix: MatrixKey }>(a: T, b: T) =>
+    MATRIX_ORDER.indexOf(a.matrix) - MATRIX_ORDER.indexOf(b.matrix);
+  const staleTasks: StaleTask[] = [...tasks.stale].sort(byMatrixOrder);
+  const closedTasks: BriefTask[] = [...tasks.closed].sort(byMatrixOrder);
 
   const weekHasContent = days.some((d) => d.events.length > 0 || d.openBlocks.length > 0);
   const hasTasks = overdueGroups.length > 0 || tasks.dueThisPeriod.length > 0;
@@ -564,13 +598,80 @@ export default async function BriefPage() {
         </section>
       )}
 
+      {/* 6. Stale — open, untouched a month, and not shouting via a date.
+          Deliberately quieter than Overdue: a missed deadline is an alarm, a
+          decision never made is a nag. Slate, no red, no amber — amber is
+          already spoken for by the alignment warning, and letting these three
+          compete would flatten all of them into noise. */}
+      {tasks.stale.length > 0 && (
+        <section className="mb-4 rounded-2xl border-2 border-slate-300 bg-slate-50 p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <Hourglass className="h-4 w-4 text-slate-500" />
+              <h2 className="text-sm font-semibold text-slate-900">Going quiet</h2>
+            </div>
+            <span className="text-[11px] tabular-nums text-slate-400">{tasks.stale.length}</span>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            Open, no deadline pressing, and nobody has touched them in{" "}
+            {TASK_STALE_AFTER_DAYS} days. Each one is a decision you have not made.
+          </p>
+          <ul className="mt-3 divide-y divide-slate-200">
+            {staleTasks.map((task) => (
+              <li key={task.id} className="py-2 first:pt-0 last:pb-0">
+                <Link href="/tasks" className="block rounded-xl px-2 py-1 transition-colors hover:bg-white">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 truncate text-sm text-slate-800">{task.title}</span>
+                    <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                      {VERDICT_LABEL[task.verdict]}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    {MATRIX_LABEL[task.matrix]}
+                    {(task.client || task.project) &&
+                      ` · ${[task.client, task.project].filter(Boolean).join(" · ")}`}
+                    {` · ${sittingLabel(task.ageDays)}`}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-600">{task.reason}</p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* 7. Closed. The only section in the brief that reports finished work,
+          so green is correct here and only here — it is the app's DONE colour
+          (CLAUDE.md), which is exactly what these are. */}
+      {tasks.closed.length > 0 && (
+        <section className="mb-4 rounded-2xl border-2 border-green-300 bg-green-50 p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-green-700" />
+              <h2 className="text-sm font-semibold text-green-900">Closed last week</h2>
+            </div>
+            <span className="text-[11px] tabular-nums text-green-700">{tasks.closed.length}</span>
+          </div>
+          <ul className="mt-3 space-y-1">
+            {closedTasks.map((task) => (
+              <li key={task.id} className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 truncate text-sm text-green-900">{task.title}</span>
+                <span className="shrink-0 text-[11px] text-green-700">{MATRIX_LABEL[task.matrix]}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <p className="mt-6 text-xs text-slate-500">
-        The weekly brief is sent Sunday evening and the daily on weekday mornings. This page is the
-        same numbers, recomputed every time it loads — the prose only appears in{" "}
+        Briefs are generated on a schedule — the weekly Sunday evening, the daily on weekday
+        mornings — and will be mailed out once Outlook sending is enabled. Until then they are
+        written to{" "}
         <Link href="/briefs" className="font-medium text-blue-700 hover:underline">
-          the email
+          the brief list
         </Link>
-        . Week of {dayLabel(payload.periodStart)}.
+        , which is also the only place the prose appears. This page is the same numbers,
+        recomputed every time it loads. Week of {dayLabel(payload.periodStart)}.
       </p>
     </main>
   );
