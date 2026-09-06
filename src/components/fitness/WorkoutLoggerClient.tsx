@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { today } from '@/lib/day';
 import { Check, X } from 'lucide-react';
 import {
   DndContext,
@@ -273,6 +274,17 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
   // Live = a workout happening now (timer counts up). Log = entering a workout
   // you already finished (no live timer; you type the duration).
   const [isLive, setIsLive] = useState(true);
+  /*
+   * When the workout happened.
+   *
+   * Only meaningful for "Log — already done". Until now there was no date
+   * field on any modality and the column defaulted to now(), so a session
+   * logged the morning after was recorded as happening that morning — which
+   * silently moved it into the wrong week for streaks, mileage and the
+   * training-balance charts. `today()` and not toISOString(): the server runs
+   * in UTC and after 8pm Eastern that is already tomorrow.
+   */
+  const [workoutDate, setWorkoutDate] = useState<string>(() => today());
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateRow | null>(null);
   // ?type=jiujitsu lands straight on that modality, so the dashboard button
   // opens the right form rather than the picker.
@@ -1135,6 +1147,8 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
 
     const payload = {
       planned_workout_id: todayPlan?.id ?? null,
+      // A live workout is happening now; only a logged one needs telling.
+      workout_date: isLive ? null : workoutDate,
       template_id: selectedTemplate?.id ?? null,
       // A class is logged under its own name — "Jiu-Jitsu", not "cardio" — so
       // history reads properly and hybrid-balance classification can see it.
@@ -1426,6 +1440,22 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
               Log — already done
             </button>
           </div>
+
+          {!isLive && (
+            <div className="mb-4">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500" htmlFor="workout-date">
+                When was it?
+              </label>
+              <input
+                id="workout-date"
+                type="date"
+                max={today()}
+                value={workoutDate}
+                onChange={(e) => setWorkoutDate(e.target.value || today())}
+                className="mt-1 w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none sm:w-auto"
+              />
+            </div>
+          )}
 
           {/* What are you doing? Asked first, because everything below depends
               on the answer — Template / AI / Manual are strength concepts and
