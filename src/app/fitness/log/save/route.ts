@@ -20,6 +20,8 @@ export async function POST(req: Request) {
     template_id?: string | null;
     garmin_activity_id?: string | null;
     workout_type: string;
+    /** ISO date for a session being logged after the fact; null means now. */
+    workout_date?: string | null;
     duration_minutes: number | null;
     rpe_session: number | null;
     avg_hr?: number | null;
@@ -101,6 +103,14 @@ export async function POST(req: Request) {
       template_id: workoutData.template_id ?? null,
       garmin_activity_id: workoutData.garmin_activity_id ?? null,
       workout_type: workoutData.workout_type,
+      /*
+       * Omitted entirely when absent, so the column default of now() still
+       * applies to a live session. Sending null instead would overwrite the
+       * default with null and lose the date altogether.
+       */
+      ...(workoutData.workout_date
+        ? { workout_date: new Date(`${workoutData.workout_date}T12:00:00`).toISOString() }
+        : {}),
       duration_minutes: workoutData.duration_minutes,
       rpe_session: workoutData.rpe_session,
       notes: workoutData.notes,
