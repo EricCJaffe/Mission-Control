@@ -44,7 +44,15 @@ test('an external human asking a question needs a reply', () => {
 test('colleagues do not, including from a subdomain', () => {
   assert.equal(needsReply(message({ from: 'katie@foundationstoneadvisors.com' }), ctx()), false);
   assert.equal(needsReply(message({ from: 'alerts@mail.foundationstoneadvisors.com' }), ctx()), false);
-  assert.equal(needsReply(message({ from: 'david@ema.org' }), ctx()), false);
+});
+
+test('a client is not a colleague', () => {
+  // ema.org was on the internal list until the first run against real mail,
+  // where michelle@ema.org asking for an invoice to be re-sent was classified
+  // internal and silently dropped. Eric holds an account there; it is still a
+  // client, and a partner domain is where an unanswered ask costs most.
+  assert.equal(needsReply(message({ from: 'michelle@ema.org' }), ctx()), true);
+  assert.equal(needsReply(message({ from: 'rd@ema.org' }), ctx()), true);
 });
 
 test('a lookalike domain is still external', () => {

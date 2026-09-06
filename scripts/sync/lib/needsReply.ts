@@ -26,7 +26,22 @@
  * `ema.org` is Every Mother's Advocate, which sends from its own domain but is
  * inside the working relationship rather than outside it.
  */
-export const INTERNAL_DOMAINS: readonly string[] = ['foundationstoneadvisors.com', 'ema.org'];
+/*
+ * Eric's own company. Mail from a colleague here is usually context rather
+ * than a request, and suppressing it is what keeps "who is waiting on you"
+ * short enough to read.
+ *
+ * `ema.org` USED TO BE ON THIS LIST and should not be. It is Every Mother's
+ * Advocate — a client, not an employer — and Eric merely holds an account
+ * there. The first run against real mail proved the cost: michelle@ema.org
+ * asking "I do not see an invoice attached, can you please forward it again?"
+ * was classified internal and would never have surfaced. A partner domain is
+ * exactly where an unanswered ask does the most damage.
+ *
+ * Colleagues, not collaborators. If a domain pays Eric or is paid by him, it
+ * belongs on the other side of this line.
+ */
+export const INTERNAL_DOMAINS: readonly string[] = ['foundationstoneadvisors.com'];
 
 /*
  * Headers that only ever appear on machine-generated mail.
