@@ -1,0 +1,14 @@
+[Unit]
+Description=Run the Outlook sync every 30 minutes
+Documentation=file:///home/admxn/dev/mission-control/docs/m365-setup.md
+
+[Timer]
+# Mail is the one source where lag is felt directly: the daily brief's "who is
+# waiting on you" is worth little if it is four hours behind. Calendar changes
+# just as often when a meeting moves.
+OnCalendar=*:00/30
+RandomizedDelaySec=120
+Persistent=true
+
+[Install]
+WantedBy=timers.target

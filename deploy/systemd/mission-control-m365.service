@@ -1,0 +1,28 @@
+[Unit]
+# Outlook mail and calendar into Mission Control.
+#
+# NOT ENABLED YET. Enable it once MS_TENANT_ID / MS_CLIENT_ID /
+# MS_CLIENT_SECRET / MS_MAILBOX are in ~/.config/mission-control/sync.env —
+# until then it would fail every half hour and fill the journal with the same
+# sentence. See docs/m365-setup.md, then:
+#
+#   systemctl --user enable --now mission-control-m365.timer
+Description=Mission Control — Outlook mail and calendar sync
+Documentation=file:///home/admxn/dev/mission-control/docs/m365-setup.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/mission-control/sync.env
+WorkingDirectory=%h/dev/mission-control
+
+# Absolute path: a user service does not source ~/.profile, so fnm's shims are
+# not on PATH and a bare `node` fails with 203/EXEC and no explanation.
+ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/m365.ts
+
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+TimeoutStartSec=300

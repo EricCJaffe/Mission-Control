@@ -161,6 +161,60 @@ systemctl --user start mission-control-sync.service   # confirm it still runs
 The CLI warns on stderr if `SUPABASE_URL` is not the shared project, because a
 service-role key pointed at the wrong database writes successfully and silently.
 
+## The Outlook sync
+
+Same CLI, second entry point. **Not on a timer yet** — the units exist at
+`deploy/systemd/mission-control-m365.{service,timer}` but are deliberately not
+enabled, because without credentials they would fail every half hour and fill
+the journal with the same sentence.
+
+```bash
+npm run sync:m365 -- --dry-run        # reads Graph, writes nothing
+npm run sync:m365 -- --calendar-only
+npm run sync:m365 -- --mail-only
+npm run sync:m365 -- --tasks-from-email   # off by default, on purpose
+```
+
+Once `MS_*` are in `~/.config/mission-control/sync.env`:
+
+```bash
+cp deploy/systemd/mission-control-m365.* ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user start mission-control-m365.service   # verify by hand first
+systemctl --user enable --now mission-control-m365.timer
+```
+
+Do the reads before granting `Mail.Send`. See `docs/m365-setup.md` §3 — the
+Exchange application access policy is what stops one app registration reading
+every mailbox in the tenant.
+
+## The brief
+
+Runs on **Vercel cron**, not here, because it only reads Supabase — weekly
+Sunday 23:00 UTC, daily Mon–Fri 10:30 UTC, both in `vercel.json`.
+
+```bash
+# Render one without storing or sending it. Returns HTML.
+curl -H "Authorization: Bearer $CRON_SECRET" \
+  "https://<host>/api/cron/brief?kind=weekly&preview=1"
+```
+
+It **stores before it sends**. A brief that generated but failed to send is a
+delivery problem you can retry; one that was never written down is gone along
+with the week it described. So `/briefs` shows every brief, delivered or not,
+with the send error on the row.
+
+The route returns 200 even when sending fails — a 500 would make Vercel retry
+and generate a duplicate for the same period.
+
+| Symptom | Cause |
+| --- | --- |
+| 503 with `missing_env` | `CRON_SECRET`, `MC_USER_ID` or the Supabase vars are not set in Vercel Production |
+| Brief arrives with no prose | `ANTHROPIC_API_KEY` absent. Deliberate: every number, table and link still renders |
+| `not sent` on /briefs, 403 ErrorAccessDenied | The Exchange access policy does not include the mailbox — `docs/m365-setup.md` §3 |
+| `not sent`, Graph not configured | Expected until the app registration exists |
+| Brief says a source is stale | It is. Check `/sync` |
+
 ## Related
 
 - `docs/m365-setup.md` — the Graph app registration, and the Exchange access

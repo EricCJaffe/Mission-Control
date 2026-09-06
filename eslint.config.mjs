@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The sync CLI is Node, not React. eslint-config-next applies the React
+    // compiler rules to every file it sees, and they misread a plain
+    // `setToken(...)` inside a helper as a setState call in an effect.
+    // scripts/ has its own tsconfig and is checked by `npm run typecheck:sync`.
+    "scripts/**",
   ]),
 ]);
 

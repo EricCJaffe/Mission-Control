@@ -8,6 +8,14 @@
     {
       "path": "/api/cron/daily-metric-check",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/brief?kind=weekly",
+      "schedule": "0 23 * * 0"
+    },
+    {
+      "path": "/api/cron/brief?kind=daily",
+      "schedule": "30 10 * * 1-5"
     }
   ]
 }

@@ -52,6 +52,33 @@ The user runs multiple projects at once. Never use broad kill commands like `kil
     so the query succeeds and returns the wrong rows.
   - Old project `npxirjaawlpubrtjovpy` is retained as the rollback and is no longer read or written.
 
+## Cross-project sync (added 2026-09-05)
+
+Mission Control reads every task list under `~/dev` and files the results
+against the priority matrix. Read `docs/runbook.md` before touching it.
+
+- **`scripts/sync/`** is a Node CLI, not part of the Next build. It runs on
+  Node 24's native TypeScript — no `tsx`, no test runner, no new dependencies.
+  `scripts/sync/package.json` scopes ESM to that directory; do not add
+  `"type": "module"` to the root package.json.
+  `npm run sync:projects -- --dry-run`, `npm run test:sync`,
+  `npm run typecheck:sync` (the root tsconfig excludes `scripts/`, deliberately).
+- **It is read-only against every other repo.** It runs `git config` and reads
+  files. Nothing in it may ever write outside this app's own database — closing
+  a task happens in the project, and the next run notices.
+- **`edited_at` is the contract.** `/tasks/update` stamps it on every write.
+  While it is null the source file owns a task's title, status and priority;
+  once set, the sync may only refresh wording. Do not remove that stamp.
+- **The five domains** are `spirit | body | soul | family | work`, carrying
+  God First → Health → Family → Impact. Null is legal and means unclassified —
+  never default an unknown to `work` to make a count tidy.
+- **Migrations: `supabase db push` does not work from this repo and cannot.**
+  The database is shared with FinanceOS, so the migration ledger is shared too
+  and most of its rows have no file here. Apply through `apply_migration` and
+  commit the file in the same breath. Read `supabase/README.md` — especially the
+  part about never running the `migration repair --status reverted` the CLI
+  suggests.
+
 ## Environment Variables
 Required:
 - `NEXT_PUBLIC_SUPABASE_URL`

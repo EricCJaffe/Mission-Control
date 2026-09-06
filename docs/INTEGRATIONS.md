@@ -51,11 +51,20 @@
 
 ## Planned
 
-### Office 365 / Exchange Calendar (not started, 2026-08-03)
-Microsoft Graph, read-only first. Full setup steps, permission list, and the
-gotchas around recurring events and time zones are in
-[`OFFICE365-CALENDAR-SETUP.md`](./OFFICE365-CALENDAR-SETUP.md). Blocked on
-Eric registering the Azure app — steps 1-3 there are his, step 4 is code.
+### Microsoft 365 — Outlook mail and calendar (code written 2026-09-05, not yet live)
+Microsoft Graph, app-only client credentials, read-only until the reads are
+verified. Setup is in [`m365-setup.md`](./m365-setup.md) — which replaces the
+`OFFICE365-CALENDAR-SETUP.md` this section used to link to and which never
+existed.
+
+Read §3 before creating anything: application permissions reach every mailbox
+in the tenant until an Exchange application access policy scopes them to one,
+and the secret ends up on a dev box. `Mail.Send` stays ungranted until the
+reads are confirmed.
+
+Blocked on Eric: `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`,
+`MS_MAILBOX`. Everything else — the ingest CLI, the brief, the sender — is
+written and fails cleanly while they are absent.
 
 ## Not Implemented
 - Garmin Connect OAuth live sync

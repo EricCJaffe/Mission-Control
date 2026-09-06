@@ -400,3 +400,39 @@ open decisions and deferred work, roughly in the order worth doing.
 - [ ] **BibleOS has no git remote.** 13 commits exist only on this Mac, including
       the waitlist, dashboard, both `core` migrations and the rotation runbook.
       Needs a private GitHub repo.
+
+## Cross-project sync — open at 2026-09-05 session close
+
+This file is now itself a sync source: the harvester reads it and imports the
+urgent items. Items here without an explicit priority section land as P2 and
+stay out of the default import.
+
+### 🔴 Blocked on Eric — the sync cannot finish without these
+- [ ] **Microsoft Graph app registration.** Four values into
+      `~/.config/mission-control/sync.env` and Vercel: `MS_TENANT_ID`,
+      `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `MS_MAILBOX`. Follow `docs/m365-setup.md`,
+      and do not skip §3 — application permissions read every mailbox in the
+      tenant until an Exchange access policy scopes them. Leave `Mail.Send`
+      ungranted until the reads are verified.
+- [ ] **`ANTHROPIC_API_KEY` in Vercel.** Without it the brief renders every
+      number and link but no prose.
+- [ ] **`MC_USER_ID` and `CRON_SECRET` in Vercel Production.** The brief cron
+      returns 503 until both are set.
+
+### Deferred, with reasons
+- [ ] **A real `mission` schema baseline.** Nothing in this repo can rebuild the
+      schema from nothing; it arrived by copy. Needs `db dump --schema mission`
+      or `pg_dump`, both wanting a database password that is not on this box.
+      See `supabase/README.md`.
+- [ ] **The workout logger cannot log a past session.** No date field on any
+      modality, and `workout_date` defaults to `now()`, so "Log — already done"
+      stamps yesterday's session as today. The standalone class form had a date
+      picker and it was lost when the flow moved into the logger.
+- [ ] **`docs/INTEGRATIONS.md` points at `docs/OFFICE365-CALENDAR-SETUP.md`,
+      which does not exist.** `docs/m365-setup.md` should take its place.
+- [ ] **TKOS contributes nothing to the sync.** Its 133-line task file is prose
+      with no checkboxes. Either it adopts checkboxes or it stays a rollup count.
+- [ ] **Retire `npxirjaawlpubrtjovpy`.** ADR 0010's soak now has real evidence —
+      the new database moved on 2026-09-04 while the old one stayed frozen at
+      2026-08-29. Backup off Supabase, then pause, then delete.
+

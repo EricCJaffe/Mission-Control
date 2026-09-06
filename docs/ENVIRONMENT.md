@@ -64,3 +64,38 @@
 - `.env.local` is expected for local development.
 - For Withings OAuth, point `WITHINGS_CALLBACK_URL` at the production or local callback you registered in the Withings developer console.
 - If health/AI routes fail unexpectedly, verify Supabase and OpenAI keys first.
+
+## Cross-project sync and the brief (added 2026-09-05)
+
+### Required for the brief cron
+- `CRON_SECRET`
+  - Already present. `/api/cron/brief` fails closed without it, like the other crons.
+- `MC_USER_ID`
+  - Whose data the cron acts on. A cron request has no signed-in user, so the brief
+    has to be told whose week it is. The app itself never reads this.
+
+### Required for Outlook mail, calendar and delivering the brief
+- `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `MS_MAILBOX`
+  - App-only Microsoft Graph credentials, client-credentials flow.
+  - **Read `docs/m365-setup.md` §3 first.** Application permissions reach every
+    mailbox in the tenant until an Exchange application access policy scopes them
+    to one, and the secret lives on a dev box.
+  - `Mail.Send` should stay ungranted until the reads have been verified.
+  - Without these the brief still generates and is stored; it is simply not sent,
+    and the reason is recorded on the row and shown at `/briefs`.
+
+### Optional
+- `ANTHROPIC_API_KEY`
+  - Writes the narrative sections of the brief. Absent, the brief still renders
+    with every number, table and link — only the prose is omitted. That is
+    deliberate: a brief with no commentary is far better than no brief.
+- `BRIEF_RECIPIENT`
+  - Where the brief is sent. Falls back to `ADMIN_EMAIL`, then `MS_MAILBOX`.
+- `DEV_ROOT`
+  - Where the harvester looks for repos. Defaults to `~/dev`. Only read by the
+    CLI on ubuntu-dev, never by the app.
+
+### Where they live
+`.env.local` for hand runs and for Vercel (via the dashboard), and
+`~/.config/mission-control/sync.env` (mode 600) for the systemd timer — a user
+service does not read `.env.local`. `.env.example` lists every variable.

@@ -338,3 +338,49 @@ made the app quietly wrong rather than visibly broken — which is worse.
   - Blocked on:
     - The two session-pooler `.dburl` files. `~/.config/supabase/` does not exist.
     - Phase 5 (app cutover) still needs its own confirmation before it runs.
+
+## 2026-09-05 — Mission Control becomes the single pane of glass
+
+Built the cross-project sync: every task list under `~/dev`, ranked against the
+priority matrix, in one place.
+
+- **Phase 1 — schema.** Five domains (spirit/body/soul/family/work) carrying
+  God First → Health → Family → Impact. Text with a check, not a Postgres enum,
+  because `domain` already existed as text on three tables holding matrix labels
+  ("Health", "God First") that had to be translated first. `tasks` gained
+  source/source_ref/source_url/assignee/external_status/last_seen_at/synced_at/
+  `edited_at`; new `inbox_items`, `sync_runs`, `briefs`.
+- **Found and closed two open tables.** `mission.profiles` and
+  `mission.linksy_email_templates` had RLS off with zero policies, inherited
+  from the copy out of the old project and referenced nowhere in `src/` — which
+  is why nothing had ever complained. Every table in `mission` now has RLS on.
+- **Phase 2 — the harvester.** `scripts/sync/projects.ts`, Node 24 native
+  TypeScript so no `tsx` and no test runner were added. Parser written against a
+  survey of the real files rather than the Markdown spec: three checkbox states,
+  three assignee conventions, assignees on continuation lines, strikethrough
+  meaning done, and headings like "### Shipped today" that close the unticked
+  boxes beneath them. Parsed totals match a hand count of all eight files.
+- **Phase 6 first, on purpose.** Filters shipped before the sync ran, so 174
+  rows landed in a list that could already be narrowed.
+- **Phase 5.** systemd user timer every two hours, `/sync` for staleness,
+  `docs/runbook.md`.
+- **Phase 0 — the diagnosis was wrong.** The 87 legacy migrations are archived,
+  which stops `db push` writing Mission Control's tables into FinanceOS. But
+  `db pull` revealed the real constraint: one database means one migration
+  ledger, and 41 of its 48 rows are FinanceOS's. No squash fixes that. Two repos
+  cannot both drive migrations against one database — a constraint to work
+  inside, not a bug. Also: never run the `migration repair --status reverted`
+  the CLI suggests; those are FinanceOS's applied migrations.
+
+Numbers, measured not estimated: 1,271 open items across eleven repos; 174 are
+urgent and Eric's. An earlier estimate of "30-60" was made before the data
+existed and was wrong by an order of magnitude.
+
+Discovered along the way: `linksy` existed under `~/dev` and in no
+documentation; the FinanceOS faith-mode toggle had already been shipped by a
+parallel session; `/fitness/rhr` and `/fitness/hrv` were 404ing from the
+dashboard because the real pages are under `/fitness/metrics/`.
+
+Blocked on Eric: the Microsoft Graph app registration, `ANTHROPIC_API_KEY`, and
+`MC_USER_ID` + `CRON_SECRET` in Vercel Production. See `docs/TASKS.md`.
+

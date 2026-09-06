@@ -10,6 +10,7 @@
     "lint": "eslint",
     "db:migrate:fitness": "node scripts/run-fitness-migration.mjs",
     "sync:projects": "node --env-file-if-exists=.env.local scripts/sync/projects.ts",
+    "sync:m365": "node --env-file-if-exists=.env.local scripts/sync/m365.ts",
     "test:sync": "node --test scripts/sync/parse/*.test.ts",
     "typecheck:sync": "tsc -p scripts/tsconfig.json"
   },
