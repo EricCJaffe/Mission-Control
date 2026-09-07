@@ -2,7 +2,9 @@
   "//": "The Next app's tsconfig excludes scripts/, and must keep doing so — these run on Node, not in the bundler. This config exists so `npm run typecheck:sync` still checks them under the same strictness.",
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": [
+      "ES2023"
+    ],
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "allowImportingTsExtensions": true,
@@ -10,7 +12,12 @@
     "noEmit": true,
     "noUncheckedIndexedAccess": false,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["sync/**/*.ts"]
+  "include": [
+    "sync/**/*.ts",
+    "db/**/*.ts"
+  ]
 }

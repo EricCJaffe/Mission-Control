@@ -9,14 +9,16 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate:fitness": "node scripts/run-fitness-migration.mjs",
+    "db:ledger": "node scripts/db/ledger-check.ts",
     "sync:projects": "node --env-file-if-exists=.env.local scripts/sync/projects.ts",
     "sync:m365": "node --env-file-if-exists=.env.local scripts/sync/m365.ts",
     "sync:expenses": "node --env-file-if-exists=.env.local scripts/sync/expenses.ts",
     "tasks:lint": "node scripts/sync/tasks-lint.ts",
     "test:sync": "node --test scripts/sync/parse/*.test.ts scripts/sync/lib/expenses/*.test.ts",
+    "test:db": "node --test scripts/db/lib/*.test.ts",
     "test:brief": "node --test src/lib/brief/*.test.ts src/lib/calendar/*.test.ts",
     "typecheck:sync": "tsc -p scripts/tsconfig.json",
-    "test": "npm run test:sync && npm run test:brief"
+    "test": "npm run test:sync && npm run test:db && npm run test:brief"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

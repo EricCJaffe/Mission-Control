@@ -82,7 +82,15 @@ against the priority matrix. Read `docs/runbook.md` before touching it.
   and most of its rows have no file here. Apply through `apply_migration` and
   commit the file in the same breath. Read `supabase/README.md` — especially the
   part about never running the `migration repair --status reverted` the CLI
-  suggests.
+  suggests. Giving each repo its own history table is **not** an option: the CLI
+  hardcodes `supabase_migrations.schema_migrations` (checked 2026-09-06, v2.116.0).
+- **Run `npm run db:ledger` after applying anything, and before pushing.** It
+  reconciles the remote ledger against `supabase/migrations/` and fails on the
+  two silent errors: a change of ours with no committed file, and a migration of
+  ours that writes into `public`. FinanceOS's rows are reported, never blamed on
+  us. Every statement here must be schema-qualified `mission.` — `tasks`,
+  `projects` and `notes` exist in `public` too, so an unqualified statement finds
+  FinanceOS's copy and succeeds.
 
 ## Environment Variables
 Required:
