@@ -207,14 +207,14 @@ alter table mission.brain_outputs enable row level security;
 
 drop policy if exists brain_jobs_owner on mission.brain_jobs;
 create policy brain_jobs_owner on mission.brain_jobs
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 drop policy if exists brain_clients_owner on mission.brain_clients;
 create policy brain_clients_owner on mission.brain_clients
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 drop policy if exists brain_outputs_owner on mission.brain_outputs;
 create policy brain_outputs_owner on mission.brain_outputs
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 notify pgrst, 'reload schema';
