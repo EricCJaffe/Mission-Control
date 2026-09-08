@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CalendarClock, Check, CheckCircle2, ChevronRight, Clock, Flame, History,
@@ -141,8 +141,10 @@ export default function PrayerClient({
       )}
 
       {adding && (
-        <AddPrayerForm
+        <PrayerForm
           subjects={flatSubjects}
+          title="New prayer"
+          submitLabel="Add prayer"
           onCancel={() => setAdding(false)}
           onSave={async (payload) => {
             const ok = await call({
@@ -151,6 +153,7 @@ export default function PrayerClient({
               body: JSON.stringify(payload),
             });
             if (ok) setAdding(false);
+            return Boolean(ok);
           }}
         />
       )}
@@ -266,23 +269,25 @@ export default function PrayerClient({
           onSubjectDelete={(id) =>
             call({ url: `/api/spirit/prayer?kind=subject&id=${id}`, method: 'DELETE' })
           }
-          onRequestEdit={(id, patch) =>
-            call({
+          onRequestEdit={async (id, patch) => {
+            const ok = await call({
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id, ...patch }),
-            })
-          }
+            });
+            return Boolean(ok);
+          }}
           onRequestDelete={(id) =>
             call({ url: `/api/spirit/prayer?kind=request&id=${id}`, method: 'DELETE' })
           }
-          onAddRequest={(subjectId, text) =>
-            call({
+          onAddRequest={async (payload) => {
+            const ok = await call({
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ subject_id: subjectId, body: text }),
-            })
-          }
+              body: JSON.stringify(payload),
+            });
+            return Boolean(ok);
+          }}
           onAddSubject={(payload) =>
             call({
               method: 'POST',
@@ -356,38 +361,67 @@ function EmptyState({ doneCount }: { doneCount: number }) {
 }
 
 /**
- * Capture form.
+ * The one prayer form — used to capture, to add under a subject, and to edit.
  *
  * Only the prayer text is required. Everything else — who it is about, which
  * mode, urgency — is optional, because a form that demands categorisation
  * before it will save is one you skip when the thought actually arrives.
+ *
+ * There used to be three different surfaces here: this form, a one-line input
+ * for "add prayer here", and another one-line input for editing. The two thin
+ * ones could not reach mode, cadence or due date at all, which is why a prayer
+ * added under a subject could never be scheduled and an existing one could not
+ * really be edited. They are gone; this is the only prayer form now.
  */
-function AddPrayerForm({
+function PrayerForm({
   subjects,
+  initial,
+  lockedSubject,
+  title,
+  submitLabel,
   onCancel,
   onSave,
 }: {
   subjects: Array<PrayerSubjectNode & { depth: number }>;
+  /** Prefill for editing. Absent means a blank capture form. */
+  initial?: {
+    body?: string;
+    subject_id?: string | null;
+    mode?: string | null;
+    cadence?: string | null;
+    due_date?: string | null;
+    urgent?: boolean;
+  };
+  /** Fixes the subject and hides the picker — "add a prayer for THIS person". */
+  lockedSubject?: { id: string; name: string };
+  title: string;
+  submitLabel: string;
   onCancel: () => void;
-  onSave: (payload: Record<string, unknown>) => Promise<void>;
+  /** Resolves false when the save failed, so the form stays open and the text is not lost. */
+  onSave: (payload: Record<string, unknown>) => Promise<boolean>;
 }) {
-  const [text, setText] = useState('');
-  const [subjectId, setSubjectId] = useState('');
+  const editing = initial !== undefined;
+  const [text, setText] = useState(initial?.body ?? '');
+  const [subjectId, setSubjectId] = useState(lockedSubject?.id ?? initial?.subject_id ?? '');
   const [newSubject, setNewSubject] = useState('');
   const [category, setCategory] = useState('other');
-  const [mode, setMode] = useState('');
-  const [cadence, setCadence] = useState<string>(DEFAULT_CADENCE);
-  const [dueDate, setDueDate] = useState('');
-  const [urgent, setUrgent] = useState(false);
+  const [mode, setMode] = useState(initial?.mode ?? '');
+  const [cadence, setCadence] = useState<string>(initial?.cadence ?? DEFAULT_CADENCE);
+  const [dueDate, setDueDate] = useState(initial?.due_date ?? '');
+  const [urgent, setUrgent] = useState(initial?.urgent ?? false);
   const [saving, setSaving] = useState(false);
+  const uid = useId();
 
+  // Creating a subject inline only makes sense while capturing. When editing,
+  // or when the subject is fixed by where the form was opened, it is noise.
   const creatingSubject = subjectId === '__new__';
+  const showSubjectPicker = !lockedSubject;
 
   async function submit() {
     if (!text.trim()) return;
     setSaving(true);
     try {
-      await onSave({
+      const ok = await onSave({
         body: text,
         subject_id: creatingSubject || !subjectId ? null : subjectId,
         new_subject_name: creatingSubject ? newSubject : null,
@@ -397,8 +431,12 @@ function AddPrayerForm({
         due_date: cadence === 'once' ? dueDate || null : null,
         urgent,
       });
-      setText('');
-      setNewSubject('');
+      // Only clear on success. A failed save used to close the box and drop
+      // whatever had been typed, with the error appearing far up the page.
+      if (ok && !editing) {
+        setText('');
+        setNewSubject('');
+      }
     } finally {
       setSaving(false);
     }
@@ -407,17 +445,23 @@ function AddPrayerForm({
   return (
     <div className="rounded-2xl border-2 border-indigo-300 bg-indigo-50/40 p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-bold text-slate-900">New prayer</p>
+        <p className="text-sm font-bold text-slate-900">{title}</p>
         <button type="button" onClick={onCancel} aria-label="Close">
           <X className="h-4 w-4 text-slate-400" />
         </button>
       </div>
 
-      <label className={LABEL} htmlFor="prayer-text">
+      {lockedSubject && (
+        <p className="mb-3 text-xs text-slate-600">
+          Praying for <strong className="text-slate-900">{lockedSubject.name}</strong>
+        </p>
+      )}
+
+      <label className={LABEL} htmlFor={`${uid}-text`}>
         What are you praying? *
       </label>
       <textarea
-        id="prayer-text"
+        id={`${uid}-text`}
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={2}
@@ -427,30 +471,32 @@ function AddPrayerForm({
       />
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className={LABEL} htmlFor="prayer-subject">Who or what is it about?</label>
-          <select
-            id="prayer-subject"
-            value={subjectId}
-            onChange={(e) => setSubjectId(e.target.value)}
-            className={`${FIELD} mt-1`}
-          >
-            <option value="">— unattached —</option>
-            <option value="__new__">+ New subject…</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {' '.repeat(s.depth * 3)}
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {showSubjectPicker && (
+          <div>
+            <label className={LABEL} htmlFor={`${uid}-subject`}>Who or what is it about?</label>
+            <select
+              id={`${uid}-subject`}
+              value={subjectId}
+              onChange={(e) => setSubjectId(e.target.value)}
+              className={`${FIELD} mt-1`}
+            >
+              <option value="">— unattached —</option>
+              {!editing && <option value="__new__">+ New subject…</option>}
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {' '.repeat(s.depth * 3)}
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {creatingSubject ? (
           <div>
-            <label className={LABEL} htmlFor="new-subject">New subject name *</label>
+            <label className={LABEL} htmlFor={`${uid}-new-subject`}>New subject name *</label>
             <input
-              id="new-subject"
+              id={`${uid}-new-subject`}
               value={newSubject}
               onChange={(e) => setNewSubject(e.target.value)}
               placeholder="Dave Whitmore"
@@ -459,9 +505,9 @@ function AddPrayerForm({
           </div>
         ) : (
           <div>
-            <label className={LABEL} htmlFor="prayer-mode">Mode (optional)</label>
+            <label className={LABEL} htmlFor={`${uid}-mode`}>Mode (optional)</label>
             <select
-              id="prayer-mode"
+              id={`${uid}-mode`}
               value={mode}
               onChange={(e) => setMode(e.target.value)}
               className={`${FIELD} mt-1`}
@@ -476,9 +522,9 @@ function AddPrayerForm({
 
         {creatingSubject && (
           <div className="sm:col-span-2">
-            <label className={LABEL} htmlFor="prayer-category">Category</label>
+            <label className={LABEL} htmlFor={`${uid}-category`}>Category</label>
             <select
-              id="prayer-category"
+              id={`${uid}-category`}
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className={`${FIELD} mt-1`}
@@ -514,8 +560,8 @@ function AddPrayerForm({
         disabled={saving || !text.trim() || (creatingSubject && !newSubject.trim())}
         className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-sm font-bold text-white disabled:opacity-50"
       >
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" strokeWidth={3} />}
-        Add prayer
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" strokeWidth={3} />}
+        {submitLabel}
       </button>
     </div>
   );
@@ -920,9 +966,9 @@ function SubjectTree({
   subjects: Array<PrayerSubjectNode & { depth: number }>;
   onSubjectEdit: (id: string, patch: Record<string, unknown>) => Promise<unknown>;
   onSubjectDelete: (id: string) => Promise<unknown>;
-  onRequestEdit: (id: string, patch: Record<string, unknown>) => Promise<unknown>;
+  onRequestEdit: (id: string, patch: Record<string, unknown>) => Promise<boolean>;
   onRequestDelete: (id: string) => Promise<unknown>;
-  onAddRequest: (subjectId: string, text: string) => Promise<unknown>;
+  onAddRequest: (payload: Record<string, unknown>) => Promise<boolean>;
   onAddSubject: (payload: Record<string, unknown>) => Promise<unknown>;
 }) {
   const [addingTo, setAddingTo] = useState<string | null>(null);
@@ -1011,9 +1057,9 @@ function SubjectRowView({
   setNewSubjectIn: (v: string | null) => void;
   onSubjectEdit: (id: string, patch: Record<string, unknown>) => Promise<unknown>;
   onSubjectDelete: (id: string) => Promise<unknown>;
-  onRequestEdit: (id: string, patch: Record<string, unknown>) => Promise<unknown>;
+  onRequestEdit: (id: string, patch: Record<string, unknown>) => Promise<boolean>;
   onRequestDelete: (id: string) => Promise<unknown>;
-  onAddRequest: (subjectId: string, text: string) => Promise<unknown>;
+  onAddRequest: (payload: Record<string, unknown>) => Promise<boolean>;
   onAddSubject: (payload: Record<string, unknown>) => Promise<unknown>;
 }) {
   const [renaming, setRenaming] = useState(false);
@@ -1113,14 +1159,20 @@ function SubjectRowView({
       ))}
 
       {addingTo === node.id && (
-        <InlineInput
-          placeholder="What are you praying for them?"
-          onCancel={() => setAddingTo(null)}
-          onSave={async (value) => {
-            await onAddRequest(node.id, value);
-            setAddingTo(null);
-          }}
-        />
+        <div className="my-2">
+          <PrayerForm
+            subjects={subjects}
+            lockedSubject={{ id: node.id, name: node.name }}
+            title="New prayer"
+            submitLabel="Add prayer"
+            onCancel={() => setAddingTo(null)}
+            onSave={async (payload) => {
+              const ok = await onAddRequest(payload);
+              if (ok) setAddingTo(null);
+              return ok;
+            }}
+          />
+        </div>
       )}
 
       {newSubjectIn === node.id && (
@@ -1137,6 +1189,15 @@ function SubjectRowView({
   );
 }
 
+/**
+ * One prayer inside the subject tree.
+ *
+ * The cadence dropdown stays on the collapsed row because changing how often
+ * something comes round is the edit made most often. Everything else — the
+ * text, who it is about, mode, due date, urgency — opens the same full form
+ * used to create a prayer. It used to be a one-line box that could only reach
+ * the text, which is why an existing prayer could not really be edited.
+ */
 function RequestLine({
   request,
   subjects,
@@ -1145,7 +1206,7 @@ function RequestLine({
 }: {
   request: PrayerRequest;
   subjects: Array<PrayerSubjectNode & { depth: number }>;
-  onEdit: (patch: Record<string, unknown>) => Promise<unknown>;
+  onEdit: (patch: Record<string, unknown>) => Promise<boolean>;
   onDelete: () => Promise<unknown>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -1153,51 +1214,49 @@ function RequestLine({
 
   if (editing) {
     return (
-      <div className="my-1">
-        <InlineInput
-          defaultValue={request.body}
-          placeholder="Prayer text"
+      <div className="my-2">
+        <PrayerForm
+          subjects={subjects}
+          title="Edit prayer"
+          submitLabel="Save changes"
+          initial={{
+            body: request.body,
+            subject_id: request.subject_id,
+            mode: request.mode,
+            cadence: request.cadence,
+            due_date: request.due_date,
+            urgent: request.urgent,
+          }}
           onCancel={() => setEditing(false)}
-          onSave={async (value) => {
-            await onEdit({ body: value });
-            setEditing(false);
+          onSave={async (payload) => {
+            const ok = await onEdit({
+              body: payload.body,
+              subject_id: payload.subject_id,
+              mode: payload.mode,
+              cadence: payload.cadence,
+              due_date: payload.due_date,
+              urgent: payload.urgent,
+            });
+            if (ok) setEditing(false);
+            return ok;
           }}
         />
-        <div className="mt-1 flex flex-wrap gap-1">
-          <select
-            defaultValue={request.subject_id ?? ''}
-            onChange={(e) => onEdit({ subject_id: e.target.value || null })}
-            className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
-          >
-            <option value="">— unattached —</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>{' '.repeat(s.depth * 2)}{s.name}</option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => onEdit({ urgent: !request.urgent })}
-            className={`rounded-lg px-2 py-1 text-xs font-semibold ${
-              request.urgent ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            Urgent
-          </button>
+        <div className="mt-1 flex items-center gap-2">
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="rounded-lg px-2 py-1 text-xs font-semibold text-rose-600"
+            className="rounded-lg px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
           >
-            Delete
+            Delete this prayer
           </button>
+          {confirming && (
+            <span className="flex items-center gap-2 rounded-lg bg-rose-50 px-2 py-1">
+              <span className="text-xs text-rose-800">Delete permanently?</span>
+              <button type="button" onClick={onDelete} className="text-xs font-bold text-rose-700">Yes</button>
+              <button type="button" onClick={() => setConfirming(false)} className="text-xs text-slate-500">No</button>
+            </span>
+          )}
         </div>
-        {confirming && (
-          <div className="mt-1 flex items-center gap-2 rounded-lg bg-rose-50 px-2 py-1">
-            <span className="text-xs text-rose-800">Delete permanently?</span>
-            <button type="button" onClick={onDelete} className="text-xs font-bold text-rose-700">Yes</button>
-            <button type="button" onClick={() => setConfirming(false)} className="text-xs text-slate-500">No</button>
-          </div>
-        )}
       </div>
     );
   }
@@ -1210,7 +1269,7 @@ function RequestLine({
         {request.body}
       </p>
       <select
-        value={request.cadence ?? 'once'}
+        value={request.cadence}
         onChange={(e) => onEdit({ cadence: e.target.value })}
         aria-label="How often to pray this"
         className="shrink-0 rounded border border-slate-200 bg-white px-1 py-0.5 text-[10px] font-semibold text-slate-500"
@@ -1219,17 +1278,24 @@ function RequestLine({
           <option key={c.key} value={c.key}>{c.label}</option>
         ))}
       </select>
+      {/*
+        Always visible, not opacity-0-until-hover. On a touch screen there is no
+        hover, so the pencil was unreachable and the cadence dropdown looked like
+        the only thing a prayer could have changed about it.
+      */}
       <button
         type="button"
         onClick={() => setEditing(true)}
-        aria-label="Edit request"
-        className="shrink-0 opacity-0 transition-opacity group-hover/req:opacity-100 focus:opacity-100"
+        aria-label="Edit prayer"
+        title="Edit prayer"
+        className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
       >
-        <Pencil className="h-3 w-3 text-slate-400 hover:text-slate-600" />
+        <Pencil className="h-3 w-3" />
       </button>
     </div>
   );
 }
+
 
 function IconBtn({
   children,

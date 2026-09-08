@@ -17,7 +17,7 @@
     "tasks:lint": "node scripts/sync/tasks-lint.ts",
     "test:sync": "node --test scripts/sync/parse/*.test.ts scripts/sync/lib/expenses/*.test.ts",
     "test:db": "node --test scripts/db/lib/*.test.ts",
-    "test:brief": "node --test src/lib/brief/*.test.ts src/lib/calendar/*.test.ts",
+    "test:brief": "node --test src/lib/brief/*.test.ts src/lib/calendar/*.test.ts src/lib/spirit/*.test.ts",
     "typecheck:sync": "tsc -p scripts/tsconfig.json",
     "test": "npm run test:sync && npm run test:db && npm run test:brief"
   },

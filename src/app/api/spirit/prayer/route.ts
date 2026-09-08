@@ -97,7 +97,20 @@ export async function POST(req: NextRequest) {
     .select('id, subject_id, body, mode, status, urgent, last_prayed_at, prayed_count, cadence, cadence_anchor, due_date')
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // These two inserts are not in a transaction, and a subject created here
+    // only exists to hold the request that just failed. Leaving it behind
+    // produces a person in the tree with nothing being prayed for them — which
+    // reads as "the prayer saved" until you look. Undo it.
+    if (createdSubject) {
+      await supabase
+        .from('prayer_subjects')
+        .delete()
+        .eq('id', createdSubject.id)
+        .eq('user_id', user.id);
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, request: data, subject: createdSubject });
 }
 

@@ -24,9 +24,16 @@ export type PrayerRequest = {
   prayed_count: number;
   answered_at?: string | null;
   answer_note?: string | null;
-  cadence?: PrayerCadence;
-  cadence_anchor?: string | null;
-  due_date?: string | null;
+  /*
+   * Required, deliberately. These three were optional, and a page query that
+   * forgot to select them still type-checked — so `isDueToday` silently read
+   * every prayer as unscheduled and the cadence dropdown showed "Once" for
+   * rows stored as "rotation". Optionality here bought nothing and hid that
+   * for as long as it took someone to notice the schedule never fired.
+   */
+  cadence: PrayerCadence;
+  cadence_anchor: string | null;
+  due_date: string | null;
 };
 
 /**

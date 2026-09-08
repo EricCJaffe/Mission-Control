@@ -19,7 +19,15 @@ export default async function PrayerPage() {
       .order('position'),
     supabase
       .from('prayer_requests')
-      .select('id, subject_id, body, mode, status, urgent, last_prayed_at, prayed_count, answered_at, answer_note')
+      // cadence, cadence_anchor and due_date are load-bearing, not decoration:
+      // isDueToday() reads all three, and the cadence dropdown is a controlled
+      // input bound to request.cadence. Omitting them made every prayer read as
+      // `undefined` -> 'rotation' (so nothing was ever "due today") while the
+      // dropdown displayed "Once" for rows actually stored as 'rotation' —
+      // and changing it wrote that wrong value back.
+      // Keep this one string literal — the client infers the row type from it,
+      // and a concatenation degrades the result to GenericStringError[].
+      .select('id, subject_id, body, mode, status, urgent, last_prayed_at, prayed_count, answered_at, answer_note, cadence, cadence_anchor, due_date')
       .eq('user_id', user.id),
   ]);
 
