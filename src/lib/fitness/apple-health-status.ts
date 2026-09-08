@@ -25,6 +25,31 @@
  */
 export const STALE_AFTER_HOURS = 48;
 
+/**
+ * The payload ceiling, measured against production on 2026-09-08.
+ *
+ * Vercel rejects a request body over roughly 4.5 MB with a 413 BEFORE the
+ * handler runs — 4.1 MB reached our auth check, 6.1 MB did not. So an oversized
+ * payload writes no sync log, records no error, and is invisible from this side.
+ *
+ * That makes it self-perpetuating, which is the part worth understanding.
+ * Health Auto Export sends everything since its last SUCCESSFUL delivery, so
+ * each rejection widens the window and makes the next attempt larger. The feed
+ * stopped on 2026-08-03; by September it was trying to push five weeks at once
+ * and could never again fit. The export reaches 100% on the phone and then
+ * fails to upload, which is why the automation's date never advances.
+ *
+ * Confirmed from the phone on 2026-09-08: Health Auto Export's own activity log
+ * shows "Request failed (HTTP 413)" against a run that had otherwise finished,
+ * alongside a 68-second query for Resting Energy. Fine-grained energy samples
+ * over a five-week window are most of the weight, which is why summarising or
+ * coarsening the time grouping shrinks a payload far more than dropping days.
+ *
+ * The only way out is a smaller export on the phone — nothing here can catch a
+ * request that never arrived.
+ */
+export const MAX_PAYLOAD_MB = 4.5;
+
 export type SyncLogRow = {
   received_at: string;
   status: string | null;

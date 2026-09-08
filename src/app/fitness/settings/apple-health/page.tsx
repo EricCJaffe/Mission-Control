@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import {
   summariseAppleHealth,
   describeAge,
+  MAX_PAYLOAD_MB,
   STALE_AFTER_HOURS,
   type SyncLogRow,
 } from '@/lib/fitness/apple-health-status';
@@ -123,6 +124,35 @@ export default async function AppleHealthSettingsPage() {
         </div>
       )}
 
+      {status.stale && (
+        <div className={`${CARD} mb-4 border-rose-300 bg-rose-50`}>
+          <h2 className="mb-2 text-lg font-semibold text-rose-900">
+            Check this first: the payload may be too big
+          </h2>
+          <p className="text-sm text-rose-800">
+            Health Auto Export sends everything since its last <em>successful</em> delivery.
+            After a long gap that payload grows past <strong>{MAX_PAYLOAD_MB} MB</strong>, and
+            Vercel rejects it with a 413 <strong>before it reaches this app</strong> — so no
+            entry appears above, no error is recorded, and the export still shows 100% on the
+            phone because the export succeeded and only the upload failed.
+          </p>
+          <p className="mt-2 text-sm font-semibold text-rose-900">
+            Each failure widens the window and makes the next attempt bigger, so it cannot
+            recover on its own. Break the loop by exporting a narrow range:
+          </p>
+          <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-rose-800">
+            <li>Open the automation and set its period to a single day, or do a manual export
+              covering just yesterday.</li>
+            <li>Run it. If it lands, it appears above within seconds and the automation&rsquo;s
+              date finally moves.</li>
+            <li>Repeat in short spans — roughly a week at a time — to walk forward through the
+              backlog until it is current.</li>
+            <li>Leave the automations on a frequent schedule afterwards, so a payload never
+              grows large enough to be refused again.</li>
+          </ol>
+        </div>
+      )}
+
       <div className={`${CARD} mb-4`}>
         <div className="mb-3 flex items-center gap-2">
           <Smartphone className="h-5 w-5 text-indigo-600" />
@@ -140,8 +170,9 @@ export default async function AppleHealthSettingsPage() {
           </li>
           <li>Run an export to send immediately, then reload this page.</li>
           <li>
-            If it still does not arrive, re-paste the API token in the app. A wrong token is
-            rejected before anything is logged, so it looks identical to the phone not sending.
+            If a <em>small</em> export still does not arrive, re-paste the API token. A wrong
+            token is rejected before anything is logged, so it looks identical to both the phone
+            not sending and the payload being too large.
           </li>
         </ol>
         <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 font-mono text-xs text-slate-600">

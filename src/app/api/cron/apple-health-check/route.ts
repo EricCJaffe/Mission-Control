@@ -6,6 +6,7 @@ import {
   summariseAppleHealth,
   describeAge,
   shouldAlert,
+  MAX_PAYLOAD_MB,
   STALE_AFTER_HOURS,
   type SyncLogRow,
 } from '@/lib/fitness/apple-health-status';
@@ -110,7 +111,13 @@ export async function GET(req: Request) {
       (last one ${new Date(status.lastAt!).toUTCString()}).</p>
       <p>Nothing is wrong on the server — every payload that has arrived was written
       successfully. Apple Health cannot be pulled, so this always means the phone
-      stopped sending.</p>
+      did not deliver.</p>
+      <p><strong>Most likely cause: the payload has grown too large.</strong> Health Auto
+      Export sends everything since its last successful delivery, so after a gap it exceeds
+      ${MAX_PAYLOAD_MB} MB and is rejected with a 413 before reaching the app — no log entry,
+      no error, and the export still reads 100% on the phone because only the upload failed.
+      Each failure widens the window, so it cannot recover on its own. Export a single day
+      first to break the loop, then walk forward a week at a time.</p>
       ${stopped ? `<p>Automations that have gone quiet:</p><ul>${stopped}</ul>` : ''}
       <p>Open <strong>Health Auto Export</strong> on your iPhone, check those automations are
       still enabled and still have background permission, and run an export. iOS suspends
