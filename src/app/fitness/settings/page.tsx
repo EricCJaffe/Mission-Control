@@ -28,6 +28,20 @@ export default async function AthleteSettingsPage() {
       <div className="mb-6 rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-4">Data Imports</h2>
         <div className="space-y-3">
+          {/* Apple Health */}
+          <Link
+            href="/fitness/settings/apple-health"
+            className="flex items-center gap-4 rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:bg-indigo-50/50 transition-colors"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100">
+              <Activity className="h-6 w-6 text-indigo-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-slate-800">Apple Health</h3>
+              <p className="text-sm text-slate-500">Workouts, resting HR, HRV and sleep pushed from Health Auto Export — check whether the phone is still sending</p>
+            </div>
+          </Link>
+
           {/* Withings */}
           <Link
             href="/fitness/settings/withings"
