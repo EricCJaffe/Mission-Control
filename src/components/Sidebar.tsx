@@ -1,7 +1,7 @@
 "use client";
 
 import NavLink from "@/components/NavLink";
-import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper } from "lucide-react";
+import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper, Bot } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
 type SidebarProps = {
@@ -94,6 +94,9 @@ export default function Sidebar({
               {/* This week as a page; /briefs is the email history behind it. */}
               <NavLink href="/brief" label="This Week" shortLabel="TW" collapsed={isCollapsed} icon={<Newspaper size={18} className="text-sky-600" />} onClick={handleNavigate} />
               <NavLink href="/briefs" label="Briefs" shortLabel="BR" collapsed={isCollapsed} icon={<Mail size={18} className="text-sky-600" />} onClick={handleNavigate} />
+              {/* The agent workforce: what is scheduled, who it runs for, what
+                  it produced. Read from ~/dev/brain, which is canonical. */}
+              <NavLink href="/brain" label="Brain" shortLabel="BN" collapsed={isCollapsed} icon={<Bot size={18} className="text-violet-600" />} onClick={handleNavigate} />
               {/* Low in the group on purpose: you only look at it when
                   something upstream has stopped feeding the rest. */}
               <NavLink href="/sync" label="Sync health" shortLabel="SY" collapsed={isCollapsed} icon={<Activity size={18} className="text-slate-500" />} onClick={handleNavigate} />

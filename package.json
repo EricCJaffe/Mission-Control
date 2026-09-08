@@ -12,6 +12,7 @@
     "db:ledger": "node scripts/db/ledger-check.ts",
     "sync:projects": "node --env-file-if-exists=.env.local scripts/sync/projects.ts",
     "sync:m365": "node --env-file-if-exists=.env.local scripts/sync/m365.ts",
+    "sync:brain": "node --env-file-if-exists=.env.local scripts/sync/brain.ts",
     "sync:expenses": "node --env-file-if-exists=.env.local scripts/sync/expenses.ts",
     "tasks:lint": "node scripts/sync/tasks-lint.ts",
     "test:sync": "node --test scripts/sync/parse/*.test.ts scripts/sync/lib/expenses/*.test.ts",

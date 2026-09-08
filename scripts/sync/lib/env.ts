@@ -16,6 +16,8 @@ export type SyncEnv = {
   serviceRoleKey: string;
   userId: string;
   devRoot: string;
+  /** The chief-of-staff repo. Defaults to `<devRoot>/brain`; see lib/brain.ts. */
+  brainRoot: string;
 };
 
 function required(name: string): string {
@@ -42,6 +44,7 @@ export function loadEnv(): SyncEnv {
   const serviceRoleKey = required('SUPABASE_SERVICE_ROLE_KEY');
   const userId = required('MC_USER_ID');
   const devRoot = expandHome(process.env.DEV_ROOT ?? '~/dev');
+  const brainRoot = expandHome(process.env.BRAIN_ROOT ?? `${devRoot}/brain`);
 
   // The service-role key bypasses RLS entirely, so pointing it at the wrong
   // project would write Mission Control's rows into someone else's database
@@ -53,5 +56,5 @@ export function loadEnv(): SyncEnv {
     );
   }
 
-  return { supabaseUrl, serviceRoleKey, userId, devRoot };
+  return { supabaseUrl, serviceRoleKey, userId, devRoot, brainRoot };
 }

@@ -24,12 +24,16 @@ const STALE_AFTER_HOURS: Record<string, number> = {
   projects: 36,
   m365_mail: 3,
   m365_calendar: 3,
+  // The brain repo changes when a job runs or Eric edits it, not on a clock.
+  // A day of silence is an ordinary weekend; three is the timer having stopped.
+  brain: 72,
 };
 
 const SOURCE_LABEL: Record<string, string> = {
   projects: "Project task lists (~/dev)",
   m365_mail: "Outlook mail",
   m365_calendar: "Outlook calendar",
+  brain: "Agent workforce (~/dev/brain)",
 };
 
 type Run = {
@@ -83,7 +87,7 @@ export default async function SyncHealthPage() {
         </p>
       </div>
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {sources.map((source) => {
           const run = latest.get(source);
           const label = SOURCE_LABEL[source] ?? source;
