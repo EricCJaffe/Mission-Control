@@ -1,5 +1,14 @@
 # Tasks
 
+## Status confirmed with Eric — 2026-09-08
+
+Closed or dated in conversation, recorded here so the task digest stops
+re-raising them. Source of truth: `~/dev/brain/open/resolved.md`.
+
+- Withings → Apple Health — **reconnected** after ten weeks with no BP data.
+- The three blocked credentials (Graph app registration, `ANTHROPIC_API_KEY` in Vercel, `MC_USER_ID` + `CRON_SECRET` in Production) — **all supplied**.
+
+
 **Last Updated:** March 10, 2026
 
 ## Current Status
