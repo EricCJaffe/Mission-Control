@@ -5,11 +5,17 @@
  * it does not send anything: the route stores the brief before it attempts a
  * send, so a delivery failure loses the delivery and not the week.
  *
- * The model call is the only part allowed to fail. If `ANTHROPIC_API_KEY` is
- * absent, or the API errors, or the reply is not the JSON that was asked for,
- * the brief is rendered anyway with the prose slots empty and `stats.narrative`
- * false. That is deliberate and it is the whole design: a brief with no prose
- * is far better than no brief.
+ * The model call is the only part allowed to fail. If no key is configured, or
+ * the API errors, or the reply is not the JSON that was asked for, the brief is
+ * rendered anyway with the prose slots empty and `stats.narrative` false. That
+ * is deliberate and it is the whole design: a brief with no prose is far better
+ * than no brief.
+ *
+ * Either provider can write it. Anthropic is preferred when ANTHROPIC_API_KEY
+ * is set; otherwise OPENAI_API_KEY is used, which this app already has for the
+ * books and AI routes. The prompt asks for one bare JSON object and
+ * parseNarrative tolerates fences and stray text either side, so it needed no
+ * per-provider wording — only the transport differs.
  */
 
 import { addDays, today as todayInAppTz } from '@/lib/day';
@@ -35,6 +41,10 @@ import {
 const DEFAULT_MODEL = 'claude-opus-5';
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
+
+/** Matches the default the books and /api/ai routes already use. */
+const DEFAULT_OPENAI_MODEL = 'gpt-5.2';
+const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 
 /** Non-streaming, so this stays well inside the request timeout. */
 const MAX_TOKENS = 8000;
@@ -90,19 +100,101 @@ type AnthropicMessage = {
 };
 
 /**
- * Ask Claude for the prose. Never throws — every failure comes back as a
+ * Ask a model for the prose. Never throws — every failure comes back as a
  * reason string, and the caller renders the brief without prose.
+ *
+ * Anthropic first when its key exists, because the prompt was written and
+ * tuned against it. OpenAI otherwise, so a deployment that already has
+ * OPENAI_API_KEY gets commentary without a second subscription.
  */
 async function writeNarrative(payload: BriefPayload): Promise<NarrativeResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return {
-      narrative: null,
-      error: 'ANTHROPIC_API_KEY is not set — rendered without commentary.',
-      model: null,
-    };
-  }
+  if (process.env.ANTHROPIC_API_KEY) return writeWithAnthropic(payload);
+  if (process.env.OPENAI_API_KEY) return writeWithOpenAI(payload);
+  return {
+    narrative: null,
+    error: 'Neither ANTHROPIC_API_KEY nor OPENAI_API_KEY is set — rendered without commentary.',
+    model: null,
+  };
+}
 
+/**
+ * OpenAI's chat completions. `response_format: json_object` makes the reply
+ * valid JSON at the API level, so the only realistic parse failure left is the
+ * model returning well-formed JSON of the wrong shape — which parseNarrative
+ * catches the same way it does for Anthropic.
+ */
+async function writeWithOpenAI(payload: BriefPayload): Promise<NarrativeResult> {
+  const apiKey = process.env.OPENAI_API_KEY as string;
+  const model = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(OPENAI_URL, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        max_completion_tokens: MAX_TOKENS,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: buildUserPrompt(payload) },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      let detail = body.slice(0, 400);
+      try {
+        detail = (JSON.parse(body) as { error?: { message?: string } })?.error?.message ?? detail;
+      } catch {
+        // Not JSON — the truncated body is the best explanation available.
+      }
+      return { narrative: null, error: `OpenAI returned ${response.status}: ${detail}`, model };
+    }
+
+    const json = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+    };
+    const choice = json.choices?.[0];
+
+    // A truncated reply is invalid JSON and would otherwise surface as the
+    // generic parse failure, which sends you looking in the wrong place.
+    if (choice?.finish_reason === 'length') {
+      return { narrative: null, error: 'OpenAI hit the token limit before finishing the JSON.', model };
+    }
+
+    const narrative = parseNarrative(choice?.message?.content ?? '');
+    if (!narrative) {
+      return {
+        narrative: null,
+        error: 'The model replied but not with the JSON that was asked for.',
+        model,
+      };
+    }
+    return { narrative, error: null, model };
+  } catch (err) {
+    const reason =
+      err instanceof Error && err.name === 'AbortError'
+        ? `The model did not answer within ${CALL_TIMEOUT_MS / 1000}s.`
+        : err instanceof Error
+          ? err.message
+          : String(err);
+    return { narrative: null, error: reason, model };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Anthropic's messages API — the original path, unchanged. */
+async function writeWithAnthropic(payload: BriefPayload): Promise<NarrativeResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY as string;
   const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
