@@ -116,8 +116,10 @@ export async function GET(req: Request) {
       Export sends everything since its last successful delivery, so after a gap it exceeds
       ${MAX_PAYLOAD_MB} MB and is rejected with a 413 before reaching the app — no log entry,
       no error, and the export still reads 100% on the phone because only the upload failed.
-      Each failure widens the window, so it cannot recover on its own. Export a single day
-      first to break the loop, then walk forward a week at a time.</p>
+      Each failure widens the window, so it cannot recover on its own.</p>
+      <p><strong>Permanent fix: turn on Batch Requests</strong> in the automation's Export
+      Settings — it splits an export across several smaller requests, so no single one can
+      reach the cap. To clear a stuck backlog, export about a week at a time until current.</p>
       ${stopped ? `<p>Automations that have gone quiet:</p><ul>${stopped}</ul>` : ''}
       <p>Open <strong>Health Auto Export</strong> on your iPhone, check those automations are
       still enabled and still have background permission, and run an export. iOS suspends

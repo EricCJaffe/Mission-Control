@@ -137,18 +137,26 @@ export default async function AppleHealthSettingsPage() {
             phone because the export succeeded and only the upload failed.
           </p>
           <p className="mt-2 text-sm font-semibold text-rose-900">
-            Each failure widens the window and makes the next attempt bigger, so it cannot
-            recover on its own. Break the loop by exporting a narrow range:
+            The permanent fix is one setting: turn on <strong>Batch Requests</strong> in the
+            automation&rsquo;s Export Settings.
+          </p>
+          <p className="mt-1 text-sm text-rose-800">
+            With it on, Health Auto Export splits an export across several smaller requests
+            instead of one, so no single request can reach the cap however much has piled up.
+            Summarising and coarser time grouping only shrink the payload — batching removes
+            the ceiling. Every write on this end is keyed and idempotent, so overlapping or
+            repeated batches update in place rather than duplicating.
+          </p>
+          <p className="mt-2 text-sm font-semibold text-rose-900">
+            To clear a backlog that is already stuck, each failure has widened the window, so
+            it cannot recover on its own:
           </p>
           <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-rose-800">
-            <li>Open the automation and set its period to a single day, or do a manual export
-              covering just yesterday.</li>
-            <li>Run it. If it lands, it appears above within seconds and the automation&rsquo;s
-              date finally moves.</li>
-            <li>Repeat in short spans — roughly a week at a time — to walk forward through the
-              backlog until it is current.</li>
-            <li>Leave the automations on a frequent schedule afterwards, so a payload never
-              grows large enough to be refused again.</li>
+            <li>Turn on Batch Requests.</li>
+            <li>Set the date range to about a week and run it. It appears above within seconds.</li>
+            <li>Repeat until current, then set the range back to Since Last Sync.</li>
+            <li>Check iOS Settings → General → Background App Refresh has Health Auto Export
+              enabled, so runs no longer depend on opening the app.</li>
           </ol>
         </div>
       )}

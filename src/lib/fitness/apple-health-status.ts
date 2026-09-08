@@ -45,8 +45,16 @@ export const STALE_AFTER_HOURS = 48;
  * over a five-week window are most of the weight, which is why summarising or
  * coarsening the time grouping shrinks a payload far more than dropping days.
  *
- * The only way out is a smaller export on the phone — nothing here can catch a
- * request that never arrived.
+ * The permanent fix is Health Auto Export's "Batch Requests" setting, which
+ * splits an export across several smaller requests so no single one can reach
+ * the cap. Summarising and coarser grouping only shrink the payload; batching
+ * removes the ceiling. Everything the ingest route writes is keyed and
+ * idempotent — workouts on (user_id, apple_workout_id), metrics on their date,
+ * cardio deleted then reinserted per workout, routes on workout_log_id — so
+ * batches that overlap, or a range re-sent, update in place.
+ *
+ * Nothing here can catch a request that never arrived, which is why this is
+ * documented rather than detected.
  */
 export const MAX_PAYLOAD_MB = 4.5;
 
