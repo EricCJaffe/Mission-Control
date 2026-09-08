@@ -173,6 +173,7 @@ export async function PATCH(req: NextRequest) {
       request_id: id,
       prayed_at: prayedAt,
       note: str(body?.note),
+      kind: 'prayed',
     });
     if (logError) return NextResponse.json({ error: logError.message }, { status: 500 });
 
@@ -182,7 +183,8 @@ export async function PATCH(req: NextRequest) {
       .from('prayer_logs')
       .select('*', { count: 'exact', head: true })
       .eq('request_id', id)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .eq('kind', 'prayed');
 
     const { error } = await supabase
       .from('prayer_requests')
@@ -196,6 +198,20 @@ export async function PATCH(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, prayed_at: prayedAt, prayed_count: count ?? 1 });
+  }
+
+  if (action === 'note') {
+    const text = str(body?.note);
+    if (!text) return NextResponse.json({ error: 'A comment cannot be empty' }, { status: 400 });
+
+    const { error } = await supabase.from('prayer_logs').insert({
+      user_id: user.id,
+      request_id: id,
+      note: text,
+      kind: 'note',
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
   }
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -318,7 +334,7 @@ export async function GET(req: NextRequest) {
   if (logFor) {
     const { data, error } = await supabase
       .from('prayer_logs')
-      .select('prayed_at, note')
+      .select('prayed_at, note, kind')
       .eq('user_id', user.id)
       .eq('request_id', logFor)
       .order('prayed_at', { ascending: false })

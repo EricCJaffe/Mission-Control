@@ -95,6 +95,7 @@ export default function PrayerClient({
         body: JSON.stringify({ id, action, answer_note: answerNote }),
       });
       if (ok && action === 'prayed') setPrayed((p) => new Set(p).add(id));
+      return Boolean(ok);
     } finally {
       setBusy(null);
     }
@@ -215,6 +216,14 @@ export default function PrayerClient({
                           now={now}
                           onPrayed={() => mark(r.id, 'prayed')}
                           onAnswered={(note) => mark(r.id, 'answered', note)}
+                          onNote={async (text) => {
+                            const ok = await call({
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id: r.id, action: 'note', note: text }),
+                            });
+                            return Boolean(ok);
+                          }}
                           onEdit={(patch) =>
                             call({
                               method: 'PATCH',
@@ -274,6 +283,22 @@ export default function PrayerClient({
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id, ...patch }),
+            });
+            return Boolean(ok);
+          }}
+          onRequestAnswered={async (id, note) => {
+            const ok = await call({
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, action: 'answered', answer_note: note }),
+            });
+            return Boolean(ok);
+          }}
+          onRequestNote={async (id, text) => {
+            const ok = await call({
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, action: 'note', note: text }),
             });
             return Boolean(ok);
           }}
@@ -377,6 +402,7 @@ function PrayerForm({
   subjects,
   initial,
   lockedSubject,
+  lockedCategory,
   title,
   submitLabel,
   onCancel,
@@ -394,6 +420,8 @@ function PrayerForm({
   };
   /** Fixes the subject and hides the picker — "add a prayer for THIS person". */
   lockedSubject?: { id: string; name: string };
+  /** Fixes the category — "add a prayer under Friends", subject chosen inside. */
+  lockedCategory?: string;
   title: string;
   submitLabel: string;
   onCancel: () => void;
@@ -404,7 +432,7 @@ function PrayerForm({
   const [text, setText] = useState(initial?.body ?? '');
   const [subjectId, setSubjectId] = useState(lockedSubject?.id ?? initial?.subject_id ?? '');
   const [newSubject, setNewSubject] = useState('');
-  const [category, setCategory] = useState('other');
+  const [category, setCategory] = useState(lockedCategory ?? 'other');
   const [mode, setMode] = useState(initial?.mode ?? '');
   const [cadence, setCadence] = useState<string>(initial?.cadence ?? DEFAULT_CADENCE);
   const [dueDate, setDueDate] = useState(initial?.due_date ?? '');
@@ -454,6 +482,15 @@ function PrayerForm({
       {lockedSubject && (
         <p className="mb-3 text-xs text-slate-600">
           Praying for <strong className="text-slate-900">{lockedSubject.name}</strong>
+        </p>
+      )}
+
+      {lockedCategory && !lockedSubject && (
+        <p className="mb-3 text-xs text-slate-600">
+          Filing under{' '}
+          <strong className="text-slate-900">
+            {CATEGORY_LABELS[lockedCategory] ?? lockedCategory}
+          </strong>
         </p>
       )}
 
@@ -520,7 +557,7 @@ function PrayerForm({
           </div>
         )}
 
-        {creatingSubject && (
+        {creatingSubject && !lockedCategory && (
           <div className="sm:col-span-2">
             <label className={LABEL} htmlFor={`${uid}-category`}>Category</label>
             <select
@@ -566,6 +603,242 @@ function PrayerForm({
     </div>
   );
 }
+type PrayerLogEntry = { prayed_at: string; note: string | null; kind?: string };
+
+/**
+ * Everything you can do to one prayer, in one panel.
+ *
+ * Opened from both screens. It used to be that editing lived in a cramped
+ * inline box in the list and marking something answered was only reachable
+ * from Due today — so a prayer you were not scheduled to pray could not be
+ * closed out on the day it was actually answered. All of it lives here now.
+ */
+function PrayerDetail({
+  request,
+  subjects,
+  onEdit,
+  onDelete,
+  onAnswered,
+  onNote,
+  onClose,
+}: {
+  request: PrayerRequest;
+  subjects: Array<PrayerSubjectNode & { depth: number }>;
+  onEdit: (patch: Record<string, unknown>) => Promise<boolean>;
+  onDelete: () => Promise<unknown>;
+  onAnswered: (note: string) => Promise<boolean>;
+  onNote: (text: string) => Promise<boolean>;
+  onClose: () => void;
+}) {
+  const [answering, setAnswering] = useState(false);
+  const [answerNote, setAnswerNote] = useState('');
+  const [comment, setComment] = useState('');
+  const [savingComment, setSavingComment] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [log, setLog] = useState<PrayerLogEntry[] | null>(null);
+  const [logVersion, setLogVersion] = useState(0);
+
+  // The panel is opened deliberately, one at a time, so loading history with it
+  // costs one request rather than one per row in the list.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/spirit/prayer?log_for=${request.id}`)
+      .then((r) => (r.ok ? r.json() : { logs: [] }))
+      .then((d) => { if (!cancelled) setLog(d.logs ?? []); })
+      .catch(() => { if (!cancelled) setLog([]); });
+    return () => { cancelled = true; };
+  }, [request.id, logVersion]);
+
+  async function addComment() {
+    if (!comment.trim()) return;
+    setSavingComment(true);
+    try {
+      // A comment is not a prayer: it must not move last_prayed_at, or the
+      // rotation would treat the thought as having prayed it.
+      if (await onNote(comment.trim())) {
+        setComment('');
+        setLogVersion((v) => v + 1);
+      }
+    } finally {
+      setSavingComment(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <PrayerForm
+        subjects={subjects}
+        title="Edit prayer"
+        submitLabel="Save changes"
+        initial={{
+          body: request.body,
+          subject_id: request.subject_id,
+          mode: request.mode,
+          cadence: request.cadence,
+          due_date: request.due_date,
+          urgent: request.urgent,
+        }}
+        onCancel={onClose}
+        onSave={async (payload) => {
+          const ok = await onEdit({
+            body: payload.body,
+            subject_id: payload.subject_id,
+            mode: payload.mode,
+            cadence: payload.cadence,
+            due_date: payload.due_date,
+            urgent: payload.urgent,
+          });
+          if (ok) onClose();
+          return ok;
+        }}
+      />
+
+      <div className="rounded-2xl border-2 border-slate-200 bg-white p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onEdit({ status: request.status === 'waiting' ? 'open' : 'waiting' })}
+            className={`rounded-xl px-3 py-1.5 text-xs font-semibold ${
+              request.status === 'waiting' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {request.status === 'waiting' ? 'Waiting ✓' : 'Mark waiting'}
+          </button>
+          {request.status !== 'answered' && !answering && (
+            <button
+              type="button"
+              onClick={() => setAnswering(true)}
+              className="flex items-center gap-1 rounded-xl border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" /> Mark as answered
+            </button>
+          )}
+          {request.status === 'answered' && (
+            <span className="flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Answered
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="ml-auto flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete
+          </button>
+        </div>
+
+        {answering && (
+          <div className="mt-2 space-y-2">
+            <textarea
+              value={answerNote}
+              onChange={(e) => setAnswerNote(e.target.value)}
+              rows={2}
+              placeholder="What happened?"
+              className={FIELD}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={async () => { if (await onAnswered(answerNote)) onClose(); }}
+                className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                Mark answered
+              </button>
+              <button
+                type="button"
+                onClick={() => setAnswering(false)}
+                className="rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {confirmDelete && (
+          <div className="mt-2 rounded-xl bg-rose-50 p-3">
+            <p className="text-xs text-rose-800">
+              Delete this permanently? If it has been answered, mark it answered instead — that
+              keeps the record.
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={onDelete}
+                className="rounded-lg bg-rose-600 px-3 py-1 text-xs font-semibold text-white"
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="rounded-lg px-3 py-1 text-xs font-semibold text-slate-500"
+              >
+                Keep it
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3">
+          <label className={LABEL} htmlFor={`comment-${request.id}`}>Add a comment</label>
+          <textarea
+            id={`comment-${request.id}`}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={2}
+            placeholder="Something you heard, something that changed…"
+            className={`${FIELD} mt-1`}
+          />
+          <button
+            type="button"
+            onClick={addComment}
+            disabled={savingComment || !comment.trim()}
+            className="mt-1.5 flex items-center gap-1.5 rounded-xl bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            {savingComment ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+            Add comment
+          </button>
+        </div>
+
+        <div className="mt-3 border-t border-slate-100 pt-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">History</p>
+          {log === null ? (
+            <p className="mt-1 text-xs text-slate-400">Loading…</p>
+          ) : log.length === 0 ? (
+            <p className="mt-1 text-xs text-slate-400">Nothing recorded yet.</p>
+          ) : (
+            <ul className="mt-1 space-y-1">
+              {log.map((entry, i) => (
+                <li key={i} className="flex gap-2 text-xs">
+                  <span
+                    className={`shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold uppercase ${
+                      entry.kind === 'note'
+                        ? 'bg-slate-100 text-slate-500'
+                        : 'bg-indigo-50 text-indigo-600'
+                    }`}
+                  >
+                    {entry.kind === 'note' ? 'note' : 'prayed'}
+                  </span>
+                  <span className="text-slate-600">
+                    {new Date(entry.prayed_at).toLocaleString(undefined, {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}
+                    {entry.note && <span className="text-slate-400"> — {entry.note}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 
 /**
  * Cadence picker, sharing the calendar's daily / weekly / monthly vocabulary.
@@ -627,6 +900,7 @@ function RequestCard({
   now,
   onPrayed,
   onAnswered,
+  onNote,
   onEdit,
   onDelete,
 }: {
@@ -636,19 +910,14 @@ function RequestCard({
   busy: boolean;
   now: number;
   onPrayed: () => void;
-  onAnswered: (note: string) => void;
-  onEdit: (patch: Record<string, unknown>) => Promise<unknown>;
+  onAnswered: (note: string) => Promise<boolean>;
+  onNote: (text: string) => Promise<boolean>;
+  onEdit: (patch: Record<string, unknown>) => Promise<boolean>;
   onDelete: () => Promise<unknown>;
 }) {
   const [answering, setAnswering] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [note, setNote] = useState('');
-  const [draft, setDraft] = useState(request.body);
-  const [draftSubject, setDraftSubject] = useState(request.subject_id ?? '');
-  const [draftMode, setDraftMode] = useState<string>(request.mode ?? '');
-  const [draftCadence, setDraftCadence] = useState<string>(request.cadence ?? 'rotation');
-  const [draftDue, setDraftDue] = useState<string>(request.due_date ?? '');
   const [showLog, setShowLog] = useState(false);
   const [log, setLog] = useState<Array<{ prayed_at: string; note: string | null }> | null>(null);
 
@@ -670,127 +939,23 @@ function RequestCard({
     : null;
 
   if (editing) {
+    // The same panel the list uses. This card used to carry its own edit form,
+    // which is how the two screens drifted apart — comments and history only
+    // existed here, marking answered only existed here, and the field set was
+    // subtly different from the one used to create a prayer.
     return (
-      <div className="rounded-2xl border-2 border-indigo-300 bg-white p-4 shadow-sm">
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          rows={2}
-          className={FIELD}
-        />
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <select value={draftSubject} onChange={(e) => setDraftSubject(e.target.value)} className={FIELD}>
-            <option value="">— unattached —</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {' '.repeat(s.depth * 3)}{s.name}
-              </option>
-            ))}
-          </select>
-          <select value={draftMode} onChange={(e) => setDraftMode(e.target.value)} className={FIELD}>
-            <option value="">No mode</option>
-            {PRAYER_MODES.map((m) => (
-              <option key={m.key} value={m.key}>{m.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mt-2">
-          <CadencePicker
-            cadence={draftCadence}
-            dueDate={draftDue}
-            onCadence={setDraftCadence}
-            onDueDate={setDraftDue}
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={() => { setEditing(false); setAnswering(true); }}
-          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-emerald-300 bg-emerald-50 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          Mark as answered — moves it to Answered
-        </button>
-
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={async () => {
-              await onEdit({
-                body: draft,
-                subject_id: draftSubject || null,
-                mode: draftMode || null,
-                cadence: draftCadence,
-                due_date: draftCadence === 'once' ? draftDue || null : null,
-              });
-              setEditing(false);
-            }}
-            disabled={!draft.trim()}
-            className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={() => onEdit({ urgent: !request.urgent })}
-            className={`rounded-xl px-3 py-1.5 text-xs font-semibold ${
-              request.urgent ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            {request.urgent ? 'Urgent ✓' : 'Mark urgent'}
-          </button>
-          <button
-            type="button"
-            onClick={() => onEdit({ status: request.status === 'waiting' ? 'open' : 'waiting' })}
-            className={`rounded-xl px-3 py-1.5 text-xs font-semibold ${
-              request.status === 'waiting' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            {request.status === 'waiting' ? 'Waiting ✓' : 'Mark waiting'}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setEditing(false); setDraft(request.body); }}
-            className="rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-500"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className="ml-auto flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Delete
-          </button>
-        </div>
-        {confirmDelete && (
-          <div className="mt-2 rounded-xl bg-rose-50 p-3">
-            <p className="text-xs text-rose-800">
-              Delete this permanently? If it has been answered, mark it answered instead — that
-              keeps the record.
-            </p>
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={onDelete}
-                className="rounded-lg bg-rose-600 px-3 py-1 text-xs font-semibold text-white"
-              >
-                Delete
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(false)}
-                className="rounded-lg px-3 py-1 text-xs font-semibold text-slate-500"
-              >
-                Keep it
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <PrayerDetail
+        request={request}
+        subjects={subjects}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onAnswered={onAnswered}
+        onNote={onNote}
+        onClose={() => setEditing(false)}
+      />
     );
   }
+
 
   return (
     <div
@@ -958,6 +1123,8 @@ function SubjectTree({
   onSubjectEdit,
   onSubjectDelete,
   onRequestEdit,
+  onRequestAnswered,
+  onRequestNote,
   onRequestDelete,
   onAddRequest,
   onAddSubject,
@@ -967,6 +1134,8 @@ function SubjectTree({
   onSubjectEdit: (id: string, patch: Record<string, unknown>) => Promise<unknown>;
   onSubjectDelete: (id: string) => Promise<unknown>;
   onRequestEdit: (id: string, patch: Record<string, unknown>) => Promise<boolean>;
+  onRequestAnswered: (id: string, note: string) => Promise<boolean>;
+  onRequestNote: (id: string, text: string) => Promise<boolean>;
   onRequestDelete: (id: string) => Promise<unknown>;
   onAddRequest: (payload: Record<string, unknown>) => Promise<boolean>;
   onAddSubject: (payload: Record<string, unknown>) => Promise<unknown>;
@@ -1006,6 +1175,8 @@ function SubjectTree({
                 onSubjectEdit={onSubjectEdit}
                 onSubjectDelete={onSubjectDelete}
                 onRequestEdit={onRequestEdit}
+                onRequestAnswered={onRequestAnswered}
+                onRequestNote={onRequestNote}
                 onRequestDelete={onRequestDelete}
                 onAddRequest={onAddRequest}
                 onAddSubject={onAddSubject}
@@ -1016,17 +1187,26 @@ function SubjectTree({
               onClick={() => setNewSubjectIn(newSubjectIn === `root:${category}` ? null : `root:${category}`)}
               className="mt-2 flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
             >
-              <Plus className="h-3.5 w-3.5" /> Add to {CATEGORY_LABELS[category] ?? category}
+              <Plus className="h-3.5 w-3.5" /> Add prayer to {CATEGORY_LABELS[category] ?? category}
             </button>
             {newSubjectIn === `root:${category}` && (
-              <InlineInput
-                placeholder="New subject name"
-                onCancel={() => setNewSubjectIn(null)}
-                onSave={async (value) => {
-                  await onAddSubject({ name: value, category, parent_id: null });
-                  setNewSubjectIn(null);
-                }}
-              />
+              <div className="mt-2">
+                <PrayerForm
+                  subjects={subjects.filter((s) => s.category === category)}
+                  lockedCategory={category}
+                  title={`New prayer — ${CATEGORY_LABELS[category] ?? category}`}
+                  submitLabel="Add prayer"
+                  onCancel={() => setNewSubjectIn(null)}
+                  onSave={async (payload) => {
+                    // "+ New subject…" inside the form creates the person and
+                    // the prayer in one call, which is what this button used to
+                    // half-do by creating a bare subject with nothing in it.
+                    const ok = await onAddRequest(payload);
+                    if (ok) setNewSubjectIn(null);
+                    return ok;
+                  }}
+                />
+              </div>
             )}
           </div>
         </details>
@@ -1045,6 +1225,8 @@ function SubjectRowView({
   onSubjectEdit,
   onSubjectDelete,
   onRequestEdit,
+  onRequestAnswered,
+  onRequestNote,
   onRequestDelete,
   onAddRequest,
   onAddSubject,
@@ -1058,6 +1240,8 @@ function SubjectRowView({
   onSubjectEdit: (id: string, patch: Record<string, unknown>) => Promise<unknown>;
   onSubjectDelete: (id: string) => Promise<unknown>;
   onRequestEdit: (id: string, patch: Record<string, unknown>) => Promise<boolean>;
+  onRequestAnswered: (id: string, note: string) => Promise<boolean>;
+  onRequestNote: (id: string, text: string) => Promise<boolean>;
   onRequestDelete: (id: string) => Promise<unknown>;
   onAddRequest: (payload: Record<string, unknown>) => Promise<boolean>;
   onAddSubject: (payload: Record<string, unknown>) => Promise<unknown>;
@@ -1154,6 +1338,8 @@ function SubjectRowView({
           request={r}
           subjects={subjects}
           onEdit={(patch) => onRequestEdit(r.id, patch)}
+          onAnswered={(note) => onRequestAnswered(r.id, note)}
+          onNote={(text) => onRequestNote(r.id, text)}
           onDelete={() => onRequestDelete(r.id)}
         />
       ))}
@@ -1192,71 +1378,42 @@ function SubjectRowView({
 /**
  * One prayer inside the subject tree.
  *
+ * The whole line is the affordance: clicking the text opens the full panel —
+ * edit, comment, mark answered, history, delete. There is no hover-only pencil
+ * any more, and nothing here is reachable only from Due today.
+ *
  * The cadence dropdown stays on the collapsed row because changing how often
- * something comes round is the edit made most often. Everything else — the
- * text, who it is about, mode, due date, urgency — opens the same full form
- * used to create a prayer. It used to be a one-line box that could only reach
- * the text, which is why an existing prayer could not really be edited.
+ * something comes round is the edit made most often, and it is one click there.
  */
 function RequestLine({
   request,
   subjects,
   onEdit,
   onDelete,
+  onAnswered,
+  onNote,
 }: {
   request: PrayerRequest;
   subjects: Array<PrayerSubjectNode & { depth: number }>;
   onEdit: (patch: Record<string, unknown>) => Promise<boolean>;
   onDelete: () => Promise<unknown>;
+  onAnswered: (note: string) => Promise<boolean>;
+  onNote: (text: string) => Promise<boolean>;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  if (editing) {
+  if (open) {
     return (
       <div className="my-2">
-        <PrayerForm
+        <PrayerDetail
+          request={request}
           subjects={subjects}
-          title="Edit prayer"
-          submitLabel="Save changes"
-          initial={{
-            body: request.body,
-            subject_id: request.subject_id,
-            mode: request.mode,
-            cadence: request.cadence,
-            due_date: request.due_date,
-            urgent: request.urgent,
-          }}
-          onCancel={() => setEditing(false)}
-          onSave={async (payload) => {
-            const ok = await onEdit({
-              body: payload.body,
-              subject_id: payload.subject_id,
-              mode: payload.mode,
-              cadence: payload.cadence,
-              due_date: payload.due_date,
-              urgent: payload.urgent,
-            });
-            if (ok) setEditing(false);
-            return ok;
-          }}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onAnswered={onAnswered}
+          onNote={onNote}
+          onClose={() => setOpen(false)}
         />
-        <div className="mt-1 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setConfirming(true)}
-            className="rounded-lg px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-          >
-            Delete this prayer
-          </button>
-          {confirming && (
-            <span className="flex items-center gap-2 rounded-lg bg-rose-50 px-2 py-1">
-              <span className="text-xs text-rose-800">Delete permanently?</span>
-              <button type="button" onClick={onDelete} className="text-xs font-bold text-rose-700">Yes</button>
-              <button type="button" onClick={() => setConfirming(false)} className="text-xs text-slate-500">No</button>
-            </span>
-          )}
-        </div>
       </div>
     );
   }
@@ -1264,10 +1421,18 @@ function RequestLine({
   return (
     <div className="group/req flex items-start gap-1">
       <Plus className="mt-1 h-3 w-3 shrink-0 text-indigo-400" />
-      <p className="flex-1 text-xs text-slate-600">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="Open this prayer"
+        className="flex-1 rounded px-1 py-0.5 text-left text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+      >
         {request.urgent && <span className="mr-1 font-bold text-rose-600">!</span>}
         {request.body}
-      </p>
+        {request.status === 'waiting' && (
+          <span className="ml-1 text-[10px] font-semibold uppercase text-amber-600">waiting</span>
+        )}
+      </button>
       <select
         value={request.cadence}
         onChange={(e) => onEdit({ cadence: e.target.value })}
@@ -1278,16 +1443,11 @@ function RequestLine({
           <option key={c.key} value={c.key}>{c.label}</option>
         ))}
       </select>
-      {/*
-        Always visible, not opacity-0-until-hover. On a touch screen there is no
-        hover, so the pencil was unreachable and the cadence dropdown looked like
-        the only thing a prayer could have changed about it.
-      */}
       <button
         type="button"
-        onClick={() => setEditing(true)}
-        aria-label="Edit prayer"
-        title="Edit prayer"
+        onClick={() => setOpen(true)}
+        aria-label="Open this prayer"
+        title="Open this prayer"
         className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
       >
         <Pencil className="h-3 w-3" />
