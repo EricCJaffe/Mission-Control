@@ -26,7 +26,7 @@
 
 import { plainText } from './inline.ts';
 
-export type Mechanism = 'systemd_timer' | 'vercel_cron' | 'paperclip';
+export type Mechanism = 'systemd_timer' | 'vercel_cron' | 'paperclip' | 'on_demand';
 
 export type RegistryJob = {
   /** `mechanism:project:name` — unique, and stable as long as the file is. */
@@ -53,6 +53,10 @@ const HOST_FOR: Record<Mechanism, string> = {
   systemd_timer: 'ubuntu-dev',
   vercel_cron: 'vercel',
   paperclip: 'agents',
+  // Run by hand or dispatched from the op level. Not scheduled, but registered:
+  // a job whose output exists while it appears nowhere is the thing the
+  // registry is for, and eleven client-brain builds are exactly that shape.
+  on_demand: 'ubuntu-dev',
 };
 
 function splitRow(line: string): string[] | null {
@@ -99,6 +103,7 @@ function sectionMechanism(heading: string): Mechanism | null {
   if (h.includes('systemd')) return 'systemd_timer';
   if (h.includes('vercel cron')) return 'vercel_cron';
   if (h.includes('agents vm')) return 'paperclip';
+  if (h.includes('on demand')) return 'on_demand';
   return null;
 }
 

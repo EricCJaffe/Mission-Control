@@ -67,7 +67,7 @@ create table if not exists mission.brain_jobs (
   created_at      timestamptz not null default now(),
 
   constraint brain_jobs_mechanism_check
-    check (mechanism in ('systemd_timer', 'vercel_cron', 'paperclip'))
+    check (mechanism in ('systemd_timer', 'vercel_cron', 'paperclip', 'on_demand'))
 );
 
 create unique index if not exists brain_jobs_ref_idx
