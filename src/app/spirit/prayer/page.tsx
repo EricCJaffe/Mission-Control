@@ -10,7 +10,7 @@ export default async function PrayerPage() {
   const user = userData.user;
   if (!user) return null;
 
-  const [subjectsRes, requestsRes] = await Promise.all([
+  const [subjectsRes, requestsRes, categoriesRes] = await Promise.all([
     supabase
       .from('prayer_subjects')
       .select('id, name, category, notes, scripture_refs, parent_id, position')
@@ -29,8 +29,14 @@ export default async function PrayerPage() {
       // and a concatenation degrades the result to GenericStringError[].
       .select('id, subject_id, body, mode, status, urgent, last_prayed_at, prayed_count, answered_at, answer_note, cadence, cadence_anchor, due_date')
       .eq('user_id', user.id),
+    supabase
+      .from('prayer_categories')
+      .select('id, key, label, position, archived')
+      .eq('user_id', user.id)
+      .order('position'),
   ]);
 
+  if (categoriesRes.error) console.error('[prayer] categories:', categoriesRes.error.message);
   if (subjectsRes.error) console.error('[prayer] subjects:', subjectsRes.error.message);
   if (requestsRes.error) console.error('[prayer] requests:', requestsRes.error.message);
 
@@ -43,7 +49,11 @@ export default async function PrayerPage() {
           than depending on God.
         </p>
       </div>
-      <PrayerClient subjects={subjectsRes.data ?? []} requests={requestsRes.data ?? []} />
+      <PrayerClient
+        subjects={subjectsRes.data ?? []}
+        requests={requestsRes.data ?? []}
+        categories={categoriesRes.data ?? []}
+      />
     </main>
   );
 }

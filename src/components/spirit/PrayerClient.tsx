@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useId, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CalendarClock, Check, CheckCircle2, ChevronRight, Clock, Flame, History,
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   CADENCES,
-  CATEGORY_LABELS,
+  categoryLabel,
   DEFAULT_CADENCE,
   PRAYER_MODES,
   buildSubjectIndex,
@@ -18,6 +18,7 @@ import {
   recentAnswers,
   rotationHealth,
   selectTodaysList,
+  type PrayerCategory,
   type PrayerRequest,
   type PrayerSubjectNode,
   type SubjectContext,
@@ -30,6 +31,26 @@ const CADENCE_LABEL: Record<string, string> = {
   daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', once: 'One time', rotation: 'Rotation',
 };
 
+/**
+ * Categories, available anywhere in this tree.
+ *
+ * PrayerForm is rendered from four places — the toolbar, a subject row, a
+ * category heading, and inside PrayerDetail — each nested differently. Passing
+ * `categories` and a create handler down every one of those paths meant four
+ * components carrying props they only forwarded. A context is read where it is
+ * used and nowhere else.
+ */
+const CategoryCtx = createContext<{
+  categories: PrayerCategory[];
+  createCategory: (label: string) => Promise<boolean>;
+}>({ categories: [], createCategory: async () => false });
+
+/** Resolve a category key to its current label, wherever you are in the tree. */
+function useCategoryLabel(): (key: string | null | undefined) => string {
+  const { categories } = useContext(CategoryCtx);
+  return (key) => categoryLabel(key, categories);
+}
+
 const FIELD =
   'w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none';
 const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-slate-500';
@@ -37,21 +58,29 @@ const LABEL = 'block text-xs font-semibold uppercase tracking-wider text-slate-5
 export default function PrayerClient({
   subjects,
   requests,
+  categories,
 }: {
   subjects: SubjectRow[];
   requests: PrayerRequest[];
+  categories: PrayerCategory[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('today');
   const [busy, setBusy] = useState<string | null>(null);
   const [prayed, setPrayed] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState(false);
+  const [managingCategories, setManagingCategories] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Stamped once on mount. Reading the clock during render makes "3d since
   // last" change between renders of the same list for no user-visible reason.
   const [now] = useState(() => Date.now());
 
   const subjectIndex = useMemo(() => buildSubjectIndex(subjects), [subjects]);
+  const liveCategories = useMemo(() => categories.filter((c) => !c.archived), [categories]);
+  const labelFor = useMemo(
+    () => (key: string | null | undefined) => categoryLabel(key, categories),
+    [categories],
+  );
 
   const tree = useMemo(() => buildSubjectTree(subjects, requests), [subjects, requests]);
   const flatSubjects = useMemo(() => flattenTree(tree), [tree]);
@@ -101,6 +130,29 @@ export default function PrayerClient({
     }
   }
 
+  async function createCategory(label: string): Promise<boolean> {
+    const ok = await call({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'category', label }),
+    });
+    return Boolean(ok);
+  }
+
+  async function editCategory(id: string, patch: Record<string, unknown>): Promise<boolean> {
+    const ok = await call({
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'category', id, ...patch }),
+    });
+    return Boolean(ok);
+  }
+
+  async function deleteCategory(id: string): Promise<boolean> {
+    const ok = await call({ url: `/api/spirit/prayer?kind=category&id=${id}`, method: 'DELETE' });
+    return Boolean(ok);
+  }
+
   const tabs: Array<{ key: Tab; label: string; count: number }> = [
     { key: 'today', label: 'Due today', count: todaysAll.length },
     { key: 'list', label: 'All prayers', count: health.total },
@@ -108,6 +160,7 @@ export default function PrayerClient({
   ];
 
   return (
+    <CategoryCtx.Provider value={{ categories: liveCategories, createCategory }}>
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-1 gap-1 rounded-2xl border-2 border-slate-300 bg-white p-1 shadow-sm">
@@ -129,6 +182,14 @@ export default function PrayerClient({
         </div>
         <button
           type="button"
+          onClick={() => setManagingCategories((v) => !v)}
+          className="flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-slate-300 bg-white px-3 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+        >
+          <ChevronRight className="h-4 w-4" />
+          Categories
+        </button>
+        <button
+          type="button"
           onClick={() => setAdding((v) => !v)}
           className="flex min-h-[44px] items-center gap-1.5 rounded-2xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-indigo-700"
         >
@@ -139,6 +200,17 @@ export default function PrayerClient({
 
       {error && (
         <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
+      )}
+
+      {managingCategories && (
+        <CategoryManager
+          categories={categories}
+          subjects={flatSubjects}
+          onCreate={createCategory}
+          onEdit={editCategory}
+          onDelete={deleteCategory}
+          onClose={() => setManagingCategories(false)}
+        />
       )}
 
       {adding && (
@@ -340,8 +412,7 @@ export default function PrayerClient({
                   <div className="min-w-0">
                     {r.subject_id && subjectIndex.has(r.subject_id) && (
                       <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                        {CATEGORY_LABELS[subjectIndex.get(r.subject_id)!.category] ??
-                          subjectIndex.get(r.subject_id)!.category}
+                        {labelFor(subjectIndex.get(r.subject_id)!.category)}
                         <span className="mx-1 text-emerald-400">·</span>
                         {subjectIndex.get(r.subject_id)!.name}
                       </p>
@@ -366,6 +437,7 @@ export default function PrayerClient({
         </div>
       )}
     </div>
+    </CategoryCtx.Provider>
   );
 }
 
@@ -438,6 +510,9 @@ function PrayerForm({
   const [dueDate, setDueDate] = useState(initial?.due_date ?? '');
   const [urgent, setUrgent] = useState(initial?.urgent ?? false);
   const [saving, setSaving] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
+  const [addingCategory, setAddingCategory] = useState(false);
+  const { categories, createCategory: onCreateCategory } = useContext(CategoryCtx);
   const uid = useId();
 
   // Creating a subject inline only makes sense while capturing. When editing,
@@ -489,7 +564,7 @@ function PrayerForm({
         <p className="mb-3 text-xs text-slate-600">
           Filing under{' '}
           <strong className="text-slate-900">
-            {CATEGORY_LABELS[lockedCategory] ?? lockedCategory}
+            {categoryLabel(lockedCategory, categories)}
           </strong>
         </p>
       )}
@@ -563,13 +638,58 @@ function PrayerForm({
             <select
               id={`${uid}-category`}
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === '__newcat__') {
+                  setAddingCategory(true);
+                  return;
+                }
+                setCategory(e.target.value);
+              }}
               className={`${FIELD} mt-1`}
             >
-              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.key}>{c.label}</option>
               ))}
+              <option value="__newcat__">+ New category…</option>
             </select>
+
+            {addingCategory && (
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="New category name"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === 'Escape') setAddingCategory(false); }}
+                  className={FIELD}
+                />
+                <button
+                  type="button"
+                  disabled={!newCategory.trim()}
+                  onClick={async () => {
+                    const label = newCategory.trim();
+                    if (!(await onCreateCategory(label))) return;
+                    // The server slugifies the same way; selecting it here means
+                    // the prayer files itself under the category just made,
+                    // instead of quietly staying on the previous one.
+                    const key = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+                    setCategory(key);
+                    setNewCategory('');
+                    setAddingCategory(false);
+                  }}
+                  className="shrink-0 rounded-xl bg-indigo-600 px-3 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAddingCategory(false); setNewCategory(''); }}
+                  className="shrink-0 rounded-xl px-2 text-sm font-semibold text-slate-500"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -603,6 +723,174 @@ function PrayerForm({
     </div>
   );
 }
+/**
+ * Managing the categories themselves.
+ *
+ * Categories were a hardcoded list until now, so this is the first place they
+ * can be added, renamed, reordered or archived.
+ *
+ * Two rules are enforced here rather than left to good intentions. The key is
+ * never editable: subjects store it as their category with no foreign key, so
+ * changing it would file every subject under a category that no longer exists.
+ * And deleting is refused while a category still holds subjects — the server
+ * returns 409 with the count, and archiving is offered instead, because a
+ * category that vanishes takes its whole branch out of the tree silently.
+ */
+function CategoryManager({
+  categories,
+  subjects,
+  onCreate,
+  onEdit,
+  onDelete,
+  onClose,
+}: {
+  categories: PrayerCategory[];
+  subjects: Array<PrayerSubjectNode & { depth: number }>;
+  onCreate: (label: string) => Promise<boolean>;
+  onEdit: (id: string, patch: Record<string, unknown>) => Promise<boolean>;
+  onDelete: (id: string) => Promise<boolean>;
+  onClose: () => void;
+}) {
+  const [newLabel, setNewLabel] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+
+  // Counted from the live subject list rather than fetched: the tree is
+  // already here, and a count that disagrees with what you can see is worse
+  // than no count.
+  const countFor = (key: string) => subjects.filter((s) => s.category === key).length;
+
+  const shown = categories.filter((c) => showArchived || !c.archived);
+  const archivedCount = categories.filter((c) => c.archived).length;
+
+  async function create() {
+    if (!newLabel.trim()) return;
+    setSaving(true);
+    try {
+      if (await onCreate(newLabel.trim())) setNewLabel('');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border-2 border-indigo-300 bg-indigo-50/40 p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-sm font-bold text-slate-900">Categories</p>
+        <button type="button" onClick={onClose} aria-label="Close">
+          <X className="h-4 w-4 text-slate-400" />
+        </button>
+      </div>
+
+      <div className="space-y-1.5">
+        {shown.map((c, idx) => {
+          const used = countFor(c.key);
+          return (
+            <div
+              key={c.id}
+              className={`rounded-xl border bg-white px-3 py-2 ${
+                c.archived ? 'border-slate-200 opacity-60' : 'border-slate-200'
+              }`}
+            >
+              {renaming === c.id ? (
+                <InlineInput
+                  defaultValue={c.label}
+                  placeholder="Category name"
+                  onCancel={() => setRenaming(null)}
+                  onSave={async (value) => {
+                    if (await onEdit(c.id, { label: value })) setRenaming(null);
+                  }}
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-800">
+                      {c.label}
+                      {c.archived && (
+                        <span className="ml-2 text-[10px] font-semibold uppercase text-slate-400">
+                          archived
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      {c.key} · {used} subject{used === 1 ? '' : 's'}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <IconBtn
+                      label="Move up"
+                      onClick={() => {
+                        const above = shown[idx - 1];
+                        if (!above) return;
+                        void onEdit(c.id, { position: above.position });
+                        void onEdit(above.id, { position: c.position });
+                      }}
+                    >
+                      <ChevronRight className="h-3.5 w-3.5 -rotate-90" />
+                    </IconBtn>
+                    <IconBtn label="Rename" onClick={() => setRenaming(c.id)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </IconBtn>
+                    <IconBtn
+                      label={c.archived ? 'Restore' : 'Archive'}
+                      onClick={() => onEdit(c.id, { archived: !c.archived })}
+                    >
+                      {c.archived ? <RefreshCw className="h-3.5 w-3.5" /> : <History className="h-3.5 w-3.5" />}
+                    </IconBtn>
+                    <IconBtn label="Delete" danger onClick={() => onDelete(c.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </IconBtn>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {archivedCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowArchived((v) => !v)}
+          className="mt-2 text-xs font-semibold text-slate-500 hover:text-slate-700"
+        >
+          {showArchived ? 'Hide' : 'Show'} {archivedCount} archived
+        </button>
+      )}
+
+      <div className="mt-3 border-t border-indigo-200 pt-3">
+        <label className={LABEL} htmlFor="new-category">Add a category</label>
+        <div className="mt-1 flex gap-2">
+          <input
+            id="new-category"
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') create(); }}
+            placeholder="Neighbours, Persecuted church…"
+            className={FIELD}
+          />
+          <button
+            type="button"
+            onClick={create}
+            disabled={saving || !newLabel.trim()}
+            className="flex shrink-0 items-center gap-1 rounded-xl bg-indigo-600 px-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Add
+          </button>
+        </div>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Archiving hides a category and its branch from the pickers without deleting anything.
+          Deleting is only allowed once nothing is filed under it.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+
 type PrayerLogEntry = { prayed_at: string; note: string | null; kind?: string };
 
 /**
@@ -915,6 +1203,7 @@ function RequestCard({
   onEdit: (patch: Record<string, unknown>) => Promise<boolean>;
   onDelete: () => Promise<unknown>;
 }) {
+  const label = useCategoryLabel();
   const [answering, setAnswering] = useState(false);
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState('');
@@ -966,7 +1255,7 @@ function RequestCard({
           {context && (
             <p className="flex flex-wrap items-center gap-x-1 text-xs font-semibold text-indigo-600">
               <span className="uppercase tracking-wider text-indigo-500">
-                {CATEGORY_LABELS[context.category] ?? context.category}
+                {label(context.category)}
               </span>
               {context.ancestors.map((a) => (
                 <span key={a} className="font-normal text-slate-400">
@@ -1140,6 +1429,8 @@ function SubjectTree({
   onAddRequest: (payload: Record<string, unknown>) => Promise<boolean>;
   onAddSubject: (payload: Record<string, unknown>) => Promise<unknown>;
 }) {
+  const label = useCategoryLabel();
+  const { categories } = useContext(CategoryCtx);
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [newSubjectIn, setNewSubjectIn] = useState<string | null>(null);
 
@@ -1150,8 +1441,21 @@ function SubjectTree({
       if (list) list.push(n);
       else map.set(n.category, [n]);
     }
-    return map;
-  }, [nodes]);
+
+    // Follow the order set in the category manager. Insertion order is whatever
+    // the subject query happened to return, which meant reordering categories
+    // changed nothing here. Categories with no subjects are not shown — the
+    // manager is where an empty one lives — and a subject whose category has no
+    // row still appears, at the end, rather than disappearing.
+    const rank = new Map(categories.map((c, i) => [c.key, i]));
+    return new Map(
+      [...map.entries()].sort(
+        ([a], [b]) =>
+          (rank.get(a) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b) ?? Number.MAX_SAFE_INTEGER) ||
+          a.localeCompare(b),
+      ),
+    );
+  }, [nodes, categories]);
 
   return (
     <div className="space-y-3">
@@ -1159,7 +1463,7 @@ function SubjectTree({
         <details key={category} className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
           <summary className="flex cursor-pointer items-center gap-2 p-4 text-sm font-semibold text-slate-900">
             <ChevronRight className="h-4 w-4 text-slate-400" />
-            {CATEGORY_LABELS[category] ?? category}
+            {label(category)}
             <span className="text-xs font-normal text-slate-400">{flattenTree(roots).length}</span>
           </summary>
           <div className="border-t border-slate-100 p-3">
@@ -1187,14 +1491,14 @@ function SubjectTree({
               onClick={() => setNewSubjectIn(newSubjectIn === `root:${category}` ? null : `root:${category}`)}
               className="mt-2 flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
             >
-              <Plus className="h-3.5 w-3.5" /> Add prayer to {CATEGORY_LABELS[category] ?? category}
+              <Plus className="h-3.5 w-3.5" /> Add prayer to {label(category)}
             </button>
             {newSubjectIn === `root:${category}` && (
               <div className="mt-2">
                 <PrayerForm
                   subjects={subjects.filter((s) => s.category === category)}
                   lockedCategory={category}
-                  title={`New prayer — ${CATEGORY_LABELS[category] ?? category}`}
+                  title={`New prayer — ${label(category)}`}
                   submitLabel="Add prayer"
                   onCancel={() => setNewSubjectIn(null)}
                   onSave={async (payload) => {

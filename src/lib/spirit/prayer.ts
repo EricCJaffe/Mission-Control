@@ -127,6 +127,37 @@ export const PRAYER_MODES: Array<{
   },
 ];
 
+/**
+ * A category as stored in mission.prayer_categories.
+ *
+ * Categories used to be the hardcoded map below and nothing else. They are rows
+ * now, so they can be added, renamed, reordered and archived. The `key` is what
+ * prayer_subjects.category holds, which is why it is never editable once made —
+ * see the PATCH handler.
+ */
+export type PrayerCategory = {
+  id: string;
+  key: string;
+  label: string;
+  position: number;
+  archived: boolean;
+};
+
+/** Label for a key, preferring the user's own rows over the built-in names. */
+export function categoryLabel(
+  key: string | null | undefined,
+  categories: PrayerCategory[] = [],
+): string {
+  if (!key) return 'Unfiled';
+  return categories.find((c) => c.key === key)?.label ?? CATEGORY_LABELS[key] ?? key;
+}
+
+/**
+ * The built-in names. Still here deliberately: it is the fallback for a key
+ * with no row — a subject filed under a category that was deleted, or data
+ * that predates the table — and every call site reads `?? key` after it, so an
+ * unknown category degrades to its key rather than to blank.
+ */
 export const CATEGORY_LABELS: Record<string, string> = {
   family: 'Family',
   friends: 'Friends',

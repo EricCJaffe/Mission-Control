@@ -14,6 +14,22 @@ const CATEGORIES = [
 const str = (v: unknown): string | null =>
   typeof v === 'string' && v.trim() ? v.trim() : null;
 
+/**
+ * A label becomes a key. The key is what lands in prayer_subjects.category —
+ * free text with no constraint of its own — and what goes into React keys and
+ * URLs, so "Work & Business!" must not travel verbatim.
+ * mission.prayer_categories has a matching CHECK, so anything that slips past
+ * this is refused by the database rather than stored.
+ */
+function slugify(label: string): string | null {
+  const key = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  return /^[a-z0-9][a-z0-9_-]*$/.test(key) ? key : null;
+}
+
 async function requireUser() {
   const supabase = await supabaseServer();
   const { data } = await supabase.auth.getUser();
@@ -32,7 +48,51 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const kind = body?.kind === 'subject' ? 'subject' : 'request';
+  const kind =
+    body?.kind === 'subject' ? 'subject' : body?.kind === 'category' ? 'category' : 'request';
+
+  if (kind === 'category') {
+    const label = str(body?.label);
+    if (!label) return NextResponse.json({ error: 'A category name is required' }, { status: 400 });
+
+    const key = str(body?.key) ?? slugify(label);
+    if (!key) {
+      return NextResponse.json(
+        { error: 'That name has no letters or numbers to make a key from.' },
+        { status: 400 },
+      );
+    }
+
+    // New categories go last. Reordering is a separate, deliberate action.
+    const { data: tail } = await supabase
+      .from('prayer_categories')
+      .select('position')
+      .eq('user_id', user.id)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data, error } = await supabase
+      .from('prayer_categories')
+      .insert({
+        user_id: user.id,
+        key,
+        label,
+        position: (tail?.position ?? 0) + 1,
+      })
+      .select('id, key, label, position, archived')
+      .single();
+
+    if (error) {
+      // The unique index is (user_id, key), so a duplicate is a name clash.
+      const message =
+        error.code === '23505'
+          ? `A category with the key "${key}" already exists.`
+          : error.message;
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    return NextResponse.json({ ok: true, category: data });
+  }
 
   if (kind === 'subject') {
     const name = str(body?.name);
@@ -129,6 +189,29 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const id = str(body?.id);
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+  if (body?.kind === 'category') {
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if ('label' in body) {
+      const label = str(body.label);
+      if (!label) return NextResponse.json({ error: 'A category name is required' }, { status: 400 });
+      patch.label = label;
+    }
+    if ('archived' in body) patch.archived = body.archived === true;
+    if ('position' in body && Number.isInteger(body.position)) patch.position = body.position;
+
+    // The key is deliberately not editable. Subjects store it as their
+    // category, so changing it here would orphan every subject filed under it —
+    // renaming the label is what someone actually means.
+    const { error } = await supabase
+      .from('prayer_categories')
+      .update(patch)
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
 
   if (body?.kind === 'subject') {
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -267,8 +350,50 @@ export async function DELETE(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
-  const kind = searchParams.get('kind') === 'subject' ? 'subject' : 'request';
+  const kindParam = searchParams.get('kind');
+  const kind = kindParam === 'subject' ? 'subject' : kindParam === 'category' ? 'category' : 'request';
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+  if (kind === 'category') {
+    const { data: cat } = await supabase
+      .from('prayer_categories')
+      .select('key, label')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!cat) return NextResponse.json({ error: 'No such category' }, { status: 404 });
+
+    // Subjects reference the category by key, not by a foreign key, so nothing
+    // in the database would stop this — the subjects would simply stop
+    // appearing, filed under a category that no longer exists. Archiving is
+    // the non-destructive answer and the UI offers it here.
+    const { count } = await supabase
+      .from('prayer_subjects')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('category', cat.key)
+      .eq('archived', false);
+
+    if ((count ?? 0) > 0) {
+      return NextResponse.json(
+        {
+          error: `"${cat.label}" still holds ${count} subject${count === 1 ? '' : 's'}. Move or archive them first, or archive the category instead.`,
+          subjects: count,
+        },
+        { status: 409 },
+      );
+    }
+
+    const { error } = await supabase
+      .from('prayer_categories')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
 
   if (kind === 'request') {
     const { error } = await supabase
