@@ -16,6 +16,27 @@
 
 export type SendMailResult = { sent: true } | { sent: false; reason: string };
 
+/**
+ * A file to send with the message.
+ *
+ * `content` is base64 without a data: prefix. Graph refuses a sendMail request
+ * over 4 MB in total, so the sum of the attachments is the limit that matters,
+ * not any one of them; anything larger needs an upload session against a draft,
+ * which is a different shape and not what a brief needs.
+ */
+export type MailAttachment = {
+  name: string;
+  contentType: string;
+  content: string;
+};
+
+const MAX_TOTAL_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+
+/** Base64 decodes to roughly three bytes for every four characters. */
+function approximateBytes(base64: string): number {
+  return Math.floor((base64.length * 3) / 4);
+}
+
 type GraphConfig = {
   tenantId: string;
   clientId: string;
@@ -72,6 +93,7 @@ export async function sendMail(options: {
   to: string;
   subject: string;
   html: string;
+  attachments?: MailAttachment[];
 }): Promise<SendMailResult> {
   const config = readConfig();
   if (!config) {
@@ -79,6 +101,17 @@ export async function sendMail(options: {
       sent: false,
       reason:
         'Graph is not configured (MS_TENANT_ID / MS_CLIENT_ID / MS_CLIENT_SECRET / MS_MAILBOX). See docs/m365-setup.md.',
+    };
+  }
+
+  const attachments = options.attachments ?? [];
+  const attachmentBytes = attachments.reduce((sum, a) => sum + approximateBytes(a.content), 0);
+  if (attachmentBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+    // Refused here rather than sent and rejected by Graph, so the caller gets
+    // a reason it can act on instead of a 413 from someone else's API.
+    return {
+      sent: false,
+      reason: `Attachments total ${(attachmentBytes / 1048576).toFixed(1)} MB; Graph refuses a message over ${MAX_TOTAL_ATTACHMENT_BYTES / 1048576} MB. Send a link instead.`,
     };
   }
 
@@ -97,6 +130,16 @@ export async function sendMail(options: {
             subject: options.subject,
             body: { contentType: 'HTML', content: options.html },
             toRecipients: [{ emailAddress: { address: options.to } }],
+            ...(attachments.length
+              ? {
+                  attachments: attachments.map((a) => ({
+                    '@odata.type': '#microsoft.graph.fileAttachment',
+                    name: a.name,
+                    contentType: a.contentType,
+                    contentBytes: a.content,
+                  })),
+                }
+              : {}),
           },
           saveToSentItems: true,
         }),
