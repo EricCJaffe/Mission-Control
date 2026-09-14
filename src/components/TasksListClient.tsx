@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MarkdownEditor from "@/components/MarkdownEditor";
 import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -252,6 +252,7 @@ export default function TasksListClient({
   domains,
   initialDomain,
   initialProject,
+  initialTaskId,
   projects,
   subtasks,
   links,
@@ -266,6 +267,7 @@ export default function TasksListClient({
   initialDomain: string;
   /** From ?project= — a project id, or "all". */
   initialProject: string;
+  initialTaskId?: string | null;
   projects: ProjectOption[];
   subtasks: Subtask[];
   links: TaskLink[];
@@ -411,6 +413,26 @@ export default function TasksListClient({
     setNewNoteId("");
     (document.getElementById("task-detail-dialog") as HTMLDialogElement | null)?.showModal();
   }
+
+  // `?task=<id>` — open that task's dialog on arrival.
+  //
+  // The briefs link every task they name so a row can be worked or closed
+  // from the email. Landing on the list and leaving the reader to find the
+  // row among two hundred is not a link to the task.
+  //
+  // Once only, tracked by a ref rather than by the id: re-running would
+  // reopen the dialog every time the user closed it, which is worse than
+  // not deep-linking at all. The filters are left alone deliberately — the
+  // dialog is modal, so it shows whether or not the row is filtered out.
+  const deepLinked = useRef(false);
+  useEffect(() => {
+    if (deepLinked.current || !initialTaskId) return;
+    const target = tasks.find((task) => task.id === initialTaskId);
+    if (!target) return;
+    deepLinked.current = true;
+    openTask(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTaskId, tasks]);
 
   return (
     <div className="mt-4">

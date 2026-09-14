@@ -37,11 +37,15 @@ const CATEGORIES = [
 export default async function TasksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ domain?: string; project?: string }>;
+  searchParams: Promise<{ domain?: string; project?: string; task?: string }>;
 }) {
   // The dashboard's priority matrix links here with its own slice already
   // chosen — a tile you click should land on that tile's tasks, not on all 206.
-  const { domain: initialDomain, project: initialProject } = await searchParams;
+  //
+  // `?task=<id>` opens that task's dialog straight away. The briefs link
+  // every task they name, and a link that lands on a list of 206 and leaves
+  // you to find the row is not a link to the task.
+  const { domain: initialDomain, project: initialProject, task: initialTaskId } = await searchParams;
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -125,6 +129,7 @@ export default async function TasksPage({
         domains={DOMAINS}
         initialDomain={initialDomain ?? "all"}
         initialProject={initialProject ?? "all"}
+        initialTaskId={initialTaskId ?? null}
         projects={projects || []}
         subtasks={subtasks || []}
         links={links || []}
