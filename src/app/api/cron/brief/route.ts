@@ -61,6 +61,31 @@ export async function GET(req: Request) {
   // A dry run generates and stores nothing — for checking the shape by hand.
   const preview = url.searchParams.get('preview') === '1';
 
+  /*
+   * ?send=1 — email this brief. Without it, generate and store only.
+   *
+   * Eric, 2026-09-15: "Chief of staff should be running things."
+   *
+   * Until then two daily briefs arrived every weekday: this one at 06:30 and
+   * the chief-of-staff brief at 06:00, with near-identical subjects — "Daily
+   * brief — 2026-09-15" here, "daily-brief — 2026-09-15" there. On the day
+   * the chief-of-staff brief failed to send, Eric received this one, assumed
+   * it was his, and reported that the format had changed. Two senders for
+   * one job is a guarantee of that confusion.
+   *
+   * This brief is NOT retired. It still generates and stores on every run,
+   * it is still the thing that computes the alignment check and prep
+   * warnings, and /briefs still renders it. The chief-of-staff brief now
+   * reads that stored payload rather than recomputing the matrix maths a
+   * second way — which is how this code and PriorityMatrix.tsx disagreed
+   * once already.
+   *
+   * It stays callable WITH ?send=1 as the failure backstop: if the
+   * chief-of-staff brief cannot deliver, run-job.sh calls this so Eric is
+   * never left with no brief at all.
+   */
+  const send = url.searchParams.get('send') === '1';
+
   const supabase = createClient(supabaseUrl, serviceKey, {
     db: { schema: DB_SCHEMA },
     auth: { persistSession: false, autoRefreshToken: false },
@@ -112,6 +137,15 @@ export async function GET(req: Request) {
     kind === 'weekly'
       ? `Weekly brief — week of ${brief.periodStart}`
       : `Daily brief — ${brief.periodStart}`;
+
+  if (!send) {
+    return NextResponse.json({
+      ok: true,
+      id: stored.id,
+      sent: false,
+      reason: 'stored only — the chief-of-staff brief is the sender; call with ?send=1 as a backstop',
+    });
+  }
 
   const result = await sendMail({ to, subject, html: brief.html });
 
