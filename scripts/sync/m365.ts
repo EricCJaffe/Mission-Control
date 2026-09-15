@@ -173,6 +173,43 @@ function chunked<T>(items: T[], size = 150): T[][] {
   return out;
 }
 
+/*
+ * Chunk by the LENGTH of the resulting query string, not by item count.
+ *
+ * `.in('external_id', chunk)` becomes a GET with every id inline in the URL.
+ * Graph calendar event ids run 400-500 characters each, so 101 of them in
+ * one batch is a ~45 KB URL — and the request dies at the transport with
+ * nothing more descriptive than `TypeError: fetch failed`. Mail ids are
+ * shorter and there were fewer of them, so mail squeaked under the limit
+ * and calendar did not. The count-based chunker looked fine for months
+ * because nothing had enough long ids to cross the line.
+ *
+ * Found 2026-09-15, after mission.sync_runs showed m365_mail with one
+ * lifetime run and the daily brief reporting "built on stale data" for nine
+ * days straight.
+ *
+ * 3000 characters is well under every practical URL limit and still sends
+ * six or seven requests for a busy fortnight. The count cap stays as a
+ * second bound for short ids.
+ */
+function chunkedByLength(items: string[], maxChars = 3000, maxCount = 150): string[][] {
+  const out: string[][] = [];
+  let cur: string[] = [];
+  let len = 0;
+  for (const it of items) {
+    const cost = encodeURIComponent(it).length + 3; // comma and quoting
+    if (cur.length && (len + cost > maxChars || cur.length >= maxCount)) {
+      out.push(cur);
+      cur = [];
+      len = 0;
+    }
+    cur.push(it);
+    len += cost;
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
 type RunResult = {
   seen: number;
   created: number;
@@ -318,7 +355,7 @@ async function syncCalendar(
   if (dryRun) return result;
 
   const existing = new Map<string, string>();
-  for (const chunk of chunked(prepared.map((e) => e.externalId))) {
+  for (const chunk of chunkedByLength(prepared.map((e) => e.externalId))) {
     const { data, error } = await db
       .from('calendar_events')
       .select('id, external_id')
@@ -470,7 +507,7 @@ async function syncMail(
 
   type PriorRow = { id: string; message_id: string; replied_at: string | null; linked_task_id: string | null };
   const existing = new Map<string, PriorRow>();
-  for (const chunk of chunked(prepared.map((m) => m.messageId))) {
+  for (const chunk of chunkedByLength(prepared.map((m) => m.messageId))) {
     const { data, error } = await db
       .from('inbox_items')
       .select('id, message_id, replied_at, linked_task_id')
