@@ -74,6 +74,7 @@ export const config = {
     '/sops/:path*',
     '/reviews/:path*',
     '/books/:path*',
+    '/sermons/:path*',
     '/notes/:path*',
     '/knowledge/:path*',
     '/fitness/:path*',

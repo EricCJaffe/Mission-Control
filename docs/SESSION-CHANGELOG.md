@@ -10,6 +10,42 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-09-17 — Book Builder and Sermon Builder re-enabled
+
+### What changed
+`books` and `sermons` in `src/lib/feature-flags.ts` flipped from `false` to
+`true`, with their comments rewritten to record why each came back. Added
+`/sermons/:path*` to the matcher in `src/middleware.ts`.
+
+### Why
+Eric asked whether either module was still in the repo or needed rebuilding.
+Both were fully intact — hidden on 2026-08-02, never deleted. `/books` is 49
+route/page files plus 12 `Book*` components (3,303 + 2,904 lines); `/sermons`
+is 11 files plus `SermonSeriesClient.tsx` (642 + 317). All 13 tables still hold
+their data. So this was a flag flip, not a restore.
+
+`/books/:path*` was already in the middleware matcher but `/sermons/:path*` was
+not, so re-enabling the nav entry would have put a module in front of Eric whose
+auth rested only on each route's own `getUser()` call. Every sermon route does
+make that call and nothing had leaked, but that file is explicit that the
+matcher is the gate. `/sermons` now redirects to `/login` like `/books`.
+
+Verified: `npx tsc --noEmit` clean, `npm run build` clean, `npm run lint`
+unchanged at 289 problems — confirmed identical against the stashed tree, so
+none are new. Dev server on 3001 returns the expected 307 for `/books`,
+`/sermons` and `/sermons/new`.
+
+### Follow-ups
+Tracked in `docs/TASKS.md` under Medium Priority:
+- Both modules predate the Vitality Evolution UI pass and may not match current
+  card and color conventions.
+- Book Builder holds the real content (4 books, 13 chapters, 92 versions, 67
+  comments, 64 embedding chunks); rebuild embeddings if the model has moved.
+- Sermon Builder is an empty shell (0 series, 0 sermons) with 4 orphaned
+  `sermon_assets` rows to confirm and clear.
+- Sermon routes scope by `org_id = user.id`, not the `user_id` convention in
+  CLAUDE.md.
+
 ## 2026-08-10 — DJ Shipley functional strength template
 
 ### What changed

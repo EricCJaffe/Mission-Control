@@ -368,6 +368,29 @@ open decisions and deferred work, roughly in the order worth doing.
   - Health update detection, review, and approval exist.
   - Outbound notification delivery still needs to be added.
 
+- [ ] **Refine the Book Builder and Sermon Builder, re-enabled 2026-09-17**
+  Both modules were hidden on 2026-08-02 by `src/lib/feature-flags.ts` and were
+  never deleted — routes, components and tables stayed intact, so re-enabling
+  was a flag flip, not a rebuild. `npx tsc --noEmit` and `npm run build` are
+  clean with both on. What is left is refinement, not recovery:
+  - Both are February/March-era and predate the Vitality Evolution UI pass, so
+    they may not match the current card and color conventions. Load `/books`
+    and `/sermons` signed in and compare against `/dashboard`.
+  - **Book Builder is the one with real content**: 4 books, 13 chapters, 92
+    chapter versions, 67 comments, 64 embedding chunks. Its AI features read
+    `chapter_chunks`; if the embedding model has changed since February, run
+    `/books/ai/rebuild-embeddings` before trusting inline review or placement.
+  - **Sermon Builder is an empty shell**: 0 series, 0 sermons. The 4 rows in
+    `sermon_assets` have no parent sermon and look like leftovers from testing
+    — confirm, then clear them so the module starts clean.
+  - Sermon routes scope rows by `org_id = user.id`, not the `user_id` column
+    CLAUDE.md gives as the convention. Decide whether that is deliberate before
+    building on it.
+  - `/sermons/:path*` was missing from the `src/middleware.ts` matcher and has
+    been added, so it now redirects to `/login` like `/books`. Nothing had
+    leaked — every sermon route does its own `getUser()` check — but that file
+    warns against relying on per-page checks as the gate.
+
 ### Deferred
 - [ ] Withings webhook subscriptions / background incremental sync
   - OAuth connect and manual sync are implemented.

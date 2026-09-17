@@ -7,6 +7,13 @@
 
 ## Latest Changes (Rolling)
 
+### September 17, 2026 — Book Builder and Sermon Builder re-enabled
+- Flipped `books` and `sermons` in `src/lib/feature-flags.ts` back to `true`. Both modules had been hidden on August 2, 2026; nothing was ever deleted, so the routes, components, API handlers and tables came back untouched.
+- `/books` returns with its existing content: 4 books, 13 chapters, 92 chapter versions, 67 comments, 64 embedding chunks.
+- `/sermons` returns as an empty shell — it was built but never used (0 series, 0 sermons).
+- Added `/sermons/:path*` to the auth matcher in `src/middleware.ts`. `/books/:path*` was already protected; `/sermons` was not, so it had been serving a 200 without a session. Every sermon route already made its own `getUser()` check and nothing leaked, but the matcher is the intended gate.
+- Refinement items for both modules are recorded in `docs/TASKS.md` under Medium Priority.
+
 ### March 10, 2026 — Flourishing Module + Persona Review Flow
 - Added `/flourishing` and `/flourishing/[assessmentId]` with a colorful assessment/results/history experience.
 - Added versioned flourishing question sets, persisted assessments, and a current flourishing profile in Supabase.
