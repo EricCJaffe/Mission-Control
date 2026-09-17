@@ -157,3 +157,7 @@ When changes ship, update:
 - `docs/ENVIRONMENT.md`
 - `docs/WORKFLOWS.md` / `docs/DEPLOYMENT.md` as needed
 - `AGENTS.md` when startup context changes
+
+## Language
+
+**US English, always** — spelling, dates, units — in code, UI strings, docs, commits, briefs and mail. Eric has corrected British spelling more than once; this rule is also in `~/.claude/CLAUDE.md` for every session on the box.
