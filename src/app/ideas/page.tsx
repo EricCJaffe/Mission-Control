@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Lightbulb, Compass } from 'lucide-react'
 import { supabaseServer } from '@/lib/supabase/server'
-import { idleDays, idleLabel, idleTone, type IdeaRow } from '@/lib/ideas'
+import { idleDays, idleLabel, idleTone, type IdeaRow, type IdeaAttachment } from '@/lib/ideas'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,12 +61,30 @@ export default async function IdeasPage() {
   const { data, error } = await supabase
     .from('ideas')
     .select(
-      'id,title,body,domain,status,captured_at,touched_at,touch_count,promoted_project_id,promoted_at,source,source_url,promote_request,promote_requested_at,promote_error',
+      'id,title,body,domain,status,captured_at,touched_at,touch_count,promoted_project_id,promoted_at,source,source_url,promote_request,promote_requested_at,promote_error,links',
     )
     .order('touched_at', { ascending: true })
     .limit(500)
 
   const ideas = (data ?? []) as IdeaRow[]
+
+  /*
+   * Attachments for everything on the board, in one query rather than one per
+   * card. The bucket is private, so each needs a signed URL — issued here on
+   * the server, valid for an hour, never a public link.
+   */
+  const { data: files } = await supabase
+    .from('idea_attachments')
+    .select('id,idea_id,bucket,path,filename,mime,bytes')
+  const attachments = new Map<string, Array<IdeaAttachment & { href: string | null }>>()
+  for (const f of (files ?? []) as IdeaAttachment[]) {
+    const { data: signed } = await supabase.storage
+      .from(f.bucket)
+      .createSignedUrl(f.path, 60 * 60)
+    const list = attachments.get(f.idea_id) ?? []
+    list.push({ ...f, href: signed?.signedUrl ?? null })
+    attachments.set(f.idea_id, list)
+  }
   const open = ideas.filter((i) => i.status === 'open')
   const parked = ideas.filter((i) => i.status === 'parked')
   const promoted = ideas
@@ -127,7 +145,7 @@ export default async function IdeasPage() {
         </h2>
         <div className="mt-3 grid gap-3">
           {open.map((idea) => (
-            <IdeaCard key={idea.id} idea={idea} />
+            <IdeaCard key={idea.id} idea={idea} files={attachments.get(idea.id) ?? []} />
           ))}
           {open.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 p-6 text-sm text-slate-500">
@@ -145,7 +163,7 @@ export default async function IdeasPage() {
           </h2>
           <div className="mt-3 grid gap-3">
             {parked.map((idea) => (
-              <IdeaCard key={idea.id} idea={idea} />
+              <IdeaCard key={idea.id} idea={idea} files={attachments.get(idea.id) ?? []} />
             ))}
           </div>
         </section>
@@ -182,7 +200,7 @@ export default async function IdeasPage() {
   )
 }
 
-function IdeaCard({ idea }: { idea: IdeaRow }) {
+function IdeaCard({ idea, files }: { idea: IdeaRow; files: Array<IdeaAttachment & { href: string | null }> }) {
   const captured = new Date(idea.captured_at).toLocaleDateString()
 
   return (
@@ -192,6 +210,45 @@ function IdeaCard({ idea }: { idea: IdeaRow }) {
           <div className="font-semibold">{idea.title}</div>
           {idea.body && (
             <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{idea.body}</p>
+          )}
+          {/* The picture is often the whole idea — shown, not listed as a
+              filename. Anything that is not an image gets a plain link. */}
+          {files.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {files.map((f) =>
+                f.href && (f.mime ?? '').startsWith('image/') ? (
+                  <a key={f.id} href={f.href} target="_blank" rel="noreferrer" className="block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={f.href}
+                      alt={f.filename}
+                      className="max-h-40 rounded-xl border border-slate-200 object-cover shadow-sm"
+                    />
+                  </a>
+                ) : (
+                  <a
+                    key={f.id}
+                    href={f.href ?? '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-blue-700 hover:bg-slate-50"
+                  >
+                    {f.filename}
+                  </a>
+                ),
+              )}
+            </div>
+          )}
+          {(idea.links?.length ?? 0) > 0 && (
+            <ul className="mt-2 space-y-0.5">
+              {idea.links!.map((l) => (
+                <li key={l}>
+                  <a href={l} target="_blank" rel="noreferrer" className="text-xs text-blue-700 hover:underline">
+                    {l}
+                  </a>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
