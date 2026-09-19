@@ -1,7 +1,7 @@
 "use client";
 
 import NavLink from "@/components/NavLink";
-import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper, Bot } from "lucide-react";
+import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper, Bot, Lightbulb } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
 type SidebarProps = {
@@ -85,6 +85,10 @@ export default function Sidebar({
               <NavLink href="/dashboard" label="Dashboard" shortLabel="DB" collapsed={isCollapsed} icon={<LayoutDashboard size={18} className="text-blue-600" />} onClick={handleNavigate} />
               <NavLink href="/tasks" label="Tasks" shortLabel="TS" collapsed={isCollapsed} icon={<CheckSquare size={18} className="text-green-600" />} onClick={handleNavigate} />
               <NavLink href="/notes" label="Notes" shortLabel="NT" collapsed={isCollapsed} icon={<StickyNote size={18} className="text-yellow-600" />} onClick={handleNavigate} />
+              {/* Ideas sit next to Notes and above Calendar on purpose: they are
+                  captured in the same breath as a note, and they are never a
+                  commitment, so they must not read as part of the schedule. */}
+              <NavLink href="/ideas" label="Ideas" shortLabel="ID" collapsed={isCollapsed} icon={<Lightbulb size={18} className="text-yellow-500" />} onClick={handleNavigate} />
               <NavLink href="/calendar" label="Calendar" shortLabel="CL" collapsed={isCollapsed} icon={<CalendarDays size={18} className="text-orange-600" />} onClick={handleNavigate} />
               <NavLink href="/goals" label="Goals" shortLabel="GL" collapsed={isCollapsed} icon={<Target size={18} className="text-cyan-600" />} onClick={handleNavigate} />
               {FEATURES.metricsPage && (

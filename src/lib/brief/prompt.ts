@@ -51,12 +51,16 @@ Return a single JSON object and nothing else — no prose before it, no markdown
   "weekCommentary": string,
   "threadsCommentary": string,
   "tasksCommentary": string,
+  "ideasCommentary": string,
   "outcomes": [{ "outcome": string, "when": string, "why": string }],
   "nextSteps": [{ "step": string, "when": string }],
   "challenge": string,
   "scriptureReference": string,
   "scriptureApplication": string
 }
+
+IDEAS ARE NOT TASKS
+The idea board is a list of thoughts he caught and has not started. Nothing on it is owed, nothing on it is late, and you may not call it a backlog or tell him to clear it. Say what the idle times reveal — one he keeps returning to and never starts, a thought that has sat a whole quarter and should probably be killed, a domain he never has ideas for. If one of the three outcomes is an idea finally being started, name it. Two or three sentences, and none of them scolding.
 
 Every commentary field is 2-4 sentences. Omit a commentary field entirely when its section has nothing in it — an empty string is worse than a missing key, because the email will print a heading over silence.`;
 
@@ -175,6 +179,16 @@ export function buildModelPayload(payload: BriefPayload) {
         bucket: MATRIX_LABEL[t.matrix],
       })),
     },
+    // Caught and not started. No dates here on purpose — an idea has none, and
+    // handing the model one invites prose about a deadline that does not exist.
+    ideas: payload.ideas.map((i) => ({
+      idea: i.title,
+      bucket: MATRIX_LABEL[i.matrix],
+      untouchedFor: i.idleLabel,
+      untouchedDays: i.idleDays,
+      caughtDaysAgo: i.ageDays,
+      timesRevisitedWithoutStarting: i.touchCount,
+    })),
   };
 }
 
@@ -264,6 +278,7 @@ export function parseNarrative(raw: string): BriefNarrative | null {
     weekCommentary: str('weekCommentary'),
     threadsCommentary: str('threadsCommentary'),
     tasksCommentary: str('tasksCommentary'),
+    ideasCommentary: str('ideasCommentary'),
     outcomes: outcomes && outcomes.length > 0 ? outcomes : undefined,
     nextSteps: nextSteps && nextSteps.length > 0 ? nextSteps : undefined,
     challenge: str('challenge'),

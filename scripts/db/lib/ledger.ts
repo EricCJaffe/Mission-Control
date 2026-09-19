@@ -92,9 +92,42 @@ export function stripNoise(sql: string): string {
     .replace(/'(?:[^']|'')*'/g, " '' ");
 }
 
+/**
+ * Remove foreign-key targets: `references auth.users(id)`, `references
+ * mission.projects(id)`.
+ *
+ * A foreign key READS the other table's key; it does not write a row into it.
+ * Without this, every `mission` table that owns its rows by `user_id`, which is
+ * every table in this schema by the RLS convention, reads as a migration that
+ * writes into `auth` — and a checker that fires on the correct way to build a
+ * table is a checker that gets switched off.
+ *
+ * `on delete cascade` is the one real write a foreign key can cause, and it is
+ * a write the OTHER table's owner chose by keeping the key. It is not this
+ * migration reaching into their schema.
+ */
+export function stripForeignKeyTargets(sql: string): string {
+  return sql.replace(/\breferences\s+[\w"]+\s*\.\s*[\w"]+/gi, ' references ');
+}
+
+/**
+ * Remove the Supabase auth helpers: `auth.uid()`, `auth.jwt()`, `auth.role()`,
+ * `auth.email()`.
+ *
+ * These are function calls inside RLS policies, and every policy in this schema
+ * uses one — `using ((select auth.uid()) = user_id)` is the owner rule the
+ * whole of `mission` is built on. They read the current session; they cannot
+ * write anything. An explicit list rather than a general "schema-dot-word-open-
+ * paren is a call" rule, because `insert into public.tasks (title)` has that
+ * shape too and is exactly the write this checker exists to catch.
+ */
+export function stripAuthHelpers(sql: string): string {
+  return sql.replace(/\bauth\s*\.\s*(uid|jwt|role|email)\s*\(\s*\)/gi, ' session_helper() ');
+}
+
 /** Which of the known schemas this SQL names explicitly, in a stable order. */
 export function schemasTouched(sql: string): KnownSchema[] {
-  const clean = stripNoise(sql).toLowerCase();
+  const clean = stripAuthHelpers(stripForeignKeyTargets(stripNoise(sql))).toLowerCase();
   const found = new Set<KnownSchema>();
   for (const schema of KNOWN_SCHEMAS) {
     // A qualifier is the schema name followed by a dot and an identifier or a

@@ -36,6 +36,7 @@ import * as nodeModule from 'node:module';
 
 import type {
   CalendarEventRow,
+  IdeaRow,
   InboxItemRow,
   MatrixKey,
   ProjectRow,
@@ -119,6 +120,7 @@ type Dataset = {
   events: CalendarEventRow[];
   inbox: InboxItemRow[];
   runs: SyncRunRow[];
+  ideas: IdeaRow[];
 };
 
 /** A valid, entirely empty world. Every test overrides only what it is about. */
@@ -130,6 +132,7 @@ function dataset(overrides: Partial<Dataset> = {}): Dataset {
     events: [],
     inbox: [],
     runs: [],
+    ideas: [],
     ...overrides,
   };
 }
@@ -158,6 +161,8 @@ function rowsFor(table: string, calls: QueryCall[], data: Dataset): unknown[] {
       return data.inbox;
     case 'sync_runs':
       return data.runs;
+    case 'ideas':
+      return data.ideas;
     default:
       throw new Error(`collect() queried an unexpected table: ${table}`);
   }
@@ -854,4 +859,74 @@ test('an evening event stored as next-day UTC stays on its own evening', async (
     'the dinner is on Tuesday evening, not Monday',
   );
   assert.equal(hoursIn(payload, 'family'), 1.5);
+});
+
+// ---------------------------------------------------------------------------
+// Ideas.
+// ---------------------------------------------------------------------------
+
+function ideaRow(overrides: Partial<IdeaRow> = {}): IdeaRow {
+  return {
+    id: 'idea-1',
+    title: 'An idea',
+    body: null,
+    domain: 'work',
+    status: 'open',
+    captured_at: daysAgo(10),
+    touched_at: daysAgo(10),
+    touch_count: 0,
+    ...overrides,
+  };
+}
+
+test('ideas are ordered longest-untouched first, and carry no due date of any kind', async () => {
+  const { payload } = await collectWeekly({
+    ideas: [
+      ideaRow({ id: 'i-fresh', title: 'Fresh', touched_at: daysAgo(2) }),
+      ideaRow({ id: 'i-old', title: 'Old', touched_at: daysAgo(120) }),
+      ideaRow({ id: 'i-middle', title: 'Middle', touched_at: daysAgo(40) }),
+    ],
+  });
+
+  assert.deepEqual(
+    payload.ideas.map((i) => i.id),
+    ['i-old', 'i-middle', 'i-fresh'],
+  );
+  assert.equal(payload.ideas[0].idleDays, 120);
+  // The whole reason ideas are not tasks: nothing here may acquire a deadline.
+  for (const idea of payload.ideas) {
+    assert.ok(!('dueDate' in idea), 'an idea must never carry a due date');
+  }
+});
+
+test('an idea touched by a person beats one a background write touched, because the clocks differ', async () => {
+  /*
+   * `touched_at` is the only column read. The row below was "updated" today —
+   * a domain backfill, a re-import — but nobody has looked at the thought in
+   * three months, and the brief has to say three months.
+   */
+  const { payload } = await collectWeekly({
+    ideas: [ideaRow({ id: 'i-backfilled', touched_at: daysAgo(95) })],
+  });
+
+  assert.equal(payload.ideas[0].idleDays, 95);
+  assert.equal(payload.ideas[0].idleLabel, '3 months');
+});
+
+test('the daily brief carries no ideas at all', async () => {
+  const { payload } = await collectDaily({ ideas: [ideaRow()] });
+  assert.deepEqual(payload.ideas, []);
+});
+
+test('only open ideas are asked for — parked and killed ones are the database’s job to exclude', async () => {
+  const { calls } = await collectWeekly();
+  const ideaCalls = calls.filter((c) => c.table === 'ideas');
+  assert.ok(
+    ideaCalls.some((c) => c.method === 'eq' && c.args[0] === 'status' && c.args[1] === 'open'),
+    'collect must filter ideas to status=open in the query, not in memory',
+  );
+  assert.ok(
+    ideaCalls.some((c) => c.method === 'order' && c.args[0] === 'touched_at'),
+    'ideas must be ordered on touched_at, never updated_at',
+  );
 });

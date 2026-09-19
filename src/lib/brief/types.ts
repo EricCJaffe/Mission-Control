@@ -311,6 +311,54 @@ export type TaskSections = {
 export const TASK_STALE_AFTER_DAYS = 30;
 
 // ---------------------------------------------------------------------------
+// Ideas.
+//
+// Eric, 2026-09-19: "no due date but maybe you can have a time stamp so you
+// can add to the weekly brief an idea section to keep it before me
+// periodically and note how long its been since i've touched it."
+//
+// An idea is NOT a task and must never be counted as one. It has no due date,
+// it can never be overdue, and nothing here feeds the alignment check or the
+// stale-task verdicts. The only number it carries is how long it has gone
+// untouched, and the only thing the brief does with that is put the oldest
+// ones back in front of him.
+// ---------------------------------------------------------------------------
+
+export type IdeaRow = {
+  id: string;
+  title: string | null;
+  body: string | null;
+  domain: string | null;
+  status: string | null;
+  captured_at: string | null;
+  touched_at: string | null;
+  touch_count: number | null;
+};
+
+export type BriefIdea = {
+  id: string;
+  title: string;
+  matrix: MatrixKey;
+  /** Whole days since Eric last deliberately touched it. */
+  idleDays: number | null;
+  /** "today", "9 days", "6 weeks" — computed here, printed verbatim. */
+  idleLabel: string;
+  /** Days since it was first caught. Never resets. */
+  ageDays: number | null;
+  /** Times he has come back to it without starting it. */
+  touchCount: number;
+};
+
+/**
+ * How many open ideas the brief shows.
+ *
+ * Twelve, not all of them. The section exists to keep ideas in front of him,
+ * and a list of sixty is not in front of anybody — it is a page he scrolls
+ * past. The oldest twelve are the ones a decision is actually owed on.
+ */
+export const IDEAS_IN_BRIEF = 12;
+
+// ---------------------------------------------------------------------------
 // The payload handed to render.ts, and to Claude.
 // ---------------------------------------------------------------------------
 
@@ -332,6 +380,8 @@ export type BriefPayload = {
   tomorrow: DayCell | null;
   threads: Thread[];
   tasks: TaskSections;
+  /** Open ideas, oldest attention first. Weekly brief only. */
+  ideas: BriefIdea[];
 };
 
 // ---------------------------------------------------------------------------
@@ -360,6 +410,7 @@ export type BriefNarrative = {
   weekCommentary?: string;
   threadsCommentary?: string;
   tasksCommentary?: string;
+  ideasCommentary?: string;
   outcomes?: Outcome[];
   nextSteps?: NextStep[];
   challenge?: string;
@@ -387,6 +438,9 @@ export type BriefStats = {
   tasksDueThisPeriod: number;
   tasksStale: number;
   tasksClosed: number;
+  ideasOpen: number;
+  /** Open ideas untouched for 30 days or more. */
+  ideasIdle: number;
 };
 
 export type GeneratedBrief = {

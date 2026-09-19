@@ -80,6 +80,9 @@
 - Goals/reviews/SOPs: `/goals/new`, `/goals/cycles`, `/goals/link`, `/reviews/submit`, `/sops/new`, `/sops/update`, `/sops/steps`, `/sops/steps/toggle`
 - Books: `/books/new`, `/books/update`, `/books/delete`, `/books/upload`, chapter/section/milestone/comment/proposal/book-proposal routes, and `/books/ai/*` helpers
 - Attachments: `/attachments/upload`
+- Ideas: `/ideas/new`, `/ideas/[id]/touch`, `/ideas/[id]/status`, `/ideas/[id]/edit`, `/ideas/[id]/promote`.
+  `status` accepts `open | parked | killed` only — `promoted` is a claim that a project exists, and only
+  `/ideas/[id]/promote` (which calls `mission.promote_idea`) can honestly make it.
 
 ## Error Behavior
 - JSON endpoints use HTTP status codes (`400`, `401`, `500`, `501`) with JSON error payloads.

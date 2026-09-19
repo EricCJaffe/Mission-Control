@@ -14,6 +14,7 @@
  */
 
 import { expandInRange } from '@/lib/calendar/recurrence';
+import { IDEA_AGING_AFTER_DAYS, idleDays as ideaIdleDays, idleLabel as ideaIdleLabel } from '@/lib/ideas';
 import { APP_TIMEZONE, addDays, dayOf, daysBetween, today as todayInAppTz } from '@/lib/day';
 import type { MissionClient } from '@/lib/supabase/schema';
 import {
@@ -22,15 +23,18 @@ import {
   MATRIX_LABEL,
   MATRIX_ORDER,
   STALE_AFTER_HOURS,
+  IDEAS_IN_BRIEF,
   TASK_STALE_AFTER_DAYS,
   matrixKeyFor,
   type Alignment,
   type BriefKind,
   type BriefPayload,
+  type BriefIdea,
   type BriefTask,
   type CalendarEventRow,
   type DayCell,
   type DayEvent,
+  type IdeaRow,
   type InboxItemRow,
   type MatrixHours,
   type MatrixKey,
@@ -262,6 +266,7 @@ export async function collect(
     eventsResult,
     inboxResult,
     runsResult,
+    ideasResult,
   ] = await Promise.all([
     supabase
       .from('tasks')
@@ -313,6 +318,21 @@ export async function collect(
       .eq('user_id', userId)
       .order('started_at', { ascending: false })
       .limit(120),
+    /*
+     * Open ideas, oldest attention first.
+     *
+     * Ordered on `touched_at` and not `updated_at`: a background write must
+     * not be able to promote an idea to the top of the freshness order and
+     * out of the brief. See the migration header for why the two clocks are
+     * separate.
+     */
+    supabase
+      .from('ideas')
+      .select('id,title,body,domain,status,captured_at,touched_at,touch_count')
+      .eq('user_id', userId)
+      .eq('status', 'open')
+      .order('touched_at', { ascending: true })
+      .limit(200),
   ]);
 
   const openTasks = (tasksResult.data ?? []) as TaskRow[];
@@ -445,6 +465,12 @@ export async function collect(
     periodEnd,
   );
 
+  // -- Ideas ----------------------------------------------------------------
+  // Weekly only. A daily brief is a list of what to do before dark, and an
+  // idea is precisely the thing that does not have to happen today; putting
+  // it there every morning would teach him to skim the section that matters.
+  const ideas = kind === 'weekly' ? buildIdeas((ideasResult.data ?? []) as IdeaRow[], now) : [];
+
   const periodLabel =
     kind === 'daily'
       ? dayLabel(periodStart)
@@ -465,7 +491,43 @@ export async function collect(
     tomorrow,
     threads,
     tasks,
+    ideas,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Ideas.
+//
+// No arithmetic beyond two subtractions, and deliberately so: an idea carries
+// no verdict, no urgency score and no suggestion. The brief's job here is to
+// show him the thought and how long it has sat, and let him decide. Anything
+// cleverer would be the system having an opinion about a thought it did not
+// have.
+// ---------------------------------------------------------------------------
+
+function buildIdeas(rows: IdeaRow[], now: number): BriefIdea[] {
+  return rows
+    .map((row) => {
+      const idle = ideaIdleDays(row.touched_at, now);
+      return {
+        id: row.id,
+        title: row.title ?? '(untitled idea)',
+        matrix: matrixKeyFor(row.domain),
+        idleDays: idle,
+        idleLabel: ideaIdleLabel(idle),
+        ageDays: ideaIdleDays(row.captured_at, now),
+        touchCount: row.touch_count ?? 0,
+      };
+    })
+    // Longest untouched first. `null` sorts last: an idea with no timestamp is
+    // a data fault, not a neglected thought, and it must not lead the section.
+    .sort((a, b) => (b.idleDays ?? -1) - (a.idleDays ?? -1))
+    .slice(0, IDEAS_IN_BRIEF);
+}
+
+/** Open ideas untouched long enough to be worth a decision. */
+export function countIdleIdeas(ideas: BriefIdea[]): number {
+  return ideas.filter((i) => (i.idleDays ?? 0) >= IDEA_AGING_AFTER_DAYS).length;
 }
 
 // ---------------------------------------------------------------------------

@@ -10,6 +10,48 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-09-19 11:00 ET — The idea board
+
+### What changed
+A new `mission.ideas` table (migration `20260919145301_ideas_board.sql`), a
+`/ideas` page with capture, park, kill, "still alive" and promote-to-project,
+an **Ideas** section in the weekly brief email, and `mc-idea` on the box so an
+idea can be caught from whatever session he is already in. Promotion runs
+`mission.promote_idea`, which creates the project, its first tasks and marks
+the idea promoted in one transaction.
+
+### Why
+Eric, 2026-09-19: *"i always seem to have ideas and dont want to forget them
+... simple functionality like a mini to do- no due date but maybe you can have
+a time stamp so you can add to the weekly brief an idea section to keep it
+before me periodically and note how long its been since i've touched it."*
+
+### The two decisions worth keeping
+- **Ideas are not tasks and share nothing with them.** A separate table, no
+  due date, and nothing in `mission.ideas` reaches the overdue arithmetic, the
+  stale-task verdicts or the alignment check. Put ideas in `tasks` and the
+  brief starts nagging about a thought, which is how a capture habit dies.
+- **`touched_at` and `updated_at` are two clocks on purpose.** The board's
+  only number — "untouched 6 weeks" — reads `touched_at`, which moves only on
+  a deliberate human action. `updated_at` moves on any write, so a backfill
+  would reset every idle count and the board would report perfect attention
+  the morning after a migration.
+
+### Also
+`scripts/db/lib/ledger.ts` learned that a foreign key (`references
+auth.users(id)`) and an RLS helper (`auth.uid()`) are reads, not writes into
+another schema. Every table in `mission` has both, so without it the ledger
+check fires CROSS-SCHEMA on correctly written migrations — and a check that
+cries wolf is a check that gets switched off.
+
+### Follow-ups
+- `npm run db:ledger` still exits 1 on a **pre-existing** mismatch:
+  `brain_dashboard` is recorded at `20260908022326` and its file is named
+  `20260907200000`. Renaming the file to the recorded version fixes it; left
+  alone here because it is not this change's.
+
+---
+
 ## 2026-09-17 — Book Builder and Sermon Builder re-enabled
 
 ### What changed

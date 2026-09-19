@@ -7,6 +7,24 @@
 
 ## Latest Changes (Rolling)
 
+### September 19, 2026 — The idea board
+
+- New `/ideas` board: catch an idea in one line, no due date. Each one shows
+  how long it has gone untouched and how many times it has been revisited
+  without being started. Park, kill, reopen, or promote it into a project with
+  its first tasks.
+- The weekly brief email carries an **Ideas** section (section 6): the twelve
+  longest untouched. The daily brief carries none, deliberately — an idea is
+  precisely the thing that does not have to happen today.
+- `mc-idea` on ubuntu-dev catches one from any Claude session; `/idea` is the
+  slash command in front of it.
+- `mission.ideas` + `mission.promote_idea` (migration `20260919145301`). RLS
+  owner rule, same as the rest of the schema.
+- ⚠️ **Ideas are not tasks and must never be filed as them.** Nothing on the
+  board reaches the overdue list, the stale-task verdicts or the alignment
+  check, and the board's clock is `touched_at` — which only a deliberate human
+  action may move.
+
 ### September 17, 2026 — Book Builder and Sermon Builder re-enabled
 - Flipped `books` and `sermons` in `src/lib/feature-flags.ts` back to `true`. Both modules had been hidden on August 2, 2026; nothing was ever deleted, so the routes, components, API handlers and tables came back untouched.
 - `/books` returns with its existing content: 4 books, 13 chapters, 92 chapter versions, 67 comments, 64 embedding chunks.

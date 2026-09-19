@@ -151,3 +151,38 @@ test('reads the version off a migration filename', () => {
   assert.equal(versionOf('README.md'), null);
   assert.equal(versionOf('not_a_migration.sql'), null);
 });
+
+test('a foreign key into auth is a dependency, not a write into another schema', () => {
+  // Every table in `mission` owns its rows by `user_id references
+  // auth.users(id)` — that is the RLS convention the whole schema is built on.
+  // Reading it as a cross-schema write would make the check fire on correct
+  // code, which is how a check stops being run.
+  const sql = `create table mission.ideas (
+      id uuid primary key,
+      user_id uuid not null references auth.users(id) on delete cascade,
+      project_id uuid references mission.projects(id) on delete set null
+    );`;
+  assert.deepEqual(schemasTouched(sql), ['mission']);
+});
+
+test('a real write into another schema is still caught alongside a foreign key', () => {
+  const sql = `create table mission.ideas (
+      user_id uuid references auth.users(id)
+    );
+    insert into public.tasks (title) values ('oops');`;
+  assert.deepEqual(schemasTouched(sql), ['mission', 'public']);
+});
+
+test('auth.uid() in an RLS policy is a session read, not a write into auth', () => {
+  // Every policy in `mission` is written this way. If this flagged, the check
+  // would fire on every RLS migration we will ever write.
+  const sql = `alter table mission.ideas enable row level security;
+    create policy ideas_owner on mission.ideas
+      for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);`;
+  assert.deepEqual(schemasTouched(sql), ['mission']);
+});
+
+test('a genuine write into auth is still caught', () => {
+  const sql = `update auth.users set email = 'x' where id = '1';`;
+  assert.deepEqual(schemasTouched(sql), ['auth']);
+});

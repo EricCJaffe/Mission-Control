@@ -20,7 +20,7 @@
 
 import { addDays, today as todayInAppTz } from '@/lib/day';
 import type { MissionClient } from '@/lib/supabase/schema';
-import { collect } from './collect';
+import { collect, countIdleIdeas } from './collect';
 import { buildUserPrompt, parseNarrative, SYSTEM_PROMPT } from './prompt';
 import { renderBrief } from './render';
 import {
@@ -306,6 +306,8 @@ function buildStats(
     tasksDueThisPeriod: payload.tasks.dueThisPeriod.length,
     tasksStale: payload.tasks.stale.length,
     tasksClosed: payload.tasks.closed.length,
+    ideasOpen: payload.ideas.length,
+    ideasIdle: countIdleIdeas(payload.ideas),
   };
 }
 

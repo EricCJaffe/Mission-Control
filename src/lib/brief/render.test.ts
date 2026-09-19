@@ -26,6 +26,7 @@ import * as nodeModule from 'node:module';
 
 import type {
   Alignment,
+  BriefIdea,
   BriefNarrative,
   BriefPayload,
   BriefTask,
@@ -54,8 +55,18 @@ type ResolveHook = (
   context: unknown,
   next: (specifier: string, context: unknown) => unknown,
 ) => unknown;
+/** `src/`, from `src/lib/brief/render.test.ts`. */
+const SRC_URL = new URL('../../', import.meta.url);
+
 (nodeModule as unknown as { registerHooks: (hooks: { resolve: ResolveHook }) => void }).registerHooks({
   resolve(specifier, context, next) {
+    // `render.ts` reads the idea-board thresholds from `@/lib/ideas`, the same
+    // module the /ideas page uses, so the email and the screen can never
+    // disagree about when an idea is old. Same alias trick as collect.test.ts.
+    if (specifier.startsWith('@/')) {
+      const rest = specifier.slice(2);
+      return next(new URL(/\.[a-z]+$/i.test(rest) ? rest : `${rest}.ts`, SRC_URL).href, context);
+    }
     if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) {
       return next(`${specifier}.ts`, context);
     }
@@ -215,6 +226,19 @@ function prepWarningFixture(overrides: Partial<PrepWarning> = {}): PrepWarning {
   };
 }
 
+function ideaFixture(overrides: Partial<BriefIdea> = {}): BriefIdea {
+  return {
+    id: 'idea-1',
+    title: 'A standing Saturday morning with the girls',
+    matrix: 'family',
+    idleDays: 41,
+    idleLabel: '6 weeks',
+    ageDays: 60,
+    touchCount: 2,
+    ...overrides,
+  };
+}
+
 function sourceFixture(overrides: Partial<SourceHealth> = {}): SourceHealth {
   return {
     source: 'm365_calendar',
@@ -244,6 +268,7 @@ function payloadFixture(overrides: Partial<BriefPayload> = {}): BriefPayload {
     tomorrow: null,
     threads: [],
     tasks: tasksFixture(),
+    ideas: [],
     ...overrides,
   };
 }
@@ -251,6 +276,7 @@ function payloadFixture(overrides: Partial<BriefPayload> = {}): BriefPayload {
 /** A payload with every section populated — used where "all branches" matters. */
 function richPayloadFixture(overrides: Partial<BriefPayload> = {}): BriefPayload {
   return payloadFixture({
+    ideas: [ideaFixture()],
     staleSources: [sourceFixture({ stale: true, ageHours: 41 })],
     alignment: alignmentFixture({ impactCrowding: true, byMatrix: matrixRowsFixture({ health: 0 }) }),
     prepWarnings: [
@@ -416,6 +442,7 @@ test('renderBrief(payload, null) renders every section and says the prose is mis
     'Week at a Glance',
     'Threads Waiting on You',
     'Tasks',
+    'Ideas',
     'Top 3 Outcomes',
     'Next Steps',
   ]) {
@@ -488,4 +515,44 @@ test('the html stays inside what Outlook and Gmail will actually render', () => 
     assert.doesNotMatch(html, /display\s*:\s*grid/i);
     assert.doesNotMatch(html, /<img[^>]+src\s*=\s*["']?http/i);
   }
+});
+
+
+// ---------------------------------------------------------------------------
+// 12. Ideas.
+// ---------------------------------------------------------------------------
+
+test('the weekly brief shows each idea with how long it has sat, and never a due date', () => {
+  const html = renderBrief(
+    richPayloadFixture({
+      ideas: [
+        ideaFixture(),
+        ideaFixture({ id: 'idea-2', title: 'Write the Anchored study guide', idleLabel: '4 days', idleDays: 4, touchCount: 0 }),
+      ],
+    }),
+    null,
+  );
+
+  assert.match(html, /Caught, not started \(2\)/);
+  assert.match(html, /untouched 6 weeks · revisited 2x/);
+  // An idea has no deadline. If "due" ever appears in this section, something
+  // has started treating the board as a second task list, which is the one
+  // thing it must not become.
+  const section = html.slice(html.indexOf('Caught, not started'));
+  assert.doesNotMatch(section.slice(0, 1200), /due|overdue|late/i);
+});
+
+test('the daily brief has no idea section — ideas are a weekly conversation', () => {
+  // collect.ts returns an empty list for a daily brief, but a payload could
+  // still arrive with ideas on it, so the renderer must not print them either.
+  const daily = renderBrief(richPayloadFixture({ kind: 'daily', ideas: [ideaFixture()] }), null);
+  assert.doesNotMatch(daily, /Caught, not started/);
+});
+
+test('an idea with no timestamp renders rather than throwing', () => {
+  const html = renderBrief(
+    richPayloadFixture({ ideas: [ideaFixture({ idleDays: null, idleLabel: 'never touched', touchCount: 0 })] }),
+    null,
+  );
+  assert.match(html, /untouched never touched/);
 });

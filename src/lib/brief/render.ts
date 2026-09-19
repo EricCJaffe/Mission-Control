@@ -18,6 +18,7 @@
  * exception.
  */
 
+import { IDEA_AGING_AFTER_DAYS, IDEA_STALE_AFTER_DAYS } from '@/lib/ideas';
 import { MATRIX_LABEL, byMatrix, type BriefNarrative, type BriefPayload, type DayCell, type MatrixKey } from './types';
 
 // ---------------------------------------------------------------------------
@@ -489,6 +490,50 @@ function tasksSection(payload: BriefPayload, narrative: BriefNarrative | null): 
   return `${parts.join('')}${prose(narrative?.tasksCommentary)}`;
 }
 
+/**
+ * The idea board, in the email.
+ *
+ * Eric, 2026-09-19: keep them "before me periodically and note how long its
+ * been since i've touched it."
+ *
+ * Quiet by design. No red unless an idea has sat a full quarter, no verdict
+ * of any kind, and never a due date. An idea board that nags reads like a
+ * second overdue list, and the first thing a person does with a second
+ * overdue list is stop adding to it.
+ */
+function ideasSection(payload: BriefPayload, narrative: BriefNarrative | null): string {
+  const ideas = payload.ideas;
+  if (ideas.length === 0) {
+    return `${muted(
+      'Nothing on the idea board. Say /idea to Claude, or catch one at missioncontrol.bibleos.app/ideas.',
+    )}${prose(narrative?.ideasCommentary)}`;
+  }
+
+  const rows = ideas
+    .map((idea) => {
+      const days = idea.idleDays ?? 0;
+      const color = days >= IDEA_STALE_AFTER_DAYS ? RED : days >= IDEA_AGING_AFTER_DAYS ? AMBER : GRAY;
+      const revisited = idea.touchCount > 0 ? ` · revisited ${idea.touchCount}x` : '';
+      return `<div style="margin:0 0 9px 0;font-family:${FONT};font-size:13px;line-height:20px;color:${INK};">
+        ${bucketPill(idea.matrix)} ${esc(idea.title)}
+        <div style="font-size:12px;line-height:18px;color:${color};">${esc(
+          `untouched ${idea.idleLabel}${revisited}`,
+        )}</div>
+      </div>`;
+    })
+    .join('');
+
+  const board = link(
+    'https://missioncontrol.bibleos.app/ideas',
+    'Open the idea board',
+    NAVY,
+  );
+
+  return `${callout(NAVY, GRAY_BG, `Caught, not started (${ideas.length})`, rows)}
+    <div style="font-family:${FONT};font-size:12px;line-height:18px;color:${GRAY};margin:0 0 4px 0;">${board} to promote one into a project, or kill it.</div>
+    ${prose(narrative?.ideasCommentary)}`;
+}
+
 function outcomesSection(narrative: BriefNarrative | null, kind: BriefPayload['kind']): string {
   const outcomes = narrative?.outcomes;
   if (!outcomes || outcomes.length === 0) {
@@ -611,8 +656,12 @@ function weeklyBody(payload: BriefPayload, narrative: BriefNarrative | null): st
     ),
     section(4, 'Threads Waiting on You', threadsSection(payload, narrative)),
     section(5, 'Tasks', tasksSection(payload, narrative)),
-    section(6, 'Top 3 Outcomes', outcomesSection(narrative, payload.kind)),
-    section(7, 'Next Steps', nextStepsSection(narrative)),
+    // Ideas sit AFTER tasks and BEFORE the outcomes, on purpose. After tasks,
+    // because nothing here is owed. Before the outcomes, because one of the
+    // three is allowed to be an idea finally being started.
+    section(6, 'Ideas', ideasSection(payload, narrative)),
+    section(7, 'Top 3 Outcomes', outcomesSection(narrative, payload.kind)),
+    section(8, 'Next Steps', nextStepsSection(narrative)),
   ].join('');
 }
 
