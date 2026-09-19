@@ -61,7 +61,7 @@ export default async function IdeasPage() {
   const { data, error } = await supabase
     .from('ideas')
     .select(
-      'id,title,body,domain,status,captured_at,touched_at,touch_count,promoted_project_id,promoted_at,source,source_url',
+      'id,title,body,domain,status,captured_at,touched_at,touch_count,promoted_project_id,promoted_at,source,source_url,promote_request,promote_requested_at,promote_error',
     )
     .order('touched_at', { ascending: true })
     .limit(500)
@@ -213,6 +213,18 @@ function IdeaCard({ idea }: { idea: IdeaRow }) {
             source
           </a>
         )}
+        {/* Queued, not promoted. The box creates the fsaos project within a few
+            minutes; saying so is the price of not holding an fsaos key here. */}
+        {idea.promote_request === 'fsaos' && (
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
+            queued for fsaos
+          </span>
+        )}
+        {idea.promote_error && (
+          <span className="rounded-full bg-red-50 px-2 py-0.5 font-medium text-red-700">
+            promotion failed: {idea.promote_error}
+          </span>
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -273,6 +285,21 @@ function IdeaCard({ idea }: { idea: IdeaRow }) {
             name="tasks"
             placeholder={'Sketch the one-pager\nAsk Joey what it would take'}
           />
+          {/* Where it lands. Mission Control is made here and now; fsaos is
+              queued for the box, because this app holds no fsaos credentials
+              and should not. */}
+          <label className="text-xs text-slate-600" htmlFor={`target-${idea.id}`}>
+            Where it goes
+          </label>
+          <select
+            id={`target-${idea.id}`}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
+            name="target"
+            defaultValue="mission"
+          >
+            <option value="mission">Mission Control — mine, right now</option>
+            <option value="fsaos">fsaos — Foundation Stone, in a few minutes</option>
+          </select>
           <div>
             <button
               className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm"
