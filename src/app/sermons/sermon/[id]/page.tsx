@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * which is a SERIES and renders its sermons inside it. So a sermon belonging to
  * no series had nowhere to be seen even once the column allowed it to exist.
  * This is the third of the three layers named in
- * `20260919221500_a_sermon_can_stand_on_its_own.sql`.
+ * `20260920024853_a_sermon_can_stand_on_its_own.sql`.
  *
  * It serves a sermon in a series too, so there is one place a manuscript is
  * edited rather than two that drift.

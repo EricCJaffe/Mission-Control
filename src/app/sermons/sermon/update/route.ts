@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   // Empty means standalone, not invalid. Requiring it here was the third of
   // the three layers that made a sermon without a series impossible -- the
   // others were the NOT NULL column and the list page. See the migration
-  // 20260919221500_a_sermon_can_stand_on_its_own.sql.
+  // 20260920024853_a_sermon_can_stand_on_its_own.sql.
   const seriesId = String(form.get("series_id") || "").trim() || null;
   if (!id) return NextResponse.redirect(new URL("/sermons", req.url));
 
