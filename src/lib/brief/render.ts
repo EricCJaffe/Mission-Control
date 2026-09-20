@@ -25,6 +25,17 @@ import { MATRIX_LABEL, byMatrix, type BriefNarrative, type BriefPayload, type Da
 // Palette. Fixed, and used by name everywhere.
 // ---------------------------------------------------------------------------
 
+/**
+ * Where the app lives, for the links in this email.
+ *
+ * A constant rather than an env var: this renderer runs in a cron, in a test
+ * and in a route handler, and an undefined `process.env` in one of those three
+ * would produce an email full of `undefined/reviews` that still sent. The
+ * domain has not moved since the app was built and changing it is a code
+ * change either way.
+ */
+const APP_URL = 'https://missioncontrol.bibleos.app';
+
 const NAVY = '#1e3a5f';
 const PAGE = '#eef1f5';
 const WHITE = '#ffffff';
@@ -32,8 +43,11 @@ const ZEBRA = '#f8fafc';
 
 const RED = '#c0392b';
 const RED_BG = '#fdf2f0';
-const AMBER = '#d97706';
-const AMBER_BG = '#fdf6e7';
+// Eric, 2026-09-17: "please never use the word amber again in America we use
+// red yellow green." These were YELLOW/YELLOW_BG; the hex is unchanged, only the
+// word. It is the middle light of the framework, and the framework says yellow.
+const YELLOW = '#d97706';
+const YELLOW_BG = '#fdf6e7';
 const GREEN = '#2e7d5b';
 const GREEN_BG = '#eef7f2';
 const GRAY = '#6b7280';
@@ -158,7 +172,7 @@ function bucketPill(key: MatrixKey): string {
   const colors: Record<MatrixKey, [string, string]> = {
     god_first: [NAVY, '#e8eef5'],
     health: [GREEN, GREEN_BG],
-    family: [AMBER, AMBER_BG],
+    family: [YELLOW, YELLOW_BG],
     impact: [NAVY, GRAY_BG],
     admin: [GRAY, GRAY_BG],
   };
@@ -213,7 +227,7 @@ function alignmentSection(payload: BriefPayload, narrative: BriefNarrative | nul
       const barWidth = Math.max(1, Math.min(100, pct));
       const crowding = m.key === 'impact' && a.impactCrowding;
       const empty = m.hours === 0;
-      const barColor = crowding ? AMBER : empty ? RULE : NAVY;
+      const barColor = crowding ? YELLOW : empty ? RULE : NAVY;
       return `<tr bgcolor="${i % 2 === 1 ? ZEBRA : WHITE}" style="background-color:${i % 2 === 1 ? ZEBRA : WHITE};">
         <td style="padding:8px 10px;font-family:${FONT};font-size:14px;font-weight:600;color:${INK};border-bottom:1px solid ${RULE};" width="110">${esc(m.label)}</td>
         <td style="padding:8px 10px;border-bottom:1px solid ${RULE};">
@@ -239,8 +253,8 @@ function alignmentSection(payload: BriefPayload, narrative: BriefNarrative | nul
   if (a.impactCrowding) {
     warnings.push(
       callout(
-        AMBER,
-        AMBER_BG,
+        YELLOW,
+        YELLOW_BG,
         'Impact is crowding the matrix',
         `<div style="font-family:${FONT};font-size:14px;line-height:21px;color:${INK};">Work holds ${esc(
           String(Math.round((a.byMatrix.find((m) => m.key === 'impact')?.share ?? 0) * 100)),
@@ -252,8 +266,8 @@ function alignmentSection(payload: BriefPayload, narrative: BriefNarrative | nul
   if (absent.length > 0) {
     warnings.push(
       callout(
-        AMBER,
-        AMBER_BG,
+        YELLOW,
+        YELLOW_BG,
         'Nothing on the calendar',
         `<div style="font-family:${FONT};font-size:14px;line-height:21px;color:${INK};">${esc(
           absent.map((k) => MATRIX_LABEL[k]).join(', '),
@@ -306,8 +320,8 @@ function prepSection(payload: BriefPayload, narrative: BriefNarrative | null): s
       }
       const urgent = p.hoursAway !== null && p.hoursAway < 24;
       return callout(
-        urgent ? RED : AMBER,
-        urgent ? RED_BG : AMBER_BG,
+        urgent ? RED : YELLOW,
+        urgent ? RED_BG : YELLOW_BG,
         p.title,
         bits.join(''),
       );
@@ -337,7 +351,7 @@ function dayTable(days: DayCell[]): string {
                     ? ` <span style="color:${RED};font-size:11px;font-weight:700;letter-spacing:0.4px;">${esc(flags.join(' · '))}</span>`
                     : '';
                 const leave = e.leaveBy
-                  ? `<div style="font-family:${FONT};font-size:12px;line-height:18px;color:${AMBER};font-weight:600;">Leave by ${esc(e.leaveBy)}${e.location ? ` — ${esc(e.location)}` : ''}</div>`
+                  ? `<div style="font-family:${FONT};font-size:12px;line-height:18px;color:${YELLOW};font-weight:600;">Leave by ${esc(e.leaveBy)}${e.location ? ` — ${esc(e.location)}` : ''}</div>`
                   : '';
                 return `<div style="margin-bottom:6px;">
                   <span style="font-family:${FONT};font-size:12px;color:${GRAY};white-space:nowrap;">${esc(e.timeLabel)}</span>
@@ -356,7 +370,7 @@ function dayTable(days: DayCell[]): string {
 
       return `<tr bgcolor="${bg}" style="background-color:${bg};">
         <td valign="top" width="92" style="padding:10px;border-bottom:1px solid ${RULE};font-family:${FONT};font-size:13px;font-weight:700;color:${NAVY};white-space:nowrap;">${esc(day.label)}${
-          day.isToday ? `<div style="font-size:10px;font-weight:700;color:${AMBER};letter-spacing:0.5px;">TODAY</div>` : ''
+          day.isToday ? `<div style="font-size:10px;font-weight:700;color:${YELLOW};letter-spacing:0.5px;">TODAY</div>` : ''
         }</td>
         <td valign="top" style="padding:10px;border-bottom:1px solid ${RULE};">${eventLines}${blocks}</td>
       </tr>`;
@@ -449,16 +463,16 @@ function tasksSection(payload: BriefPayload, narrative: BriefNarrative | null): 
       .map((task) => {
         const verdict = task.verdict.toUpperCase();
         return `<div style="margin:0 0 9px 0;font-family:${FONT};font-size:13px;line-height:20px;color:${INK};">
-          <span style="display:inline-block;background-color:${AMBER};color:${WHITE};font-size:10px;font-weight:700;letter-spacing:0.6px;padding:2px 6px;border-radius:3px;">${esc(verdict)}</span>
+          <span style="display:inline-block;background-color:${YELLOW};color:${WHITE};font-size:10px;font-weight:700;letter-spacing:0.6px;padding:2px 6px;border-radius:3px;">${esc(verdict)}</span>
           ${link(task.sourceUrl, task.title, NAVY)}
           <div style="font-size:12px;line-height:18px;color:${GRAY};">${esc(
             `Untouched ${task.ageDays ?? '?'} days${task.project ? ` · ${task.project}` : ''}`,
           )}</div>
-          <div style="font-size:12px;line-height:18px;color:${AMBER};">${esc(task.reason)}</div>
+          <div style="font-size:12px;line-height:18px;color:${YELLOW};">${esc(task.reason)}</div>
         </div>`;
       })
       .join('');
-    parts.push(callout(AMBER, AMBER_BG, `Stale — decide, do not re-read (${t.stale.length})`, items));
+    parts.push(callout(YELLOW, YELLOW_BG, `Stale — decide, do not re-read (${t.stale.length})`, items));
   }
 
   if (t.closed.length > 0) {
@@ -512,7 +526,7 @@ function ideasSection(payload: BriefPayload, narrative: BriefNarrative | null): 
   const rows = ideas
     .map((idea) => {
       const days = idea.idleDays ?? 0;
-      const color = days >= IDEA_STALE_AFTER_DAYS ? RED : days >= IDEA_AGING_AFTER_DAYS ? AMBER : GRAY;
+      const color = days >= IDEA_STALE_AFTER_DAYS ? RED : days >= IDEA_AGING_AFTER_DAYS ? YELLOW : GRAY;
       const revisited = idea.touchCount > 0 ? ` · revisited ${idea.touchCount}x` : '';
       return `<div style="margin:0 0 9px 0;font-family:${FONT};font-size:13px;line-height:20px;color:${INK};">
         ${bucketPill(idea.matrix)} ${esc(idea.title)}
@@ -524,7 +538,7 @@ function ideasSection(payload: BriefPayload, narrative: BriefNarrative | null): 
     .join('');
 
   const board = link(
-    'https://missioncontrol.bibleos.app/ideas',
+    `${APP_URL}/ideas`,
     'Open the idea board',
     NAVY,
   );
@@ -645,23 +659,114 @@ export function renderBrief(payload: BriefPayload, narrative: BriefNarrative | n
 </table>`;
 }
 
+/**
+ * The review, in the brief.
+ *
+ * WHY THE BRIEF CARRIES IT AT ALL. `mission.monthly_reviews` was reachable
+ * every day of the months it recorded zero rows. A review nobody is put in
+ * front of is a review nobody does, and the brief is the one thing here that
+ * already arrives weekly and already gets read.
+ *
+ * WHAT IT DELIBERATELY DOES NOT CARRY. The green areas, which are a count.
+ * The numbers behind each reading. The whole board. A block that prints four
+ * lines saying everything is fine teaches the eye to skip it, and the week
+ * something is wrong it gets skipped too. What is here is the color, what is
+ * not green, and whether he still owes an answer — the last of which is the
+ * only thing in the section he can act on tonight.
+ *
+ * `carried` is the number worth the ink. One red is a bad week. The same red
+ * three weeks running is a decision being avoided, and it is the one thing on
+ * this page that cannot be seen by looking at this week alone.
+ */
+function reviewSection(payload: BriefPayload, narrative: BriefNarrative | null): string {
+  const review = payload.review;
+
+  // No cycle opened is not the same as a clean week, and it must not read like
+  // one. The module's own rule is that silence is red; the brief says so and
+  // links to the one action that fixes it.
+  if (!review) {
+    return callout(
+      GRAY,
+      GRAY_BG,
+      'No review open for this week',
+      `<div>Opening one reads the practice log, the training log, the task board and every active project, and scores them. Nothing to fill in first. ${link(`${APP_URL}/reviews`, 'Open the review')}</div>`,
+    );
+  }
+
+  const tone: Record<string, { accent: string; bg: string; word: string }> = {
+    red: { accent: RED, bg: RED_BG, word: 'Red' },
+    yellow: { accent: YELLOW, bg: YELLOW_BG, word: 'Yellow' },
+    green: { accent: GREEN, bg: GREEN_BG, word: 'Green' },
+  };
+  const overall = tone[review.overall ?? ''] ?? { accent: GRAY, bg: GRAY_BG, word: 'Not scored' };
+
+  const rows = review.attention
+    .map((area) => {
+      const t = tone[area.status] ?? { accent: GRAY, bg: GRAY_BG, word: 'No line' };
+      // The word as well as the color, on every row. Red/green color blindness
+      // affects roughly 8% of men and this email gets forwarded and printed.
+      const carried =
+        area.carried > 1
+          ? `<span style="font-family:${FONT};font-size:12px;color:${t.accent};font-weight:700;"> · ${area.carried} weeks running</span>`
+          : '';
+      const answer = area.action
+        ? `<div style="font-family:${FONT};font-size:13px;color:${GRAY};padding-top:2px;">→ ${esc(area.action)}</div>`
+        : `<div style="font-family:${FONT};font-size:13px;color:${t.accent};padding-top:2px;font-weight:600;">Needs one line: what would fix it?</div>`;
+
+      return `<tr>
+        <td width="6" bgcolor="${t.accent}" style="background-color:${t.accent};width:6px;font-size:0;line-height:0;">&nbsp;</td>
+        <td style="padding:8px 0 8px 10px;font-family:${FONT};font-size:14px;line-height:20px;color:${INK};">
+          <div><strong style="color:${t.accent};">${esc(t.word)}</strong> — ${esc(area.label)}${carried}</div>
+          <div style="font-family:${FONT};font-size:13px;color:${GRAY};">${esc(area.reason)}</div>
+          ${answer}
+        </td>
+      </tr>`;
+    })
+    .join('');
+
+  const headline =
+    review.attention.length === 0
+      ? `All ${review.greenCount} areas green.`
+      : `${review.attention.length} of ${review.attention.length + review.greenCount} areas not green` +
+        (review.unanswered > 0
+          ? `, ${review.unanswered} still owed a line from you.`
+          : ', every one of them answered.');
+
+  const closing =
+    review.status === 'closed'
+      ? `<div style="font-family:${FONT};font-size:13px;color:${GRAY};padding-top:8px;">Closed. ${link(`${APP_URL}/reviews/${review.cycleId}`, 'Read it')}</div>`
+      : `<div style="font-family:${FONT};font-size:13px;color:${GRAY};padding-top:8px;">Still open. ${link(`${APP_URL}/reviews/${review.cycleId}`, 'Work the review')}</div>`;
+
+  return `${callout(overall.accent, overall.bg, `${overall.word} — ${esc(review.periodLabel)}`, `<div>${esc(headline)}</div>`)}
+    ${rows ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:separate;">${rows}</table>` : ''}
+    ${prose(narrative?.reviewCommentary)}
+    ${closing}`;
+}
+
 function weeklyBody(payload: BriefPayload, narrative: BriefNarrative | null): string {
   return [
-    section(1, 'Alignment Check', alignmentSection(payload, narrative)),
-    section(2, 'Prep Warnings', prepSection(payload, narrative)),
+    // The review leads, and the renumbering below is the cost of that.
+    //
+    // Every other section describes the week AHEAD. This one is the verdict on
+    // the week just gone, and it belongs first for the same reason a meeting
+    // opens on last period's numbers: what you decide to do next should be
+    // read against how the last one actually went, not before it.
+    section(1, 'Review', reviewSection(payload, narrative)),
+    section(2, 'Alignment Check', alignmentSection(payload, narrative)),
+    section(3, 'Prep Warnings', prepSection(payload, narrative)),
     section(
-      3,
+      4,
       'Week at a Glance',
       `${dayTable(payload.days)}${prose(narrative?.weekCommentary)}`,
     ),
-    section(4, 'Threads Waiting on You', threadsSection(payload, narrative)),
-    section(5, 'Tasks', tasksSection(payload, narrative)),
+    section(5, 'Threads Waiting on You', threadsSection(payload, narrative)),
+    section(6, 'Tasks', tasksSection(payload, narrative)),
     // Ideas sit AFTER tasks and BEFORE the outcomes, on purpose. After tasks,
     // because nothing here is owed. Before the outcomes, because one of the
     // three is allowed to be an idea finally being started.
-    section(6, 'Ideas', ideasSection(payload, narrative)),
-    section(7, 'Top 3 Outcomes', outcomesSection(narrative, payload.kind)),
-    section(8, 'Next Steps', nextStepsSection(narrative)),
+    section(7, 'Ideas', ideasSection(payload, narrative)),
+    section(8, 'Top 3 Outcomes', outcomesSection(narrative, payload.kind)),
+    section(9, 'Next Steps', nextStepsSection(narrative)),
   ].join('');
 }
 

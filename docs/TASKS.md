@@ -365,10 +365,25 @@ open decisions and deferred work, roughly in the order worth doing.
       from the Flourishing pillar rollup. First live run read
       red/yellow/red/red/yellow, overall red.
 
-      Two follow-ups NOT built, deliberately, and worth a decision:
-      surfacing the open review in the weekly brief, and a review tile on
-      `/dashboard`. A review nobody is reminded about goes the way of the one
-      below.
+      **The weekly brief carries it** (Eric, 2026-09-20: "go forward with
+      modifying weekly review"). Section 1, ahead of the Alignment Check,
+      because it is the verdict on the week that just ended and everything
+      else in the email is about the week ahead. It carries the color, the
+      areas that are not green worst-first, how many periods each has been
+      that color, and how many still owe a line — green areas are a COUNT, not
+      a list. Read-only: the brief reports the cycle, it never opens one.
+
+      **Vocabulary aligned with honeylakeos** the same day. This module first
+      shipped with `target`/`warn_at`/`higher_better` while
+      `honeylakeos/src/lib/measureStatus.ts` had been running the identical
+      idea in production since July as `green_at`/`yellow_at`/
+      `higher_is_better`. Renamed here to match, plus the two things that came
+      across with the names: `unknown` as a first-class status meaning *nobody
+      set a target* (it used to read green, which is an unconfigured measure
+      claiming all is well), and `within_range` for measures where both too
+      high and too low are failures. Free at the time — 0 cycles, 0 readings.
+
+      One follow-up NOT built: a review tile on `/dashboard`.
 
 - [ ] **Practice back-dating** — shipped alongside the above. The toggle API had
       always accepted any `log_date`, but `PracticeTracker` only ever sent

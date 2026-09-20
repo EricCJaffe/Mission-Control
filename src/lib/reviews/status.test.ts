@@ -1,10 +1,18 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { carryFrom, overallStatus, verdictFor, formatValue, rankOf } from './status.ts';
+import {
+  carryFrom,
+  formatValue,
+  hasLine,
+  overallStatus,
+  rankOf,
+  unconfiguredCount,
+  verdictFor,
+} from './status.ts';
 
-const HIGHER = { target: 8, warnAt: 6, direction: 'higher_better' as const };
-const LOWER = { target: 0, warnAt: 10, direction: 'lower_better' as const };
+const HIGHER = { greenAt: 8, yellowAt: 6, direction: 'higher_is_better' as const };
+const LOWER = { greenAt: 0, yellowAt: 10, direction: 'lower_is_better' as const };
 
 // THE rule this module exists for. Eric, 2026-09-20: "No reading would be red."
 test('no reading is red, never grey', () => {
@@ -13,9 +21,13 @@ test('no reading is red, never grey', () => {
   assert.match(v.reason, /No reading/);
 });
 
-test('no reading is red even when the line is unset', () => {
-  const v = verdictFor({ hasReading: false, value: null }, { target: null, warnAt: null, direction: 'higher_better' });
-  assert.equal(v.status, 'red');
+// Configuration is judged BEFORE the reading, and the order is the design.
+// honeylakeos puts it best: "Red accuses the number; this accuses the setup."
+test('an area with no line reads unknown, not red and not green', () => {
+  const noLine = { greenAt: null, yellowAt: null, direction: 'higher_is_better' as const };
+
+  assert.equal(verdictFor({ hasReading: false, value: null }, noLine).status, 'unknown');
+  assert.equal(verdictFor({ hasReading: true, value: 3 }, noLine).status, 'unknown');
 });
 
 // A reading of zero is NOT the same as no reading, and both are red — but for
@@ -51,10 +63,43 @@ test('the reason line reads correctly in both directions', () => {
   assert.match(verdictFor({ hasReading: true, value: 41 }, LOWER).reason, /past a line of 10/);
 });
 
-test('no line means recorded, not judged', () => {
-  const v = verdictFor({ hasReading: true, value: 3 }, { target: null, warnAt: null, direction: 'higher_better' });
-  assert.equal(v.status, 'green');
-  assert.match(v.reason, /No line set/);
+test('hasLine agrees exactly with the statuses verdictFor hands out', () => {
+  // The invariant honeylakeos states: an area hasLine refuses is precisely an
+  // area that reads unknown, and no other.
+  const cases = [
+    { greenAt: 8, yellowAt: null, direction: 'higher_is_better' as const },
+    { greenAt: null, yellowAt: 6, direction: 'higher_is_better' as const },
+    { greenAt: null, yellowAt: null, direction: 'higher_is_better' as const },
+    { greenAt: 1, yellowAt: 2, direction: 'within_range' as const },
+    { greenAt: 1, yellowAt: 2, targetValue: 7, direction: 'within_range' as const },
+    { greenAt: 8, yellowAt: 6, direction: 'sideways' as unknown as 'higher_is_better' },
+  ];
+  for (const line of cases) {
+    const unknown = verdictFor({ hasReading: true, value: 5 }, line).status === 'unknown';
+    assert.equal(unknown, !hasLine(line), JSON.stringify(line));
+  }
+});
+
+// Both too high and too low are failures — weight, sleep hours, blood
+// pressure. The tolerances are sign-insensitive and the tighter one is green,
+// whichever field it was typed into.
+test('within_range bands around a center', () => {
+  const sleep = { greenAt: 1, yellowAt: 2, targetValue: 7, direction: 'within_range' as const };
+
+  assert.equal(verdictFor({ hasReading: true, value: 7 }, sleep).status, 'green');
+  assert.equal(verdictFor({ hasReading: true, value: 6 }, sleep).status, 'green', 'at the tight edge');
+  assert.equal(verdictFor({ hasReading: true, value: 5.5 }, sleep).status, 'yellow');
+  assert.equal(verdictFor({ hasReading: true, value: 9 }, sleep).status, 'yellow', 'too much is not green');
+  assert.equal(verdictFor({ hasReading: true, value: 4 }, sleep).status, 'red');
+  assert.equal(verdictFor({ hasReading: true, value: 10 }, sleep).status, 'red');
+
+  const flipped = { greenAt: -2, yellowAt: 1, targetValue: 7, direction: 'within_range' as const };
+  assert.equal(verdictFor({ hasReading: true, value: 6 }, flipped).status, 'green', 'signs and order do not matter');
+});
+
+test('an unusable number is no reading, not a zero', () => {
+  assert.equal(verdictFor({ hasReading: true, value: Number.NaN }, HIGHER).status, 'red');
+  assert.equal(verdictFor({ hasReading: true, value: Number.POSITIVE_INFINITY }, HIGHER).status, 'red');
 });
 
 test('not due is neither red nor green', () => {
@@ -74,10 +119,14 @@ test('the cycle takes the worst color, not the average', () => {
   assert.equal(overallStatus(['green', 'green']), 'green');
 });
 
-test('not_due never contributes to the verdict', () => {
+test('not_due and unknown never contribute to the verdict', () => {
   assert.equal(overallStatus(['green', 'not_due']), 'green');
-  assert.equal(overallStatus(['not_due', 'not_due']), null, 'nothing measured is not a green quarter');
+  // An area nobody has drawn a line for is a setup problem. Letting it color
+  // the week either way makes the verdict a statement about the configuration.
+  assert.equal(overallStatus(['green', 'unknown']), 'green');
+  assert.equal(overallStatus(['not_due', 'unknown']), null, 'nothing measured is not a green quarter');
   assert.equal(overallStatus([]), null);
+  assert.equal(unconfiguredCount(['green', 'unknown', 'unknown', 'red']), 2);
 });
 
 test('carry counts consecutive periods at the same status', () => {
@@ -91,6 +140,7 @@ test('rank orders worst first', () => {
   assert.ok(rankOf('red') > rankOf('yellow'));
   assert.ok(rankOf('yellow') > rankOf('green'));
   assert.ok(rankOf('green') > rankOf('not_due'));
+  assert.ok(rankOf('green') > rankOf('unknown'));
 });
 
 test('values print without trailing zeros', () => {

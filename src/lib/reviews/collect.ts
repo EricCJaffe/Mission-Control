@@ -389,7 +389,7 @@ async function collectProjects(
     }
   );
 
-  const rank = { red: 0, yellow: 1, green: 2, not_due: 3 } as const;
+  const rank = { red: 0, yellow: 1, green: 2, unknown: 3, not_due: 4 } as const;
   lines.sort((a, b) => rank[a.status] - rank[b.status] || a.title.localeCompare(b.title));
 
   return {
@@ -552,9 +552,16 @@ export async function scoreCycle(
     const verdict =
       reading.status !== undefined
         ? { status: reading.status, reason: reading.reason ?? '' }
-        : verdictFor(reading, { target: area.target, warnAt: area.warn_at, direction: area.direction }, {
-            unitLabel: unitLabelFor(area.unit),
-          });
+        : verdictFor(
+            reading,
+            {
+              greenAt: area.green_at,
+              yellowAt: area.yellow_at,
+              targetValue: area.target_value,
+              direction: area.direction,
+            },
+            { unitLabel: unitLabelFor(area.unit) }
+          );
 
     scored.push({
       area,
@@ -637,8 +644,9 @@ export async function collectInto(
       kind: s.area.kind,
       unit: s.area.unit,
       direction: s.area.direction,
-      target: s.area.target,
-      warn_at: s.area.warn_at,
+      green_at: s.area.green_at,
+      yellow_at: s.area.yellow_at,
+      target_value: s.area.target_value,
       has_reading: s.hasReading,
       value: s.hasReading ? s.value : null,
       status: s.status,

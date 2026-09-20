@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 
     const { data: reading } = await supabase
       .from('review_readings')
-      .select('id,area_key,unit,target,warn_at,direction,detail,cycle_id,review_cycles!inner(status)')
+      .select('id,area_key,unit,green_at,yellow_at,target_value,direction,detail,cycle_id,review_cycles!inner(status)')
       .eq('id', readingId)
       .eq('user_id', user.id)
       .maybeSingle();
@@ -120,8 +120,9 @@ export async function POST(req: NextRequest) {
       const verdict = verdictFor(
         { hasReading: !cleared, value: cleared ? null : (value as number) },
         {
-          target: reading.target === null ? null : Number(reading.target),
-          warnAt: reading.warn_at === null ? null : Number(reading.warn_at),
+          greenAt: reading.green_at === null ? null : Number(reading.green_at),
+          yellowAt: reading.yellow_at === null ? null : Number(reading.yellow_at),
+          targetValue: reading.target_value === null ? null : Number(reading.target_value),
           direction: reading.direction,
         },
         { unitLabel: unitLabelFor(reading.unit) }
@@ -202,7 +203,7 @@ export async function POST(req: NextRequest) {
     if (!areaId) return NextResponse.json({ error: 'area_id required' }, { status: 400 });
 
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    for (const field of ['target', 'warn_at'] as const) {
+    for (const field of ['green_at', 'yellow_at', 'target_value'] as const) {
       if (field in (body ?? {})) {
         const raw = body[field];
         if (raw === null || raw === '') patch[field] = null;

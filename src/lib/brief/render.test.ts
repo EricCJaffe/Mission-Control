@@ -29,6 +29,7 @@ import type {
   BriefIdea,
   BriefNarrative,
   BriefPayload,
+  BriefReview,
   BriefTask,
   DayCell,
   DayEvent,
@@ -269,6 +270,36 @@ function payloadFixture(overrides: Partial<BriefPayload> = {}): BriefPayload {
     threads: [],
     tasks: tasksFixture(),
     ideas: [],
+    review: null,
+    ...overrides,
+  };
+}
+
+/** A review with one red carrying from last week and one answered yellow. */
+function reviewFixture(overrides: Partial<BriefReview> = {}): BriefReview {
+  return {
+    cycleId: 'cyc-1',
+    status: 'open',
+    overall: 'red',
+    periodLabel: '7–13 September 2026',
+    attention: [
+      {
+        label: 'God First',
+        status: 'red',
+        reason: 'No reading in this period.',
+        action: null,
+        carried: 3,
+      },
+      {
+        label: 'Health — Body',
+        status: 'yellow',
+        reason: '2, short of 3.',
+        action: 'Two sessions booked before Thursday.',
+        carried: 1,
+      },
+    ],
+    greenCount: 2,
+    unanswered: 1,
     ...overrides,
   };
 }
@@ -277,6 +308,7 @@ function payloadFixture(overrides: Partial<BriefPayload> = {}): BriefPayload {
 function richPayloadFixture(overrides: Partial<BriefPayload> = {}): BriefPayload {
   return payloadFixture({
     ideas: [ideaFixture()],
+    review: reviewFixture(),
     staleSources: [sourceFixture({ stale: true, ageHours: 41 })],
     alignment: alignmentFixture({ impactCrowding: true, byMatrix: matrixRowsFixture({ health: 0 }) }),
     prepWarnings: [
@@ -555,4 +587,62 @@ test('an idea with no timestamp renders rather than throwing', () => {
     null,
   );
   assert.match(html, /untouched never touched/);
+});
+
+// ---------------------------------------------------------------------------
+// The review block.
+//
+// It leads the weekly brief because it is the verdict on the week that just
+// ended, and what you decide to do next should be read against how the last
+// one actually went.
+// ---------------------------------------------------------------------------
+
+test('the review leads the weekly brief', () => {
+  const html = renderBrief(richPayloadFixture(), null);
+  assert.ok(html.indexOf('Review') < html.indexOf('Alignment Check'));
+});
+
+test('every review row carries the word as well as the color', () => {
+  const html = renderBrief(richPayloadFixture(), null);
+  // Red/green color blindness affects roughly 8% of men, and this email gets
+  // forwarded and printed.
+  assert.match(html, /Red<\/strong>\s*&mdash;|Red<\/strong> —/);
+  assert.match(html, /Yellow<\/strong>/);
+});
+
+// One red is a bad week. The same red three weeks running is the finding.
+test('an area carrying for several periods says how many', () => {
+  const html = renderBrief(richPayloadFixture(), null);
+  assert.match(html, /3 weeks running/);
+});
+
+test('an area with no action written asks for one', () => {
+  const html = renderBrief(richPayloadFixture(), null);
+  assert.match(html, /Needs one line/);
+});
+
+test('an area with an action prints it instead of the ask', () => {
+  const html = renderBrief(richPayloadFixture(), null);
+  assert.match(html, /Two sessions booked before Thursday/);
+});
+
+// No cycle opened is not the same as a clean week and must not read like one.
+test('no review opened says so, and links to opening one', () => {
+  const html = renderBrief(payloadFixture(), null);
+  assert.match(html, /No review open for this week/);
+  assert.match(html, /missioncontrol\.bibleos\.app\/reviews/);
+});
+
+test('a green week prints a count rather than a list of fine things', () => {
+  const html = renderBrief(
+    payloadFixture({ review: reviewFixture({ overall: 'green', attention: [], greenCount: 4, unanswered: 0 }) }),
+    null,
+  );
+  assert.match(html, /All 4 areas green/);
+  assert.ok(!/Needs one line/.test(html));
+});
+
+test('the daily brief carries no review section', () => {
+  const html = renderBrief(payloadFixture({ kind: 'daily', review: null }), null);
+  assert.ok(!/No review open for this week/.test(html));
 });

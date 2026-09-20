@@ -35,7 +35,7 @@ const MATRIX_LABEL: Record<string, string> = {
   admin: 'Admin',
 };
 
-const RANK: Record<ReviewStatus, number> = { red: 0, yellow: 1, green: 2, not_due: 3 };
+const RANK: Record<ReviewStatus, number> = { red: 0, yellow: 1, green: 2, unknown: 3, not_due: 4 };
 
 export default async function ReviewCyclePage({
   params,
@@ -151,7 +151,7 @@ export default async function ReviewCyclePage({
 
       {/* The legend, because three colors with no key is a quiz. */}
       <section className="mt-6 grid gap-2 rounded-2xl border border-slate-200 bg-white p-4 text-xs shadow-sm">
-        {(['green', 'yellow', 'red', 'not_due'] as ReviewStatus[]).map((status) => (
+        {(['green', 'yellow', 'red', 'unknown', 'not_due'] as ReviewStatus[]).map((status) => (
           <div key={status} className="flex items-start gap-2">
             <StatusPill status={status} />
             <span className={styleFor(status).text}>{styleFor(status).meaning}</span>

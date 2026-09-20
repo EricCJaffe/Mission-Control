@@ -79,9 +79,9 @@ function ReadingTile({ reading, cycleId }: { reading: ReviewReading; cycleId: st
         {unit && reading.has_reading && (
           <span className="text-sm text-slate-400">{unit}</span>
         )}
-        {reading.target !== null && (
+        {reading.green_at !== null && (
           <span className="ml-auto text-xs text-slate-400">
-            line {formatValue(Number(reading.target))}
+            line {formatValue(Number(reading.green_at))}
             {unit}
           </span>
         )}

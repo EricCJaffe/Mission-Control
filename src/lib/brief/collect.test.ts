@@ -121,6 +121,24 @@ type Dataset = {
   inbox: InboxItemRow[];
   runs: SyncRunRow[];
   ideas: IdeaRow[];
+  /** At most one, matching the unique index on (user_id, kind, period_start). */
+  reviewCycles: ReviewCycleRow[];
+};
+
+/** The shape `collect` reads back for the period's review, readings embedded. */
+type ReviewCycleRow = {
+  id: string;
+  status: string;
+  overall: string | null;
+  period_start: string;
+  period_end: string;
+  review_readings: Array<{
+    label: string;
+    status: string;
+    status_reason: string;
+    action_md: string | null;
+    carried_cycles: number;
+  }> | null;
 };
 
 /** A valid, entirely empty world. Every test overrides only what it is about. */
@@ -133,12 +151,22 @@ function dataset(overrides: Partial<Dataset> = {}): Dataset {
     inbox: [],
     runs: [],
     ideas: [],
+    reviewCycles: [],
     ...overrides,
   };
 }
 
 /** Every builder method `collect` chains, in any order. */
 const CHAIN = ['select', 'eq', 'neq', 'gte', 'is', 'or', 'order', 'limit'] as const;
+
+/**
+ * `maybeSingle()` ENDS a chain rather than continuing it — it returns a
+ * promise, not the builder — so it cannot live in `CHAIN` with the rest. The
+ * review cycle is the one query that uses it, because there is at most one
+ * cycle per period and `.limit(1)` plus an array index would be a worse lie
+ * about that than the constraint already enforces.
+ */
+const TERMINAL = 'maybeSingle';
 
 /**
  * `tasks` is queried twice — once for open work and once for closed. The two
@@ -163,6 +191,8 @@ function rowsFor(table: string, calls: QueryCall[], data: Dataset): unknown[] {
       return data.runs;
     case 'ideas':
       return data.ideas;
+    case 'review_cycles':
+      return data.reviewCycles;
     default:
       throw new Error(`collect() queried an unexpected table: ${table}`);
   }
@@ -182,6 +212,15 @@ function fakeSupabase(data: Dataset) {
         return builder;
       };
     }
+    // The one chain-ending method. Returns the first row or null, exactly as
+    // PostgREST does, so `collect` cannot pass here and fail in production.
+    builder[TERMINAL] = (...args: unknown[]) => {
+      const call: QueryCall = { table, method: TERMINAL, args };
+      mine.push(call);
+      calls.push(call);
+      const rows = rowsFor(table, mine, data);
+      return Promise.resolve({ data: rows[0] ?? null, error: null });
+    };
     // Awaiting the builder is what runs the query, so `mine` is complete here.
     builder.then = (
       resolve: (value: { data: unknown[]; error: null }) => unknown,
@@ -929,4 +968,85 @@ test('only open ideas are asked for — parked and killed ones are the database�
     ideaCalls.some((c) => c.method === 'order' && c.args[0] === 'touched_at'),
     'ideas must be ordered on touched_at, never updated_at',
   );
+});
+
+// ---------------------------------------------------------------------------
+// The review, carried into the brief.
+//
+// Read-only by design: the brief reports the cycle, it never opens one and
+// never moves a number. A report that changes what it is reporting on is the
+// failure `docs/runbook.md` is about.
+// ---------------------------------------------------------------------------
+
+function reviewCycleRow(overrides: Partial<ReviewCycleRow> = {}): ReviewCycleRow {
+  return {
+    id: 'cyc-1',
+    status: 'open',
+    overall: 'red',
+    period_start: WEEK_START,
+    period_end: WEEK_END,
+    review_readings: [
+      { label: 'God First', status: 'red', status_reason: 'No reading in this period.', action_md: null, carried_cycles: 3 },
+      { label: 'Impact', status: 'yellow', status_reason: '5, over a line of 0.', action_md: 'Clear the four oldest.', carried_cycles: 1 },
+      { label: 'Health — Body', status: 'green', status_reason: '4 against a line of 3.', action_md: null, carried_cycles: 2 },
+      { label: 'Health — Soul', status: 'not_due', status_reason: 'Read monthly, not weekly.', action_md: null, carried_cycles: 1 },
+    ],
+    ...overrides,
+  };
+}
+
+test('no review opened for the period leaves the payload slot empty', async () => {
+  const { payload } = await collectWeekly();
+  assert.equal(payload.review, null);
+});
+
+test('the review is matched on this period, never the last one', async () => {
+  const { calls } = await collectWeekly({ reviewCycles: [reviewCycleRow()] });
+  const cycleCalls = calls.filter((c) => c.table === 'review_cycles');
+  assert.ok(
+    cycleCalls.some((c) => c.method === 'eq' && c.args[0] === 'period_start' && c.args[1] === WEEK_START),
+    'the cycle is filtered on period_start',
+  );
+  assert.ok(
+    cycleCalls.some((c) => c.method === 'eq' && c.args[0] === 'kind' && c.args[1] === 'weekly'),
+    'and on the weekly cadence',
+  );
+});
+
+// Green areas become a count. A block printing four lines saying everything is
+// fine teaches the eye to skip it, and the week something is wrong it gets
+// skipped too.
+test('only the areas that are not green reach the brief, worst first', async () => {
+  const { payload } = await collectWeekly({ reviewCycles: [reviewCycleRow()] });
+  const review = payload.review!;
+
+  assert.deepEqual(review.attention.map((a) => a.label), ['God First', 'Impact']);
+  assert.equal(review.greenCount, 1);
+  assert.equal(review.overall, 'red');
+});
+
+// not_due is not a finding about this week. A monthly assessment has no
+// business appearing in the weekly email as something wrong.
+test('not_due areas are dropped from the brief entirely', async () => {
+  const { payload } = await collectWeekly({ reviewCycles: [reviewCycleRow()] });
+  assert.ok(!payload.review!.attention.some((a) => a.status === 'not_due'));
+});
+
+// The only thing in the section he can act on tonight.
+test('unanswered counts the not-green areas with no action written', async () => {
+  const { payload } = await collectWeekly({ reviewCycles: [reviewCycleRow()] });
+  assert.equal(payload.review!.unanswered, 1, 'God First has no action; Impact has one');
+});
+
+test('carried survives into the brief — three reds running is the finding', async () => {
+  const { payload } = await collectWeekly({ reviewCycles: [reviewCycleRow()] });
+  assert.equal(payload.review!.attention[0].carried, 3);
+});
+
+// A daily brief is about today. Last week's verdict is not a daily concern and
+// carrying it would put a red block in front of him seven times for one week.
+test('a daily brief carries no review', async () => {
+  const { client } = fakeSupabase(dataset({ reviewCycles: [reviewCycleRow()] }));
+  const payload = await collect(client, 'user-1', 'daily', WEEK_START, WEEK_START);
+  assert.equal(payload.review, null);
 });

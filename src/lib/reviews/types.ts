@@ -36,8 +36,9 @@ export type ReviewArea = {
   kind: 'matrix' | 'project' | 'metric';
   project_id: string | null;
   source: ReadingSource;
-  target: number | null;
-  warn_at: number | null;
+  green_at: number | null;
+  yellow_at: number | null;
+  target_value: number | null;
   direction: Direction;
   unit: string;
   cadence: CycleKind;
@@ -75,8 +76,9 @@ export type ReviewReading = {
   kind: ReviewArea['kind'];
   unit: string;
   direction: Direction;
-  target: number | null;
-  warn_at: number | null;
+  green_at: number | null;
+  yellow_at: number | null;
+  target_value: number | null;
   has_reading: boolean;
   value: number | null;
   status: ReviewStatus;

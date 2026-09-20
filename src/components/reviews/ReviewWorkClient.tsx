@@ -86,9 +86,9 @@ export default function ReviewWorkClient({
                 ? `${formatValue(Number(reading.value))}${unit ?? ''}`
                 : '—'}
             </div>
-            {reading.target !== null && (
+            {reading.green_at !== null && (
               <div className="text-[11px] text-slate-400">
-                line {formatValue(Number(reading.target))}
+                line {formatValue(Number(reading.green_at))}
                 {unit}
               </div>
             )}
