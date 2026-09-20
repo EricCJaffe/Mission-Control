@@ -4,9 +4,11 @@ import SermonSeriesClient from "@/components/SermonSeriesClient";
 
 export const dynamic = "force-dynamic";
 
-function wordCount(markdown?: string | null) {
-  if (!markdown) return 0;
-  return markdown.trim().split(/\s+/).filter(Boolean).length;
+function wordCount(body?: string | null) {
+  if (!body) return 0;
+  // Bodies may be HTML now; strip tags first or the markup inflates the count.
+  return body.replace(/<[^>]*>/g, " ").replace(/&[a-z]+;/gi, " ")
+    .trim().split(/\s+/).filter(Boolean).length;
 }
 
 export default async function SermonSeriesDetailPage({
@@ -41,7 +43,7 @@ export default async function SermonSeriesDetailPage({
 
   const { data: sermons } = await supabase
     .from("sermons")
-    .select("id,title,status,position,outline_md,manuscript_md,preach_date,key_text,big_idea")
+    .select("id,title,status,position,outline_md,manuscript_md,outline_html,manuscript_html,notes_html,preach_date,key_text,big_idea")
     .eq("series_id", id)
     .order("position", { ascending: true });
 
@@ -90,7 +92,7 @@ export default async function SermonSeriesDetailPage({
         series={series}
         sermons={(sermons || []).map((sermon) => ({
           ...sermon,
-          word_count: wordCount(sermon.manuscript_md || sermon.outline_md || ""),
+          word_count: wordCount(sermon.manuscript_html || sermon.manuscript_md || sermon.outline_html || sermon.outline_md || ""),
         }))}
         books={books || []}
         assets={assets || []}

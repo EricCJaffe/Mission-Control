@@ -15,15 +15,36 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import { Color } from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Markdown } from "tiptap-markdown";
+import Highlight from "@tiptap/extension-highlight";
+
+// The colours are Eric's, from his preaching brain. They are constants rather
+// than a picker because the meaning is fixed: the same red has to mean "do not
+// miss" in every message, or the scheme stops being readable at the pulpit.
+const MARK_RED = "#c0161d";
+const MARK_BLUE = "#1451b4";
+const MARK_YELLOW = "#fff08a";
 
 type Props = {
   value: string;
   onChange: (next: string) => void;
   placeholder?: string;
   minHeight?: string;
+  /**
+   * What this editor hands back on every keystroke.
+   *
+   * "markdown" is the default and what every other caller has always got.
+   * "html" is for documents whose colour IS the content -- a sermon, where
+   * red means a point Eric will not miss and yellow means the heaviest line.
+   * Markdown has no syntax for colour and tiptap-markdown drops those marks
+   * on serialize, so a sermon saved as markdown loses the whole scheme the
+   * moment it round-trips. The editor is WYSIWYG either way; only the stored
+   * string changes.
+   */
+  format?: "markdown" | "html";
 };
 
-export default function RtfEditor({ value, onChange, placeholder, minHeight = "140px" }: Props) {
+export default function RtfEditor({ value, onChange, placeholder, minHeight = "140px", format = "markdown" }: Props) {
+  const asHtml = format === "html";
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashPos, setSlashPos] = useState<number | null>(null);
   const [slashQuery, setSlashQuery] = useState("");
@@ -68,6 +89,7 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
       TableCell,
       TextStyle,
       Color,
+      Highlight.configure({ multicolor: true }),
       Placeholder.configure({ placeholder: placeholder || "Write here..." }),
       Markdown.configure({
         transformCopiedText: true,
@@ -76,7 +98,9 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
     ],
     content: value || "",
     onUpdate: ({ editor }) => {
-      const next = (editor.storage as any)?.markdown?.getMarkdown?.() || editor.getText();
+      const next = asHtml
+        ? editor.getHTML()
+        : (editor.storage as any)?.markdown?.getMarkdown?.() || editor.getText();
       onChange(next);
     },
     editorProps: {
@@ -97,10 +121,13 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
   });
 
   useEffect(() => {
-    if (editor && value !== ((editor.storage as any)?.markdown?.getMarkdown?.() || editor.getText())) {
+    const current = asHtml
+      ? editor?.getHTML()
+      : (editor?.storage as any)?.markdown?.getMarkdown?.() || editor?.getText();
+    if (editor && value !== current) {
       editor.commands.setContent(value || "", { emitUpdate: false });
     }
-  }, [editor, value]);
+  }, [editor, value, asHtml]);
 
   const selectionActive = Boolean(
     editor && editor.state.selection && editor.state.selection.from !== editor.state.selection.to
@@ -159,6 +186,50 @@ export default function RtfEditor({ value, onChange, placeholder, minHeight = "1
               onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
             />
           </label>
+          {/* Eric's marking scheme, one click each, so a sermon never needs a
+              hex code picked by hand: red = do not miss, blue = make sure you
+              say it, yellow = the heaviest line. Only shown where colour is
+              part of the document. */}
+          {asHtml && (
+            <>
+              <span className="mx-1 h-4 w-px bg-slate-200" />
+              <button
+                className="rounded border px-2 py-1 font-bold"
+                style={{ color: MARK_RED }}
+                type="button"
+                title="Do not miss"
+                onClick={() => editor.chain().focus().setColor(MARK_RED).run()}
+              >
+                Red
+              </button>
+              <button
+                className="rounded border px-2 py-1 font-semibold"
+                style={{ color: MARK_BLUE }}
+                type="button"
+                title="Make sure you say it"
+                onClick={() => editor.chain().focus().setColor(MARK_BLUE).run()}
+              >
+                Blue
+              </button>
+              <button
+                className="rounded border px-2 py-1"
+                style={{ backgroundColor: MARK_YELLOW }}
+                type="button"
+                title="The heaviest line"
+                onClick={() => editor.chain().focus().toggleHighlight({ color: MARK_YELLOW }).run()}
+              >
+                Highlight
+              </button>
+              <button
+                className="rounded border px-2 py-1 text-slate-500"
+                type="button"
+                title="Back to plain text"
+                onClick={() => editor.chain().focus().unsetColor().unsetHighlight().run()}
+              >
+                Clear
+              </button>
+            </>
+          )}
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2 text-xs">

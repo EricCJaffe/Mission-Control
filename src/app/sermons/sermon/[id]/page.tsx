@@ -28,7 +28,7 @@ export default async function SermonPage({
 
   const { data: sermon } = await supabase
     .from("sermons")
-    .select("id,series_id,title,status,preach_date,key_text,big_idea,outline_md,manuscript_md,notes_md")
+    .select("id,series_id,title,status,preach_date,key_text,big_idea,outline_md,manuscript_md,notes_md,outline_html,manuscript_html,notes_html")
     .eq("id", id)
     .single();
 

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 
-function wordCount(markdown: string) {
-  return markdown.trim().split(/\s+/).filter(Boolean).length;
+function wordCount(body: string) {
+  // The body is HTML now, so strip tags before counting or every <p> lands
+  // in the total and a 3,300 word sermon reads as 4,000.
+  return body.replace(/<[^>]*>/g, " ").replace(/&[a-z]+;/gi, " ")
+    .trim().split(/\s+/).filter(Boolean).length;
 }
 
 export async function POST(req: Request) {
@@ -20,9 +23,12 @@ export async function POST(req: Request) {
   const seriesId = String(form.get("series_id") || "").trim() || null;
   if (!id) return NextResponse.redirect(new URL("/sermons", req.url));
 
-  const outline = String(form.get("outline_md") || "");
-  const manuscript = String(form.get("manuscript_md") || "");
-  const notes = String(form.get("notes_md") || "");
+  // The editor posts HTML, because a sermon's colour is part of its content
+  // and markdown cannot carry it. The _md columns are left untouched: they
+  // are the git-backed master written by ~/dev/brain/jobs/lib/sermon-publish.py.
+  const outline = String(form.get("outline_html") || "");
+  const manuscript = String(form.get("manuscript_html") || "");
+  const notes = String(form.get("notes_html") || "");
   const wc = wordCount(manuscript || outline || "");
 
   const payload = {
@@ -30,9 +36,9 @@ export async function POST(req: Request) {
     preach_date: String(form.get("preach_date") || "").trim() || null,
     key_text: String(form.get("key_text") || "").trim() || null,
     big_idea: String(form.get("big_idea") || "").trim() || null,
-    outline_md: outline,
-    manuscript_md: manuscript,
-    notes_md: notes,
+    outline_html: outline,
+    manuscript_html: manuscript,
+    notes_html: notes,
     status: String(form.get("status") || "outline").trim(),
     updated_at: new Date().toISOString(),
     word_count: wc,

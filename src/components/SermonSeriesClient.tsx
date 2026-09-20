@@ -23,6 +23,9 @@ type Sermon = {
   position: number | null;
   outline_md: string | null;
   manuscript_md: string | null;
+  outline_html?: string | null;
+  manuscript_html?: string | null;
+  notes_html?: string | null;
   preach_date: string | null;
   key_text: string | null;
   big_idea: string | null;
@@ -74,8 +77,8 @@ export default function SermonSeriesClient({
 
   function openSermon(sermon: Sermon) {
     setEditingSermon(sermon);
-    setOutlineDraft(sermon.outline_md || "");
-    setManuscriptDraft(sermon.manuscript_md || "");
+    setOutlineDraft(sermon.outline_html || sermon.outline_md || "");
+    setManuscriptDraft(sermon.manuscript_html || sermon.manuscript_md || "");
     setNotesDraft("");
     (document.getElementById("edit-sermon-dialog") as HTMLDialogElement | null)?.showModal();
   }
@@ -285,20 +288,20 @@ export default function SermonSeriesClient({
                 <option value="delivered">delivered</option>
                 <option value="archive">archive</option>
               </select>
-              <input type="hidden" name="outline_md" value={outlineDraft} />
-              <input type="hidden" name="manuscript_md" value={manuscriptDraft} />
-              <input type="hidden" name="notes_md" value={notesDraft} />
+              <input type="hidden" name="outline_html" value={outlineDraft} />
+              <input type="hidden" name="manuscript_html" value={manuscriptDraft} />
+              <input type="hidden" name="notes_html" value={notesDraft} />
               <div>
                 <label className="text-xs text-slate-500">Outline</label>
-                <RtfEditor value={outlineDraft} onChange={setOutlineDraft} placeholder="Outline bullets, points, scripture..." minHeight="200px" />
+                <RtfEditor format="html" value={outlineDraft} onChange={setOutlineDraft} placeholder="Outline bullets, points, scripture..." minHeight="200px" />
               </div>
               <div>
                 <label className="text-xs text-slate-500">Manuscript (optional)</label>
-                <RtfEditor value={manuscriptDraft} onChange={setManuscriptDraft} placeholder="Manuscript text..." minHeight="200px" />
+                <RtfEditor format="html" value={manuscriptDraft} onChange={setManuscriptDraft} placeholder="Manuscript text..." minHeight="200px" />
               </div>
               <div>
                 <label className="text-xs text-slate-500">Notes</label>
-                <RtfEditor value={notesDraft} onChange={setNotesDraft} placeholder="Personal notes, illustrations..." minHeight="160px" />
+                <RtfEditor format="html" value={notesDraft} onChange={setNotesDraft} placeholder="Personal notes, illustrations..." minHeight="160px" />
               </div>
               <div className="flex justify-end gap-2">
                 <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" type="button" onClick={(event) => (event.currentTarget.closest("dialog") as HTMLDialogElement | null)?.close()}>
