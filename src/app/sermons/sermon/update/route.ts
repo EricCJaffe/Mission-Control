@@ -13,8 +13,12 @@ export async function POST(req: Request) {
 
   const form = await req.formData();
   const id = String(form.get("id") || "").trim();
-  const seriesId = String(form.get("series_id") || "").trim();
-  if (!id || !seriesId) return NextResponse.redirect(new URL("/sermons", req.url));
+  // Empty means standalone, not invalid. Requiring it here was the third of
+  // the three layers that made a sermon without a series impossible -- the
+  // others were the NOT NULL column and the list page. See the migration
+  // 20260920024853_a_sermon_can_stand_on_its_own.sql.
+  const seriesId = String(form.get("series_id") || "").trim() || null;
+  if (!id) return NextResponse.redirect(new URL("/sermons", req.url));
 
   const outline = String(form.get("outline_md") || "");
   const manuscript = String(form.get("manuscript_md") || "");
@@ -36,5 +40,8 @@ export async function POST(req: Request) {
 
   await supabase.from("sermons").update(payload).eq("id", id).eq("org_id", user.id);
 
-  return NextResponse.redirect(new URL(`/sermons/${seriesId}`, req.url));
+  // A standalone has no series page to go back to.
+  return NextResponse.redirect(
+    new URL(seriesId ? `/sermons/${seriesId}` : `/sermons/sermon/${id}`, req.url)
+  );
 }
