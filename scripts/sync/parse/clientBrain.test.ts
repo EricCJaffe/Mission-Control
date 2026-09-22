@@ -142,3 +142,48 @@ test('the display name drops the document-type suffix', () => {
   assert.equal(parseDisplayName('# Church Search\n'), 'Church Search');
   assert.equal(parseDisplayName('no heading here'), null);
 });
+
+/*
+ * The second table.
+ *
+ * `_ownership.md` gained a `Client | The app we build for them | Repo` table
+ * on 2026-09-21 and the brain sync failed every two hours from 08:02 that
+ * morning. The parser entered any three-column table, so the apps table was
+ * read as accounts: the app name became the day-to-day owner, the repo became
+ * Eric's role, and ĒMA — one client with two apps, so two rows — produced the
+ * slug `every-mother-s-advocate` twice. One upsert, the same conflict key
+ * twice, Postgres 21000, and the whole harvester dead.
+ *
+ * Both halves are asserted. The duplicate is what shouted; the wrong owner is
+ * what would have gone on quietly being true.
+ */
+const TWO_TABLES = `# Who owns which relationship
+
+| Account | Day-to-day owner | Eric's role |
+|---|---|---|
+| **VakPak** | **Tyler and Joey** run point | Oversight |
+
+Eric, 2026-09-21: client is ema, app is trellis.
+
+| Client | The app we build for them | Repo |
+|---|---|---|
+| **Honey Lake Clinic** | HoneyLakeOS | \`honeylakeos\` |
+| **Every Mother's Advocate (ĒMA)** | **Trellis** | \`trellisv2\` |
+| **Every Mother's Advocate (ĒMA)** | ĒMA Finance | \`emafinance\` |
+`;
+
+test('reads only the ownership table, not every table in the file', () => {
+  const only = parseOwnership(TWO_TABLES);
+  assert.deepEqual(only.map((e) => e.account), ['VakPak']);
+});
+
+test('the apps table cannot produce a duplicate slug', () => {
+  const keys = parseOwnership(TWO_TABLES).map((e) => ownershipKey(e.account));
+  assert.equal(new Set(keys).size, keys.length);
+});
+
+test('an app name is never recorded as the day-to-day owner', () => {
+  const owners = parseOwnership(TWO_TABLES).map((e) => e.owner);
+  assert.ok(!owners.includes('Trellis'));
+  assert.ok(!owners.includes('HoneyLakeOS'));
+});
