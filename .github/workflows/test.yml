@@ -1,0 +1,51 @@
+# Runs the unit suite and the sync-script type check on every pull request.
+#
+# main is the only branch that deploys (Vercel production); every other branch
+# is a short-lived feature branch that merges into it. If a second deploying
+# branch is ever added, name it below, or pull requests into it get no check
+# at all — not red, absent.
+name: test
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # The calendar and brief tests pin evening events and DST boundaries to
+      # Eastern wall-clock time, which is where this app's one user lives.
+      # GitHub runners default to UTC.
+      TZ: America/New_York
+    steps:
+      - uses: actions/checkout@v4
+
+      # node --test runs the .ts files directly, which needs Node's built-in
+      # type stripping (22.18+). 24 matches the dev box.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # fetchCodeTodos shells out to ripgrep and its tests run it for real
+      # against temp trees. The runner image does not ship rg, so without this
+      # seven codeTodos tests see "no markers" and fail — a missing tool, not
+      # a broken scanner.
+      - name: Install ripgrep
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Type check (scripts/)
+        run: npm run typecheck:sync
+
+      - name: Unit tests
+        run: npm test
