@@ -82,7 +82,41 @@ async function reconcile<T extends Record<string, unknown>>(
   dryRun: boolean,
 ): Promise<{ written: number; removed: number }> {
   const now = new Date().toISOString();
-  const stamped = rows.map((r) => ({ ...r, user_id: userId, last_seen_at: now, synced_at: now }));
+  const all = rows.map((r) => ({ ...r, user_id: userId, last_seen_at: now, synced_at: now }));
+
+  // ─── One row per conflict key, or Postgres refuses the whole batch ────────
+  //
+  // `ON CONFLICT DO UPDATE command cannot affect row a second time` (21000).
+  // A single upsert may not touch the same key twice, so ONE duplicate
+  // anywhere in the batch fails the entire sync — every table, not just this
+  // one. That is what happened on 2026-09-21: a second table in
+  // `_ownership.md` produced `every-mother-s-advocate` twice, and the unit
+  // failed every two hours from 08:02 until it was found that evening.
+  //
+  // The parser is fixed, so this should now never fire. It is here because
+  // the blast radius is out of all proportion to the cause: the caller's
+  // reward for one duplicate key should be one bad row, not a dead harvester
+  // and no Mission Control data at all.
+  //
+  // Last write wins, which matches the upsert's own semantics had the rows
+  // arrived in separate statements. And it is reported rather than swallowed
+  // — a silent dedupe is how the wrong `owner` would have gone on being
+  // written to ĒMA with nothing ever saying so.
+  const byKey = new Map<string, (typeof all)[number]>();
+  const dupes: string[] = [];
+  for (const r of all) {
+    const k = String(r[keyColumn]);
+    if (byKey.has(k)) dupes.push(k);
+    byKey.set(k, r);
+  }
+  const stamped = [...byKey.values()];
+  if (dupes.length) {
+    console.warn(
+      `[sync:brain] ${table}: ${dupes.length} duplicate ${keyColumn} ` +
+        `(${[...new Set(dupes)].join(', ')}) — kept the last of each. ` +
+        `The source lists one thing twice; fix it there.`,
+    );
+  }
 
   if (dryRun) {
     const { data: existing } = await db.from(table).select(keyColumn).eq('user_id', userId);

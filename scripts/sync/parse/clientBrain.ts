@@ -93,21 +93,51 @@ function keyMatchesSlug(key: string, slug: string): boolean {
 export function parseOwnership(source: string): OwnershipEntry[] {
   const entries: OwnershipEntry[] = [];
   let inTable = false;
+  let header: string[] = [];
 
   for (const line of source.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed.startsWith('|')) {
       // Blank lines inside a table do not occur; anything non-pipe ends it.
-      if (trimmed !== '') inTable = false;
+      if (trimmed !== '') {
+        inTable = false;
+        header = [];
+      }
       continue;
     }
 
     const cells = trimmed.replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
     if (cells.every((c) => /^\s*:?-+:?\s*$/.test(c))) {
-      inTable = true;
+      // ─── Only the ownership table. Not every table in the file. ──────────
+      //
+      // This used to enter ANY table with three or more columns, on the
+      // assumption that `_ownership.md` held one. On 2026-09-21 Eric added a
+      // second — `Client | The app we build for them | Repo` — and the sync
+      // has failed every two hours since, because that table's three columns
+      // were read as account, owner and role:
+      //
+      //     Honey Lake Clinic  owner "HoneyLakeOS"  role "honeylakeos"
+      //     Every Mother's …   owner "Trellis"      role "trellisv2"
+      //     Every Mother's …   owner "ĒMA Finance"  role "emafinance"
+      //
+      // Two failures in one. ĒMA appears twice, legitimately — one client,
+      // two apps — and both rows normalize to `every-mother-s-advocate`, so
+      // the upsert was handed the same conflict key twice and Postgres threw
+      // 21000. Quieter and worse: the app name was being written as the
+      // day-to-day owner and the repo as Eric's role, on the two accounts
+      // this file exists to state the truth about.
+      //
+      // The header is what distinguishes them, so the header is what we
+      // check. A table whose first column is not "Account" is somebody
+      // else's table and none of our business.
+      inTable = /^account$/i.test(header[0] ?? '');
+      header = [];
       continue;
     }
-    if (!inTable) continue;
+    if (!inTable) {
+      header = cells;
+      continue;
+    }
     if (cells.length < 3) continue;
 
     const account = plain(cells[0]).replace(/\s*\([^)]*\)\s*$/, '').trim();
