@@ -125,9 +125,53 @@ export function stripAuthHelpers(sql: string): string {
   return sql.replace(/\bauth\s*\.\s*(uid|jwt|role|email)\s*\(\s*\)/gi, ' session_helper() ');
 }
 
+/**
+ * Remove reads of `auth` tables: `from auth.users u`, `join auth.users`.
+ *
+ * `auth` IS NOT A SIBLING, AND THAT IS THE WHOLE DISTINCTION. `public`, `core`
+ * and `brain` are other applications sharing this database — FinanceOS owns
+ * `public` — so a migration of ours reaching into one of them is a coupling
+ * somebody should see, read or write. That is why
+ *
+ *     insert into mission.tasks select id from public.tasks
+ *
+ * reports both schemas and must keep doing so. `auth` is the platform's, every
+ * app on Supabase reads it, and the two strips above already say so for the
+ * two shapes that appear in every migration: `references auth.users(id)` and
+ * `auth.uid()` in an RLS policy. This is the third shape of the same fact.
+ *
+ * `20260920122731_reviews_module.sql` seeds one row per user with
+ *
+ *     insert into mission.review_areas (...) select ... from auth.users u
+ *
+ * and was reported as CROSS-SCHEMA "writes into auth". It writes into
+ * `mission.review_areas`; `auth.users` supplies the rows, exactly as a foreign
+ * key supplies a key. The verdict was not merely noisy, it was false — and the
+ * comment on `stripForeignKeyTargets` already records what noise costs: a
+ * checker that fires on correct SQL is a checker that gets switched off.
+ *
+ * ⚠️ `DELETE FROM auth.users` IS A WRITE AND ALSO USES `from`. Stripping every
+ * `from auth.x` would blind this to exactly the write it exists to catch, so
+ * the delete target is moved out of reach first and left as a bare qualifier
+ * to be found. `JOIN` needs no such care — there is no writing form of it —
+ * and Postgres's `UPDATE … FROM` and `DELETE … USING` both name their write
+ * target before the read clause, so they are caught on the target itself.
+ * `USING` is stripped for the same reason `JOIN` is: every form of it that
+ * can carry a qualified table name — `DELETE … USING`, `MERGE … USING` — is
+ * reading one. The index form, `create index … using gin`, names no table.
+ */
+export function stripAuthReads(sql: string): string {
+  const AUTH_TABLE = String.raw`auth\s*\.\s*[\w"]+`;
+  return sql
+    .replace(new RegExp(String.raw`\bdelete\s+from\s+(${AUTH_TABLE})`, 'gi'), ' delete $1')
+    .replace(new RegExp(String.raw`\b(from|join|using)\s+${AUTH_TABLE}`, 'gi'), ' $1 auth_read ');
+}
+
 /** Which of the known schemas this SQL names explicitly, in a stable order. */
 export function schemasTouched(sql: string): KnownSchema[] {
-  const clean = stripAuthHelpers(stripForeignKeyTargets(stripNoise(sql))).toLowerCase();
+  const clean = stripAuthReads(
+    stripAuthHelpers(stripForeignKeyTargets(stripNoise(sql))),
+  ).toLowerCase();
   const found = new Set<KnownSchema>();
   for (const schema of KNOWN_SCHEMAS) {
     // A qualifier is the schema name followed by a dot and an identifier or a
