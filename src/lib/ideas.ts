@@ -21,6 +21,26 @@ export type IdeaRow = {
   promoted_at: string | null
   source: string
   source_url: string | null
+  /* The queue, for a promotion to fsaos. `promote_request` is not a status:
+     the idea stays `open` while it waits. See the migration
+     `20260919175001_ideas_promote_to_fsaos.sql`. */
+  promote_request: string | null
+  promote_requested_at: string | null
+  promote_error: string | null
+  /* Two different things, deliberately. A link points at something that lives
+     elsewhere and keeps changing; an attachment is a copy of something as it
+     was when the idea was caught. */
+  links: string[] | null
+}
+
+export type IdeaAttachment = {
+  id: string
+  idea_id: string
+  bucket: string
+  path: string
+  filename: string
+  mime: string | null
+  bytes: number | null
 }
 
 /** Whole days since the idea was last deliberately touched. */
