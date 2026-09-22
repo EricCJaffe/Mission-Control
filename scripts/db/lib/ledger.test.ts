@@ -186,3 +186,42 @@ test('a genuine write into auth is still caught', () => {
   const sql = `update auth.users set email = 'x' where id = '1';`;
   assert.deepEqual(schemasTouched(sql), ['auth']);
 });
+
+/*
+ * Reading `auth` is not writing to it — the third shape of a fact this
+ * checker has now had to learn three times.
+ *
+ * `20260920122731_reviews_module.sql` seeds one row per user and was reported
+ * as CROSS-SCHEMA "writes into auth". It writes into `mission.review_areas`.
+ * That flag was the last thing standing between the reviews branch and a
+ * clean `db:ledger`, and a false verdict is worse than a noisy one.
+ *
+ * The distinction being asserted is `auth` versus a SIBLING schema. `public`
+ * is FinanceOS on this same database, so a read of it is a real coupling and
+ * stays reported — the test above this block pins that and must keep passing.
+ */
+test('insert ... select from auth.users is a read, not a write into auth', () => {
+  const sql = `insert into mission.review_areas (user_id, key)
+               select u.id, a.key from auth.users u cross join (values ('god_first')) as a(key);`;
+  assert.deepEqual(schemasTouched(sql), ['mission']);
+});
+
+test('joining auth.users is a read', () => {
+  const sql = `select t.id from mission.tasks t join auth.users u on u.id = t.user_id;`;
+  assert.deepEqual(schemasTouched(sql), ['mission']);
+});
+
+test('reading a SIBLING schema is still reported', () => {
+  // public is FinanceOS. Not the platform's, and not ours.
+  const sql = `insert into mission.tasks (id) select id from public.tasks;`;
+  assert.deepEqual(schemasTouched(sql), ['mission', 'public']);
+});
+
+test('DELETE FROM auth is still a write', () => {
+  assert.deepEqual(schemasTouched(`delete from auth.users where id = '1';`), ['auth']);
+});
+
+test('DELETE FROM ours USING auth writes only ours', () => {
+  const sql = `delete from mission.tasks t using auth.users u where u.id = t.user_id;`;
+  assert.deepEqual(schemasTouched(sql), ['mission']);
+});
