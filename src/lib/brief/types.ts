@@ -359,6 +359,48 @@ export type BriefIdea = {
 export const IDEAS_IN_BRIEF = 12;
 
 // ---------------------------------------------------------------------------
+// The review, carried into the brief.
+//
+// Eric, 2026-09-20, approving this: the review module is only as good as the
+// thing that puts it in front of him. A page you have to remember to visit is
+// the same failure `mission.monthly_reviews` died of — it was reachable the
+// whole time it was never once completed.
+//
+// The brief already lands weekly and is already read, so it carries the
+// verdict. What it carries is deliberately SMALL: the color, what is red, and
+// what he said he would do about it. The brief is not the review — following
+// the link is — and reproducing the whole board here would make both of them
+// something to skim.
+// ---------------------------------------------------------------------------
+
+/** One area's line in the brief. Mirrors `mission.review_readings`. */
+export type BriefReviewArea = {
+  label: string;
+  /** green | yellow | red | unknown | not_due — the module's own vocabulary. */
+  status: string;
+  /** Deterministic, computed by the review collector, never by a model. */
+  reason: string;
+  /** What Eric said would fix it, if he has said it yet. */
+  action: string | null;
+  /** Consecutive periods at this status. 3 reds running is the real finding. */
+  carried: number;
+};
+
+export type BriefReview = {
+  cycleId: string;
+  /** 'open' | 'closed'. An open review at the end of the week is a nudge. */
+  status: string;
+  /** Worst of the readings, or null when nothing was due. */
+  overall: string | null;
+  periodLabel: string;
+  /** Everything not green, worst first. Green areas are a count, not a list. */
+  attention: BriefReviewArea[];
+  greenCount: number;
+  /** Not green and with no action written. This is the actual ask. */
+  unanswered: number;
+};
+
+// ---------------------------------------------------------------------------
 // The payload handed to render.ts, and to Claude.
 // ---------------------------------------------------------------------------
 
@@ -382,6 +424,8 @@ export type BriefPayload = {
   tasks: TaskSections;
   /** Open ideas, oldest attention first. Weekly brief only. */
   ideas: BriefIdea[];
+  /** The period's review, when one has been opened. Weekly brief only. */
+  review: BriefReview | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -405,6 +449,8 @@ export type NextStep = {
 
 export type BriefNarrative = {
   /** 2–4 sentences on the matrix balance. Reads the numbers; never invents. */
+  /** Commentary on the review. Patterns across periods, never a re-scoring. */
+  reviewCommentary?: string;
   alignmentSummary?: string;
   prepCommentary?: string;
   weekCommentary?: string;

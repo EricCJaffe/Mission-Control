@@ -46,6 +46,7 @@ OUTPUT
 Return a single JSON object and nothing else — no prose before it, no markdown fence around it. Use exactly these keys:
 
 {
+  "reviewCommentary": string,
   "alignmentSummary": string,
   "prepCommentary": string,
   "weekCommentary": string,
@@ -58,6 +59,11 @@ Return a single JSON object and nothing else — no prose before it, no markdown
   "scriptureReference": string,
   "scriptureApplication": string
 }
+
+THE REVIEW IS A VERDICT ALREADY REACHED. DO NOT RE-SCORE IT.
+Every color in the review was computed from the practice log, the training log, the task board and the project board before you saw it, and the reason line beside each one is the arithmetic. You may not disagree with a color, soften one, or offer a different reading of a number. A red for "no reading in this period" means nothing was logged; it does NOT mean he did nothing, and you must not write as though it does — that is the difference between a missing record and a missing week, and only he knows which it was.
+
+What is worth saying: the area that has now been the same color several periods running, because one bad week is an event and four is a decision being avoided; an area where the color and what he wrote about it last time do not match; and whether the ones still owed a line are the same ones as last week. If nothing is carrying and nothing is unanswered, say so in one sentence and move on. Two or three sentences, never more, and no encouragement — he can read a color.
 
 IDEAS ARE NOT TASKS
 The idea board is a list of thoughts he caught and has not started. Nothing on it is owed, nothing on it is late, and you may not call it a backlog or tell him to clear it. Say what the idle times reveal — one he keeps returning to and never starts, a thought that has sat a whole quarter and should probably be killed, a domain he never has ideas for. If one of the three outcomes is an idea finally being started, name it. Two or three sentences, and none of them scolding.
@@ -179,6 +185,31 @@ export function buildModelPayload(payload: BriefPayload) {
         bucket: MATRIX_LABEL[t.matrix],
       })),
     },
+    /*
+     * The review as the model sees it: the words, never the machinery.
+     *
+     * No cycle id, no reading id, no thresholds. The model's job is to notice
+     * a pattern ACROSS the periods — the same red four weeks running, an
+     * action written and the color unmoved — and handing it the numbers it
+     * would need to recompute a color is an invitation to argue with one. The
+     * payload is the truth; the narrative is commentary. See types.ts.
+     */
+    review: payload.review
+      ? {
+          verdict: payload.review.overall,
+          period: payload.review.periodLabel,
+          stillOpen: payload.review.status === 'open',
+          areasGreen: payload.review.greenCount,
+          notGreen: payload.review.attention.map((a) => ({
+            area: a.label,
+            color: a.status,
+            why: a.reason,
+            hisAction: a.action,
+            periodsAtThisColor: a.carried,
+          })),
+          areasStillOwedALine: payload.review.unanswered,
+        }
+      : null,
     // Caught and not started. No dates here on purpose — an idea has none, and
     // handing the model one invites prose about a deadline that does not exist.
     ideas: payload.ideas.map((i) => ({
@@ -278,6 +309,7 @@ export function parseNarrative(raw: string): BriefNarrative | null {
     weekCommentary: str('weekCommentary'),
     threadsCommentary: str('threadsCommentary'),
     tasksCommentary: str('tasksCommentary'),
+    reviewCommentary: str('reviewCommentary'),
     ideasCommentary: str('ideasCommentary'),
     outcomes: outcomes && outcomes.length > 0 ? outcomes : undefined,
     nextSteps: nextSteps && nextSteps.length > 0 ? nextSteps : undefined,

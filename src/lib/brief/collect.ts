@@ -40,6 +40,8 @@ import {
   type MatrixKey,
   type OpenBlock,
   type PrepWarning,
+  type BriefReview,
+  type BriefReviewArea,
   type ProjectRow,
   type SourceHealth,
   type StaleTask,
@@ -267,6 +269,7 @@ export async function collect(
     inboxResult,
     runsResult,
     ideasResult,
+    reviewResult,
   ] = await Promise.all([
     supabase
       .from('tasks')
@@ -333,6 +336,24 @@ export async function collect(
       .eq('status', 'open')
       .order('touched_at', { ascending: true })
       .limit(200),
+    /*
+     * The review for this period, if one has been opened.
+     *
+     * Read, never written. The brief must not be able to open a cycle or move
+     * a number — it is a report, and a report that quietly changes what it is
+     * reporting on is the thing `docs/runbook.md` warns about. `/reviews` and
+     * its cron own the writing.
+     *
+     * Matched on `period_start`, so a weekly brief for the week of the 14th
+     * finds the review of the week of the 14th and never last week's.
+     */
+    supabase
+      .from('review_cycles')
+      .select('id,status,overall,period_start,period_end,review_readings(label,status,status_reason,action_md,carried_cycles)')
+      .eq('user_id', userId)
+      .eq('kind', 'weekly')
+      .eq('period_start', periodStart)
+      .maybeSingle(),
   ]);
 
   const openTasks = (tasksResult.data ?? []) as TaskRow[];
@@ -476,6 +497,61 @@ export async function collect(
       ? dayLabel(periodStart)
       : `${dayLabel(periodStart)} – ${dayLabel(periodEnd)}`;
 
+  /*
+   * The review, reduced to what a brief can carry.
+   *
+   * Green areas become a COUNT, not a list. A brief that prints four lines
+   * saying everything is fine trains the eye to skip the block, and the one
+   * week something is wrong it gets skipped too. What survives into the email
+   * is what is not green, worst first, plus the number of areas still owed an
+   * answer — which is the only thing here he can act on tonight.
+   *
+   * `not_due` is dropped entirely. An area on a monthly cadence is not a
+   * finding about this week.
+   */
+  const RANK: Record<string, number> = { red: 0, yellow: 1, unknown: 2, green: 3, not_due: 4 };
+  const reviewRow = reviewResult.data as
+    | {
+        id: string;
+        status: string;
+        overall: string | null;
+        period_start: string;
+        period_end: string;
+        review_readings: Array<{
+          label: string;
+          status: string;
+          status_reason: string;
+          action_md: string | null;
+          carried_cycles: number;
+        }> | null;
+      }
+    | null;
+
+  let review: BriefReview | null = null;
+  if (reviewRow && kind === 'weekly') {
+    const readings = reviewRow.review_readings ?? [];
+    const attention: BriefReviewArea[] = readings
+      .filter((r) => r.status !== 'green' && r.status !== 'not_due')
+      .sort((a, b) => (RANK[a.status] ?? 9) - (RANK[b.status] ?? 9) || a.label.localeCompare(b.label))
+      .map((r) => ({
+        label: r.label,
+        status: r.status,
+        reason: r.status_reason,
+        action: r.action_md,
+        carried: r.carried_cycles,
+      }));
+
+    review = {
+      cycleId: reviewRow.id,
+      status: reviewRow.status,
+      overall: reviewRow.overall,
+      periodLabel,
+      attention,
+      greenCount: readings.filter((r) => r.status === 'green').length,
+      unanswered: attention.filter((r) => !r.action || r.action.trim().length === 0).length,
+    };
+  }
+
   return {
     kind,
     periodStart,
@@ -492,6 +568,7 @@ export async function collect(
     threads,
     tasks,
     ideas,
+    review,
   };
 }
 

@@ -343,7 +343,60 @@ open decisions and deferred work, roughly in the order worth doing.
       ever. Open question for him: should Outlook events feed the morning briefing
       and dashboard, or only /calendar?
 
-- [x] **Reviews retired** (Eric's call, 2026-08-03). The monthly alignment survey was
+- [x] **Reviews rebuilt as a scored dashboard** (Eric's call, 2026-09-20). Not a
+      restore of the survey below — the opposite of it. `mission.review_areas`,
+      `review_cycles` and `review_readings`; every number is COMPUTED from the
+      practice log, the training log, the task board and the project board
+      before the page is opened, and the only thing asked of Eric is one line
+      per area that is not green plus the action that would fix it.
+
+      **No reading is RED**, Eric's rule, following the Honey Lake Operating
+      System where red means "past the line, *or* no reading this month". This
+      deliberately contradicts `src/lib/status-colors.ts`, which renders a
+      missing score grey and is still right to do so for a dashboard tile — the
+      divergence and its reasoning are stated at the top of
+      `src/lib/reviews/status.ts`.
+
+      Seeded weekly areas: God First (spirit-practice adherence), Health — Body
+      (sessions logged), Family (**manual**, because zero of 240 calendar
+      events carry a family tag — an automatic reading would measure the
+      tagging), Impact (overdue open tasks), Projects (each active project
+      scored by rule, rolled up to a count of reds). Monthly: Health — Soul,
+      from the Flourishing pillar rollup. First live run read
+      red/yellow/red/red/yellow, overall red.
+
+      **The weekly brief carries it** (Eric, 2026-09-20: "go forward with
+      modifying weekly review"). Section 1, ahead of the Alignment Check,
+      because it is the verdict on the week that just ended and everything
+      else in the email is about the week ahead. It carries the color, the
+      areas that are not green worst-first, how many periods each has been
+      that color, and how many still owe a line — green areas are a COUNT, not
+      a list. Read-only: the brief reports the cycle, it never opens one.
+
+      **Vocabulary aligned with honeylakeos** the same day. This module first
+      shipped with `target`/`warn_at`/`higher_better` while
+      `honeylakeos/src/lib/measureStatus.ts` had been running the identical
+      idea in production since July as `green_at`/`yellow_at`/
+      `higher_is_better`. Renamed here to match, plus the two things that came
+      across with the names: `unknown` as a first-class status meaning *nobody
+      set a target* (it used to read green, which is an unconfigured measure
+      claiming all is well), and `within_range` for measures where both too
+      high and too low are failures. Free at the time — 0 cycles, 0 readings.
+
+      One follow-up NOT built: a review tile on `/dashboard`.
+
+- [ ] **Practice back-dating** — shipped alongside the above. The toggle API had
+      always accepted any `log_date`, but `PracticeTracker` only ever sent
+      today, so a reading that happened could not be recorded late. Seven-day
+      strip, nothing further back: past a week it is reconstruction, not record.
+      Eric, 2026-09-20: *"I have been reading some I just have to get better at
+      logging it."* Verified separately that reading-plan completions already
+      tick the `bible_reading` practice — 15 of 15 reading days have a matching
+      practice log, so nothing was needed there.
+
+- [x] **Reviews retired** (Eric's call, 2026-08-03) — superseded by the entry
+      above, kept because the failure is the reason the new one is shaped as it
+      is. The monthly alignment survey was
       already flag-disabled with zero rows ever completed; its priority weighting had
       moved to DOMAIN_WEIGHTS. Flourishing is the assessment that actually gets taken
       and already has a history tab, so periodic self-review lives there. Quarterly and
