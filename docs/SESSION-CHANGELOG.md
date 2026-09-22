@@ -53,6 +53,9 @@ Found while fixing the brain sync (#16), not by anyone reading the check.
 
 ## 2026-09-19 11:00 ET — The idea board
 
+**Handoff: `docs/sessions/2026-09-19-idea-board.md`** — every piece, where it
+lives, what is merged and what is not, and the decisions that are load-bearing.
+
 ### What changed
 A new `mission.ideas` table (migration `20260919145301_ideas_board.sql`), a
 `/ideas` page with capture, park, kill, "still alive" and promote-to-project,
