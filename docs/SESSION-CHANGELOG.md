@@ -10,6 +10,47 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-09-21 20:45 ET — The migration ledger tells the truth again
+
+### What changed
+Three of the eight UNFILED rows `npm run db:ledger` was reporting are closed.
+
+- `20260907200000_brain_dashboard.sql` renamed to `20260908022326_…`, the
+  version the ledger actually recorded. No DDL ran; the live schema already
+  matched the file, column for column.
+- `20260920131500_sermon_bodies_in_html.sql` renamed to `20260920130743_…`,
+  same reason. Both were applied through MCP, which picks its own timestamp,
+  and committed under the name the author typed.
+- `20260908022505_brain_jobs_on_demand_mechanism.sql` written for the first
+  time, and `brain_dashboard` put back to the three-value constraint it was
+  applied with.
+
+### Why
+The third one is the one worth reading. `on_demand` was applied on 09-08
+through MCP and reached the repo the next day as **an edit to an
+already-applied migration** (8cbcf2a), widening the constraint inside
+`brain_dashboard.sql` rather than adding a file. Nothing broke, which is why
+it survived thirteen days: live schema right, repo right, ledger carrying a
+version with no file, and `db:ledger` saying so every time anyone ran it.
+
+Editing an applied migration in place is what makes a chain unreplayable —
+the file stops describing what ran at that version, so a rebuild from zero
+produces a schema no migration ever created.
+
+Found while fixing the brain sync (#16), not by anyone reading the check.
+
+### Follow-ups
+- **Five UNFILED rows remain, and none of them is a repair.** Their files
+  exist, on branches that have not merged: `ideas_promote_to_fsaos` and
+  `ideas_links_and_attachments` on `feat/promote-idea-to-fsaos`;
+  `reviews_module`, `review_areas_scope_to_profiles` and
+  `reviews_speak_the_same_ryg_as_honeylakeos` on `feat/reviews-module`.
+  The schema changes are already live on the shared database. Merging those
+  branches closes the ledger; writing files for them here would fork the
+  same migration into two places. **Do not repair these.**
+- The 2026-09-19 follow-up below — the `brain_dashboard` version mismatch —
+  is done.
+
 ## 2026-09-19 11:00 ET — The idea board
 
 ### What changed
@@ -45,10 +86,12 @@ check fires CROSS-SCHEMA on correctly written migrations — and a check that
 cries wolf is a check that gets switched off.
 
 ### Follow-ups
-- `npm run db:ledger` still exits 1 on a **pre-existing** mismatch:
+- ~~`npm run db:ledger` still exits 1 on a **pre-existing** mismatch:
   `brain_dashboard` is recorded at `20260908022326` and its file is named
   `20260907200000`. Renaming the file to the recorded version fixes it; left
-  alone here because it is not this change's.
+  alone here because it is not this change's.~~ **Done 2026-09-21** — renamed,
+  and the `on_demand` migration it was tangled with was written at last. See
+  the entry at the top.
 
 ---
 
