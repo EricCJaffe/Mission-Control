@@ -247,7 +247,11 @@ export default function MonthView({
                 {workoutEvents.slice(0, 2).map((event) => {
                   const workoutData = parseWorkoutTag(event.alignment_tag);
                   const isLogged = workoutData?.isLogged || false;
-                  const colors = getWorkoutTypeColors(event.title);
+                  // Maintenance is orange, not the default green: green in this
+                  // app means DONE, and a filter change on the calendar is not.
+                  const colors = event.event_type === 'Maintenance'
+                    ? { bg: 'bg-orange-50', text: 'text-orange-800', border: 'border-orange-200', hoverBg: 'hover:bg-orange-100' }
+                    : getWorkoutTypeColors(event.title);
 
                   // Logged workout - link to workout history
                   if (isLogged && workoutData?.loggedWorkoutId) {

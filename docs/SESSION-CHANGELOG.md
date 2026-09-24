@@ -10,6 +10,30 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-09-24 14:30 ET — Routine maintenance module
+
+### What changed
+- `mission.maintenance_assets`, `maintenance_plans`, `maintenance_log`, and a
+  trigger on `mission.tasks` that logs every completed maintenance task
+  (migration `20260924175217_maintenance_module.sql`, applied via MCP).
+- `/maintenance` and `/maintenance/[id]`; best-practice library in
+  `src/lib/maintenance/library.ts`; calendar projection in
+  `src/lib/maintenance/calendar.ts`.
+- Completion logic lifted into `src/lib/tasks/complete.ts`, shared with
+  `/tasks/update`. RRULE subset gained BYMONTH.
+- Two fixes found on the way: `nextOccurrence` skipped a series' first date
+  when it was still in the future; `/tasks/update` used the UTC date, so an
+  evening completion counted as tomorrow's.
+- Starter inventory (11 items, 48 schedules) loaded for Eric.
+
+### Why
+Eric, 2026-09-24: recurring maintenance for everything owned, with exact
+models queried against best practice, linked to FinanceOS, on the calendar.
+
+### Follow-ups
+- Replace starter names with exact makes and models, then run the research.
+- FinanceOS holds no vehicles or equipment yet, so there is nothing to link.
+
 ## 2026-09-21 20:45 ET — The migration ledger tells the truth again
 
 ### What changed

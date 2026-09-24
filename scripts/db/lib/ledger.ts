@@ -226,8 +226,10 @@ export function unqualifiedRelations(sql: string): string[] {
       if (qualified || !ident) continue;
       const bare = ident.replace(/"/g, '').toLowerCase();
       // `update` also appears as `on update cascade` / `for update`; those are
-      // followed by a keyword, not a relation.
-      if (['cascade', 'restrict', 'set', 'no', 'current_timestamp', 'now'].includes(bare)) continue;
+      // followed by a keyword, not a relation. So is a trigger's
+      // `after update of col_a, col_b on mission.tasks`: `of` opens a column
+      // list, and the relation comes after `on`.
+      if (['cascade', 'restrict', 'set', 'no', 'current_timestamp', 'now', 'of'].includes(bare)) continue;
       out.add(bare);
     }
   }

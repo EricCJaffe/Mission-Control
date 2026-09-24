@@ -7,6 +7,20 @@
 
 ## Latest Changes (Rolling)
 
+### September 24, 2026 — Routine maintenance
+
+- New `/maintenance` (wrench in the sidebar, under Projects): an inventory of
+  equipment, vehicles, home systems and appliances, each with a best-practice
+  recurring schedule. Red / yellow / green by date and by hours or miles.
+- Every schedule is a recurring task in the "Home & Equipment Maintenance"
+  project, so it also shows in Tasks, the weekly brief — and now the calendar,
+  projected a year ahead.
+- Completing one, from any screen, writes the service history. "Research this
+  model" suggests the manufacturer's schedule once the make and model are in.
+- Optional link to a FinanceOS asset (read only).
+- Recurrence gained BYMONTH ("monthly, November to March"); a late completion
+  now rolls forward from today rather than from the missed date.
+
 ### September 19, 2026 — The idea board
 
 - New `/ideas` board: catch an idea in one line, no due date. Each one shows

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import {
   DEFAULT_RECURRENCE,
+  MONTH_LABELS,
   WEEKDAYS,
   WEEKDAY_LABELS,
   describeRRule,
@@ -23,13 +24,19 @@ import {
 export default function RecurrencePicker({
   name = 'recurrence_rule',
   defaultValue,
+  defaultEnabled = false,
 }: {
   name?: string;
   defaultValue?: string | null;
+  /* Maintenance items are recurring by nature, so their forms open with the
+     repeat already on rather than making every entry tick the same box. */
+  defaultEnabled?: boolean;
 }) {
   const initial = parseRRule(defaultValue);
-  const [enabled, setEnabled] = useState(Boolean(initial));
-  const [rule, setRule] = useState<Recurrence>(initial ?? DEFAULT_RECURRENCE);
+  const [enabled, setEnabled] = useState(Boolean(initial) || defaultEnabled);
+  const [rule, setRule] = useState<Recurrence>(
+    initial ?? (defaultEnabled ? { ...DEFAULT_RECURRENCE, freq: 'MONTHLY' } : DEFAULT_RECURRENCE)
+  );
   const [ends, setEnds] = useState<'never' | 'count' | 'until'>(
     initial?.count ? 'count' : initial?.until ? 'until' : 'never'
   );
@@ -46,6 +53,14 @@ export default function RecurrencePicker({
         : [...rule.byDay, day].sort(
             (a, b) => WEEKDAYS.indexOf(a) - WEEKDAYS.indexOf(b)
           ),
+    });
+
+  const byMonth = rule.byMonth ?? [];
+  const toggleMonth = (m: number) =>
+    set({
+      byMonth: byMonth.includes(m)
+        ? byMonth.filter((x) => x !== m)
+        : [...byMonth, m].sort((a, b) => a - b),
     });
 
   return (
@@ -131,6 +146,28 @@ export default function RecurrencePicker({
                 aria-label="Day of month"
                 className="w-32 rounded-lg border border-slate-200 px-2 py-1 text-sm"
               />
+            </div>
+          )}
+
+          {(rule.freq === 'MONTHLY' || rule.freq === 'YEARLY') && (
+            <div>
+              <span className="text-xs text-slate-500">Only in (none = all year)</span>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {MONTH_LABELS.map((label, i) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => toggleMonth(i + 1)}
+                    className={`h-10 w-11 rounded-lg text-xs font-semibold transition-colors sm:h-8 sm:w-10 ${
+                      byMonth.includes(i + 1)
+                        ? 'bg-blue-700 text-white'
+                        : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
