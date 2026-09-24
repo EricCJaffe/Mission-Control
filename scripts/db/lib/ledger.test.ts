@@ -225,3 +225,12 @@ test('DELETE FROM ours USING auth writes only ours', () => {
   const sql = `delete from mission.tasks t using auth.users u where u.id = t.user_id;`;
   assert.deepEqual(schemasTouched(sql), ['mission']);
 });
+
+// The maintenance migration's trigger, 2026-09-24: `of` is a column list, not
+// a table, and was reported as an unqualified relation.
+test('a trigger column list is not a relation', () => {
+  assert.deepEqual(
+    unqualifiedRelations('create trigger t after update of status, last_completed_at on mission.tasks for each row execute function mission.f();'),
+    [],
+  );
+});
