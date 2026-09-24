@@ -9,7 +9,10 @@
  * later without a translation layer.
  *
  * This implements the subset that covers ordinary task recurrence — FREQ,
- * INTERVAL, BYDAY, BYMONTHDAY, COUNT, UNTIL — rather than the whole spec.
+ * INTERVAL, BYDAY, BYMONTHDAY, BYMONTH, COUNT, UNTIL — rather than the whole
+ * spec. BYMONTH arrived with the maintenance module: "start every small engine
+ * once a month over the winter" is FREQ=MONTHLY;BYMONTH=11,12,1,2,3, and
+ * "HVAC tune-up each spring and fall" is FREQ=YEARLY;BYMONTH=4,10.
  * BYSETPOS, BYYEARDAY and the rest exist, and are not what anyone reaches for
  * when adding "bins out every other Tuesday".
  *
@@ -35,6 +38,8 @@ export type Recurrence = {
   byDay: Weekday[];
   /** MONTHLY only: day of month. Null means "the anchor's own date". */
   byMonthDay: number | null;
+  /** Only these months, 1–12. Absent or empty means every month. */
+  byMonth?: number[];
   /** Stop after N occurrences. */
   count: number | null;
   /** Stop on or before this date, 'YYYY-MM-DD'. */
@@ -46,9 +51,12 @@ export const DEFAULT_RECURRENCE: Recurrence = {
   interval: 1,
   byDay: [],
   byMonthDay: null,
+  byMonth: [],
   count: null,
   until: null,
 };
+
+export const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** Serialises to an RRULE string, e.g. `FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH`. */
 export function toRRule(r: Recurrence): string {
@@ -56,6 +64,7 @@ export function toRRule(r: Recurrence): string {
   if (r.interval > 1) parts.push(`INTERVAL=${r.interval}`);
   if (r.freq === 'WEEKLY' && r.byDay.length) parts.push(`BYDAY=${r.byDay.join(',')}`);
   if (r.freq === 'MONTHLY' && r.byMonthDay) parts.push(`BYMONTHDAY=${r.byMonthDay}`);
+  if (r.byMonth?.length) parts.push(`BYMONTH=${r.byMonth.join(',')}`);
   if (r.count) parts.push(`COUNT=${r.count}`);
   // UNTIL is a date-time in the spec; tasks are day-granular, so it is written
   // as an all-day value rather than pretending to a precision we do not have.
@@ -110,6 +119,10 @@ export function parseRRule(input: string | null | undefined): Recurrence | null 
       .map((d) => d.trim())
       .filter((d): d is Weekday => (WEEKDAYS as readonly string[]).includes(d)),
     byMonthDay: Number.isFinite(monthDayRaw) && monthDayRaw >= 1 && monthDayRaw <= 31 ? monthDayRaw : null,
+    byMonth: (parts.get('BYMONTH') ?? '')
+      .split(',')
+      .map((m) => Number(m))
+      .filter((m) => Number.isInteger(m) && m >= 1 && m <= 12),
     count: Number.isFinite(countRaw) && countRaw > 0 ? countRaw : null,
     until: untilRaw && /^\d{8}/.test(untilRaw)
       ? `${untilRaw.slice(0, 4)}-${untilRaw.slice(4, 6)}-${untilRaw.slice(6, 8)}`
@@ -132,6 +145,9 @@ export function describeRRule(input: string | null | undefined): string | null {
     detail = ` on ${r.byDay.map((d) => WEEKDAY_LABELS[d]).join(', ')}`;
   } else if (r.freq === 'MONTHLY' && r.byMonthDay) {
     detail = ` on day ${r.byMonthDay}`;
+  }
+  if (r.byMonth?.length) {
+    detail += ` in ${r.byMonth.map((m) => MONTH_LABELS[m - 1]).join(', ')}`;
   }
 
   let ending = '';
@@ -165,7 +181,11 @@ export function nextOccurrence(
   if (!r) return null;
   if (r.count !== null && occurrencesSoFar + 1 >= r.count) return null;
 
+  // Start the day before whichever is later, `after` or the anchor, so the
+  // anchor itself counts as an occurrence. Starting AT the anchor skipped it:
+  // a series whose first date was still ahead lost that first date.
   const cursor = new Date(`${(after >= anchorIso ? after : anchorIso)}T00:00:00Z`);
+  if (after < anchorIso) cursor.setUTCDate(cursor.getUTCDate() - 1);
   const limit = r.until ? new Date(`${r.until}T00:00:00Z`) : null;
 
   // Step forward day by day and test membership. Slower than closed-form
@@ -181,6 +201,7 @@ export function nextOccurrence(
 }
 
 function matches(r: Recurrence, date: Date, anchor: Date): boolean {
+  if (r.byMonth?.length && !r.byMonth.includes(date.getUTCMonth() + 1)) return false;
   const dayDiff = Math.round((date.getTime() - anchor.getTime()) / 86_400_000);
 
   if (r.freq === 'DAILY') return dayDiff % r.interval === 0;
@@ -211,6 +232,10 @@ function matches(r: Recurrence, date: Date, anchor: Date): boolean {
   // YEARLY
   const yearsApart = date.getUTCFullYear() - anchor.getUTCFullYear();
   if (yearsApart % r.interval !== 0) return false;
+  // With BYMONTH the listed months replace the anchor's month (checked above),
+  // and the anchor still supplies the day: YEARLY;BYMONTH=4,10 anchored on the
+  // 1st is April 1 and October 1.
+  if (r.byMonth?.length) return date.getUTCDate() === (r.byMonthDay ?? anchor.getUTCDate());
   return (
     date.getUTCMonth() === anchor.getUTCMonth() && date.getUTCDate() === anchor.getUTCDate()
   );

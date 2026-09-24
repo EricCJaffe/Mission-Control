@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
-import { nextOccurrence } from "@/lib/tasks/recurrence";
+import { completionPatch, type CompletableTask } from "@/lib/tasks/complete";
+import { today } from "@/lib/day";
 
 export async function POST(req: Request) {
   const supabase = await supabaseServer();
@@ -58,10 +59,8 @@ export async function POST(req: Request) {
   if (form.has("is_template")) payload.is_template = isTemplate === "on";
   payload.updated_at = new Date().toISOString();
 
-  // Completing a recurring task rolls it forward instead of closing it. The
-  // task IS the series — spawning a row per occurrence would turn "bins out
-  // weekly" into a hundred rows nobody can read — so the due date moves and
-  // the status stays open until COUNT or UNTIL runs out.
+  // Completing a recurring task rolls it forward instead of closing it — see
+  // completionPatch, which the maintenance module shares.
   if (payload.status === "done") {
     const { data: current } = await supabase
       .from("tasks")
@@ -70,24 +69,9 @@ export async function POST(req: Request) {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    const rule = current?.recurrence_rule as string | null;
-    if (rule) {
-      const today = new Date().toISOString().slice(0, 10);
-      const anchor = (current?.recurrence_anchor as string | null)
-        ?? (current?.due_date as string | null)
-        ?? today;
-      const from = (current?.due_date as string | null) ?? today;
-      const soFar = Number(current?.recurrence_count ?? 0);
-      const next = nextOccurrence(rule, anchor, from, soFar);
-
-      if (next) {
-        payload.status = "todo";
-        payload.due_date = next;
-        payload.recurrence_count = soFar + 1;
-        payload.last_completed_at = new Date().toISOString();
-      }
-      // No next occurrence means the series is finished; it closes as done.
-    }
+    // today() is Eastern; toISOString() here rolled every evening completion
+    // into tomorrow and skipped an occurrence.
+    Object.assign(payload, completionPatch(current as CompletableTask | null, today()));
   }
 
   const { error, count } = await supabase

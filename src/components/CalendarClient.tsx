@@ -219,6 +219,13 @@ export default function CalendarClient({
       }
     }
 
+    // Maintenance occurrences are projected from recurring tasks, not stored
+    // as calendar_events, so there is no event to edit — open the machine.
+    if (event.alignment_tag && event.alignment_tag.startsWith('maintenance:')) {
+      window.location.href = `/maintenance/${event.alignment_tag.split(':')[1]}`;
+      return;
+    }
+
     const base = event._baseId ? events.find((e) => e.id === event._baseId) : event;
     setEditing(base || event);
     setEditingIsRecurring(Boolean(event._recurring));
