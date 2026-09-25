@@ -44,7 +44,7 @@ export async function addTripTask(
   db: MissionClient,
   userId: string,
   tripId: string,
-  task: { title: string; due: string | null; kind?: 'todo' | 'pretrip'; description?: string | null; sourceRef?: string | null; done?: boolean },
+  task: { title: string; due: string | null; kind?: 'todo' | 'pretrip'; description?: string | null; sourceRef?: string | null; done?: boolean; priority?: number },
 ): Promise<string> {
   const projectId = await ensureRvProject(db, userId);
   const { data, error } = await db
@@ -55,7 +55,7 @@ export async function addTripTask(
       title: task.title,
       description: task.description ?? null,
       status: task.done ? 'done' : 'todo',
-      priority: 2,
+      priority: task.priority ?? 2,
       due_date: task.due,
       domain: 'family',
       category: 'travel',
@@ -103,7 +103,7 @@ export async function ensurePretripTask(db: MissionClient, userId: string, tripI
 export async function syncDeadlineTasks(db: MissionClient, userId: string, tripId: string): Promise<void> {
   const [{ data: trip }, { data: reservations }, { data: existing }] = await Promise.all([
     db.from('rv_trips').select('name,status').eq('id', tripId).maybeSingle(),
-    db.from('rv_reservations').select('id,vendor,status,cancel_by,cancel_policy').eq('trip_id', tripId),
+    db.from('rv_reservations').select('id,vendor,status,cancel_by,cancel_policy,stop:rv_trip_stops(name)').eq('trip_id', tripId),
     db.from('tasks').select('id,source_ref,status').like('source_ref', 'rv-cancel:%').eq('user_id', userId),
   ]);
   const want = new Map<string, { title: string; due: string; description: string | null }>();
@@ -113,8 +113,10 @@ export async function syncDeadlineTasks(db: MissionClient, userId: string, tripI
       const at = new Date(r.cancel_by as string);
       const day = at.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
       const time = at.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+      // The stop's name, not the vendor's: two KOAs on one trip read as one.
+      const stop = (r as unknown as { stop: { name: string } | null }).stop;
       want.set(`rv-cancel:${r.id}`, {
-        title: `Keep or cancel ${r.vendor ?? 'reservation'}? Cancel-by ${time} (${trip.name})`,
+        title: `Keep or cancel ${stop?.name ?? r.vendor ?? 'reservation'}? Cancel-by ${time} (${trip.name})`,
         due: day,
         description: (r.cancel_policy as string | null) ?? null,
       });

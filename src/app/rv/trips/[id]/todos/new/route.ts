@@ -13,7 +13,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const title = text(form, 'title')
   if (!title) return back(req, withError(here, 'Say what needs doing.'))
   try {
-    await addTripTask(supabase, user.id, id, { title, due: date(form, 'due') })
+    await addTripTask(supabase, user.id, id, { title, due: date(form, 'due'), priority: form.get('urgent') === 'on' ? 1 : 2 })
   } catch (e) {
     return back(req, withError(here, (e as Error).message))
   }

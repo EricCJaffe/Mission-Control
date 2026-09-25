@@ -46,14 +46,14 @@ export async function rvEvents(db: MissionClient, aroundIso: string): Promise<Ev
       .neq('trip.status', 'canceled'),
     db
       .from('rv_reservations')
-      .select('id,trip_id,vendor,cancel_by,cancel_policy,status,trip:rv_trips!inner(status)')
+      .select('id,trip_id,vendor,cancel_by,cancel_policy,status,trip:rv_trips!inner(status),stop:rv_trip_stops(name)')
       .not('cancel_by', 'is', null)
       .neq('status', 'canceled')
       .neq('trip.status', 'canceled'),
   ]);
 
   type StopRow = { id: string; trip_id: string; kind: string; name: string; site: string | null; arrive_on: string | null; depart_on: string | null; day_summary: string | null; trip: { name: string } };
-  type ResRow = { id: string; trip_id: string; vendor: string | null; cancel_by: string; cancel_policy: string | null };
+  type ResRow = { id: string; trip_id: string; vendor: string | null; cancel_by: string; cancel_policy: string | null; stop: { name: string } | null };
 
   const out: Ev[] = [];
   for (const s of (stops ?? []) as unknown as StopRow[]) {
@@ -72,7 +72,7 @@ export async function rvEvents(db: MissionClient, aroundIso: string): Promise<Ev
   for (const r of (reservations ?? []) as unknown as ResRow[]) {
     const day = new Date(r.cancel_by).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
     const time = new Date(r.cancel_by).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
-    if (inRange(day)) out.push(event(`rv-cancel-${r.id}`, `Cancel-by ${time}: ${r.vendor ?? 'reservation'}`, day, '07:00', r.trip_id, r.cancel_policy));
+    if (inRange(day)) out.push(event(`rv-cancel-${r.id}`, `Cancel-by ${time}: ${r.stop?.name ?? r.vendor ?? 'reservation'}`, day, '07:00', r.trip_id, r.cancel_policy));
   }
   return out;
 }

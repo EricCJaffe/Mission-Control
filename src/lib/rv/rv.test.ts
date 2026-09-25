@@ -80,6 +80,8 @@ test('deadlines within the window, soonest first; past and canceled drop out', (
     res({ id: '4', vendor: 'Gone', cancel_by: '2026-10-02T12:00:00-04:00', status: 'canceled' }),
   ];
   assert.deepEqual(deadlines(reservations, [], '2026-09-25T15:00:00Z').map((d) => d.label), ['Cancel-by: MV ferry', 'Cancel-by: PWF']);
+  // A stop name wins over a generic vendor: two KOAs on one trip must not read alike.
+  assert.equal(deadlines([res({ vendor: 'KOA', stop_id: 'a', cancel_by: '2026-10-15T16:00:00-04:00' })], [stop({ id: 'a', name: 'Newburgh KOA' })], '2026-09-25T15:00:00Z')[0].label, 'Cancel-by: Newburgh KOA');
 });
 
 test('today on a driving day: leaving, arriving, the fuel stop, the hazards', () => {

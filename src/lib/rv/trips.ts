@@ -203,7 +203,7 @@ export function deadlines(reservations: Reservation[], stops: Stop[], nowIso: st
     })
     .map((r) => ({
       at: r.cancel_by!,
-      label: `Cancel-by: ${r.vendor ?? stops.find((s) => s.id === r.stop_id)?.name ?? 'reservation'}`,
+      label: `Cancel-by: ${stops.find((s) => s.id === r.stop_id)?.name ?? r.vendor ?? 'reservation'}`,
       detail: r.cancel_policy,
       tripId: r.trip_id,
       kind: 'cancel-by' as const,

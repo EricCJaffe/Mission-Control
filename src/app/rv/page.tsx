@@ -91,7 +91,7 @@ export default async function RvPage({ searchParams }: { searchParams?: Promise<
   const tripName = new Map(bundles.map((b) => [b.trip.id, b.trip.name]))
   const dueTodos = live
     .flatMap((b) => b.tasks.map((x) => ({ ...x, trip: b.trip })))
-    .filter((x) => x.status !== 'done' && x.due_date && daysBetween(t, x.due_date) <= 14 && !x.source_ref?.startsWith('rv-cancel:'))
+    .filter((x) => x.status !== 'done' && !x.source_ref?.startsWith('rv-cancel:') && (x.priority === 1 || (x.due_date && daysBetween(t, x.due_date) <= 14)))
     .sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''))
 
   // Checklist numbers. Open runs count their ticks; archived runs carry frozen counts.
@@ -172,7 +172,8 @@ export default async function RvPage({ searchParams }: { searchParams?: Promise<
             {dueTodos.map((x) => (
               <li key={x.task_id}>
                 <Link href={`/rv/trips/${x.trip.id}?tab=todos`} className="hover:underline">
-                  <span className={`font-medium ${x.due_date! < t ? 'text-red-700' : 'text-slate-900'}`}>{fmt(x.due_date)}</span> {x.title}
+                  <span className={`font-medium ${x.priority === 1 || (x.due_date && x.due_date < t) ? 'text-red-700' : 'text-slate-900'}`}>{x.priority === 1 ? 'Urgent' : fmt(x.due_date)}</span>{' '}
+                  <span className={x.priority === 1 ? 'font-semibold text-red-700' : ''}>{x.title}</span>
                 </Link>
               </li>
             ))}

@@ -6,8 +6,8 @@ import {
   type FuelStop, type Poi, type Reservation, type Stop, type Trip,
 } from './trips';
 
-export type TripTask = { task_id: string; kind: 'todo' | 'pretrip'; title: string; status: string | null; due_date: string | null; source_ref: string | null };
-export type TripDoc = { id: string; trip_id: string | null; title: string; kind: string | null; bucket: string; path: string | null; url: string | null; filename: string | null; source_note: string | null };
+export type TripTask = { task_id: string; kind: 'todo' | 'pretrip'; title: string; status: string | null; due_date: string | null; source_ref: string | null; priority: number | null };
+export type TripDoc = { id: string; trip_id: string | null; reservation_id: string | null; title: string; kind: string | null; bucket: string; path: string | null; url: string | null; filename: string | null; mime: string | null; source_note: string | null };
 
 export type TripBundle = {
   trip: Trip;
@@ -31,8 +31,8 @@ export async function loadTrips(db: MissionClient, onlyTripId?: string): Promise
     scope(db.from('rv_trip_stops').select(STOP_COLUMNS)),
     scope(db.from('rv_reservations').select(RESERVATION_COLUMNS)),
     scope(db.from('rv_fuel_stops').select('id,trip_id,drive_date,leg,miles,route,primary_stop,backup,notes').order('drive_date')),
-    scope(db.from('rv_trip_tasks').select('task_id,trip_id,kind,task:tasks(title,status,due_date,source_ref)')),
-    scope(db.from('rv_documents').select('id,trip_id,title,kind,bucket,path,url,filename,source_note').order('created_at')),
+    scope(db.from('rv_trip_tasks').select('task_id,trip_id,kind,task:tasks(title,status,due_date,source_ref,priority)')),
+    scope(db.from('rv_documents').select('id,trip_id,reservation_id,title,kind,bucket,path,url,filename,mime,source_note').order('created_at')),
   ]);
   const stopRows = (stops.data ?? []) as Stop[];
   const stopIds = stopRows.map((s) => s.id);
@@ -44,7 +44,7 @@ export async function loadTrips(db: MissionClient, onlyTripId?: string): Promise
     const own = ordered(stopRows.filter((s) => s.trip_id === trip.id));
     const ownIds = new Set(own.map((s) => s.id));
     const { start, end } = span(own);
-    type LinkRow = { task_id: string; trip_id: string; kind: 'todo' | 'pretrip'; task: { title: string; status: string | null; due_date: string | null; source_ref: string | null } | null };
+    type LinkRow = { task_id: string; trip_id: string; kind: 'todo' | 'pretrip'; task: { title: string; status: string | null; due_date: string | null; source_ref: string | null; priority: number | null } | null };
     return {
       trip: { ...trip, data: trip.data ?? {} },
       stops: own,
@@ -53,7 +53,7 @@ export async function loadTrips(db: MissionClient, onlyTripId?: string): Promise
       fuel: ((fuel.data ?? []) as FuelStop[]).filter((f) => f.trip_id === trip.id),
       tasks: ((links.data ?? []) as unknown as LinkRow[])
         .filter((l) => l.trip_id === trip.id && l.task)
-        .map((l) => ({ task_id: l.task_id, kind: l.kind, title: l.task!.title, status: l.task!.status, due_date: l.task!.due_date, source_ref: l.task!.source_ref }))
+        .map((l) => ({ task_id: l.task_id, kind: l.kind, title: l.task!.title, status: l.task!.status, due_date: l.task!.due_date, source_ref: l.task!.source_ref, priority: l.task!.priority }))
         .sort((a, b) => (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999')),
       docs: ((docs.data ?? []) as TripDoc[]).filter((d) => d.trip_id === trip.id),
       start,

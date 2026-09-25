@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { supabaseServer } from '@/lib/supabase/server'
 import { today, daysBetween } from '@/lib/day'
-import { loadTrips, type TripBundle } from '@/lib/rv/load'
+import { loadTrips, type TripBundle, type TripDoc } from '@/lib/rv/load'
 import {
   callSheet, deadlines, nights, statusByDate, stillToBook, todayView, TRIP_STATUSES, RIG_LIMITS,
   type Reservation, type Stop,
@@ -112,6 +112,21 @@ export default async function RvTripPage({
         </form>
       )}
 
+      {/* Urgent open items (priority 1) stay red at the top of every tab until
+          someone marks them fixed — the Nantucket return, for one. */}
+      {bundle.tasks.filter((x) => x.priority === 1 && x.status !== 'done').map((x) => (
+        <form key={x.task_id} action="/tasks/update" method="post" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3">
+          <input type="hidden" name="id" value={x.task_id} />
+          <input type="hidden" name="status" value="done" />
+          <input type="hidden" name="redirect" value={here} />
+          <div className="flex min-w-0 items-start gap-2 text-sm text-red-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span className="font-medium">{x.title}</span>
+          </div>
+          <button type="submit" className="min-h-[40px] rounded-lg border border-red-300 bg-white px-3 text-sm font-medium text-red-800">Fixed</button>
+        </form>
+      ))}
+
       {sp?.error && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{sp.error}</div>}
 
       {/* Tabs scroll sideways on a phone rather than wrapping into a wall. */}
@@ -173,7 +188,7 @@ function StopContact({ s }: { s: Stop }) {
   )
 }
 
-function ResCard({ r, stop }: { r: Reservation; stop: Stop | null }) {
+function ResCard({ r, stop, docs = [] }: { r: Reservation; stop: Stop | null; docs?: TripDoc[] }) {
   return (
     <div className="rounded-xl bg-slate-50 p-3 text-sm">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -186,6 +201,11 @@ function ResCard({ r, stop }: { r: Reservation; stop: Stop | null }) {
       </div>
       {r.day_of_notes && <div className="mt-1 text-xs text-slate-800">{r.day_of_notes}</div>}
       {r.cancel_by && <div className="mt-1 text-xs font-bold text-red-700">Cancel by {fmtInstant(r.cancel_by)}</div>}
+      {docs.filter((d) => d.reservation_id === r.id).map((d) => (
+        <Link key={d.id} href={`/rv/documents/${d.id}`} className="mr-3 mt-1 inline-flex items-center gap-1 text-xs font-medium text-blue-700">
+          <FileText className="h-3 w-3" /> {d.kind === 'confirmation' && d.path ? 'View confirmation' : d.title}
+        </Link>
+      ))}
     </div>
   )
 }
@@ -213,7 +233,7 @@ function TodayTab({ bundle, t }: { bundle: TripBundle; t: string }) {
             <div className="text-xs uppercase tracking-[0.15em] text-slate-500">Arriving</div>
             <div className="font-medium">{v.arriving.name}</div>
             <StopContact s={v.arriving} />
-            {v.arrivingReservation && <div className="mt-2"><ResCard r={v.arrivingReservation} stop={v.arriving} /></div>}
+            {v.arrivingReservation && <div className="mt-2"><ResCard r={v.arrivingReservation} stop={v.arriving} docs={bundle.docs} /></div>}
             <Link href="/rv/checklists/arrival" className="mt-2 inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-blue-300 px-4 text-sm font-medium text-blue-700">
               <ClipboardCheck className="h-4 w-4" /> Arrival checklist
             </Link>
@@ -232,7 +252,7 @@ function TodayTab({ bundle, t }: { bundle: TripBundle; t: string }) {
             <div className="text-xs uppercase tracking-[0.15em] text-slate-500">{x.kind === 'ferry' ? 'Ferry' : 'Day trip'}</div>
             <div className="font-medium">{x.name}</div>
             {x.day_summary && <div className="text-sm text-slate-600">{x.day_summary}</div>}
-            {bundle.reservations.filter((r) => r.stop_id === x.id).map((r) => <div key={r.id} className="mt-2"><ResCard r={r} stop={x} /></div>)}
+            {bundle.reservations.filter((r) => r.stop_id === x.id).map((r) => <div key={r.id} className="mt-2"><ResCard r={r} stop={x} docs={bundle.docs} /></div>)}
           </div>
         ))}
       </div>
@@ -292,7 +312,7 @@ function ItineraryTab({ bundle, here, base, t }: { bundle: TripBundle; here: str
                 </div>
                 {s.day_summary && <p className="mt-1 text-sm text-slate-700">{s.day_summary}</p>}
                 <StopContact s={s} />
-                {res.map((r) => <div key={r.id} className="mt-2"><ResCard r={r} stop={s} /></div>)}
+                {res.map((r) => <div key={r.id} className="mt-2"><ResCard r={r} stop={s} docs={bundle.docs} /></div>)}
                 {s.notes && <p className="mt-2 text-sm text-slate-700">{s.notes}</p>}
               </div>
             </div>
@@ -339,7 +359,7 @@ function ReservationsTab({ bundle, here, base }: { bundle: TripBundle; here: str
               </div>
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.status === 'to-book' ? 'bg-red-50 text-red-700' : r.status === 'canceled' ? 'bg-slate-100 text-slate-500' : 'bg-green-50 text-green-700'}`}>{r.status}</span>
             </div>
-            <div className="mt-2"><ResCard r={r} stop={s} /></div>
+            <div className="mt-2"><ResCard r={r} stop={s} docs={bundle.docs} /></div>
             {s && <StopContact s={s} />}
             <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
               {r.paid !== null && <span>Paid {money(r.paid)}</span>}
@@ -553,7 +573,7 @@ function TodosTab({ bundle, here, base }: { bundle: TripBundle; here: string; ba
             <input type="hidden" name="status" value={done ? 'todo' : 'done'} />
             <input type="hidden" name="redirect" value={here} />
             <div className="min-w-0 text-sm">
-              <span className={done ? 'text-slate-500 line-through' : 'font-medium'}>{x.title}</span>
+              <span className={done ? 'text-slate-500 line-through' : x.priority === 1 ? 'font-semibold text-red-700' : 'font-medium'}>{x.title}</span>
               <div className="text-xs text-slate-500">
                 {x.due_date && `due ${fmt(x.due_date)}`}
                 {x.kind === 'pretrip' && ' · closes itself when the Pre-Trip checklist is finished'}
@@ -565,9 +585,10 @@ function TodosTab({ bundle, here, base }: { bundle: TripBundle; here: string; ba
           </form>
         )
       })}
-      <form action={`${base}/todos/new`} method="post" className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+      <form action={`${base}/todos/new`} method="post" className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
         <input name="title" required placeholder="What needs doing before we go" className={input} />
         <input name="due" type="date" className={input} aria-label="Due" />
+        <label className="flex items-center gap-1 text-sm text-red-700"><input type="checkbox" name="urgent" className="h-4 w-4" /> Urgent</label>
         <button className={primary} type="submit">Add</button>
       </form>
     </div>
@@ -581,11 +602,13 @@ function DocumentsTab({ bundle, here, base }: { bundle: TripBundle; here: string
         <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 font-medium"><FileText className="h-4 w-4 text-slate-500" /> {d.title}</div>
-            <div className="text-xs text-slate-500">{[d.kind, d.filename, d.source_note].filter(Boolean).join(' · ')}</div>
+            <div className="text-xs text-slate-500">
+              {[d.kind, bundle.reservations.find((r) => r.id === d.reservation_id)?.vendor, d.filename, d.source_note].filter(Boolean).join(' · ')}
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {d.path || d.url ? (
-              <a href={`/rv/documents/${d.id}/open`} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-700">Open</a>
+              <Link href={`/rv/documents/${d.id}`} className="text-sm font-medium text-blue-700">{d.path ? 'View' : 'Open link'}</Link>
             ) : (
               <span className="text-xs text-yellow-800">not uploaded yet</span>
             )}

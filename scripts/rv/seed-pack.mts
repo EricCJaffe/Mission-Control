@@ -18,9 +18,15 @@
  *
  * Reads:  01-rig-profile.json, 02-trip-*.json, 03-trips-florida.json (a
  *         JSON rendering of 03-trips-florida.md), 06-maintenance-and-pretrip.json
+ *
+ * And, when the pack sits in a handoff bundle (`<bundle>/docs/` with
+ * `<bundle>/README-HANDOFF.md` and `<bundle>/confirmations/` beside it), the
+ * confirmation emails: each is stored in the private `attachments` bucket and
+ * linked to its reservation, and every attachment the email mentions but the
+ * bundle lacks becomes a placeholder document carrying the Gmail link.
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { createAsset } from '@/lib/maintenance/service';
@@ -110,7 +116,11 @@ async function seedIssues(ids: { coachId: string; genId: string; jeepId: string 
     const status = /scheduled/i.test(i.status) ? 'scheduled' : /resolved/i.test(i.status) ? 'resolved' : 'open';
     const row = { user_id: userId, asset_id: assetId, title: i.title, system: i.system, status, details: `Status in the pack: ${i.status}`, next_step: i.next_step };
     const { data } = await db.from('maintenance_issues').select('id').eq('user_id', userId).eq('title', i.title).maybeSingle();
-    if (data?.id) await must(db.from('maintenance_issues').update(row).eq('id', data.id), `issue ${i.title}`);
+    // Re-seeding refreshes the wording but never reopens or closes an issue:
+    // its status is Eric's once it exists.
+    const { status: _ignored, ...wording } = row;
+    void _ignored;
+    if (data?.id) await must(db.from('maintenance_issues').update(wording).eq('id', data.id), `issue ${i.title}`);
     else await must(db.from('maintenance_issues').insert({ ...row, opened_on: '2026-09-25' }), `issue ${i.title}`);
   }
 }
@@ -183,8 +193,14 @@ async function seedTrip(p: PackTrip) {
   // To-dos become tasks, matched on a stable ref so a re-run does not double them.
   for (const [i, todo] of (p.todos ?? []).entries()) {
     const ref = `rv-todo:${t.id}:${i}`;
-    const have = await db.from('tasks').select('id').eq('user_id', userId).eq('source_ref', ref).maybeSingle();
-    if (have.data) continue;
+    const have = await db.from('tasks').select('id,status').eq('user_id', userId).eq('source_ref', ref).maybeSingle();
+    if (have.data) {
+      // The pack reworded or re-dated it: follow, unless it is already done.
+      if (have.data.status !== 'done' && !/pre-trip checklist/i.test(todo.task)) {
+        await db.from('tasks').update({ title: todo.task, due_date: todo.due, updated_at: new Date().toISOString() }).eq('id', have.data.id);
+      }
+      continue;
+    }
     const isPretrip = /pre-trip checklist/i.test(todo.task);
     await addTripTask(db, userId, tripId as string, {
       title: isPretrip ? `Run the Pre-Trip checklist — ${t.title}` : todo.task,
@@ -201,6 +217,51 @@ async function seedTrip(p: PackTrip) {
   console.log(`trip ${t.id}: ${p.stops.length} stops, ${(p.reservations ?? []).length} reservations, ${pois.length} places, ${(p.fuel_stops ?? []).length} fuel days, ${(p.todos ?? []).length} to-dos`);
 }
 
+async function seedConfirmations() {
+  const bundle = join(dir, '..');
+  const readme = join(bundle, 'README-HANDOFF.md');
+  const confDir = join(bundle, 'confirmations');
+  if (!existsSync(readme) || !existsSync(confDir)) return;
+
+  // README table rows: | `01-myrtle-beach-R00000142405.md` | `r-myrtle` | ...
+  const map = [...readFileSync(readme, 'utf8').matchAll(/^\|\s*`([^`]+\.md)`\s*\|\s*`(r-[a-z0-9-]+)`/gm)].map((m) => ({ file: m[1], slug: m[2] }));
+  let stored = 0;
+  let placeholders = 0;
+  for (const { file, slug } of map) {
+    const path = join(confDir, file);
+    if (!existsSync(path)) continue;
+    const res = await db.from('rv_reservations').select('id,trip_id,vendor').eq('user_id', userId).eq('slug', slug).maybeSingle();
+    if (!res.data) continue;
+    const { id: reservationId, trip_id: tripId } = res.data as { id: string; trip_id: string; vendor: string | null };
+    const text = readFileSync(path, 'utf8');
+    const title = (text.match(/^#\s+(.+)$/m)?.[1] ?? file).trim();
+
+    const objectPath = `${userId}/rv/${tripId}/confirmations/${file}`;
+    const up = await db.storage.from('attachments').upload(objectPath, new Blob([text], { type: 'text/markdown' }), { contentType: 'text/markdown', upsert: true });
+    if (up.error) throw new Error(`upload ${file}: ${up.error.message}`);
+    const row = { user_id: userId, trip_id: tripId, reservation_id: reservationId, title, kind: 'confirmation', bucket: 'attachments', path: objectPath, filename: file, mime: 'text/markdown', bytes: Buffer.byteLength(text), source_note: 'Gmail confirmation, from the Sept 25 handoff' };
+    const have = await db.from('rv_documents').select('id').eq('path', objectPath).maybeSingle();
+    if (have.data) await must(db.from('rv_documents').update(row).eq('id', have.data.id), `doc ${file}`);
+    else await must(db.from('rv_documents').insert(row), `doc ${file}`);
+    stored++;
+
+    // Attachments the email had that the bundle does not: a placeholder with the Gmail link.
+    const gmail = text.match(/Gmail link:\s*(\S+)/)?.[1] ?? null;
+    const names = [...text.matchAll(/Attachments in the email \(not included here\):\s*(.+)$/gm)]
+      .map((m) => m[1].trim())
+      .filter((s) => !/^none/i.test(s))
+      .map((s) => s.replace(/\s*\(.*\)\s*$/, '').trim());
+    for (const name of new Set(names)) {
+      const existing = await db.from('rv_documents').select('id,path').eq('trip_id', tripId).eq('filename', name).maybeSingle();
+      const placeholder = { reservation_id: reservationId, url: existing.data?.path ? null : gmail, source_note: 'In Gmail — download and upload here to keep a copy' };
+      if (existing.data) await must(db.from('rv_documents').update(placeholder).eq('id', existing.data.id), `placeholder ${name}`);
+      else await must(db.from('rv_documents').insert({ ...placeholder, user_id: userId, trip_id: tripId, title: `${name} (attachment in Gmail)`, kind: 'confirmation', filename: name }), `placeholder ${name}`);
+      placeholders++;
+    }
+  }
+  console.log(`confirmations: ${stored} stored, ${placeholders} attachment placeholders`);
+}
+
 async function main() {
   const ids = await seedRig();
   console.log('rig: coach, generator, Jeep linked', ids);
@@ -210,6 +271,7 @@ async function main() {
     await seedTrip({ ...p, trip: p.trip, stops: p.stops });
   }
   for (const p of read('03-trips-florida.json').trips) await seedTrip(p);
+  await seedConfirmations();
 }
 
 main().catch((e) => {

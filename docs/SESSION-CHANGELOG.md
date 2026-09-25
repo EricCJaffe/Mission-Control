@@ -37,8 +37,18 @@ and start-up / shut-down checklists that survive closing the app and reset.
 - Maintenance stays in /maintenance: coach, generator and Jeep are assets
   (`rv` and `generator` categories added to the library); /rv reads them.
 
+### Update (same day) — Nantucket and the confirmation emails
+- Migration `20260925150828_rv_documents_reservation_link.sql`: documents can
+  belong to a reservation; each reservation card shows "View confirmation".
+- Re-seeded from the second handoff bundle: Nantucket is Oct 18 (return
+  conflict flagged as an urgent, red to-do until marked Fixed); amounts and
+  cancel-by times for Newburgh, Lynchburg, CreekFire and the MV ferry; 13
+  confirmation emails stored privately and readable in the app; 3 attachments
+  that exist only in Gmail are placeholders carrying the Gmail link.
+- Deadline tasks and calendar entries now name the campground, not the vendor
+  (two "KOA" deadlines read identically before).
+
 ### Follow-ups
-- Nantucket ferry date (on the eTicket) — Still to Book shows it.
 - Upload the itinerary PDF/HTML, trip book and Prince William Forest receipt
   on the trip's Documents tab (rows exist, marked "not uploaded yet").
 - Enter the coach odometer so the mileage-based schedules can count.
