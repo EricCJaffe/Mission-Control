@@ -10,14 +10,14 @@ test('both checklists load with unique item ids', () => {
   const ids = CHECKLISTS.flatMap(itemIds);
   assert.equal(new Set(ids).size, ids.length);
   assert.equal(itemIds(getChecklist('arrival')!).length, 44);
-  assert.equal(itemIds(getChecklist('departure')!).length, 50);
+  assert.equal(itemIds(getChecklist('departure')!).length, 51);
 });
 
 test('progress ignores ids that are no longer in the file', () => {
   const c = getChecklist('departure')!;
   const p = progress(c, ['departure-s1-i1', 'gone-item']);
   assert.equal(p.done, 1);
-  assert.equal(p.total, 50);
+  assert.equal(p.total, 51);
   assert.equal(p.complete, false);
   assert.equal(progress(c, itemIds(c)).complete, true);
 });
@@ -113,7 +113,7 @@ test('call sheet flags what the playbook cares about', () => {
 import { GUIDES, getGuide } from './guides.ts';
 
 test('every guide parses, and every checklist link points at one', () => {
-  assert.equal(GUIDES.length, 10);
+  assert.equal(GUIDES.length, 11);
   assert.ok(getGuide('black-tank')?.body.includes('Black valve OPEN first'));
   for (const c of CHECKLISTS) for (const s of c.sections) if (s.guide) assert.ok(getGuide(s.guide), `${s.id} -> ${s.guide}`);
 });

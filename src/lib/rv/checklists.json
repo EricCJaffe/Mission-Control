@@ -983,6 +983,11 @@
               "id": "departure-s8-i12",
               "text": "Pull forward slowly until both Avail arms lock",
               "note": "You'll hear them click. Check both lock indicators."
+            },
+            {
+              "id": "departure-s8-i13",
+              "text": "Coach: press Tow/Haul, confirm the dash light",
+              "note": "It resets to off every time the engine shuts down — press it at every start, fuel stops included. Expect slightly higher RPM and a little less mpg; that is normal."
             }
           ],
           "guide": "flat-tow"
