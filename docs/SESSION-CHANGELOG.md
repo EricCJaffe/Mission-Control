@@ -10,6 +10,49 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-09-25 10:30 ET — RV module
+
+### What changed
+- `mission.rv_trips`, `rv_trip_stops`, `rv_checklist_runs`, `rv_checklist_checks`
+  (migrations `20260925142330_rv_module.sql`, `20260925142719_rv_trips_status_us_spelling.sql`).
+- `/rv`, `/rv/checklists/[checklistId]`, `/rv/trips/[id]`; RV arrivals and
+  departures projected onto the calendar (`src/lib/rv/calendar.ts`).
+- Checklist content from Eric's `rv-checklists.json`, filed with its spec at
+  `docs/rv-checklists.md`.
+
+### Why
+Eric, 2026-09-25: RV sidebar item with the rig as the summary, trip tracking,
+and start-up / shut-down checklists that survive closing the app and reset.
+
+### Phase 2 (same day) — the handoff pack
+- Migration `20260925143958_rv_trip_planner.sql`: reservations, places,
+  fuel days, documents, trip↔task links, rig profile, `maintenance_issues`;
+  stops gain kind/seq/leg/address (and `campground` became `name`); trip status
+  uses the pack's vocabulary; reads go through `core.may_read(user_id, 'rv')`
+  so the household (Mary Jo) can read.
+- `scripts/rv/seed-pack.mts <pack-dir>` loads the pack. **The pack is not in
+  the repo and must never be** — the repo is public and the pack holds VINs,
+  a plate, a ferry password, card last-4 and friends' addresses. It was
+  seeded from a local copy; the tables are the source of truth now.
+- Maintenance stays in /maintenance: coach, generator and Jeep are assets
+  (`rv` and `generator` categories added to the library); /rv reads them.
+
+### Update (same day) — Nantucket and the confirmation emails
+- Migration `20260925150828_rv_documents_reservation_link.sql`: documents can
+  belong to a reservation; each reservation card shows "View confirmation".
+- Re-seeded from the second handoff bundle: Nantucket is Oct 18 (return
+  conflict flagged as an urgent, red to-do until marked Fixed); amounts and
+  cancel-by times for Newburgh, Lynchburg, CreekFire and the MV ferry; 13
+  confirmation emails stored privately and readable in the app; 3 attachments
+  that exist only in Gmail are placeholders carrying the Gmail link.
+- Deadline tasks and calendar entries now name the campground, not the vendor
+  (two "KOA" deadlines read identically before).
+
+### Follow-ups
+- Upload the itinerary PDF/HTML, trip book and Prince William Forest receipt
+  on the trip's Documents tab (rows exist, marked "not uploaded yet").
+- Enter the coach odometer so the mileage-based schedules can count.
+
 ## 2026-09-24 14:30 ET — Routine maintenance module
 
 ### What changed

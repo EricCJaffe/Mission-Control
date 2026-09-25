@@ -225,6 +225,11 @@ export default function CalendarClient({
       window.location.href = `/maintenance/${event.alignment_tag.split(':')[1]}`;
       return;
     }
+    // Same for RV stops: projected from the trip, so open the trip.
+    if (event.alignment_tag && event.alignment_tag.startsWith('rv-trip:')) {
+      window.location.href = `/rv/trips/${event.alignment_tag.split(':')[1]}`;
+      return;
+    }
 
     const base = event._baseId ? events.find((e) => e.id === event._baseId) : event;
     setEditing(base || event);

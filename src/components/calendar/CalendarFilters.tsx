@@ -19,6 +19,7 @@ const EVENT_TYPES = [
   'Health/Training',
   'Workout',
   'Maintenance',
+  'RV Trip',
 ];
 
 const DOMAINS = ['God First', 'Health', 'Family', 'Impact'];

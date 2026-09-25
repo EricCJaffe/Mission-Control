@@ -9,6 +9,7 @@ import { dueLabel } from '@/lib/maintenance/status'
 import type { Research } from '@/lib/maintenance/research'
 import { describeRRule } from '@/lib/tasks/recurrence'
 import RecurrencePicker from '@/components/tasks/RecurrencePicker'
+import IssuesList, { AddIssueForm, ISSUE_COLUMNS, type IssueRow } from '@/components/maintenance/IssuesList'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,7 +64,7 @@ export default async function MaintenanceAssetPage({
    * .schema('public') — the client is bound to `mission` by default (see
    * src/lib/supabase/schema.ts) — and read only: this app never writes there.
    */
-  const [plans, { data: logData }, { data: financeData }] = await Promise.all([
+  const [plans, { data: logData }, { data: financeData }, { data: issueData }] = await Promise.all([
     loadPlans(supabase, [asset], todayIso),
     supabase
       .from('maintenance_log')
@@ -76,7 +77,9 @@ export default async function MaintenanceAssetPage({
       .from('assets')
       .select('id,name,asset_type,estimated_value,purchase_price,purchase_date,vin,mileage')
       .order('name'),
+    supabase.from('maintenance_issues').select(ISSUE_COLUMNS).eq('asset_id', id).neq('status', 'resolved').order('opened_on'),
   ])
+  const issues = (issueData ?? []) as IssueRow[]
   const log = (logData ?? []) as LogRow[]
   const financeAssets = (financeData ?? []) as FinanceAsset[]
   const linked = financeAssets.find((f) => f.id === asset.finance_asset_id) ?? null
@@ -174,6 +177,17 @@ export default async function MaintenanceAssetPage({
               </details>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Open issues ({issues.length})</h2>
+        <div className="mt-3">
+          <IssuesList issues={issues} redirect={here} />
+          <details className="mt-2">
+            <summary className="cursor-pointer text-sm font-medium text-blue-700">Log an issue…</summary>
+            <AddIssueForm redirect={here} assetId={id} />
+          </details>
         </div>
       </section>
 

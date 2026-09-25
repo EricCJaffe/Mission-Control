@@ -7,6 +7,32 @@
 
 ## Latest Changes (Rolling)
 
+### September 25, 2026 — The RV
+
+- New `/rv` (camper in the sidebar): the rig at a glance, the next or current
+  trip, and the two travel-day checklists with their numbers — runs logged,
+  steps skipped on average, minutes per run.
+- Arrival Setup (44 steps) and Departure Breakdown (50) run on a phone:
+  whole-row tap targets, sticky progress and Reset. Every tick is saved to the
+  server the moment it is tapped; Reset archives the run and starts a fresh one.
+  Content is `src/lib/rv/checklists.json`, edited as data.
+- Trip planner, seeded from the "Travel RV and Vacations" handoff pack: the
+  Fall Leaf-Looker Loop (Oct 10–29, 14 stops, 14 reservations) and three
+  Florida trips. Tabs for Today, Itinerary, Reservations, Still to Book,
+  Things to See (garden filter for Mary Jo), Fuel, Hazards, To-dos,
+  Documents (private uploads) and a Call Sheet that applies the booking rules.
+- Third checklist: Pre-Trip Readiness (65 steps), tied to the next trip;
+  finishing it closes the trip's Pre-Trip task. Checklist sections link to
+  the new how-to guides (black tank, valves, flat tow, generator codes…).
+- Trip to-dos and every reservation cancel-by deadline are ordinary tasks, so
+  they reach Tasks and the weekly brief; deadlines and travel days are on the
+  calendar.
+- Rig Summary (height shown largest). The coach, its generator and the Jeep
+  are Maintenance items with their own schedules; the RV page reads them from
+  Maintenance rather than keeping a second copy. Maintenance gains Open
+  Issues (the generator's fault 45, the check-engine light, …).
+- Markdown notes and task bodies now render tables.
+
 ### September 24, 2026 — Routine maintenance
 
 - New `/maintenance` (wrench in the sidebar, under Projects): an inventory of

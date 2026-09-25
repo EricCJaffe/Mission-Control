@@ -251,6 +251,8 @@ export default function MonthView({
                   // app means DONE, and a filter change on the calendar is not.
                   const colors = event.event_type === 'Maintenance'
                     ? { bg: 'bg-orange-50', text: 'text-orange-800', border: 'border-orange-200', hoverBg: 'hover:bg-orange-100' }
+                    : event.event_type === 'RV Trip'
+                    ? { bg: 'bg-sky-50', text: 'text-sky-800', border: 'border-sky-200', hoverBg: 'hover:bg-sky-100' }
                     : getWorkoutTypeColors(event.title);
 
                   // Logged workout - link to workout history
