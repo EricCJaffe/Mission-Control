@@ -7,6 +7,18 @@
 
 ## Latest Changes (Rolling)
 
+### September 25, 2026 — The RV
+
+- New `/rv` (camper in the sidebar): the rig at a glance, the next or current
+  trip, and the two travel-day checklists with their numbers — runs logged,
+  steps skipped on average, minutes per run.
+- Arrival Setup (44 steps) and Departure Breakdown (50) run on a phone:
+  whole-row tap targets, sticky progress and Reset. Every tick is saved to the
+  server the moment it is tapped; Reset archives the run and starts a fresh one.
+  Content is `src/lib/rv/checklists.json`, edited as data.
+- Trips with multiple campground stops: dates, site, confirmation, hookups,
+  cost, phone, link. Arrivals and departures appear on the calendar.
+
 ### September 24, 2026 — Routine maintenance
 
 - New `/maintenance` (wrench in the sidebar, under Projects): an inventory of

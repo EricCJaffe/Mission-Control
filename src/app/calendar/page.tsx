@@ -1,6 +1,7 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import CalendarClient from "@/components/CalendarClient";
 import { maintenanceEvents } from "@/lib/maintenance/calendar";
+import { rvEvents } from "@/lib/rv/calendar";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function CalendarPage({
     .order("name", { ascending: true })
     .limit(100);
 
-  const maintenance = await maintenanceEvents(supabase, selectedDate);
+  const [maintenance, rv] = await Promise.all([maintenanceEvents(supabase, selectedDate), rvEvents(supabase, selectedDate)]);
 
   // Debug logging
   console.log(`Calendar: Fetched ${templates?.length || 0} templates for user ${user.id}`);
@@ -51,7 +52,7 @@ export default async function CalendarPage({
       </div>
 
       <CalendarClient
-        events={[...(events || []), ...maintenance] as any}
+        events={[...(events || []), ...maintenance, ...rv] as any}
         initialDate={selectedDate}
         goals={(goals || []) as any}
         tasks={(tasks || []) as any}

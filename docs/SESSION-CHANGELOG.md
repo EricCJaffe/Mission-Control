@@ -10,6 +10,26 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-09-25 10:30 ET — RV module
+
+### What changed
+- `mission.rv_trips`, `rv_trip_stops`, `rv_checklist_runs`, `rv_checklist_checks`
+  (migrations `20260925142330_rv_module.sql`, `20260925142719_rv_trips_status_us_spelling.sql`).
+- `/rv`, `/rv/checklists/[checklistId]`, `/rv/trips/[id]`; RV arrivals and
+  departures projected onto the calendar (`src/lib/rv/calendar.ts`).
+- Checklist content from Eric's `rv-checklists.json`, filed with its spec at
+  `docs/rv-checklists.md`.
+
+### Why
+Eric, 2026-09-25: RV sidebar item with the rig as the summary, trip tracking,
+and start-up / shut-down checklists that survive closing the app and reset.
+
+### Follow-ups
+- Eric is sending the RV details, the current trip list and exports of the
+  claude.ai "RV" project. Load the trips; extend the rig summary.
+- The coach and the Jeep are not yet maintenance assets — add them once the
+  RV details arrive (an `rv` category with generator, roof and slide care).
+
 ## 2026-09-24 14:30 ET — Routine maintenance module
 
 ### What changed
