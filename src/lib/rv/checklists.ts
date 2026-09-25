@@ -13,7 +13,8 @@
 import data from './checklists.json' with { type: 'json' };
 
 export type ChecklistItem = { id: string; text: string; note: string | null };
-export type ChecklistSection = { id: string; title: string; warning: string | null; items: ChecklistItem[] };
+/* `guide` names an entry in guides-content.ts, shown as a link on the section. */
+export type ChecklistSection = { id: string; title: string; warning: string | null; guide?: string; items: ChecklistItem[] };
 export type Checklist = { id: string; title: string; sections: ChecklistSection[] };
 
 export type Rig = {

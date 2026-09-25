@@ -28,6 +28,8 @@ export type Category =
   | 'boat'
   | 'pwc'
   | 'vehicle'
+  | 'rv'
+  | 'generator'
   | 'hvac'
   | 'water_system'
   | 'refrigerator'
@@ -49,6 +51,8 @@ export const CATEGORIES: Record<Category, CategoryInfo> = {
   chainsaw:       { label: 'Chainsaw',                group: 'Engines & equipment', meterUnit: null,    smallEngine: true },
   small_engine:   { label: 'Small engine (other)',    group: 'Engines & equipment', meterUnit: 'hours', smallEngine: true },
   vehicle:        { label: 'Car / truck',             group: 'Vehicles & water',    meterUnit: 'miles', smallEngine: false },
+  rv:             { label: 'RV / motorhome',          group: 'Vehicles & water',    meterUnit: 'miles', smallEngine: false },
+  generator:      { label: 'Generator',               group: 'Engines & equipment', meterUnit: 'hours', smallEngine: false },
   boat:           { label: 'Boat',                    group: 'Vehicles & water',    meterUnit: 'hours', smallEngine: true },
   pwc:            { label: 'Jet ski',                 group: 'Vehicles & water',    meterUnit: 'hours', smallEngine: true },
   hvac:           { label: 'Air conditioning / HVAC', group: 'Home systems',        meterUnit: null,    smallEngine: false },
@@ -424,6 +428,141 @@ export const LIBRARY: Record<Category, LibraryItem[]> = {
       anchor: '10-01',
       instructions: 'Brake pad and rotor check, battery load test (heat kills batteries in 3–4 years in the South), wiper blades, coolant, brake and transmission fluid per the manual, lights.',
       why: 'Catches the failures that strand you rather than the ones that merely wear.',
+      seed: true,
+    },
+  ],
+
+  /*
+   * The coach: a 2026 Entegra Esteem 29V on a Ford E-450 (7.3L gas). From the
+   * schedule in the "Travel RV and Vacations" handoff pack, 2026-09-25. Items
+   * marked "verify" there say so in their instructions — the owner's manual
+   * wins. The pack's cadence is a monthly review on the 1st and a quarterly
+   * roof / seal / tow-bar review, so the monthly and quarterly checks are one
+   * task each rather than six separate reminders on the same morning.
+   */
+  rv: [
+    {
+      key: 'rv.monthly_review',
+      title: 'Monthly RV check (1st of the month)',
+      rule: 'FREQ=MONTHLY;BYMONTHDAY=1',
+      instructions: 'Chassis fluids (coolant, transmission, brake, washer) · house batteries · test the LP detector (note its expiry) · test smoke and CO alarms · extinguisher gauge in the green · clean the roof A/C filters if it has been in use.',
+      why: 'Six quick checks that each fail silently: a dead CO alarm or an expired LP detector gives no warning until it matters.',
+      seed: true,
+    },
+    {
+      key: 'rv.quarterly_review',
+      title: 'Quarterly: roof, slide seals, tow bar',
+      rule: 'FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=1',
+      anchor: '10-01',
+      instructions: 'Roof seams and sealant (Florida sun — reseal as needed) · clean and condition slide seals · clean and dry-lube the Blue Ox Avail legs (Blue Ox recommends dry lube); inspect boots and pins.',
+      why: 'Roof leaks are the most expensive RV damage and start as a hairline crack in sealant.',
+      seed: true,
+    },
+    {
+      key: 'rv.oil',
+      title: 'Engine oil and filter (7.3L); inspect air filter',
+      rule: 'FREQ=YEARLY',
+      meterInterval: 5000,
+      instructions: 'Follow the Ford oil-life monitor; about 5,000 miles when towing (severe duty) or 12 months. Inspect the engine air filter at the same visit. Verify the interval in the Ford schedule.',
+      why: 'Towing is severe duty by Ford\'s own definition.',
+      seed: true,
+    },
+    {
+      key: 'rv.brakes',
+      title: 'Inspect brakes',
+      rule: 'FREQ=YEARLY',
+      meterInterval: 10000,
+      instructions: '12 months or 10,000 miles (verify with Ford). A 14,500 lb coach plus a Jeep stops on these.',
+      why: 'The heaviest thing you drive, towing the second-heaviest.',
+      seed: true,
+    },
+    {
+      key: 'rv.trans_coolant',
+      title: 'Transmission fluid and coolant service — check the Ford schedule',
+      rule: 'FREQ=YEARLY',
+      instructions: 'Towing puts the transmission on the severe-duty schedule. Look up the E-450 7.3L intervals, set the right miles here, and log what the shop does.',
+      why: 'The interval was never confirmed; this reminder exists until it is.',
+      seed: true,
+    },
+    {
+      key: 'rv.annual_chassis',
+      title: 'Annual: chassis battery, wipers, lug-nut torque, tire DOT dates',
+      rule: 'FREQ=YEARLY',
+      anchor: '09-01',
+      instructions: 'Load-test the chassis battery · new wiper blades (Florida sun) · torque the lug nuts (and after any wheel service) · read the tire DOT date codes; RV tires age out at about 6–7 years before they wear out.',
+      why: 'Tires on an RV fail by age, not tread.',
+      seed: true,
+    },
+    {
+      key: 'rv.annual_house',
+      title: 'Annual: slides, jacks, propane, water heater, sanitize',
+      rule: 'FREQ=YEARLY',
+      anchor: '09-15',
+      instructions: 'Slide mechanism inspect and lube (verify with Entegra) · hydraulic jack fluid and inspection · professional propane leak test · tankless water heater service and descale (verify the brand manual) · sanitize the fresh-water system (also after storage) · baseplate bolt torque · Demco and Coach Link full inspection.',
+      why: 'Everything that only fails at a campground, checked once a year at home.',
+      seed: true,
+    },
+    {
+      key: 'rv.awning',
+      title: 'Clean awning fabric; inspect arms',
+      rule: 'FREQ=MONTHLY;INTERVAL=6',
+      instructions: 'Mild soap, soft brush, dry fully before rolling up.',
+      why: 'Mildew in a rolled awning spreads fast in humidity.',
+      seed: true,
+    },
+    {
+      key: 'rv.water_filter',
+      title: 'Replace water filter cartridge',
+      rule: 'FREQ=MONTHLY;INTERVAL=3',
+      instructions: 'Every 3 months or per the cartridge rating.',
+      why: 'An old filter restricts flow at every park.',
+      seed: true,
+    },
+    {
+      key: 'rv.black_deep',
+      title: 'Black tank deep clean (ice + dish soap)',
+      rule: 'FREQ=MONTHLY;INTERVAL=2',
+      instructions: 'Every 3–4 trips: before a travel day add ~10 gal water, a bag of ice and dish soap; driving scrubs the walls; dump on arrival. See the Black Tank guide.',
+      why: 'Sensors misread once the tank walls are coated.',
+      seed: false,
+    },
+    {
+      key: 'rv.winterize',
+      title: 'Freeze-protect / winterize',
+      rule: 'FREQ=YEARLY',
+      anchor: '11-15',
+      instructions: 'Some fresh-water lines are exposed under the coach. When 32°F or below is expected: drain or heat the lines, or winterize fully.',
+      why: 'One freezing night splits an exposed line.',
+      seed: false,
+    },
+  ],
+
+  /* Onan QG 4000 on the coach. Hours from the generator's own meter. */
+  generator: [
+    {
+      key: 'gen.oil',
+      title: 'Oil and filter; air filter',
+      rule: 'FREQ=YEARLY',
+      meterInterval: 150,
+      instructions: 'About 150 hours or 12 months, whichever first (verify in the Onan manual). Air filter on the same interval.',
+      why: 'Generators run long at full load; oil is what keeps them alive.',
+      seed: true,
+    },
+    {
+      key: 'gen.plug',
+      title: 'Spark plug',
+      rule: 'FREQ=YEARLY;INTERVAL=3',
+      meterInterval: 450,
+      instructions: 'About 450 hours (verify).',
+      why: 'Hard starts and fault codes often begin at the plug.',
+      seed: true,
+    },
+    {
+      key: 'gen.exercise',
+      title: 'Exercise: run 2 hours under load',
+      rule: 'FREQ=MONTHLY',
+      instructions: 'Roof A/C on, about 2 hours. Blocked until fault 45 is repaired — see Open issues.',
+      why: 'Stale fuel and dry seals are why a generator will not start when it is needed.',
       seed: true,
     },
   ],

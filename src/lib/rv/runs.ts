@@ -10,12 +10,13 @@
 import type { MissionClient } from '@/lib/supabase/schema';
 import { today } from '@/lib/day';
 import { getChecklist, progress } from './checklists';
-import { stopForToday, type Stop } from './trips';
+import { ordered, span, stopForToday, STOP_COLUMNS, type Stop } from './trips';
 
 export type Run = {
   id: string;
   checklist_id: string;
   stop_id: string | null;
+  trip_id: string | null;
   location: string | null;
   started_at: string;
   completed_at: string | null;
@@ -24,18 +25,37 @@ export type Run = {
   items_checked: number | null;
 };
 
-const RUN_COLUMNS = 'id,checklist_id,stop_id,location,started_at,completed_at,archived_at,items_total,items_checked';
+const RUN_COLUMNS = 'id,checklist_id,stop_id,trip_id,location,started_at,completed_at,archived_at,items_total,items_checked';
 
 /** The stop the rig is at today, across every trip not canceled. */
 async function todaysStop(db: MissionClient, checklistId: string): Promise<Stop | null> {
   const t = today();
   const { data } = await db
     .from('rv_trip_stops')
-    .select('id,trip_id,campground,location,site,arrive_on,depart_on,confirmation,cost,hookups,url,phone,notes,trip:rv_trips!inner(status)')
+    .select(`${STOP_COLUMNS},trip:rv_trips!inner(status)`)
     .lte('arrive_on', t)
     .or(`depart_on.gte.${t},depart_on.is.null`)
     .neq('trip.status', 'canceled');
   return stopForToday((data ?? []) as unknown as Stop[], t, checklistId);
+}
+
+/**
+ * The trip a Pre-Trip run is for: the one under way, or else the next to
+ * start. A Pre-Trip run with no trip is still allowed — it just belongs to
+ * nothing.
+ */
+async function tripForPretrip(db: MissionClient): Promise<{ id: string; name: string } | null> {
+  const t = today();
+  const { data: trips } = await db.from('rv_trips').select('id,name,status').not('status', 'in', '(canceled,complete)');
+  const { data: stops } = await db.from('rv_trip_stops').select('trip_id,seq,arrive_on,depart_on');
+  let best: { id: string; name: string; start: string } | null = null;
+  for (const trip of trips ?? []) {
+    const own = ordered(((stops ?? []) as Array<Pick<Stop, 'trip_id' | 'seq' | 'arrive_on' | 'depart_on'>>).filter((s) => s.trip_id === trip.id));
+    const { start, end } = span(own);
+    if (!start || !end || end < t) continue;
+    if (!best || start < best.start) best = { id: trip.id as string, name: trip.name as string, start };
+  }
+  return best ? { id: best.id, name: best.name } : null;
 }
 
 /**
@@ -52,14 +72,20 @@ export async function openRun(db: MissionClient, userId: string, checklistId: st
     .maybeSingle();
   if (existing.data) return existing.data as Run;
 
-  const stop = await todaysStop(db, checklistId);
+  const stop = checklistId === 'pretrip' ? null : await todaysStop(db, checklistId);
+  const trip = checklistId === 'pretrip' ? await tripForPretrip(db) : null;
   const { data, error } = await db
     .from('rv_checklist_runs')
     .insert({
       user_id: userId,
       checklist_id: checklistId,
       stop_id: stop?.id ?? null,
-      location: stop ? [stop.campground, stop.site && `site ${stop.site}`].filter(Boolean).join(', ') : null,
+      trip_id: trip?.id ?? stop?.trip_id ?? null,
+      location: stop
+        ? [stop.name, stop.site && `site ${stop.site}`].filter(Boolean).join(', ')
+        : trip
+          ? `for ${trip.name}`
+          : null,
     })
     .select(RUN_COLUMNS)
     .single();
@@ -112,6 +138,7 @@ export async function setChecked(
       .from('rv_checklist_runs')
       .update({ completed_at: p.complete ? new Date().toISOString() : null })
       .eq('id', run.id);
+    if (p.complete && checklistId === 'pretrip' && run.trip_id) await closePretripTask(db, run.trip_id);
   }
   return { done: p.done, total: p.total, complete: p.complete };
 }
@@ -133,4 +160,22 @@ export async function resetRun(db: MissionClient, userId: string, checklistId: s
     .eq('id', run.id);
   if (error) throw new Error(error.message);
   await openRun(db, userId, checklistId);
+}
+
+/*
+ * Finishing the Pre-Trip checklist closes the trip's "Run the Pre-Trip
+ * checklist" task. Without this the task and the checklist are two claims
+ * about the same thing, and the brief would nag about a job already done.
+ * Goes through the tasks table directly: a pretrip task never recurs.
+ */
+async function closePretripTask(db: MissionClient, tripId: string): Promise<void> {
+  const { data } = await db.from('rv_trip_tasks').select('task_id').eq('trip_id', tripId).eq('kind', 'pretrip');
+  const ids = (data ?? []).map((r) => r.task_id as string);
+  if (ids.length === 0) return;
+  const now = new Date().toISOString();
+  await db
+    .from('tasks')
+    .update({ status: 'done', last_completed_at: now, edited_at: now, updated_at: now })
+    .in('id', ids)
+    .neq('status', 'done');
 }

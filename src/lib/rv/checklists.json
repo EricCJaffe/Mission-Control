@@ -13,6 +13,397 @@
   },
   "checklists": [
     {
+      "id": "pretrip",
+      "title": "Pre-Trip Readiness",
+      "sections": [
+        {
+          "id": "pretrip-s1",
+          "title": "Trip & paperwork",
+          "warning": null,
+          "items": [
+            {
+              "id": "pretrip-s1-i1",
+              "text": "Open the trip in the planner — every reservation confirmed",
+              "note": "Conf #s, check-in times, cancel-by dates reviewed."
+            },
+            {
+              "id": "pretrip-s1-i2",
+              "text": "Still-to-Book list is empty",
+              "note": "Or the gaps are deliberate."
+            },
+            {
+              "id": "pretrip-s1-i3",
+              "text": "Route hazards reviewed",
+              "note": "Tunnels (propane), parkway bans (11'8\"), low clearances, GPS traps."
+            },
+            {
+              "id": "pretrip-s1-i4",
+              "text": "Fuel plan loaded for each driving day",
+              "note": null
+            },
+            {
+              "id": "pretrip-s1-i5",
+              "text": "Weather checked for the whole route",
+              "note": "Freeze risk up north? Storms on the coast?"
+            },
+            {
+              "id": "pretrip-s1-i6",
+              "text": "Toll transponder registered and funded",
+              "note": "Both plates, auto-replenish on."
+            },
+            {
+              "id": "pretrip-s1-i7",
+              "text": "Registration + insurance cards for coach and Jeep in the glovebox",
+              "note": null
+            },
+            {
+              "id": "pretrip-s1-i8",
+              "text": "Roadside assistance card handy",
+              "note": "RV-rated towing coverage."
+            },
+            {
+              "id": "pretrip-s1-i9",
+              "text": "Dog's vaccination record (rabies certificate) on board",
+              "note": "Some parks and ferries ask."
+            },
+            {
+              "id": "pretrip-s1-i10",
+              "text": "Itinerary on Mary Jo's phone; printed copy in glovebox",
+              "note": null
+            }
+          ],
+          "guide": "tolls"
+        },
+        {
+          "id": "pretrip-s2",
+          "title": "Chassis (Ford E-450)",
+          "warning": "Check fluids cold and on level ground.",
+          "items": [
+            {
+              "id": "pretrip-s2-i1",
+              "text": "Engine oil level and oil-life %",
+              "note": "Change before the trip if it will run out mid-trip."
+            },
+            {
+              "id": "pretrip-s2-i2",
+              "text": "Coolant level (overflow reservoir)",
+              "note": null
+            },
+            {
+              "id": "pretrip-s2-i3",
+              "text": "Transmission fluid",
+              "note": "Per Ford procedure."
+            },
+            {
+              "id": "pretrip-s2-i4",
+              "text": "Brake fluid level",
+              "note": null
+            },
+            {
+              "id": "pretrip-s2-i5",
+              "text": "Washer fluid full; wipers clean",
+              "note": null
+            },
+            {
+              "id": "pretrip-s2-i6",
+              "text": "Check-engine light off",
+              "note": "If on, read codes with the OBDLink before leaving."
+            },
+            {
+              "id": "pretrip-s2-i7",
+              "text": "All exterior lights work",
+              "note": "Headlights, turn signals, brake lights, marker lights."
+            },
+            {
+              "id": "pretrip-s2-i8",
+              "text": "Tires: pressure cold",
+              "note": "Coach 75 front / 80 rear."
+            },
+            {
+              "id": "pretrip-s2-i9",
+              "text": "Tires: tread, sidewall cracks, DOT age",
+              "note": "Replace RV tires around 6–7 years regardless of tread."
+            },
+            {
+              "id": "pretrip-s2-i10",
+              "text": "Lug nuts torqued",
+              "note": "Always after any wheel service."
+            },
+            {
+              "id": "pretrip-s2-i11",
+              "text": "Fuel tank full",
+              "note": null
+            }
+          ],
+          "guide": "obd-scanner"
+        },
+        {
+          "id": "pretrip-s3",
+          "title": "House systems",
+          "warning": null,
+          "items": [
+            {
+              "id": "pretrip-s3-i1",
+              "text": "House batteries fully charged",
+              "note": "Check the monitor panel; solar keeping up."
+            },
+            {
+              "id": "pretrip-s3-i2",
+              "text": "Propane ¾ full or better; test the LP detector",
+              "note": null
+            },
+            {
+              "id": "pretrip-s3-i3",
+              "text": "Smoke and CO alarms test OK",
+              "note": null
+            },
+            {
+              "id": "pretrip-s3-i4",
+              "text": "Fire extinguisher gauge in the green",
+              "note": null
+            },
+            {
+              "id": "pretrip-s3-i5",
+              "text": "Generator test run 15–30 min under load",
+              "note": "Blocked until fault 45 is repaired."
+            },
+            {
+              "id": "pretrip-s3-i6",
+              "text": "Roof A/C runs; filters clean",
+              "note": null
+            },
+            {
+              "id": "pretrip-s3-i7",
+              "text": "Fridge on and cold (pre-cool 24 hrs)",
+              "note": null
+            },
+            {
+              "id": "pretrip-s3-i8",
+              "text": "Water heater fires on propane and electric",
+              "note": null
+            },
+            {
+              "id": "pretrip-s3-i9",
+              "text": "Water pump runs; no leaks under sinks",
+              "note": null
+            },
+            {
+              "id": "pretrip-s3-i10",
+              "text": "Black and gray tanks empty; enzyme added",
+              "note": null
+            },
+            {
+              "id": "pretrip-s3-i11",
+              "text": "Fresh tank at travel level",
+              "note": "⅓ or less unless dry camping."
+            },
+            {
+              "id": "pretrip-s3-i12",
+              "text": "Water filter cartridge in date",
+              "note": null
+            }
+          ],
+          "guide": "generator"
+        },
+        {
+          "id": "pretrip-s4",
+          "title": "Exterior walk-around",
+          "warning": null,
+          "items": [
+            {
+              "id": "pretrip-s4-i1",
+              "text": "Roof seams and sealant look intact",
+              "note": "Visual from the ladder or a photo."
+            },
+            {
+              "id": "pretrip-s4-i2",
+              "text": "Slide seals clean and pliable; no debris on slide tops",
+              "note": null
+            },
+            {
+              "id": "pretrip-s4-i3",
+              "text": "Slides extend and retract smoothly",
+              "note": null
+            },
+            {
+              "id": "pretrip-s4-i4",
+              "text": "Leveling jacks deploy and retract; no hydraulic leaks",
+              "note": null
+            },
+            {
+              "id": "pretrip-s4-i5",
+              "text": "Awning extends and retracts; fabric clean",
+              "note": null
+            },
+            {
+              "id": "pretrip-s4-i6",
+              "text": "Compartment doors latch and lock",
+              "note": null
+            },
+            {
+              "id": "pretrip-s4-i7",
+              "text": "Entry step and door lock work",
+              "note": null
+            },
+            {
+              "id": "pretrip-s4-i8",
+              "text": "Satellite dish stowed",
+              "note": null
+            }
+          ]
+        },
+        {
+          "id": "pretrip-s5",
+          "title": "Tow system and Jeep",
+          "warning": "A failed tow component is the most expensive failure on the road. Inspect every trip.",
+          "items": [
+            {
+              "id": "pretrip-s5-i1",
+              "text": "Blue Ox Avail: legs clean, extend and lock smoothly; boots intact",
+              "note": null
+            },
+            {
+              "id": "pretrip-s5-i2",
+              "text": "Pins and clips present (pouch complete)",
+              "note": null
+            },
+            {
+              "id": "pretrip-s5-i3",
+              "text": "Safety cables: no frays; hooks close",
+              "note": null
+            },
+            {
+              "id": "pretrip-s5-i4",
+              "text": "Lights cord and breakaway cable: no damage; plugs clean",
+              "note": null
+            },
+            {
+              "id": "pretrip-s5-i5",
+              "text": "Baseplate bolts tight; tabs undamaged",
+              "note": null
+            },
+            {
+              "id": "pretrip-s5-i6",
+              "text": "Demco Stay-IN-Play DUO powers up and passes self-test",
+              "note": null
+            },
+            {
+              "id": "pretrip-s5-i7",
+              "text": "Coach Link lights and beeps on a brake test",
+              "note": null
+            },
+            {
+              "id": "pretrip-s5-i8",
+              "text": "Jeep: oil, coolant, tire pressure (37 psi), battery",
+              "note": null
+            },
+            {
+              "id": "pretrip-s5-i9",
+              "text": "Bike rack secure; e-bikes locked; e-bike batteries charged",
+              "note": null
+            }
+          ],
+          "guide": "flat-tow"
+        },
+        {
+          "id": "pretrip-s6",
+          "title": "Supplies and gear",
+          "warning": null,
+          "items": [
+            {
+              "id": "pretrip-s6-i1",
+              "text": "Hookup kit",
+              "note": "Surge protector/EMS, 30-amp cord, 50→30 dogbone, regulator, filter, blue hose."
+            },
+            {
+              "id": "pretrip-s6-i2",
+              "text": "Sewer kit",
+              "note": "Hose, clear elbow, support, donut, flush hose, gloves, enzyme."
+            },
+            {
+              "id": "pretrip-s6-i3",
+              "text": "Chocks and jack pads",
+              "note": null
+            },
+            {
+              "id": "pretrip-s6-i4",
+              "text": "Tools, spare fuses, flashlight, tire gauge, OBD scanner",
+              "note": null
+            },
+            {
+              "id": "pretrip-s6-i5",
+              "text": "First-aid kit and medications",
+              "note": null
+            },
+            {
+              "id": "pretrip-s6-i6",
+              "text": "Dog food, leash, meds, bed",
+              "note": null
+            },
+            {
+              "id": "pretrip-s6-i7",
+              "text": "Groceries, water, paper goods",
+              "note": null
+            }
+          ]
+        },
+        {
+          "id": "pretrip-s7",
+          "title": "Cold-weather add-on (any night forecast ≤ 35°F)",
+          "warning": "This coach has exposed fresh-water lines under the chassis.",
+          "items": [
+            {
+              "id": "pretrip-s7-i1",
+              "text": "Plan: on freezing nights, disconnect and drain the hose; run on the fresh tank + pump",
+              "note": null
+            },
+            {
+              "id": "pretrip-s7-i2",
+              "text": "Furnace working; propane full",
+              "note": null
+            },
+            {
+              "id": "pretrip-s7-i3",
+              "text": "Tank heaters/heated-underbelly settings known (check Entegra manual)",
+              "note": null
+            },
+            {
+              "id": "pretrip-s7-i4",
+              "text": "Know the winterize/drain procedure",
+              "note": "Low-point drains and water heater bypass."
+            }
+          ]
+        },
+        {
+          "id": "pretrip-s8",
+          "title": "Final 24 hours",
+          "warning": null,
+          "items": [
+            {
+              "id": "pretrip-s8-i1",
+              "text": "Phones and devices charged; offline maps downloaded",
+              "note": null
+            },
+            {
+              "id": "pretrip-s8-i2",
+              "text": "RV-profile GPS loaded with the first day's route",
+              "note": null
+            },
+            {
+              "id": "pretrip-s8-i3",
+              "text": "Fridge loaded; latches set",
+              "note": null
+            },
+            {
+              "id": "pretrip-s8-i4",
+              "text": "Load the Departure checklist for the morning",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "arrival",
       "title": "Arrival Setup",
       "sections": [
@@ -103,7 +494,8 @@
               "text": "Park the Jeep clear of the slides and awning",
               "note": null
             }
-          ]
+          ],
+          "guide": "flat-tow"
         },
         {
           "id": "arrival-s3",
@@ -157,7 +549,8 @@
               "text": "Confirm shore power inside",
               "note": "Check the monitor panel and that the charger is running. Generator stays off."
             }
-          ]
+          ],
+          "guide": "shore-power"
         },
         {
           "id": "arrival-s5",
@@ -199,7 +592,8 @@
               "text": "Then turn on the water heater",
               "note": "Never heat an empty or air-filled heater."
             }
-          ]
+          ],
+          "guide": "fresh-water-valves"
         },
         {
           "id": "arrival-s6",
@@ -226,7 +620,8 @@
               "text": "Gray valve: closed or cracked open",
               "note": "Closed saves gray water to rinse the hose on dump day."
             }
-          ]
+          ],
+          "guide": "black-tank"
         },
         {
           "id": "arrival-s7",
@@ -248,7 +643,8 @@
               "text": "Set thermostat or A/C as needed",
               "note": null
             }
-          ]
+          ],
+          "guide": "propane"
         },
         {
           "id": "arrival-s8",
@@ -325,7 +721,8 @@
               "text": "Decide on fresh water for travel",
               "note": "Carry ⅓ tank or less to save weight, unless your next stop is dry camping."
             }
-          ]
+          ],
+          "guide": "fresh-water-valves"
         },
         {
           "id": "departure-s2",
@@ -372,7 +769,8 @@
               "text": "Rinse, cap, and stow the sewer hose and flush hose",
               "note": "Keep them apart from the drinking hose."
             }
-          ]
+          ],
+          "guide": "black-tank"
         },
         {
           "id": "departure-s3",
@@ -468,7 +866,8 @@
               "text": "Close the propane service valve if required for your route",
               "note": "Required for some tunnels and ferries."
             }
-          ]
+          ],
+          "guide": "propane"
         },
         {
           "id": "departure-s6",
@@ -490,7 +889,8 @@
               "text": "Confirm the coach batteries are charged",
               "note": null
             }
-          ]
+          ],
+          "guide": "shore-power"
         },
         {
           "id": "departure-s7",
@@ -584,7 +984,8 @@
               "text": "Pull forward slowly until both Avail arms lock",
               "note": "You'll hear them click. Check both lock indicators."
             }
-          ]
+          ],
+          "guide": "flat-tow"
         },
         {
           "id": "departure-s9",
@@ -616,7 +1017,8 @@
               "text": "Mirrors, GPS with the RV profile, and seatbelts",
               "note": null
             }
-          ]
+          ],
+          "guide": "tpms"
         }
       ]
     }

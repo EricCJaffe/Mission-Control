@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, AlertTriangle, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Check, AlertTriangle, RotateCcw, BookOpen } from 'lucide-react';
 import type { Checklist } from '@/lib/rv/checklists';
 
 /**
@@ -148,6 +148,11 @@ export default function RvChecklist({
                 {sectionDone}/{section.items.length}
               </span>
             </div>
+            {section.guide && (
+              <Link href={`/rv/guides/${section.guide}`} className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-blue-700">
+                <BookOpen className="h-3.5 w-3.5" /> How-to guide
+              </Link>
+            )}
             {section.warning && (
               <div className="mt-2 flex gap-2 rounded-xl border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

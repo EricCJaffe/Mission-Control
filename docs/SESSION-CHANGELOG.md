@@ -24,11 +24,24 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 Eric, 2026-09-25: RV sidebar item with the rig as the summary, trip tracking,
 and start-up / shut-down checklists that survive closing the app and reset.
 
+### Phase 2 (same day) — the handoff pack
+- Migration `20260925143958_rv_trip_planner.sql`: reservations, places,
+  fuel days, documents, trip↔task links, rig profile, `maintenance_issues`;
+  stops gain kind/seq/leg/address (and `campground` became `name`); trip status
+  uses the pack's vocabulary; reads go through `core.may_read(user_id, 'rv')`
+  so the household (Mary Jo) can read.
+- `scripts/rv/seed-pack.mts <pack-dir>` loads the pack. **The pack is not in
+  the repo and must never be** — the repo is public and the pack holds VINs,
+  a plate, a ferry password, card last-4 and friends' addresses. It was
+  seeded from a local copy; the tables are the source of truth now.
+- Maintenance stays in /maintenance: coach, generator and Jeep are assets
+  (`rv` and `generator` categories added to the library); /rv reads them.
+
 ### Follow-ups
-- Eric is sending the RV details, the current trip list and exports of the
-  claude.ai "RV" project. Load the trips; extend the rig summary.
-- The coach and the Jeep are not yet maintenance assets — add them once the
-  RV details arrive (an `rv` category with generator, roof and slide care).
+- Nantucket ferry date (on the eTicket) — Still to Book shows it.
+- Upload the itinerary PDF/HTML, trip book and Prince William Forest receipt
+  on the trip's Documents tab (rows exist, marked "not uploaded yet").
+- Enter the coach odometer so the mileage-based schedules can count.
 
 ## 2026-09-24 14:30 ET — Routine maintenance module
 

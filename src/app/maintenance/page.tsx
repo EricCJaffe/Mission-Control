@@ -6,6 +6,7 @@ import { CATEGORIES, CATEGORY_KEYS, STARTER, type Category } from '@/lib/mainten
 import { ASSET_COLUMNS, loadPlans, worst, VERDICT_CLASS, VERDICT_DOT, type AssetRow, type PlanRow } from '@/lib/maintenance/load'
 import { dueLabel } from '@/lib/maintenance/status'
 import { describeRRule } from '@/lib/tasks/recurrence'
+import IssuesList, { AddIssueForm, ISSUE_COLUMNS, type IssueRow } from '@/components/maintenance/IssuesList'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,6 +58,13 @@ export default async function MaintenancePage({
     .order('name')
   const assets = (data ?? []) as AssetRow[]
   const plans = await loadPlans(supabase, assets, todayIso)
+  const { data: issueData } = await supabase
+    .from('maintenance_issues')
+    .select(ISSUE_COLUMNS)
+    .neq('status', 'resolved')
+    .order('opened_on')
+  const issues = (issueData ?? []) as IssueRow[]
+  const assetNames = Object.fromEntries(assets.map((a) => [a.id, a.name]))
 
   const byAsset = new Map<string, PlanRow[]>()
   for (const p of plans) byAsset.set(p.asset_id, [...(byAsset.get(p.asset_id) ?? []), p])
@@ -99,7 +107,7 @@ export default async function MaintenancePage({
           { label: 'Overdue', value: red, cls: red ? 'text-red-700' : 'text-slate-900' },
           { label: 'Due in 2 weeks', value: yellow, cls: yellow ? 'text-yellow-700' : 'text-slate-900' },
           { label: 'Next 30 days', value: next30, cls: 'text-slate-900' },
-          { label: 'Items tracked', value: assets.length, cls: 'text-slate-900' },
+          { label: 'Open issues', value: issues.length, cls: issues.length ? 'text-red-700' : 'text-slate-900' },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
             <div className="text-xs uppercase tracking-[0.15em] text-slate-500">{s.label}</div>
@@ -159,6 +167,18 @@ export default async function MaintenancePage({
           </div>
         </section>
       )}
+
+      {/* Faults and loose ends: not a schedule, but they block one. */}
+      <section className="mt-8">
+        <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Open issues ({issues.length})</h2>
+        <div className="mt-3">
+          <IssuesList issues={issues} redirect="/maintenance" assetNames={assetNames} />
+          <details className="mt-2">
+            <summary className="cursor-pointer text-sm font-medium text-blue-700">Log an issue…</summary>
+            <AddIssueForm redirect="/maintenance" assets={assets.map((a) => ({ id: a.id, name: a.name }))} />
+          </details>
+        </div>
+      </section>
 
       {/* The inventory, grouped the way it is thought about. */}
       {GROUPS.map((group) => {
