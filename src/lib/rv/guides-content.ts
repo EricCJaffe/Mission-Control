@@ -108,6 +108,21 @@ The wet bay uses **numbered** positions. Read the **pointed tip** of each handle
 
 ---
 
+## [tow-haul] Tow/Haul Mode (Ford E-450)
+*Link from: Departure → "Hook up the Jeep" (last item).*
+
+**What it does with ~5,000 lb behind you**
+- Holds each gear longer instead of shifting up early, so the engine pulls harder.
+- Stops the transmission hunting between gears on hills.
+- Uses engine braking downhill: it downshifts automatically when you brake, which takes load off the coach brakes (the Demco handles the Jeep's).
+- Keeps the transmission cooler — the biggest longevity win when towing.
+
+**Two habits**
+1. It generally resets to off each time you shut the engine down. Press it at every start and check for the dash light.
+2. Expect slightly higher RPM and a bit less mpg. That is normal and worth it.
+
+---
+
 ## [tpms] Tire Pressure & TPMS
 
 - Cold pressures: **coach 75 front / 80 rear (duals), Jeep 37.** Check cold, before driving.
