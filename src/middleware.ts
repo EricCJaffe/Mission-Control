@@ -88,6 +88,14 @@ export const config = {
     '/brief',
     '/briefs/:path*',
     '/sync',
+    // Added 2026-09-25: these shipped outside the list. Each page and route
+    // checked the session itself and RLS scoped every row, so nothing leaked —
+    // but a signed-out visitor got a blank page instead of the login screen,
+    // which is the "defence by coincidence" the header warns about.
+    '/maintenance/:path*',
+    '/rv/:path*',
+    '/ideas/:path*',
+    '/brain/:path*',
     '/login',
   ],
 }
