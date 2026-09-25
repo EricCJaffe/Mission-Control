@@ -1,0 +1,624 @@
+{
+  "version": 1,
+  "rig": {
+    "coach": "2026 Entegra Esteem 29V (Ford E-450)",
+    "toad": "2017 Jeep Wrangler Unlimited Rubicon JK, automatic",
+    "towbar": "Blue Ox Avail BX7420",
+    "toad_brakes": "Demco Stay-IN-Play DUO + Coach Link",
+    "tire_psi": {
+      "coach_front": 75,
+      "coach_rear": 80,
+      "jeep": 37
+    }
+  },
+  "checklists": [
+    {
+      "id": "arrival",
+      "title": "Arrival Setup",
+      "sections": [
+        {
+          "id": "arrival-s1",
+          "title": "Before you pull in",
+          "warning": null,
+          "items": [
+            {
+              "id": "arrival-s1-i1",
+              "text": "Confirm site number and that it's a pull-through",
+              "note": "Check-in desk or reservation email."
+            },
+            {
+              "id": "arrival-s1-i2",
+              "text": "Walk the site before driving in",
+              "note": "Find the pedestal, water spigot, and sewer inlet. Look for low branches (you're 11'8\"), posts, and slide clearance on both sides."
+            },
+            {
+              "id": "arrival-s1-i3",
+              "text": "Note where hookups sit relative to the coach",
+              "note": "Utilities are on the driver side. Stop so all three reach without extensions."
+            }
+          ]
+        },
+        {
+          "id": "arrival-s2",
+          "title": "Park and unhook the Jeep",
+          "warning": "Unhook on level ground with the coach straight. A bound tow bar is hard to release on a curve or slope.",
+          "items": [
+            {
+              "id": "arrival-s2-i1",
+              "text": "Stop the coach in a straight line on level ground",
+              "note": "Coach in Park, parking brake set."
+            },
+            {
+              "id": "arrival-s2-i2",
+              "text": "Set the Jeep's parking brake",
+              "note": "Keeps the Jeep from rolling when the arms release."
+            },
+            {
+              "id": "arrival-s2-i3",
+              "text": "Disconnect the lights cord and the breakaway cable",
+              "note": null
+            },
+            {
+              "id": "arrival-s2-i4",
+              "text": "Unplug the Demco Coach Link from the dash outlet",
+              "note": "It only needs power while towing."
+            },
+            {
+              "id": "arrival-s2-i5",
+              "text": "Unhook the crossed safety cables from the baseplate",
+              "note": null
+            },
+            {
+              "id": "arrival-s2-i6",
+              "text": "Release the Avail arms with the black lock levers",
+              "note": "Pull each lever; the arm unlocks and can telescope."
+            },
+            {
+              "id": "arrival-s2-i7",
+              "text": "Pull the pins and clips at the Jeep's baseplate tabs",
+              "note": "Keep the pins and clips together in one pouch."
+            },
+            {
+              "id": "arrival-s2-i8",
+              "text": "Fold the Avail arms up and secure them on the coach",
+              "note": "It stays in the coach receiver. Strap or pin the arms so they don't swing."
+            },
+            {
+              "id": "arrival-s2-i9",
+              "text": "Unplug and stow the baseplate tabs on the Jeep, if removable",
+              "note": null
+            },
+            {
+              "id": "arrival-s2-i10",
+              "text": "Put the Jeep back in drive mode (automatic JK)",
+              "note": "Foot on brake, start engine. Shift transmission to N. Shift transfer case firmly to 2H. Shift transmission to P, then drive."
+            },
+            {
+              "id": "arrival-s2-i11",
+              "text": "Confirm no warning lights and the steering feels normal",
+              "note": null
+            },
+            {
+              "id": "arrival-s2-i12",
+              "text": "Park the Jeep clear of the slides and awning",
+              "note": null
+            }
+          ]
+        },
+        {
+          "id": "arrival-s3",
+          "title": "Level and open up",
+          "warning": "Order matters. Level first, then slides. Extending slides before leveling strains the slide mechanisms.",
+          "items": [
+            {
+              "id": "arrival-s3-i1",
+              "text": "Auto-level with the hydraulic jacks",
+              "note": "Engine running, Park, brake on. Use pads under jacks on soft ground or asphalt in heat."
+            },
+            {
+              "id": "arrival-s3-i2",
+              "text": "Chock the wheels",
+              "note": "Belt and suspenders, especially on any slope."
+            },
+            {
+              "id": "arrival-s3-i3",
+              "text": "Check slide clearance, then extend both slides",
+              "note": "Someone outside watches for posts, trees, and the picnic table."
+            },
+            {
+              "id": "arrival-s3-i4",
+              "text": "Turn off the engine",
+              "note": null
+            }
+          ]
+        },
+        {
+          "id": "arrival-s4",
+          "title": "Electric",
+          "warning": "Test before you plug in. A bad pedestal can fry the converter and appliances.",
+          "items": [
+            {
+              "id": "arrival-s4-i1",
+              "text": "Turn the pedestal breaker OFF",
+              "note": null
+            },
+            {
+              "id": "arrival-s4-i2",
+              "text": "Plug in the surge protector / EMS and let it test",
+              "note": "Wait for a green light before plugging in the coach."
+            },
+            {
+              "id": "arrival-s4-i3",
+              "text": "Plug in the 30-amp cord, then turn the breaker ON",
+              "note": null
+            },
+            {
+              "id": "arrival-s4-i4",
+              "text": "Confirm shore power inside",
+              "note": "Check the monitor panel and that the charger is running. Generator stays off."
+            }
+          ]
+        },
+        {
+          "id": "arrival-s5",
+          "title": "Water",
+          "warning": "Drinking-water hose only. Your city water port sits inches from the black flush port. Blue hose goes to city water, never the left port.",
+          "items": [
+            {
+              "id": "arrival-s5-i1",
+              "text": "Flush the spigot for a few seconds",
+              "note": "Clears dirt and stale water."
+            },
+            {
+              "id": "arrival-s5-i2",
+              "text": "Attach pressure regulator (and filter) at the spigot",
+              "note": "Keeps park pressure under about 50 psi."
+            },
+            {
+              "id": "arrival-s5-i3",
+              "text": "Connect the blue potable hose to CITY WATER",
+              "note": "The right-hand port, labeled city water."
+            },
+            {
+              "id": "arrival-s5-i4",
+              "text": "Turn the spigot on slowly and check for leaks",
+              "note": null
+            },
+            {
+              "id": "arrival-s5-i5",
+              "text": "Turn the 12V water pump OFF",
+              "note": "On city water you don't need it."
+            },
+            {
+              "id": "arrival-s5-i6",
+              "text": "Open a hot faucet until water runs steadily",
+              "note": "Purges air from the water heater."
+            },
+            {
+              "id": "arrival-s5-i7",
+              "text": "Then turn on the water heater",
+              "note": "Never heat an empty or air-filled heater."
+            }
+          ]
+        },
+        {
+          "id": "arrival-s6",
+          "title": "Sewer",
+          "warning": "Black valve stays closed until it's ⅔ full. Open black valves let liquids drain and leave solids behind.",
+          "items": [
+            {
+              "id": "arrival-s6-i1",
+              "text": "Put on gloves",
+              "note": null
+            },
+            {
+              "id": "arrival-s6-i2",
+              "text": "Connect sewer hose to the coach, then to the inlet",
+              "note": "Use a sewer donut if the park requires it. Set up the hose support so it slopes downhill."
+            },
+            {
+              "id": "arrival-s6-i3",
+              "text": "Confirm black valve is CLOSED",
+              "note": null
+            },
+            {
+              "id": "arrival-s6-i4",
+              "text": "Gray valve: closed or cracked open",
+              "note": "Closed saves gray water to rinse the hose on dump day."
+            }
+          ]
+        },
+        {
+          "id": "arrival-s7",
+          "title": "Propane and appliances",
+          "warning": null,
+          "items": [
+            {
+              "id": "arrival-s7-i1",
+              "text": "Open the propane service valve (gray knob in the tank bay)",
+              "note": "Turn slowly counterclockwise."
+            },
+            {
+              "id": "arrival-s7-i2",
+              "text": "Set the refrigerator to AUTO / electric",
+              "note": "Shore power saves propane."
+            },
+            {
+              "id": "arrival-s7-i3",
+              "text": "Set thermostat or A/C as needed",
+              "note": null
+            }
+          ]
+        },
+        {
+          "id": "arrival-s8",
+          "title": "Outside setup",
+          "warning": "Awning and wind: Retract it any time wind picks up or you leave the site.",
+          "items": [
+            {
+              "id": "arrival-s8-i1",
+              "text": "Extend the awning",
+              "note": "Check for branches overhead first."
+            },
+            {
+              "id": "arrival-s8-i2",
+              "text": "Set out the mat, chairs, and griddle",
+              "note": null
+            },
+            {
+              "id": "arrival-s8-i3",
+              "text": "Set up the satellite dish",
+              "note": "Needs a clear view of the southern sky. Aim it with the app or auto-seek, then connect the coax to the satellite input."
+            },
+            {
+              "id": "arrival-s8-i4",
+              "text": "Walk around once more",
+              "note": "Look for drips at every connection."
+            }
+          ]
+        },
+        {
+          "id": "arrival-s9",
+          "title": "Inside",
+          "warning": null,
+          "items": [
+            {
+              "id": "arrival-s9-i1",
+              "text": "Open roof vents and turn on fans",
+              "note": null
+            },
+            {
+              "id": "arrival-s9-i2",
+              "text": "Release fridge and cabinet travel latches",
+              "note": null
+            },
+            {
+              "id": "arrival-s9-i3",
+              "text": "Set up TV input and check Wi-Fi or cell signal",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "departure",
+      "title": "Departure Breakdown",
+      "sections": [
+        {
+          "id": "departure-s1",
+          "title": "The night before",
+          "warning": null,
+          "items": [
+            {
+              "id": "departure-s1-i1",
+              "text": "Check the weather and route",
+              "note": "Low clearances, propane restrictions (for example, I-695 Baltimore tunnels), and fuel stops with pull-through canopies."
+            },
+            {
+              "id": "departure-s1-i2",
+              "text": "Dump and flush the tanks if leaving early",
+              "note": "Black first, then flush, then gray. Or do it in the morning."
+            },
+            {
+              "id": "departure-s1-i3",
+              "text": "Decide on fresh water for travel",
+              "note": "Carry ⅓ tank or less to save weight, unless your next stop is dry camping."
+            }
+          ]
+        },
+        {
+          "id": "departure-s2",
+          "title": "Dump and flush",
+          "warning": "Black valve open before you run the flush. Flushing into a closed tank backs sewage up into the toilet.",
+          "items": [
+            {
+              "id": "departure-s2-i1",
+              "text": "Gloves on",
+              "note": null
+            },
+            {
+              "id": "departure-s2-i2",
+              "text": "Open the BLACK valve and drain",
+              "note": "Wait until the clear elbow slows."
+            },
+            {
+              "id": "departure-s2-i3",
+              "text": "Connect the separate flush hose to the LEFT port and flush 5–10 min",
+              "note": "Stay with it. Stop when the elbow runs clear."
+            },
+            {
+              "id": "departure-s2-i4",
+              "text": "Close the black valve",
+              "note": null
+            },
+            {
+              "id": "departure-s2-i5",
+              "text": "Open the GRAY valve and drain it",
+              "note": "Soapy water rinses the hose."
+            },
+            {
+              "id": "departure-s2-i6",
+              "text": "Close the gray valve",
+              "note": null
+            },
+            {
+              "id": "departure-s2-i7",
+              "text": "Add 2–3 gal of water and enzyme treatment to the black tank",
+              "note": null
+            },
+            {
+              "id": "departure-s2-i8",
+              "text": "Rinse, cap, and stow the sewer hose and flush hose",
+              "note": "Keep them apart from the drinking hose."
+            }
+          ]
+        },
+        {
+          "id": "departure-s3",
+          "title": "Water",
+          "warning": null,
+          "items": [
+            {
+              "id": "departure-s3-i1",
+              "text": "Turn off the water heater",
+              "note": null
+            },
+            {
+              "id": "departure-s3-i2",
+              "text": "Turn off the spigot",
+              "note": null
+            },
+            {
+              "id": "departure-s3-i3",
+              "text": "Relieve pressure by opening a faucet briefly",
+              "note": null
+            },
+            {
+              "id": "departure-s3-i4",
+              "text": "Disconnect and drain the blue hose, regulator, and filter; stow",
+              "note": null
+            },
+            {
+              "id": "departure-s3-i5",
+              "text": "Cap the city water port",
+              "note": null
+            }
+          ]
+        },
+        {
+          "id": "departure-s4",
+          "title": "Inside",
+          "warning": "Everything that can move, will. Walk every room.",
+          "items": [
+            {
+              "id": "departure-s4-i1",
+              "text": "Close and latch all cabinets, drawers, and the fridge",
+              "note": null
+            },
+            {
+              "id": "departure-s4-i2",
+              "text": "Stow loose items on counters, the table, and the shower",
+              "note": null
+            },
+            {
+              "id": "departure-s4-i3",
+              "text": "Close roof vents, windows, and blinds",
+              "note": null
+            },
+            {
+              "id": "departure-s4-i4",
+              "text": "Turn off fans, lights, TV, and A/C",
+              "note": null
+            },
+            {
+              "id": "departure-s4-i5",
+              "text": "Set the fridge for travel",
+              "note": "Leave it on propane or battery only if your propane plan allows. Many close propane for tunnels and ferries."
+            },
+            {
+              "id": "departure-s4-i6",
+              "text": "Water pump OFF",
+              "note": null
+            }
+          ]
+        },
+        {
+          "id": "departure-s5",
+          "title": "Outside",
+          "warning": null,
+          "items": [
+            {
+              "id": "departure-s5-i1",
+              "text": "Retract the awning",
+              "note": null
+            },
+            {
+              "id": "departure-s5-i2",
+              "text": "Stow the satellite dish and disconnect its coax",
+              "note": null
+            },
+            {
+              "id": "departure-s5-i3",
+              "text": "Stow chairs, mat, griddle, and any tools",
+              "note": null
+            },
+            {
+              "id": "departure-s5-i4",
+              "text": "Close the propane service valve if required for your route",
+              "note": "Required for some tunnels and ferries."
+            }
+          ]
+        },
+        {
+          "id": "departure-s6",
+          "title": "Electric",
+          "warning": null,
+          "items": [
+            {
+              "id": "departure-s6-i1",
+              "text": "Turn the pedestal breaker OFF",
+              "note": null
+            },
+            {
+              "id": "departure-s6-i2",
+              "text": "Unplug the coach cord and the surge protector; stow both",
+              "note": null
+            },
+            {
+              "id": "departure-s6-i3",
+              "text": "Confirm the coach batteries are charged",
+              "note": null
+            }
+          ]
+        },
+        {
+          "id": "departure-s7",
+          "title": "Slides and jacks",
+          "warning": "Slides in before jacks up. Keep people and the dog clear.",
+          "items": [
+            {
+              "id": "departure-s7-i1",
+              "text": "Engine running, Park, brake set",
+              "note": null
+            },
+            {
+              "id": "departure-s7-i2",
+              "text": "Retract both slides fully",
+              "note": "Watch for anything caught in the slide seals."
+            },
+            {
+              "id": "departure-s7-i3",
+              "text": "Retract the leveling jacks",
+              "note": "Confirm on the panel that all jacks are up."
+            },
+            {
+              "id": "departure-s7-i4",
+              "text": "Pull the wheel chocks and jack pads",
+              "note": null
+            }
+          ]
+        },
+        {
+          "id": "departure-s8",
+          "title": "Hook up the Jeep",
+          "warning": "Order matters on the JK. Never shift into Park with the transfer case in Neutral while the engine is running.",
+          "items": [
+            {
+              "id": "departure-s8-i1",
+              "text": "Line up the Jeep behind the coach",
+              "note": "Straight and close enough for the Avail arms to reach the baseplate tabs."
+            },
+            {
+              "id": "departure-s8-i2",
+              "text": "Unfold the Avail arms and pin them to the baseplate tabs",
+              "note": "Insert both pins and lock both clips."
+            },
+            {
+              "id": "departure-s8-i3",
+              "text": "Attach the safety cables, crossed under the tow bar",
+              "note": null
+            },
+            {
+              "id": "departure-s8-i4",
+              "text": "Connect the lights cord and the breakaway cable",
+              "note": "The lights cord also powers the Demco brake system in the Jeep."
+            },
+            {
+              "id": "departure-s8-i5",
+              "text": "Put the Jeep in flat-tow mode (automatic JK)",
+              "note": "Key to ACC. Foot on brake, parking brake set. Transmission to N. Transfer case to N."
+            },
+            {
+              "id": "departure-s8-i6",
+              "text": "Verify the transfer case is in Neutral",
+              "note": "Start the engine. Shift the transmission to D and release the brake. The Jeep must not move."
+            },
+            {
+              "id": "departure-s8-i7",
+              "text": "Finish flat-tow mode",
+              "note": "Engine OFF, key in the unlocked OFF position so the steering turns. Transmission to P."
+            },
+            {
+              "id": "departure-s8-i8",
+              "text": "Release the Jeep's parking brake",
+              "note": "Easy to forget. It will destroy the rear brakes."
+            },
+            {
+              "id": "departure-s8-i9",
+              "text": "Switch ON the Demco brake unit in the Jeep",
+              "note": "Controller faces the direction of travel, switch toward the driver's seat."
+            },
+            {
+              "id": "departure-s8-i10",
+              "text": "Test the Jeep's brake lights and turn signals",
+              "note": "Have someone watch."
+            },
+            {
+              "id": "departure-s8-i11",
+              "text": "Plug the Demco Coach Link into the coach's 12V outlet",
+              "note": "Power light on. Press the coach brake: the Brakes Applied lights should light and beep. No lights means no toad brakes."
+            },
+            {
+              "id": "departure-s8-i12",
+              "text": "Pull forward slowly until both Avail arms lock",
+              "note": "You'll hear them click. Check both lock indicators."
+            }
+          ]
+        },
+        {
+          "id": "departure-s9",
+          "title": "Final walk-around",
+          "warning": "Last lap saves the most money. Do it every single time.",
+          "items": [
+            {
+              "id": "departure-s9-i1",
+              "text": "All compartments closed and locked",
+              "note": null
+            },
+            {
+              "id": "departure-s9-i2",
+              "text": "Entry step retracted",
+              "note": null
+            },
+            {
+              "id": "departure-s9-i3",
+              "text": "Tire check",
+              "note": "Coach 75 psi front / 80 psi rear, Jeep 37 psi, all cold. Check the TPMS display for all 10 tires."
+            },
+            {
+              "id": "departure-s9-i4",
+              "text": "Nothing left at the site",
+              "note": "Check the pedestal, spigot, sewer inlet, and picnic table."
+            },
+            {
+              "id": "departure-s9-i5",
+              "text": "Mirrors, GPS with the RV profile, and seatbelts",
+              "note": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
