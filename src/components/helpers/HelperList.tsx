@@ -28,6 +28,8 @@ const HOUR_COLUMNS: DataColumn<HourRow>[] = [
 
 /* A big, thumb-sized button. The row itself opens on a tap, so every button stops that. */
 const big = 'min-h-[44px] rounded-xl px-4 text-sm font-medium disabled:opacity-60';
+/* The in-row button: compact, so a row stays one line of normal height. */
+const small = 'h-8 rounded-lg px-3 text-sm font-medium disabled:opacity-60';
 
 /**
  * The helper's list, on a phone. Also rendered for Eric as "what they see",
@@ -115,16 +117,16 @@ export default function HelperList({
               type="button"
               disabled={busy !== null || preview}
               onClick={() => post('/h/api/claim', { task_id: item.id, action: 'claim' }, `claim-${item.id}`)}
-              className={`${big} border-2 border-blue-700 bg-white text-blue-800`}
+              className={`${small} border-2 border-blue-700 bg-white text-blue-800`}
             >
               {busy === `claim-${item.id}` ? 'Taking it…' : 'I’ll take it'}
             </button>
           ) : confirming === item.id ? (
             <>
-              <button type="button" onClick={() => setConfirming(null)} className={`${big} border border-slate-300 bg-white`}>
+              <button type="button" onClick={() => setConfirming(null)} className={`${small} border border-slate-300 bg-white`}>
                 Cancel
               </button>
-              <button type="button" disabled={busy !== null || preview} onClick={() => markDone(item)} className={`${big} bg-blue-700 text-white`}>
+              <button type="button" disabled={busy !== null || preview} onClick={() => markDone(item)} className={`${small} bg-blue-700 text-white`}>
                 {busy === `done-${item.id}` ? 'Saving…' : 'Yes, done'}
               </button>
             </>
@@ -133,7 +135,7 @@ export default function HelperList({
               type="button"
               disabled={preview}
               onClick={() => setConfirming(item.id)}
-              className={`${big} flex items-center gap-1 bg-blue-700 text-white`}
+              className={`${small} flex items-center gap-1 bg-blue-700 text-white`}
             >
               <Check className="h-4 w-4" /> Done
             </button>

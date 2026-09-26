@@ -285,6 +285,38 @@ function ColumnFilter<T>({
   );
 }
 
+/**
+ * A row's details, opened by clicking the row. A box over the page rather than
+ * a row that grows inside the table: the list stays one line per row, and the
+ * details get the room to wrap. Closes on Escape, the X, or a click outside.
+ */
+function RowDetails({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:max-w-xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <h2 className="text-base font-semibold text-[#1E3A3F]">{title}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="text-sm text-slate-700">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export function DataTable<T extends { id: string }>({
   rows,
   columns,
@@ -355,7 +387,7 @@ export function DataTable<T extends { id: string }>({
   };
   const clearAll = () => setState({ filters: {}, search: '', sort: null });
 
-  const colCount = columns.length + (renderExpanded ? 1 : 0);
+  const colCount = columns.length;
   const pinClass = (col: DataColumn<T>) => (col.pinRight ? PIN_RIGHT : col.pinLeft ? PIN_LEFT : '');
   // Header cells pin the same way but keep the band's color, not the body's white.
   const headPinClass = (col: DataColumn<T>) =>
@@ -372,35 +404,33 @@ export function DataTable<T extends { id: string }>({
       <tr
         key={row.id}
         className={`group border-b ${RULE} last:border-0 ${clickable ? 'cursor-pointer hover:bg-[#FBF8F3]' : ''} ${open ? 'bg-[#FBF8F3]' : ''} ${rowClassName?.(row) ?? ''}`}
-        onClick={() => (renderExpanded ? setOpenId(open ? null : row.id) : onRowClick?.(row))}
+        onClick={() => (renderExpanded ? setOpenId(row.id) : onRowClick?.(row))}
       >
-        {renderExpanded && (
-          <td className="w-8 px-2 py-3.5 align-middle text-[#B8B0A2]">
-            {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </td>
-        )}
         {columns.map((col, i) => (
           <td
             key={col.key}
-            className={`max-w-[22rem] truncate whitespace-nowrap px-4 py-3.5 align-middle text-[15px] ${i === 0 ? 'font-medium text-[#1E3A3F]' : 'text-[#2F2F2F]'} ${pinClass(col)} ${col.pinRight || col.pinLeft ? 'group-hover:bg-[#FBF8F3]' : ''} ${col.className ?? ''}`}
+            className={`max-w-[22rem] truncate whitespace-nowrap px-4 py-2 align-middle text-sm ${i === 0 ? 'font-medium text-[#1E3A3F]' : 'text-[#2F2F2F]'} ${pinClass(col)} ${col.pinRight || col.pinLeft ? 'group-hover:bg-[#FBF8F3]' : ''} ${col.className ?? ''}`}
           >
             {col.render ? col.render(row) : ((col.value ? col.value(row) : ((row as Record<string, unknown>)[col.key] as React.ReactNode)) ?? '—')}
           </td>
         ))}
       </tr>,
-      open && renderExpanded ? (
-        <tr key={`${row.id}-detail`} className={`border-b ${RULE} bg-[#FBF8F3]`}>
-          <td colSpan={colCount} className="px-4 py-3">
-            {/* Detail is where wrapping belongs; the rows above stay one line. */}
-            <div className="whitespace-normal">{renderExpanded(row)}</div>
-          </td>
-        </tr>
-      ) : null,
     ];
   };
 
+  const openRow = renderExpanded && openId ? rows.find((r) => r.id === openId) ?? null : null;
+  const firstCol = columns[0];
+
   return (
     <div className="space-y-3">
+      {openRow && renderExpanded && (
+        <RowDetails
+          title={firstCol ? String((firstCol.value ? firstCol.value(openRow) : (openRow as Record<string, unknown>)[firstCol.key]) ?? '') : ''}
+          onClose={() => setOpenId(null)}
+        >
+          {renderExpanded(openRow)}
+        </RowDetails>
+      )}
       {(!hideSearch || groups?.length || actions) && (
         <div className="flex flex-wrap items-center gap-2">
           {!hideSearch && (
@@ -452,13 +482,12 @@ export function DataTable<T extends { id: string }>({
         <table className="w-full text-sm">
           <thead>
             <tr className={`border-b border-[#E7E0D4] ${HEAD_BG}`}>
-              {renderExpanded && <th className="w-8 px-2 py-3" />}
               {columns.map((col) => {
                 const sorted = sort?.key === col.key ? sort.direction : null;
                 return (
                   <th
                     key={col.key}
-                    className={`whitespace-nowrap px-4 py-3 text-left align-middle text-[12px] font-semibold uppercase tracking-[0.1em] text-[#8C8375] ${headPinClass(col)}`}
+                    className={`whitespace-nowrap px-4 py-2 text-left align-middle text-[11px] font-semibold uppercase tracking-[0.1em] text-[#8C8375] ${headPinClass(col)}`}
                     style={col.width ? { width: col.width } : undefined}
                     aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}
                   >
@@ -514,7 +543,7 @@ export function DataTable<T extends { id: string }>({
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className={`border-b ${RULE}`}>
-                  <td colSpan={colCount} className="px-3 py-3">
+                  <td colSpan={colCount} className="px-3 py-2.5">
                     <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
                   </td>
                 </tr>
@@ -544,8 +573,8 @@ export function DataTable<T extends { id: string }>({
                 const alert = groupAlert?.(group.rows) ?? null;
                 return [
                   <tr key={`g-${group.id}`} className="cursor-pointer border-b border-[#E7E0D4] bg-[#F8F4EE] hover:bg-[#F3EEE6]" onClick={() => toggleGroup(group.id)}>
-                    <td colSpan={colCount} className="px-2 py-2">
-                      <span className="sticky left-2 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                    <td colSpan={colCount} className="px-3 py-1.5">
+                      <span className="sticky left-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
                         {open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
                         <span className="truncate">{group.label}</span>
                         <span className="rounded-full bg-white px-1.5 text-xs font-normal text-slate-600">{group.rows.length}</span>
@@ -631,5 +660,5 @@ const PILL: Record<PillTone, string> = {
 };
 
 export function StatusPill({ tone, children, title }: { tone: PillTone; children: React.ReactNode; title?: string }) {
-  return <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[13px] font-semibold ${PILL[tone]}`}>{children}</span>;
+  return <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-px text-xs font-semibold ${PILL[tone]}`}>{children}</span>;
 }
