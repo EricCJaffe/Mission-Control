@@ -26,6 +26,10 @@ export default async function HelpersPage() {
     db.from('work_time').select('id,task_title,worker_id,started_at,ended_at').gte('started_at', addDays(t, -31)).order('started_at', { ascending: false }),
     db.from('work_completions').select('id,task_title,worker_id,completed_at,note').order('completed_at', { ascending: false }).limit(25),
   ])
+  const [{ data: applications }, { data: postings }] = await Promise.all([
+    db.from('job_applications').select('id,posting_id,name,phone,email,drivers_license,experience,availability,heard_from,status,worker_id,created_at').order('created_at', { ascending: false }).limit(100),
+    db.from('job_postings').select('id,slug,title,active'),
+  ])
 
   const itemByTask = new Map((items ?? []).map((i) => [i.task_id as string, i]))
   const projectIds = (projects ?? []).map((p) => p.id as string)
@@ -82,6 +86,8 @@ export default async function HelpersPage() {
     time: (time ?? []) as AdminData['time'],
     completions: (done ?? []) as AdminData['completions'],
     blockerTitles,
+    applications: (applications ?? []) as AdminData['applications'],
+    postings: (postings ?? []) as AdminData['postings'],
   }
 
   return (
