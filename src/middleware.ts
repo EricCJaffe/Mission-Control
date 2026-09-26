@@ -94,6 +94,7 @@ export const config = {
     // which is the "defence by coincidence" the header warns about.
     '/maintenance/:path*',
     '/rv/:path*',
+    '/checklists/:path*',
     '/ideas/:path*',
     '/brain/:path*',
     '/login',
