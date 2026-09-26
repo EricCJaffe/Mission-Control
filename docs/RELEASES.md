@@ -28,6 +28,17 @@
   any other page, FinanceOS or BibleOS.
 - Seeded: Steve, David Stevens, Matt, and 12 jobs at the house.
 
+### September 26, 2026 — Two-account checklists
+
+- New `/checklists` (sidebar): **Set Up the Reserve Account** (once, 3 steps)
+  and **Switch Accounts** (each time, 5 steps), from
+  `~/dev/brain/docs/RUNBOOK-two-accounts.md`. Same tick-and-reset screen and
+  run history as the RV checklists.
+- Both are **ordered**: only the first unticked step can be tapped, and the
+  server refuses the rest, so `fsa-account --prepare` cannot be skipped after
+  the login and `fsa-park --apply` cannot be skipped before a switch. Their
+  warnings show red. Content is `src/lib/checklists/ops.json`.
+
 ### September 25, 2026 — The RV
 
 - New `/rv` (camper in the sidebar): the rig at a glance, the next or current

@@ -97,6 +97,7 @@ export const config = {
     // Eric's side of the helper list. The helpers' own pages are /h, outside
     // this list on purpose: they have no Supabase session (ADR 0011).
     '/helpers/:path*',
+    '/checklists/:path*',
     '/ideas/:path*',
     '/brain/:path*',
     '/login',

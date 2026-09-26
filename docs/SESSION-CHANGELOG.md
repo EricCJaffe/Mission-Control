@@ -33,6 +33,26 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 - Nobody has a login yet: Eric creates them on /helpers (needs emails).
 - Nobody is set to clock hours yet: tick "Clocks in and out" per person.
 
+## 2026-09-26 14:10 ET — Two-account checklists
+
+### What changed
+- `src/lib/checklists/ops.json`: the reserve setup and account switch, from the
+  brain runbook (edit both together). Served at `/checklists`, reusing
+  `RvChecklist`, `rv_checklist_runs` and `rv_checklist_checks` — no migration.
+- `Checklist.ordered` + `blockedBy()`: the screen locks later steps and
+  `setChecked` refuses them. `critical` sections render their warning red.
+- `openRun` attaches a campground stop only for arrival/departure
+  (`STOP_CHECKLISTS`); `/rv/checklists/*` now 404s for non-RV ids.
+
+### Why
+- Eric bought a second Anthropic account and wanted the switch procedure on his
+  phone "like the RV thing". The two steps that lose work or run ungoverned
+  had to be impossible to skip, not just warned about.
+
+### Follow-ups
+- The shareable helper task list: waiting on Eric's answers to 3 questions
+  (fsa-ask bundle 4266683e).
+
 ## 2026-09-25 10:30 ET — RV module
 
 ### What changed
