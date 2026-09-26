@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { CHECKLISTS, getChecklist, itemIds, progress, durationMinutes } from './checklists.ts';
+import { CHECKLISTS, OPS_CHECKLISTS, blockedBy, getChecklist, itemIds, progress, durationMinutes } from './checklists.ts';
 import { span, nights, stopForToday, statusByDate, stillToBook, deadlines, todayView, callSheet, type Stop, type Reservation } from './trips.ts';
 
 test('both checklists load with unique item ids', () => {
@@ -116,4 +116,19 @@ test('every guide parses, and every checklist link points at one', () => {
   assert.equal(GUIDES.length, 11);
   assert.ok(getGuide('black-tank')?.body.includes('Black valve OPEN first'));
   for (const c of CHECKLISTS) for (const s of c.sections) if (s.guide) assert.ok(getGuide(s.guide), `${s.id} -> ${s.guide}`);
+});
+
+test('the two-account checklists are ordered, and prepare cannot be skipped past', () => {
+  assert.deepEqual(OPS_CHECKLISTS.map((c) => c.id), ['reserve-setup', 'account-switch']);
+  assert.ok(!CHECKLISTS.some((c) => c.id === 'reserve-setup'), 'ops lists stay off the RV page');
+  const setup = getChecklist('reserve-setup')!;
+  assert.equal(itemIds(setup).length, 3);
+  assert.equal(blockedBy(setup, [], 'reserve-setup-i1'), null);
+  assert.equal(blockedBy(setup, ['reserve-setup-i1'], 'reserve-setup-i3'), 'reserve-setup-i2');
+  assert.equal(blockedBy(setup, ['reserve-setup-i1', 'reserve-setup-i2'], 'reserve-setup-i3'), null);
+  const sw = getChecklist('account-switch')!;
+  assert.equal(itemIds(sw).length, 5);
+  assert.equal(blockedBy(sw, [], 'account-switch-i3'), 'account-switch-i1', 'fsa-park comes first');
+  assert.ok(sw.sections[0].critical && sw.sections[0].warning?.includes('Skipping step 1'));
+  assert.equal(blockedBy(getChecklist('departure')!, [], itemIds(getChecklist('departure')!).at(-1)!), null, 'RV lists stay unordered');
 });

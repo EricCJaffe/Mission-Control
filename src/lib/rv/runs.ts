@@ -9,7 +9,7 @@
 
 import type { MissionClient } from '@/lib/supabase/schema';
 import { today } from '@/lib/day';
-import { getChecklist, progress } from './checklists';
+import { blockedBy, getChecklist, progress, STOP_CHECKLISTS } from './checklists';
 import { ordered, span, stopForToday, STOP_COLUMNS, type Stop } from './trips';
 
 export type Run = {
@@ -72,7 +72,7 @@ export async function openRun(db: MissionClient, userId: string, checklistId: st
     .maybeSingle();
   if (existing.data) return existing.data as Run;
 
-  const stop = checklistId === 'pretrip' ? null : await todaysStop(db, checklistId);
+  const stop = STOP_CHECKLISTS.has(checklistId) ? await todaysStop(db, checklistId) : null;
   const trip = checklistId === 'pretrip' ? await tripForPretrip(db) : null;
   const { data, error } = await db
     .from('rv_checklist_runs')
@@ -123,6 +123,8 @@ export async function setChecked(
   const run = await openRun(db, userId, checklistId);
 
   if (checked) {
+    // The screen greys these out; this is the check that holds when it does not.
+    if (blockedBy(checklist, await checkedIds(db, run.id), itemId)) throw new Error('Do the step above first');
     const { error } = await db
       .from('rv_checklist_checks')
       .upsert({ run_id: run.id, item_id: itemId, user_id: userId }, { onConflict: 'run_id,item_id', ignoreDuplicates: true });

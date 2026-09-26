@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, AlertTriangle, RotateCcw, BookOpen } from 'lucide-react';
-import type { Checklist } from '@/lib/rv/checklists';
+import { ArrowLeft, Check, AlertTriangle, RotateCcw, BookOpen, Lock } from 'lucide-react';
+import { blockedBy, type Checklist } from '@/lib/rv/checklists';
 
 /**
  * One checklist, run on a phone, one-handed, outside, usually with gloves.
@@ -14,15 +14,22 @@ import type { Checklist } from '@/lib/rv/checklists';
  *   step is never shown done that the database does not have.
  * - Reset is behind an in-page confirm, never a browser dialog, and archives
  *   the run rather than deleting it.
+ * - On an `ordered` checklist only the first unticked step is tappable; the
+ *   rest are greyed with a lock, and the server refuses them too.
+ * - `basePath`/`back` let /checklists reuse it for lists that are not the RV's.
  */
 export default function RvChecklist({
   checklist,
   initialChecked,
   location,
+  basePath = '/rv/checklists',
+  back = { href: '/rv', label: 'RV' },
 }: {
   checklist: Checklist;
   initialChecked: string[];
   location: string | null;
+  basePath?: string;
+  back?: { href: string; label: string };
 }) {
   const [checked, setChecked] = useState<Set<string>>(() => new Set(initialChecked));
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +53,7 @@ export default function RvChecklist({
     });
     setError(null);
     try {
-      const res = await fetch(`/rv/checklists/${checklist.id}/check`, {
+      const res = await fetch(`${basePath}/${checklist.id}/check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ item_id: itemId, checked: next }),
@@ -68,7 +75,7 @@ export default function RvChecklist({
     setResetting(true);
     setError(null);
     try {
-      const res = await fetch(`/rv/checklists/${checklist.id}/reset`, { method: 'POST' });
+      const res = await fetch(`${basePath}/${checklist.id}/reset`, { method: 'POST' });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`);
       setChecked(new Set());
       setConfirmReset(false);
@@ -84,8 +91,8 @@ export default function RvChecklist({
       {/* Sticky: progress and Reset stay under the thumb however far down the list is. */}
       <div className="sticky top-0 z-20 -mx-4 border-b border-slate-200 bg-white/95 px-4 pb-3 pt-3 backdrop-blur md:mx-0 md:rounded-b-2xl">
         <div className="flex items-center justify-between gap-3">
-          <Link href="/rv" className="flex min-h-[44px] items-center gap-1 text-sm text-slate-500">
-            <ArrowLeft className="h-4 w-4" /> RV
+          <Link href={back.href} className="flex min-h-[44px] items-center gap-1 text-sm text-slate-500">
+            <ArrowLeft className="h-4 w-4" /> {back.label}
           </Link>
           <button
             type="button"
@@ -102,6 +109,7 @@ export default function RvChecklist({
           </span>
         </div>
         {location && <div className="text-xs text-slate-500">{location}</div>}
+        {checklist.duration && <div className="text-xs text-slate-500">{checklist.duration}</div>}
         <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
           <div
             className={`h-full rounded-full transition-all ${done === total ? 'bg-green-600' : 'bg-blue-600'}`}
@@ -154,7 +162,11 @@ export default function RvChecklist({
               </Link>
             )}
             {section.warning && (
-              <div className="mt-2 flex gap-2 rounded-xl border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900">
+              <div
+                className={`mt-2 flex gap-2 rounded-xl border p-3 text-sm ${
+                  section.critical ? 'border-red-300 bg-red-50 font-medium text-red-900' : 'border-yellow-300 bg-yellow-50 text-yellow-900'
+                }`}
+              >
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{section.warning}</span>
               </div>
@@ -162,14 +174,16 @@ export default function RvChecklist({
             <div className="mt-2 grid gap-2">
               {section.items.map((item) => {
                 const on = checked.has(item.id);
+                const locked = !on && blockedBy(checklist, checked, item.id) !== null;
                 return (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => toggle(item.id)}
+                    disabled={locked}
                     aria-pressed={on}
                     className={`flex min-h-[56px] w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
-                      on ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-white active:bg-slate-50'
+                      on ? 'border-green-200 bg-green-50' : locked ? 'border-slate-200 bg-slate-50 opacity-50' : 'border-slate-200 bg-white active:bg-slate-50'
                     }`}
                   >
                     <span
@@ -178,9 +192,14 @@ export default function RvChecklist({
                       }`}
                     >
                       {on && <Check className="h-4 w-4" />}
+                      {locked && <Lock className="h-3.5 w-3.5 text-slate-400" />}
                     </span>
                     <span className="min-w-0">
-                      <span className={`block text-[15px] font-medium ${on ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                      <span
+                        className={`block break-words text-[15px] font-medium ${checklist.ordered ? 'font-mono text-sm' : ''} ${
+                          on ? 'text-slate-500 line-through' : 'text-slate-900'
+                        }`}
+                      >
                         {item.text}
                       </span>
                       {item.note && <span className="mt-0.5 block text-sm text-slate-500">{item.note}</span>}

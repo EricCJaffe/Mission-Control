@@ -11,11 +11,17 @@
  */
 
 import data from './checklists.json' with { type: 'json' };
+import ops from '../checklists/ops.json' with { type: 'json' };
 
 export type ChecklistItem = { id: string; text: string; note: string | null };
 /* `guide` names an entry in guides-content.ts, shown as a link on the section. */
-export type ChecklistSection = { id: string; title: string; warning: string | null; guide?: string; items: ChecklistItem[] };
-export type Checklist = { id: string; title: string; sections: ChecklistSection[] };
+/* `critical` shows the warning red rather than yellow: the step it guards is
+   the one where skipping loses something. */
+export type ChecklistSection = { id: string; title: string; warning: string | null; guide?: string; critical?: boolean; items: ChecklistItem[] };
+/* `ordered`: an item cannot be ticked until every item above it is. For a
+   procedure whose danger is doing step 3 before step 2, not for a packing list.
+   `duration` is the expected time, shown before the first run has history. */
+export type Checklist = { id: string; title: string; duration?: string; ordered?: boolean; sections: ChecklistSection[] };
 
 export type Rig = {
   coach: string;
@@ -28,12 +34,37 @@ export type Rig = {
 export const RIG = data.rig as Rig;
 export const CHECKLISTS = data.checklists as Checklist[];
 
+/*
+ * Checklists that are not about the RV — the two-account procedure first —
+ * served at /checklists on the same runs and ticks. Kept out of CHECKLISTS so
+ * the RV page lists only travel-day ones.
+ */
+export const OPS_CHECKLISTS = ops.checklists as Checklist[];
+
+/* The checklists a run can attach to the stop the rig is at today. */
+export const STOP_CHECKLISTS = new Set(['arrival', 'departure']);
+
 export function getChecklist(id: string): Checklist | null {
-  return CHECKLISTS.find((c) => c.id === id) ?? null;
+  return CHECKLISTS.find((c) => c.id === id) ?? OPS_CHECKLISTS.find((c) => c.id === id) ?? null;
 }
 
 export function itemIds(checklist: Checklist): string[] {
   return checklist.sections.flatMap((s) => s.items.map((i) => i.id));
+}
+
+/**
+ * The item that must be ticked before `itemId` can be, on an ordered
+ * checklist; null when it may be ticked now. Only the FIRST unticked item is
+ * open, so "log in, then prepare" cannot become "log in, then something else".
+ */
+export function blockedBy(checklist: Checklist, checked: Iterable<string>, itemId: string): string | null {
+  if (!checklist.ordered) return null;
+  const done = new Set(checked);
+  for (const id of itemIds(checklist)) {
+    if (id === itemId) return null;
+    if (!done.has(id)) return id;
+  }
+  return null;
 }
 
 /**

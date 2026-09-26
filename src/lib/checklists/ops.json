@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "source": "~/dev/brain/docs/RUNBOOK-two-accounts.md — the runbook is canonical; this is its checklist form. Edit both together.",
+  "checklists": [
+    {
+      "id": "reserve-setup",
+      "title": "Set Up the Reserve Account",
+      "duration": "Once · about 5 min",
+      "ordered": true,
+      "sections": [
+        {
+          "id": "reserve-setup-s1",
+          "title": "Log in, then govern it before anything else",
+          "critical": true,
+          "warning": "DO NOT RUN ANYTHING ON THE RESERVE BETWEEN STEPS 1 AND 2. Claude Code reads its hooks, settings and CLAUDE.md from the config directory. A freshly logged-in account has an identity and no ruleset: no ship gate, no US-English check, no claim-check, no blanket-staging refusal. It is not neutral, it is ungoverned.",
+          "items": [
+            {
+              "id": "reserve-setup-i1",
+              "text": "CLAUDE_CONFIG_DIR=~/.claude-reserve claude",
+              "note": "Then /login as the reserve (4lot.org) account. Run nothing else in it."
+            },
+            {
+              "id": "reserve-setup-i2",
+              "text": "fsa-account --prepare",
+              "note": "Mirror the guardrails. This must be the very next thing after the login."
+            },
+            {
+              "id": "reserve-setup-i3",
+              "text": "fsa-account --verify",
+              "note": "Prove it, do not assume it: each hook must be registered in settings.json AND present on disk. A file without a registration guards nothing; a registration without a file fails silently."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "account-switch",
+      "title": "Switch Accounts",
+      "duration": "Each time · about 10 min",
+      "ordered": true,
+      "sections": [
+        {
+          "id": "account-switch-s1",
+          "title": "Park every session first",
+          "critical": true,
+          "warning": "A live session's context IS its transcript, and the transcript belongs to the account that made it. No environment variable moves it. Step 1 is the entire mitigation: it turns a lost conversation into a document both accounts can read. Skipping step 1 is the only way to actually lose work here.",
+          "items": [
+            {
+              "id": "account-switch-i1",
+              "text": "fsa-park --apply",
+              "note": "Every session writes a handoff into brain."
+            },
+            {
+              "id": "account-switch-i2",
+              "text": "ls ~/dev/brain/docs/sessions/PARK-*.md",
+              "note": "Read them."
+            }
+          ]
+        },
+        {
+          "id": "account-switch-s2",
+          "title": "Switch",
+          "warning": null,
+          "items": [
+            {
+              "id": "account-switch-i3",
+              "text": "herdr-fleet --down",
+              "note": "Close the workspaces."
+            },
+            {
+              "id": "account-switch-i4",
+              "text": "Switch the account in the client, or export CLAUDE_CONFIG_DIR",
+              "note": null
+            },
+            {
+              "id": "account-switch-i5",
+              "text": "herdr-fleet --up",
+              "note": "The new sessions read the handoffs."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
