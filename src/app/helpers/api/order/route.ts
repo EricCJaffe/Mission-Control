@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   if (!o) return NextResponse.json({ error: 'Signed out' }, { status: 401 });
   const b = (await req.json().catch(() => ({}))) as { task_id?: string; direction?: string };
   const rows = await sharedRows(o.db, o.userId);
-  const ids = helperView(rows, { worker_id: null, skills: null }, await workerNames(o.db, o.userId), today()).oneOff.map((i) => i.id);
+  const ids = helperView(rows, { worker_id: null, skills: null, includeBlocked: true }, await workerNames(o.db, o.userId), today()).oneOff.map((i) => i.id);
   const at = ids.indexOf(String(b.task_id));
   const to = b.direction === 'up' ? at - 1 : at + 1;
   if (at < 0 || to < 0 || to >= ids.length) return NextResponse.json({ ok: true });

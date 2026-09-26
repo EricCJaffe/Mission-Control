@@ -45,6 +45,13 @@ export default async function HelpersPage() {
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ])
 
+  const blockerIds = [...new Set((items ?? []).map((i) => i.blocked_by as string | null).filter((x): x is string => Boolean(x)))]
+  const { data: blockers } = blockerIds.length
+    ? await db.from('tasks').select('id,title,status').in('id', blockerIds)
+    : { data: [] as Array<{ id: string; title: string; status: string }> }
+  const openBlockers = new Set((blockers ?? []).filter((b) => b.status !== 'done').map((b) => b.id as string))
+  const blockerTitles = Object.fromEntries((blockers ?? []).map((b) => [b.id as string, b.title as string]))
+
   const rows: WorkRow[] = (sharedTasks ?? []).map((task) => {
     const i = itemByTask.get(task.id as string)!
     return {
@@ -52,6 +59,7 @@ export default async function HelpersPage() {
       shared: i.shared, skill: i.skill, location_label: i.location_label, pinned: i.pinned, sort_order: i.sort_order,
       assignee_worker_id: i.assignee_worker_id, assignee_name: i.assignee_name, instructions: i.instructions, materials: i.materials,
       gift_card_note: i.gift_card_note, gift_card_sent_at: i.gift_card_sent_at, claimed_at: i.claimed_at,
+      blocked_by: i.blocked_by, blocked_open: Boolean(i.blocked_by && openBlockers.has(i.blocked_by as string)),
     } as WorkRow
   })
 
@@ -73,6 +81,7 @@ export default async function HelpersPage() {
     properties: props,
     time: (time ?? []) as AdminData['time'],
     completions: (done ?? []) as AdminData['completions'],
+    blockerTitles,
   }
 
   return (

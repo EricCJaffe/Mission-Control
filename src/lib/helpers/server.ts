@@ -65,6 +65,12 @@ export async function sharedRows(db: MissionClient, ownerId: string): Promise<Wo
     .eq('user_id', ownerId)
     .in('id', ids);
   const byId = new Map((tasks ?? []).map((t) => [t.id as string, t]));
+  // Blocking tasks may not be shared themselves, so their status is read separately.
+  const blockerIds = [...new Set((items ?? []).map((i) => i.blocked_by as string | null).filter((x): x is string => Boolean(x)))];
+  const { data: blockers } = blockerIds.length
+    ? await db.from('tasks').select('id,status').eq('user_id', ownerId).in('id', blockerIds)
+    : { data: [] as Array<{ id: string; status: string }> };
+  const openBlockers = new Set((blockers ?? []).filter((b) => b.status !== 'done').map((b) => b.id as string));
   return (items ?? []).flatMap((i) => {
     const t = byId.get(i.task_id as string);
     if (!t) return [];
@@ -74,6 +80,7 @@ export async function sharedRows(db: MissionClient, ownerId: string): Promise<Wo
       assignee_worker_id: i.assignee_worker_id, assignee_name: i.assignee_name, instructions: i.instructions,
       materials: i.materials, gift_card_note: i.gift_card_note, gift_card_sent_at: i.gift_card_sent_at,
       claimed_at: i.claimed_at,
+      blocked_by: i.blocked_by, blocked_open: Boolean(i.blocked_by && openBlockers.has(i.blocked_by as string)),
     } as WorkRow];
   });
 }

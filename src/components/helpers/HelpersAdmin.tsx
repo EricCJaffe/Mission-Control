@@ -16,6 +16,7 @@ export type AdminData = {
   properties: Array<{ id: string; label: string; kind: string | null }>;
   time: Array<{ id: string; task_title: string; worker_id: string; started_at: string; ended_at: string | null }>;
   completions: Array<{ id: string; task_title: string; worker_id: string | null; completed_at: string; note: string | null }>;
+  blockerTitles: Record<string, string>;
 };
 
 const card = 'rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm';
@@ -39,7 +40,7 @@ export default function HelpersAdmin({ data }: { data: AdminData }) {
   const names = useMemo(() => new Map(data.workers.map((w) => [w.id, w.name])), [data.workers]);
   const shared = data.rows.filter((r) => r.shared);
   // Same ordering the helpers get, with every skill and no due-date window.
-  const oneOff = helperView(shared, { worker_id: null, skills: null }, names, data.today).oneOff;
+  const oneOff = helperView(shared, { worker_id: null, skills: null, includeBlocked: true }, names, data.today).oneOff;
   const maintenance = shared.filter((r) => r.recurrence_rule).sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''));
   const rowById = new Map(data.rows.map((r) => [r.task_id, r]));
 
@@ -74,6 +75,11 @@ export default function HelpersAdmin({ data }: { data: AdminData }) {
                     : ' · open board'}
                 {r.due_date ? ` · due ${r.due_date}` : ''}
               </span>
+              {r.blocked_open && r.blocked_by && (
+                <span className="block truncate text-xs font-medium text-yellow-800">
+                  Hidden from helpers until done: {data.blockerTitles[r.blocked_by] ?? 'another job'}
+                </span>
+              )}
             </span>
           </button>
           {index !== null && (

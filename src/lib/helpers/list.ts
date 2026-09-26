@@ -46,6 +46,9 @@ export type WorkRow = {
   gift_card_note: string | null;
   gift_card_sent_at: string | null;
   claimed_at: string | null;
+  /* The task this one waits for, and whether that task is still open. */
+  blocked_by: string | null;
+  blocked_open: boolean;
 };
 
 /** One job as a helper sees it. Nothing else about the task leaves the server. */
@@ -69,7 +72,7 @@ export type HelperItem = {
 };
 
 /** Who is looking. `null` skills means Eric's preview of everything. */
-export type Viewer = { worker_id: string | null; skills: string[] | null };
+export type Viewer = { worker_id: string | null; skills: string[] | null; includeBlocked?: boolean };
 
 export function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T12:00:00Z`);
@@ -105,6 +108,9 @@ export function helperView(
   const horizon = addDays(todayIso, DUE_SOON_DAYS);
   const visible = rows.filter((r) => {
     if (!r.shared || CLOSED.has(r.status ?? '')) return false;
+    // Waiting on another job: nobody sees it until that one is done. Only
+    // Eric's master list (includeBlocked) keeps it, so he can order it.
+    if (r.blocked_open && !viewer.includeBlocked) return false;
     if (viewer.skills === null) return true;
     const mine = viewer.worker_id !== null && r.assignee_worker_id === viewer.worker_id;
     return mine || (unassigned(r) && viewer.skills.includes(r.skill));

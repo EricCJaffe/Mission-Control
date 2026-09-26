@@ -21,6 +21,8 @@ const base: WorkRow = {
   gift_card_note: null,
   gift_card_sent_at: null,
   claimed_at: null,
+  blocked_by: null,
+  blocked_open: false,
 };
 const row = (o: Partial<WorkRow>): WorkRow => ({ ...base, ...o });
 const names = new Map([['w-steve', 'Steve']]);
@@ -52,6 +54,13 @@ test('claimed means I took it, not that Eric gave it to me', () => {
     helper, names, today,
   ).oneOff;
   assert.deepEqual(v.map((i) => [i.id, i.claimed]).sort(), [['given', false], ['took', true]]);
+});
+
+test('a job waiting on an open job is hidden from everyone but the master list', () => {
+  const rows = [row({ task_id: 'demo', blocked_by: 'caps', blocked_open: true }), row({ task_id: 'free', blocked_by: 'caps', blocked_open: false })];
+  assert.deepEqual(helperView(rows, helper, names, today).oneOff.map((i) => i.id), ['free']);
+  assert.deepEqual(helperView(rows, { worker_id: null, skills: null }, names, today).oneOff.map((i) => i.id), ['free'], 'preview matches helpers');
+  assert.equal(helperView(rows, { worker_id: null, skills: null, includeBlocked: true }, names, today).oneOff.length, 2);
 });
 
 test('one-offs: pinned first, then his order, then due, then oldest', () => {
