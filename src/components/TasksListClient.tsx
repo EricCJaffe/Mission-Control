@@ -572,6 +572,7 @@ export default function TasksListClient({
         columns={columns}
         noun={["task", "tasks"]}
         searchPlaceholder="Search tasks…"
+        searchText={(t) => [t.why, t.assignee].filter(Boolean).join(" ")}
         groups={groups}
         defaultGroup="status"
         groupAlert={(groupRows) => {

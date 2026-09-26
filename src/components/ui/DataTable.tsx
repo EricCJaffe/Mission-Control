@@ -104,6 +104,11 @@ interface DataTableProps<T extends { id: string }> {
   hideSearch?: boolean;
   /** Extra classes per row: a done row greyed, an overdue one tinted. */
   rowClassName?: (row: T) => string;
+  /**
+   * Extra text the search box matches, beyond the visible columns — a task's
+   * description, say. Without it, search only sees what the columns show.
+   */
+  searchText?: (row: T) => string;
 }
 
 const NO_GROUP = '__flat__';
@@ -293,6 +298,7 @@ export function DataTable<T extends { id: string }>({
   groupAlert,
   hideSearch = false,
   rowClassName,
+  searchText,
 }: DataTableProps<T>) {
   const [state, setLocal] = useState<ViewState>(emptyView);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -306,7 +312,14 @@ export function DataTable<T extends { id: string }>({
   const setState = (patch: Partial<ViewState>) => setLocal((s) => updateView(s, patch));
   const { search, filters, sort, page } = state;
 
-  const view = useMemo(() => applyView(rows, columns, { search, filters, sort }), [rows, columns, search, filters, sort]);
+  const view = useMemo(() => {
+    if (!searchText || !search.trim()) return applyView(rows, columns, { search, filters, sort });
+    // A row matches when its columns do OR its extra text does.
+    const needle = search.trim().toLowerCase();
+    const byColumns = new Set(applyView(rows, columns, { search }).map((r) => r.id));
+    const matched = rows.filter((r) => byColumns.has(r.id) || searchText(r).toLowerCase().includes(needle));
+    return applyView(matched, columns, { filters, sort });
+  }, [rows, columns, search, filters, sort, searchText]);
 
   // Options come from everything loaded, not what is shown, or narrowing one
   // filter would empty the choices in the next.
@@ -594,6 +607,6 @@ const PILL: Record<PillTone, string> = {
   slate: 'bg-slate-100 text-slate-700 ring-slate-200',
 };
 
-export function StatusPill({ tone, children }: { tone: PillTone; children: React.ReactNode }) {
-  return <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${PILL[tone]}`}>{children}</span>;
+export function StatusPill({ tone, children, title }: { tone: PillTone; children: React.ReactNode; title?: string }) {
+  return <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${PILL[tone]}`}>{children}</span>;
 }

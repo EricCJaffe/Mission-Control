@@ -600,9 +600,34 @@ function Hours({ data, names }: { data: AdminData; names: Map<string, string> })
 }
 
 function Applicants({ data, act }: { data: AdminData; act: (path: string, body: unknown) => void }) {
-  const [showAll, setShowAll] = useState(false);
   const title = new Map(data.postings.map((p) => [p.id, p.title]));
-  const list = showAll ? data.applications : data.applications.filter((a) => a.status === 'new' || a.status === 'contacted');
+  type Row = AdminData['applications'][number];
+  const tone = (s: string) => (s === 'new' ? 'blue' : s === 'contacted' ? 'yellow' : s === 'hired' ? 'green' : 'slate') as 'blue' | 'yellow' | 'green' | 'slate';
+  const label = (s: string) => (s === 'declined' ? 'Not a fit' : s[0].toUpperCase() + s.slice(1));
+  const columns: DataColumn<Row>[] = [
+    { key: 'name', header: 'Name', sortable: true, filter: 'text', pinLeft: true },
+    { key: 'status', header: 'Status', sortable: true, filter: 'select', value: (a) => label(a.status), render: (a) => <StatusPill tone={tone(a.status)}>{label(a.status)}</StatusPill> },
+    { key: 'phone', header: 'Phone', render: (a) => <a className="text-blue-700" href={`tel:${a.phone.replace(/[^\d+]/g, '')}`} onClick={(e) => e.stopPropagation()}>{a.phone}</a> },
+    { key: 'license', header: 'License', sortable: true, filter: 'select', value: (a) => (a.drivers_license ? 'Yes' : 'No') },
+    { key: 'availability', header: 'Available', filter: 'text', value: (a) => a.availability ?? '' },
+    { key: 'heard_from', header: 'Heard via', filter: 'select', value: (a) => a.heard_from ?? '' },
+    { key: 'posting', header: 'Job', filter: 'select', value: (a) => title.get(a.posting_id) ?? '' },
+    { key: 'created_at', header: 'Applied', sortable: true, value: (a) => a.created_at, render: (a) => new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) },
+    {
+      key: 'actions',
+      header: '',
+      pinRight: true,
+      render: (a) => (
+        <span className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+          {!a.worker_id && (
+            <button type="button" onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'add' })} className="min-h-[36px] rounded-lg bg-blue-700 px-2 text-xs font-medium text-white">Add to people</button>
+          )}
+          <button type="button" disabled={a.status === 'contacted'} onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'status', status: 'contacted' })} className="min-h-[36px] rounded-lg border border-slate-300 px-2 text-xs disabled:opacity-40">Contacted</button>
+          <button type="button" disabled={a.status === 'declined'} onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'status', status: 'declined' })} className="min-h-[36px] rounded-lg border border-slate-300 px-2 text-xs disabled:opacity-40">Not a fit</button>
+        </span>
+      ),
+    },
+  ];
   return (
     <section className={card}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -613,42 +638,20 @@ function Applicants({ data, act }: { data: AdminData; act: (path: string, body: 
           ))}
         </div>
       </div>
-      <p className="text-xs text-slate-500">From the public job page. Applying never creates a login: add someone to People, then create their login there.</p>
-      <div className="mt-3 grid gap-2">
-        {list.length === 0 && <p className="text-sm text-slate-500">No open applications.</p>}
-        {list.map((a) => (
-          <div key={a.id} className="rounded-xl border border-slate-200 p-3 text-sm">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="font-medium">{a.name}</span>
-              <span className="text-xs text-slate-500">
-                {title.get(a.posting_id) ?? ''} · {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {a.status}
-              </span>
-            </div>
-            <div className="mt-1 text-slate-700">
-              <a className="text-blue-700" href={`tel:${a.phone.replace(/[^\d+]/g, '')}`}>{a.phone}</a>
-              {a.email && <> · <a className="text-blue-700" href={`mailto:${a.email}`}>{a.email}</a></>}
-              {' · '}License: {a.drivers_license ? 'yes' : 'no'}
-            </div>
-            {a.experience && <div className="mt-1 whitespace-pre-line text-slate-700">{a.experience}</div>}
-            <div className="mt-1 text-xs text-slate-500">
-              {a.availability && `Available: ${a.availability}`}{a.availability && a.heard_from ? ' · ' : ''}{a.heard_from && `Heard via ${a.heard_from}`}
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {!a.worker_id && (
-                <button type="button" onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'add' })} className="rounded-lg bg-blue-700 px-2 py-1 text-xs font-medium text-white">Add to people</button>
-              )}
-              {['contacted', 'declined'].map((s) => (
-                <button key={s} type="button" disabled={a.status === s} onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'status', status: s })} className="rounded-lg border border-slate-300 px-2 py-1 text-xs disabled:opacity-40">
-                  {s === 'contacted' ? 'Contacted' : 'Not a fit'}
-                </button>
-              ))}
-            </div>
+      <p className="mb-3 text-xs text-slate-500">From the public job page. Applying never creates a login: add someone to People, then create their login there.</p>
+      <DataTable
+        rows={data.applications}
+        columns={columns}
+        noun={['applicant', 'applicants']}
+        searchPlaceholder="Search applicants…"
+        emptyState={<p className="text-sm text-slate-500">No applications yet.</p>}
+        renderExpanded={(a) => (
+          <div className="grid gap-1 text-sm text-slate-700">
+            {a.email && <div>Email: <a className="text-blue-700" href={`mailto:${a.email}`}>{a.email}</a></div>}
+            {a.experience && <div className="whitespace-pre-line">Experience: {a.experience}</div>}
           </div>
-        ))}
-      </div>
-      {data.applications.length > list.length || showAll ? (
-        <button type="button" onClick={() => setShowAll(!showAll)} className="mt-2 text-xs text-slate-600 underline">{showAll ? 'Only open ones' : `Show all ${data.applications.length}`}</button>
-      ) : null}
+        )}
+      />
     </section>
   );
 }
