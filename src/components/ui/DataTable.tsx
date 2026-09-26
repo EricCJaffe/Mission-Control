@@ -26,7 +26,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, X, Filter, Layers } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, X, Filter, Layers } from 'lucide-react';
 import {
   applyView,
   filterOptions,
@@ -73,9 +73,13 @@ export interface DataColumn<T> extends ColumnView<T> {
 }
 
 /* Sticky cell classes. Opaque, so the scrolled cells do not show through. */
-const PIN_RIGHT = 'sticky right-0 z-10 bg-white shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.15)]';
-const PIN_LEFT = 'sticky left-0 z-10 bg-white shadow-[6px_0_6px_-6px_rgba(0,0,0,0.12)]';
-const HEAD_PIN_BG = 'bg-slate-50';
+const PIN_RIGHT = 'sticky right-0 z-10 bg-white shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.12)]';
+const PIN_LEFT = 'sticky left-0 z-10 bg-white shadow-[6px_0_6px_-6px_rgba(0,0,0,0.10)]';
+/* The look is Trellis's mother list, which Eric sent as the reference on
+   2026-09-26: a warm band behind small tracked capitals, hairline rules, roomy
+   single-line rows, the name in a deep teal, and soft outlined pills. */
+const HEAD_BG = 'bg-[#F3EEE6]';
+const RULE = 'border-[#EEE8DF]';
 
 interface DataTableProps<T extends { id: string }> {
   rows: T[];
@@ -188,7 +192,7 @@ function ColumnFilter<T>({
           place();
           setOpen((o) => !o);
         }}
-        className={`ml-0.5 rounded p-1.5 hover:bg-slate-200 ${set ? 'text-blue-700' : 'text-slate-400 hover:text-slate-600'}`}
+        className={`ml-0.5 rounded p-1.5 hover:bg-[#E9E2D6] ${set ? 'text-blue-700' : 'text-[#C9C1B3] hover:text-[#8C8375]'}`}
         aria-label={set ? `Filter on ${column.header} (active)` : `Filter by ${column.header}`}
         aria-expanded={open}
       >
@@ -353,6 +357,13 @@ export function DataTable<T extends { id: string }>({
 
   const colCount = columns.length + (renderExpanded ? 1 : 0);
   const pinClass = (col: DataColumn<T>) => (col.pinRight ? PIN_RIGHT : col.pinLeft ? PIN_LEFT : '');
+  // Header cells pin the same way but keep the band's color, not the body's white.
+  const headPinClass = (col: DataColumn<T>) =>
+    col.pinRight
+      ? `sticky right-0 z-10 ${HEAD_BG} shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.12)]`
+      : col.pinLeft
+        ? `sticky left-0 z-10 ${HEAD_BG} shadow-[6px_0_6px_-6px_rgba(0,0,0,0.10)]`
+        : '';
 
   const renderRow = (row: T) => {
     const open = openId === row.id;
@@ -360,25 +371,25 @@ export function DataTable<T extends { id: string }>({
     return [
       <tr
         key={row.id}
-        className={`group border-b border-slate-100 last:border-0 ${clickable ? 'cursor-pointer hover:bg-slate-50' : ''} ${open ? 'bg-slate-50' : ''} ${rowClassName?.(row) ?? ''}`}
+        className={`group border-b ${RULE} last:border-0 ${clickable ? 'cursor-pointer hover:bg-[#FBF8F3]' : ''} ${open ? 'bg-[#FBF8F3]' : ''} ${rowClassName?.(row) ?? ''}`}
         onClick={() => (renderExpanded ? setOpenId(open ? null : row.id) : onRowClick?.(row))}
       >
         {renderExpanded && (
-          <td className="w-8 px-2 py-3 align-middle text-slate-400">
+          <td className="w-8 px-2 py-3.5 align-middle text-[#B8B0A2]">
             {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </td>
         )}
         {columns.map((col, i) => (
           <td
             key={col.key}
-            className={`max-w-[22rem] truncate whitespace-nowrap px-3 py-3 align-middle ${i === 0 ? 'font-medium text-slate-900' : 'text-slate-700'} ${pinClass(col)} ${col.pinRight || col.pinLeft ? 'group-hover:bg-slate-50' : ''} ${col.className ?? ''}`}
+            className={`max-w-[22rem] truncate whitespace-nowrap px-4 py-3.5 align-middle text-[15px] ${i === 0 ? 'font-medium text-[#1E3A3F]' : 'text-[#2F2F2F]'} ${pinClass(col)} ${col.pinRight || col.pinLeft ? 'group-hover:bg-[#FBF8F3]' : ''} ${col.className ?? ''}`}
           >
             {col.render ? col.render(row) : ((col.value ? col.value(row) : ((row as Record<string, unknown>)[col.key] as React.ReactNode)) ?? '—')}
           </td>
         ))}
       </tr>,
       open && renderExpanded ? (
-        <tr key={`${row.id}-detail`} className="border-b border-slate-100 bg-slate-50/60">
+        <tr key={`${row.id}-detail`} className={`border-b ${RULE} bg-[#FBF8F3]`}>
           <td colSpan={colCount} className="px-4 py-3">
             {/* Detail is where wrapping belongs; the rows above stay one line. */}
             <div className="whitespace-normal">{renderExpanded(row)}</div>
@@ -437,48 +448,60 @@ export function DataTable<T extends { id: string }>({
       )}
 
       {/* The table scrolls inside this box; the page never scrolls sideways. */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-[#EAE4DA] bg-white">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              {renderExpanded && <th className="w-8 px-2 py-2.5" />}
+            <tr className={`border-b border-[#E7E0D4] ${HEAD_BG}`}>
+              {renderExpanded && <th className="w-8 px-2 py-3" />}
               {columns.map((col) => {
                 const sorted = sort?.key === col.key ? sort.direction : null;
                 return (
                   <th
                     key={col.key}
-                    className={`whitespace-nowrap px-3 py-2 text-left align-middle text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 ${pinClass(col)} ${col.pinRight || col.pinLeft ? HEAD_PIN_BG : ''}`}
+                    className={`whitespace-nowrap px-4 py-3 text-left align-middle text-[12px] font-semibold uppercase tracking-[0.1em] text-[#8C8375] ${headPinClass(col)}`}
                     style={col.width ? { width: col.width } : undefined}
                     aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}
                   >
-                    <span className="inline-flex items-center gap-0.5">
-                      {col.sortable ? (
+                    {/* Name and its filter on the left, the sort control at the
+                        right edge of the cell: the reference's layout. */}
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="inline-flex items-center gap-0.5">
+                        {col.sortable ? (
+                          <button
+                            type="button"
+                            className={`py-1 uppercase tracking-[0.1em] hover:text-[#3F3A33] ${sorted ? 'text-[#3F3A33]' : ''}`}
+                            onClick={() => setState({ sort: nextSort(sort, col.key) })}
+                          >
+                            {col.header}
+                          </button>
+                        ) : (
+                          <span>{col.header}</span>
+                        )}
+                        {col.filter && col.filter !== 'none' && (
+                          <ColumnFilter
+                            column={col}
+                            value={filters[col.key]}
+                            options={optionsFor.get(col.key) ?? []}
+                            onSet={(v) => setFilter(col.key, v)}
+                            onToggle={(v) => toggleFilterValue(col.key, v)}
+                          />
+                        )}
+                      </span>
+                      {col.sortable && (
                         <button
                           type="button"
-                          className={`flex items-center gap-1 py-1 uppercase hover:text-slate-800 ${sorted ? 'text-slate-800' : ''}`}
+                          className={`rounded p-1 ${sorted ? 'text-[#3F3A33]' : 'text-[#C9C1B3] hover:text-[#8C8375]'}`}
                           onClick={() => setState({ sort: nextSort(sort, col.key) })}
                           aria-label={`Sort by ${col.header}`}
                         >
-                          {col.header}
                           {sorted === 'asc' ? (
-                            <ChevronUp className="h-3.5 w-3.5" />
+                            <ArrowUp className="h-4 w-4" />
                           ) : sorted === 'desc' ? (
-                            <ChevronDown className="h-3.5 w-3.5" />
+                            <ArrowDown className="h-4 w-4" />
                           ) : (
-                            <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" />
+                            <ArrowUpDown className="h-3.5 w-3.5" />
                           )}
                         </button>
-                      ) : (
-                        <span>{col.header}</span>
-                      )}
-                      {col.filter && col.filter !== 'none' && (
-                        <ColumnFilter
-                          column={col}
-                          value={filters[col.key]}
-                          options={optionsFor.get(col.key) ?? []}
-                          onSet={(v) => setFilter(col.key, v)}
-                          onToggle={(v) => toggleFilterValue(col.key, v)}
-                        />
                       )}
                     </span>
                   </th>
@@ -490,7 +513,7 @@ export function DataTable<T extends { id: string }>({
           <tbody>
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
-                <tr key={i} className="border-b border-slate-100">
+                <tr key={i} className={`border-b ${RULE}`}>
                   <td colSpan={colCount} className="px-3 py-3">
                     <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
                   </td>
@@ -520,7 +543,7 @@ export function DataTable<T extends { id: string }>({
                 const hidden = group.rows.length - groupRowsShown.length;
                 const alert = groupAlert?.(group.rows) ?? null;
                 return [
-                  <tr key={`g-${group.id}`} className="cursor-pointer border-b border-slate-200 bg-slate-100/70 hover:bg-slate-100" onClick={() => toggleGroup(group.id)}>
+                  <tr key={`g-${group.id}`} className="cursor-pointer border-b border-[#E7E0D4] bg-[#F8F4EE] hover:bg-[#F3EEE6]" onClick={() => toggleGroup(group.id)}>
                     <td colSpan={colCount} className="px-2 py-2">
                       <span className="sticky left-2 flex items-center gap-2 text-sm font-semibold text-slate-800">
                         {open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
@@ -536,7 +559,7 @@ export function DataTable<T extends { id: string }>({
                   </tr>,
                   ...(open ? groupRowsShown.flatMap(renderRow) : []),
                   open && hidden > 0 ? (
-                    <tr key={`g-${group.id}-more`} className="border-b border-slate-100">
+                    <tr key={`g-${group.id}-more`} className={`border-b ${RULE}`}>
                       <td colSpan={colCount} className="px-3 py-2">
                         <button
                           type="button"
@@ -600,13 +623,13 @@ export function DataTable<T extends { id: string }>({
 export type PillTone = 'red' | 'yellow' | 'green' | 'blue' | 'slate';
 
 const PILL: Record<PillTone, string> = {
-  red: 'bg-red-50 text-red-800 ring-red-200',
-  yellow: 'bg-yellow-50 text-yellow-900 ring-yellow-300',
-  green: 'bg-green-50 text-green-800 ring-green-200',
-  blue: 'bg-blue-50 text-blue-800 ring-blue-200',
-  slate: 'bg-slate-100 text-slate-700 ring-slate-200',
+  red: 'bg-[#FCECE8] text-[#B4321F] border-[#F1C7BD]',
+  yellow: 'bg-[#FBF3DC] text-[#7A5A0A] border-[#EAD9A4]',
+  green: 'bg-[#EEF2E4] text-[#3E5A28] border-[#CFDBB8]',
+  blue: 'bg-white text-[#1F3A5F] border-[#D6DCE6]',
+  slate: 'bg-[#F1EEE9] text-[#8C8375] border-[#E1DBD1]',
 };
 
 export function StatusPill({ tone, children, title }: { tone: PillTone; children: React.ReactNode; title?: string }) {
-  return <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${PILL[tone]}`}>{children}</span>;
+  return <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[13px] font-semibold ${PILL[tone]}`}>{children}</span>;
 }

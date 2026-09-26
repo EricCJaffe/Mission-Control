@@ -25,7 +25,13 @@ export default async function JobPage({ params }: Props) {
       <div className="mx-auto max-w-xl px-4 pb-16 pt-6">
         <h1 className="text-2xl font-semibold">{p.title}</h1>
         {p.location && <p className="mt-1 text-sm text-slate-600">{p.location}</p>}
-        {p.summary && <p className="mt-4 text-[15px] text-slate-800">{p.summary}</p>}
+        {/* The form comes first, so it is the first thing a phone shows. */}
+        {(p.schedule || p.pay) && (
+          <p className="mt-2 text-[15px] font-medium text-slate-800">{[p.schedule, p.pay].filter(Boolean).join(' ')}</p>
+        )}
+        <ApplyForm slug={p.slug} />
+
+        {p.summary && <p className="mt-8 text-[15px] text-slate-800">{p.summary}</p>}
 
         <div className="mt-5 rounded-2xl border-2 border-slate-200 bg-white p-4">
           <h2 className="font-semibold">The work</h2>
@@ -49,7 +55,6 @@ export default async function JobPage({ params }: Props) {
           )}
         </div>
 
-        <ApplyForm slug={p.slug} />
       </div>
     </main>
   )
