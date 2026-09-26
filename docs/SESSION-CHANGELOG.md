@@ -10,6 +10,29 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-09-26 15:10 ET — Helper work list
+
+### What changed
+- Migration `20260926184606_helper_work_list.sql`: `workers`,
+  `helper_accounts`, `helper_sessions`, `work_items`, `work_time`,
+  `work_completions` (applied via MCP, filed under the ledger version).
+  `mission.people` already exists (health family table), hence `workers`.
+- `/helpers` + `/helpers/preview` (owner), `/h` + `/h/login` (helpers),
+  route handlers under each. Logic in `src/lib/helpers/`.
+- ADR 0011: why helpers are not Supabase Auth users.
+- Seeded in the live DB (not the repo, which is public): 3 workers, the
+  `helper-jobs` project, 12 shared jobs.
+
+### Why
+- Eric's son is coming to help; Eric wants a list helpers open on a phone,
+  with logins, skills, hours and materials.
+
+### Follow-ups
+- fsa-ask 52cf2153: which property the screened-area roof leak is at (job
+  loaded with no location), and whether "two dudes" meant the two groups.
+- Nobody has a login yet: Eric creates them on /helpers (needs emails).
+- Nobody is set to clock hours yet: tick "Clocks in and out" per person.
+
 ## 2026-09-26 14:10 ET — Two-account checklists
 
 ### What changed

@@ -1,7 +1,7 @@
 "use client";
 
 import NavLink from "@/components/NavLink";
-import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, ClipboardCheck, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper, Bot, Lightbulb, Wrench, Caravan, ListChecks } from "lucide-react";
+import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, ClipboardCheck, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper, Bot, Lightbulb, Wrench, Caravan, HardHat, ListChecks } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
 type SidebarProps = {
@@ -102,6 +102,8 @@ export default function Sidebar({
               {/* The rig, its trips and the travel-day checklists. Beside
                   Maintenance because the coach is the thing both look after. */}
               <NavLink href="/rv" label="RV" shortLabel="RV" collapsed={isCollapsed} icon={<Caravan size={18} className="text-sky-600" />} onClick={handleNavigate} />
+              {/* Jobs shared with the people who help: son, handyman, assistant. */}
+              <NavLink href="/helpers" label="Helpers" shortLabel="HP" collapsed={isCollapsed} icon={<HardHat size={18} className="text-amber-600" />} onClick={handleNavigate} />
               {/* Procedures that are not the RV's (the two-account switch), on
                   the same tick-and-reset screen. */}
               <NavLink href="/checklists" label="Checklists" shortLabel="CK" collapsed={isCollapsed} icon={<ListChecks size={18} className="text-blue-600" />} onClick={handleNavigate} />
