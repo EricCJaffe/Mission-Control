@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import MarkdownEditor from "@/components/MarkdownEditor";
-import { Check, ExternalLink, Pencil, Plus, Repeat, X } from "lucide-react";
+import { ExternalLink, Plus, Repeat, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import RecurrencePicker from "@/components/tasks/RecurrencePicker";
 import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone } from "@/components/ui/DataTable";
@@ -231,7 +231,6 @@ export default function TasksListClient({
   const noteLinksForSelected = selectedTask ? noteLinks.filter((item) => item.task_id === selectedTask.id) : [];
 
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
-  const noteById = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes]);
 
   const rows: Row[] = useMemo(() => {
     return tasks
@@ -457,44 +456,22 @@ export default function TasksListClient({
       key: "actions",
       header: "",
       pinRight: true,
-      width: "5.5rem",
+      width: "2.75rem",
       value: () => null,
       render: (t) => {
         const done = normalizeStatus(t.status) === "done";
+        // A plain checkbox, sized like the text. The row itself opens the task.
         return (
-          <span className="flex items-center justify-end gap-1">
-            {/* stopPropagation so completing does not also open the row. */}
-            <button
-              type="button"
-              disabled={togglingId === t.id}
-              onClick={(event) => {
-                event.stopPropagation();
-                void toggleDone(t);
-              }}
-              aria-label={done ? `Mark ${t.title} not done` : `Mark ${t.title} done`}
-              aria-pressed={done}
-              title={done ? "Mark not done" : "Mark done"}
-              className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-50 ${
-                done
-                  ? "border-green-600 bg-green-600 text-white"
-                  : "border-slate-300 bg-white text-transparent hover:border-green-500 hover:text-green-400"
-              }`}
-            >
-              <Check className="h-4 w-4" strokeWidth={3} />
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                openTask(t);
-              }}
-              aria-label={`Edit ${t.title}`}
-              title="Edit"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-          </span>
+          <input
+            type="checkbox"
+            checked={done}
+            disabled={togglingId === t.id}
+            onClick={(event) => event.stopPropagation()}
+            onChange={() => void toggleDone(t)}
+            aria-label={done ? `Mark ${t.title} not done` : `Mark ${t.title} done`}
+            title={done ? "Mark not done" : "Mark done"}
+            className="h-4 w-4 cursor-pointer accent-green-600 disabled:opacity-50"
+          />
         );
       },
     },
@@ -624,96 +601,7 @@ export default function TasksListClient({
             </button>
           </>
         }
-        renderExpanded={(t) => {
-          const taskSubtasks = subtasks.filter((s) => s.task_id === t.id);
-          const taskLinks = links.filter((l) => l.task_id === t.id);
-          const taskNotes = noteLinks.filter((l) => l.task_id === t.id);
-          const files = attachmentsByTask[t.id] || [];
-          return (
-            <div className="grid gap-3 text-sm">
-              {t.why ? (
-                <p className="whitespace-pre-line text-slate-700">{t.why}</p>
-              ) : (
-                <p className="text-slate-400">No description.</p>
-              )}
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                {t.recurrence_rule && <span>Repeats: {t.recurrence_rule}</span>}
-                {t.is_template && <span>Template</span>}
-                {t.source_ref && <span>Ref: {t.source_ref}</span>}
-                <span>Created {formatDay(t.created_at.slice(0, 10), todayIso)}</span>
-              </div>
-              {(taskSubtasks.length > 0 || taskLinks.length > 0 || taskNotes.length > 0 || files.length > 0) && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {taskSubtasks.length > 0 && (
-                    <div>
-                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Subtasks</div>
-                      <ul className="mt-1 grid gap-1">
-                        {taskSubtasks.map((s) => (
-                          <li key={s.id} className="flex items-center gap-2">
-                            <StatusPill tone={normalizeStatus(s.status) === "done" ? "green" : normalizeStatus(s.status) === "blocked" ? "red" : "slate"}>
-                              {STATUS_LABEL[normalizeStatus(s.status)] ?? s.status}
-                            </StatusPill>
-                            <span className="truncate">{s.title}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {taskLinks.length > 0 && (
-                    <div>
-                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Links</div>
-                      <ul className="mt-1 grid gap-1">
-                        {taskLinks.map((l) => (
-                          <li key={l.id} className="truncate">
-                            <a className="text-blue-700 hover:underline" href={l.url} target="_blank" rel="noreferrer">
-                              {l.label || l.url}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {taskNotes.length > 0 && (
-                    <div>
-                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Linked notes</div>
-                      <ul className="mt-1 grid gap-1">
-                        {taskNotes.map((l) => (
-                          <li key={l.id} className="truncate">
-                            {noteById.get(l.note_id)?.title || "Linked note"}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {files.length > 0 && (
-                    <div>
-                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Attachments</div>
-                      <ul className="mt-1 grid gap-1">
-                        {files.map((f) => (
-                          <li key={f.id} className="truncate">
-                            <a className="text-blue-700 hover:underline" href={`/attachments/${f.id}/download`}>
-                              {f.filename}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-              <div>
-                <button
-                  type="button"
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-blue-700 px-3 text-sm font-medium text-white shadow-sm hover:bg-blue-800"
-                  onClick={() => openTask(t)}
-                >
-                  <Pencil className="h-4 w-4" />
-                  Edit, subtasks, links &amp; files
-                </button>
-              </div>
-            </div>
-          );
-        }}
+        onRowClick={(t) => openTask(t)}
       />
 
       <dialog

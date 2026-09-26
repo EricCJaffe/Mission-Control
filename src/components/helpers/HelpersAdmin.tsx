@@ -620,10 +620,10 @@ function Applicants({ data, act }: { data: AdminData; act: (path: string, body: 
       render: (a) => (
         <span className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
           {!a.worker_id && (
-            <button type="button" onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'add' })} className="min-h-[36px] rounded-lg bg-blue-700 px-2 text-xs font-medium text-white">Add to people</button>
+            <button type="button" onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'add' })} className="h-7 rounded-lg bg-blue-700 px-2 text-xs font-medium text-white">Add to people</button>
           )}
-          <button type="button" disabled={a.status === 'contacted'} onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'status', status: 'contacted' })} className="min-h-[36px] rounded-lg border border-slate-300 px-2 text-xs disabled:opacity-40">Contacted</button>
-          <button type="button" disabled={a.status === 'declined'} onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'status', status: 'declined' })} className="min-h-[36px] rounded-lg border border-slate-300 px-2 text-xs disabled:opacity-40">Not a fit</button>
+          <button type="button" disabled={a.status === 'contacted'} onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'status', status: 'contacted' })} className="h-7 rounded-lg border border-slate-300 px-2 text-xs disabled:opacity-40">Contacted</button>
+          <button type="button" disabled={a.status === 'declined'} onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'status', status: 'declined' })} className="h-7 rounded-lg border border-slate-300 px-2 text-xs disabled:opacity-40">Not a fit</button>
         </span>
       ),
     },

@@ -370,7 +370,7 @@ function IssueButton({ id, redirect, status, children }: { id: string; redirect:
     <form action={`/maintenance/issues/${id}/update`} method="post">
       <input type="hidden" name="redirect" value={redirect} />
       <input type="hidden" name="status" value={status} />
-      <button className="min-h-[36px] rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700" type="submit">
+      <button className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700" type="submit">
         {children}
       </button>
     </form>
