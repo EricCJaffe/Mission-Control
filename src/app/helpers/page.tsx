@@ -51,7 +51,7 @@ export default async function HelpersPage() {
       task_id: task.id, title: task.title, status: task.status, due_date: task.due_date, recurrence_rule: task.recurrence_rule, created_at: task.created_at,
       shared: i.shared, skill: i.skill, location_label: i.location_label, pinned: i.pinned, sort_order: i.sort_order,
       assignee_worker_id: i.assignee_worker_id, assignee_name: i.assignee_name, instructions: i.instructions, materials: i.materials,
-      gift_card_note: i.gift_card_note, gift_card_sent_at: i.gift_card_sent_at,
+      gift_card_note: i.gift_card_note, gift_card_sent_at: i.gift_card_sent_at, claimed_at: i.claimed_at,
     } as WorkRow
   })
 

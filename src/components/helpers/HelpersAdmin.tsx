@@ -67,7 +67,11 @@ export default function HelpersAdmin({ data }: { data: AdminData }) {
               <span className="block truncate text-xs text-slate-500">
                 {SKILL_LABELS[r.skill as keyof typeof SKILL_LABELS] ?? r.skill}
                 {r.location_label ? ` · ${r.location_label}` : ' · no location'}
-                {r.assignee_worker_id ? ` · ${names.get(r.assignee_worker_id) ?? ''}` : r.assignee_name ? ` · ${r.assignee_name}` : ''}
+                {r.assignee_worker_id
+                  ? ` · ${names.get(r.assignee_worker_id) ?? ''}${r.claimed_at ? ' (took it)' : ''}`
+                  : r.assignee_name
+                    ? ` · ${r.assignee_name}`
+                    : ' · open board'}
                 {r.due_date ? ` · due ${r.due_date}` : ''}
               </span>
             </span>

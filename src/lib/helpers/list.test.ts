@@ -20,6 +20,7 @@ const base: WorkRow = {
   materials: null,
   gift_card_note: null,
   gift_card_sent_at: null,
+  claimed_at: null,
 };
 const row = (o: Partial<WorkRow>): WorkRow => ({ ...base, ...o });
 const names = new Map([['w-steve', 'Steve']]);
@@ -31,14 +32,26 @@ test('nothing is shown that is not shared, or is closed', () => {
   assert.deepEqual(v.oneOff.map((i) => i.id), ['c']);
 });
 
-test('a helper never sees a job above their skill unless it is assigned to them', () => {
+test('a helper sees their own jobs and the open board in their skill, nothing else', () => {
   const rows = [
     row({ task_id: 'switch', skill: 'electrician' }),
     row({ task_id: 'posts', skill: 'helper' }),
     row({ task_id: 'mine', skill: 'carpenter', assignee_worker_id: 'w-tyler' }),
+    row({ task_id: 'steves', skill: 'helper', assignee_worker_id: 'w-steve' }),
+    row({ task_id: 'other', skill: 'helper', assignee_name: 'Roofer Bob' }),
   ];
-  assert.deepEqual(helperView(rows, helper, names, today).oneOff.map((i) => i.id).sort(), ['mine', 'posts']);
-  assert.equal(helperView(rows, { worker_id: null, skills: null }, names, today).oneOff.length, 3, 'Eric sees all');
+  const v = helperView(rows, helper, names, today).oneOff;
+  assert.deepEqual(v.map((i) => i.id).sort(), ['mine', 'posts']);
+  assert.deepEqual(v.map((i) => [i.id, i.board, i.mine]).sort(), [['mine', false, true], ['posts', true, false]]);
+  assert.equal(helperView(rows, { worker_id: null, skills: null }, names, today).oneOff.length, 5, 'Eric sees all');
+});
+
+test('claimed means I took it, not that Eric gave it to me', () => {
+  const v = helperView(
+    [row({ task_id: 'took', assignee_worker_id: 'w-tyler', claimed_at: '2026-09-26T20:00:00Z' }), row({ task_id: 'given', assignee_worker_id: 'w-tyler' })],
+    helper, names, today,
+  ).oneOff;
+  assert.deepEqual(v.map((i) => [i.id, i.claimed]).sort(), [['given', false], ['took', true]]);
 });
 
 test('one-offs: pinned first, then his order, then due, then oldest', () => {
@@ -67,7 +80,7 @@ test('maintenance shows only when coming due, soonest first, overdue flagged', (
 test('the item carries only the helper-facing fields', () => {
   const [item] = helperView([row({ assignee_worker_id: 'w-steve', gift_card_note: '$100 Home Depot' })], { worker_id: null, skills: null }, names, today).oneOff;
   assert.deepEqual(Object.keys(item).sort(), [
-    'assignee', 'due_date', 'gift_card', 'id', 'instructions', 'location', 'materials', 'mine', 'overdue', 'pinned', 'skill', 'title',
+    'assignee', 'board', 'claimed', 'due_date', 'gift_card', 'id', 'instructions', 'location', 'materials', 'mine', 'overdue', 'pinned', 'skill', 'title',
   ]);
   assert.equal(item.assignee, 'Steve');
 });

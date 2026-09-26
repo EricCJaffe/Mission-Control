@@ -45,6 +45,7 @@ export type WorkRow = {
   materials: string | null;
   gift_card_note: string | null;
   gift_card_sent_at: string | null;
+  claimed_at: string | null;
 };
 
 /** One job as a helper sees it. Nothing else about the task leaves the server. */
@@ -58,6 +59,10 @@ export type HelperItem = {
   overdue: boolean;
   assignee: string | null;
   mine: boolean;
+  /* On the open board: shared, assigned to nobody, anyone with the skill may take it. */
+  board: boolean;
+  /* Mine because I took it off the board (not because Eric assigned it). */
+  claimed: boolean;
   instructions: string | null;
   materials: string | null;
   gift_card: string | null;
@@ -77,13 +82,19 @@ function assigneeLabel(row: WorkRow, workerNames: Map<string, string>): string |
   return row.assignee_name?.trim() || null;
 }
 
+function unassigned(r: WorkRow): boolean {
+  return !r.assignee_worker_id && !r.assignee_name?.trim();
+}
+
 /**
  * The two sections. Maintenance: recurring jobs due within DUE_SOON_DAYS (or
  * overdue), soonest first. One-off: everything else, pinned first, then Eric's
  * order, then due date, then oldest.
  *
- * A job reaches a viewer when its skill is one of theirs, or it is assigned to
- * them. A helper never sees an electrician's job unless it is theirs.
+ * A job reaches a helper when it is assigned to them, or it is on the open
+ * board (assigned to nobody) and its skill is one of theirs. A job assigned to
+ * someone else is theirs alone. A helper never sees an electrician's job
+ * unless it is theirs. Eric's preview (`skills: null`) sees every shared job.
  */
 export function helperView(
   rows: WorkRow[],
@@ -96,7 +107,7 @@ export function helperView(
     if (!r.shared || CLOSED.has(r.status ?? '')) return false;
     if (viewer.skills === null) return true;
     const mine = viewer.worker_id !== null && r.assignee_worker_id === viewer.worker_id;
-    return mine || viewer.skills.includes(r.skill);
+    return mine || (unassigned(r) && viewer.skills.includes(r.skill));
   });
 
   const toItem = (r: WorkRow): HelperItem => ({
@@ -109,6 +120,8 @@ export function helperView(
     overdue: r.due_date !== null && r.due_date < todayIso,
     assignee: assigneeLabel(r, workerNames),
     mine: viewer.worker_id !== null && r.assignee_worker_id === viewer.worker_id,
+    board: unassigned(r),
+    claimed: viewer.worker_id !== null && r.assignee_worker_id === viewer.worker_id && r.claimed_at !== null,
     instructions: r.instructions,
     materials: r.materials,
     gift_card: r.gift_card_note ? r.gift_card_note : null,

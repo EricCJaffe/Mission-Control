@@ -56,6 +56,24 @@ export default function HelperList({
     }
   }
 
+  /* Inside each type: yours, then the open board, then (Eric's preview only) everyone else's. */
+  const groups = (items: HelperItem[], empty: string) => {
+    if (!items.length) return <p className="mt-2 text-sm text-slate-500">{empty}</p>;
+    const parts: Array<[string, HelperItem[]]> = [
+      ['Yours', items.filter((i) => i.mine)],
+      ['Open board: anyone can take these', items.filter((i) => i.board)],
+      ['Assigned to someone', items.filter((i) => !i.mine && !i.board)],
+    ];
+    return parts
+      .filter(([, list]) => list.length)
+      .map(([heading, list]) => (
+        <div key={heading} className="mt-3">
+          <h3 className="text-sm font-semibold text-slate-700">{heading}</h3>
+          <div className="mt-2 grid gap-3">{list.map(card)}</div>
+        </div>
+      ));
+  };
+
   const weekMinutes = hours.reduce((n, h) => n + minutesWorked(h.started_at, h.ended_at), 0);
 
   const card = (item: HelperItem) => {
@@ -81,10 +99,16 @@ export default function HelperList({
               {item.overdue ? 'Overdue since' : 'Due'} {new Date(`${item.due_date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
             </div>
           )}
-          {item.assignee && (
-            <div className="flex items-center gap-1.5">
-              <User className="h-4 w-4" /> {item.mine ? 'Assigned to you' : `With ${item.assignee}`}
+          {item.board ? (
+            <div className="flex items-center gap-1.5 text-green-700">
+              <User className="h-4 w-4" /> Open: anyone can take it
             </div>
+          ) : (
+            item.assignee && (
+              <div className="flex items-center gap-1.5">
+                <User className="h-4 w-4" /> {item.mine ? (item.claimed ? 'You took this one' : 'Assigned to you') : `With ${item.assignee}`}
+              </div>
+            )
           )}
         </div>
         {item.instructions && <p className="mt-2 whitespace-pre-line text-sm text-slate-800">{item.instructions}</p>}
@@ -123,8 +147,18 @@ export default function HelperList({
             </div>
           </div>
         ) : (
-          <div className="mt-3 flex gap-2">
-            {tracksHours && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {item.board && (
+              <button
+                type="button"
+                disabled={busy !== null || preview}
+                onClick={() => post('/h/api/claim', { task_id: item.id, action: 'claim' }, `claim-${item.id}`)}
+                className="min-h-[44px] flex-1 rounded-xl border-2 border-blue-700 text-sm font-medium text-blue-800 disabled:opacity-60"
+              >
+                {busy === `claim-${item.id}` ? 'Taking it…' : 'I’ll take it'}
+              </button>
+            )}
+            {tracksHours && item.mine && (
               <button
                 type="button"
                 disabled={busy !== null || preview}
@@ -144,6 +178,16 @@ export default function HelperList({
             >
               <Check className="h-4 w-4" /> Mark done
             </button>
+            {item.mine && (
+              <button
+                type="button"
+                disabled={busy !== null || preview}
+                onClick={() => post('/h/api/claim', { task_id: item.id, action: 'release' }, `release-${item.id}`)}
+                className="w-full text-center text-xs text-slate-500 underline disabled:opacity-60"
+              >
+                Can’t get to it? Put it back on the board
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -189,14 +233,15 @@ export default function HelperList({
       {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       <section className="mt-6">
-        <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Maintenance coming due</h2>
-        <div className="mt-2 grid gap-3">{maintenance.length ? maintenance.map(card) : <p className="text-sm text-slate-500">Nothing due in the next two weeks.</p>}</div>
+        <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Routine maintenance coming due</h2>
+        <p className="text-xs text-slate-500">Shows up two weeks before it is due.</p>
+        {groups(maintenance, 'Nothing due in the next two weeks.')}
       </section>
 
       <section className="mt-8">
-        <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Jobs</h2>
+        <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">One-off jobs and upgrades</h2>
         <p className="text-xs text-slate-500">Top of the list first. Pinned jobs matter most.</p>
-        <div className="mt-2 grid gap-3">{oneOff.length ? oneOff.map(card) : <p className="text-sm text-slate-500">No jobs right now.</p>}</div>
+        {groups(oneOff, 'No jobs right now.')}
       </section>
 
       {tracksHours && (

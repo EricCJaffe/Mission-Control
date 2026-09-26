@@ -28,6 +28,8 @@ export async function POST(req: Request) {
   if ('assignee_worker_id' in b) {
     patch.assignee_worker_id = b.assignee_worker_id || null;
     if (patch.assignee_worker_id) patch.assignee_name = null;
+    // Eric choosing who does it overrides a helper's claim.
+    patch.claimed_at = null;
   }
   if ('gift_card_sent' in b) patch.gift_card_sent_at = b.gift_card_sent ? new Date().toISOString() : null;
   if ('location_asset_id' in b) {

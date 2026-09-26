@@ -73,6 +73,7 @@ export async function sharedRows(db: MissionClient, ownerId: string): Promise<Wo
       shared: i.shared, skill: i.skill, location_label: i.location_label, pinned: i.pinned, sort_order: i.sort_order,
       assignee_worker_id: i.assignee_worker_id, assignee_name: i.assignee_name, instructions: i.instructions,
       materials: i.materials, gift_card_note: i.gift_card_note, gift_card_sent_at: i.gift_card_sent_at,
+      claimed_at: i.claimed_at,
     } as WorkRow];
   });
 }
@@ -164,4 +165,45 @@ export async function clockAsHelper(h: HelperSession, action: 'in' | 'out', task
     user_id: h.owner_id, task_id: taskId, task_title: title, worker_id: h.worker.id, account_id: h.account_id, started_at: now,
   });
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Take a job off the open board. The update only matches while the job is
+ * still unassigned, so when two helpers tap at once exactly one row changes
+ * and the other is told who got there first.
+ */
+export async function claimAsHelper(h: HelperSession, taskId: string): Promise<void> {
+  const db = serviceClient();
+  const item = await visibleItem(db, h, taskId);
+  if (!item) throw new Error('That job is not on your list');
+  if (!item.board) throw new Error('That job is already taken');
+  const { data } = await db
+    .from('work_items')
+    .update({ assignee_worker_id: h.worker.id, claimed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('task_id', taskId)
+    .eq('user_id', h.owner_id)
+    .eq('shared', true)
+    .is('assignee_worker_id', null)
+    .is('assignee_name', null)
+    .select('task_id');
+  if (!data?.length) {
+    const { data: now } = await db.from('work_items').select('assignee_worker_id').eq('task_id', taskId).eq('user_id', h.owner_id).maybeSingle();
+    const who = now?.assignee_worker_id ? (await workerNames(db, h.owner_id)).get(now.assignee_worker_id as string) : null;
+    throw new Error(who ? `${who} just took that one` : 'Someone just took that one');
+  }
+}
+
+/** Put a job back on the open board: "I can't get to this after all." Only your own. */
+export async function releaseAsHelper(h: HelperSession, taskId: string): Promise<void> {
+  const db = serviceClient();
+  const { data } = await db
+    .from('work_items')
+    .update({ assignee_worker_id: null, claimed_at: null, updated_at: new Date().toISOString() })
+    .eq('task_id', taskId)
+    .eq('user_id', h.owner_id)
+    .eq('assignee_worker_id', h.worker.id)
+    .select('task_id');
+  if (!data?.length) throw new Error('That job is not yours to put back');
+  // Stop the clock on it too: hours on a job you handed back are still hours, but not open ones.
+  await db.from('work_time').update({ ended_at: new Date().toISOString() }).eq('worker_id', h.worker.id).eq('task_id', taskId).is('ended_at', null);
 }

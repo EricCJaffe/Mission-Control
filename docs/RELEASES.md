@@ -18,6 +18,11 @@
   only shared jobs matching their skills or assigned to them. They mark jobs
   done (recorded with their name and an optional note) and, if paid hourly,
   clock in and out. Eric sees hours per person with pay at their rate.
+- Two sections on every list: routine maintenance coming due (two weeks
+  ahead) and one-off jobs and upgrades. Inside each: the helper's own jobs,
+  then the **open board** of unassigned jobs in their skill, which anyone can
+  take ("I'll take it") or put back. A claim only succeeds while the job is
+  unassigned, so two helpers tapping at once cannot both get it.
 - "See what they see" previews the helper screen per person.
 - Helpers are not Supabase users (ADR 0011): no session they hold can reach
   any other page, FinanceOS or BibleOS.
