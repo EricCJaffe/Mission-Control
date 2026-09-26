@@ -7,6 +7,19 @@
 
 ## Latest Changes (Rolling)
 
+### September 26, 2026 — Public job page
+
+- `/jobs/<slug>` is a public, no-login, phone-first job page with a short
+  application (name, phone, optional email, driver's license, experience,
+  availability, how they heard). First posting: `farm-hand`.
+- The posting's content lives in `mission.job_postings`, not the repo; the
+  page reads one row and shows only its public fields.
+- Guards: a honeypot field, 3 applications per IP per hour (IP stored only as
+  a salted hash), 40 per posting per hour.
+- Each application emails Eric and lands in a new Applicants section on
+  `/helpers` ("Add to people", "Contacted", "Not a fit"). Applying never
+  creates a login.
+
 ### September 26, 2026 — Helper work list
 
 - New `/helpers` (sidebar): jobs Eric shares with the people who help him,
