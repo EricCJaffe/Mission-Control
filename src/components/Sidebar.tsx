@@ -1,7 +1,7 @@
 "use client";
 
 import NavLink from "@/components/NavLink";
-import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, ClipboardCheck, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper, Bot, Lightbulb, Wrench, Caravan } from "lucide-react";
+import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, ClipboardCheck, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper, Bot, Lightbulb, Wrench, Caravan, HardHat } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
 type SidebarProps = {
@@ -102,6 +102,8 @@ export default function Sidebar({
               {/* The rig, its trips and the travel-day checklists. Beside
                   Maintenance because the coach is the thing both look after. */}
               <NavLink href="/rv" label="RV" shortLabel="RV" collapsed={isCollapsed} icon={<Caravan size={18} className="text-sky-600" />} onClick={handleNavigate} />
+              {/* Jobs shared with the people who help: son, handyman, assistant. */}
+              <NavLink href="/helpers" label="Helpers" shortLabel="HP" collapsed={isCollapsed} icon={<HardHat size={18} className="text-amber-600" />} onClick={handleNavigate} />
               {/* Directly under Goals/Projects/Tasks, because that is what it
                   reads. A review is the verdict on the week those three had —
                   red, yellow or green per area, with no reading counting as

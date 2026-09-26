@@ -94,6 +94,9 @@ export const config = {
     // which is the "defence by coincidence" the header warns about.
     '/maintenance/:path*',
     '/rv/:path*',
+    // Eric's side of the helper list. The helpers' own pages are /h, outside
+    // this list on purpose: they have no Supabase session (ADR 0011).
+    '/helpers/:path*',
     '/ideas/:path*',
     '/brain/:path*',
     '/login',

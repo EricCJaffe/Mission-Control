@@ -7,6 +7,22 @@
 
 ## Latest Changes (Rolling)
 
+### September 26, 2026 — Helper work list
+
+- New `/helpers` (sidebar): jobs Eric shares with the people who help him,
+  with skill needed, property (from FinanceOS real-estate assets), who it is
+  with (a people list, or "Other"), priority order with pinning, what to buy,
+  and a gift-card note. Maintenance tasks can be shared too; they appear on
+  the helper's list two weeks before they are due.
+- Helpers sign in at `/h` with an email and password Eric creates, and see
+  only shared jobs matching their skills or assigned to them. They mark jobs
+  done (recorded with their name and an optional note) and, if paid hourly,
+  clock in and out. Eric sees hours per person with pay at their rate.
+- "See what they see" previews the helper screen per person.
+- Helpers are not Supabase users (ADR 0011): no session they hold can reach
+  any other page, FinanceOS or BibleOS.
+- Seeded: Steve, David Stevens, Matt, and 12 jobs at the house.
+
 ### September 25, 2026 — The RV
 
 - New `/rv` (camper in the sidebar): the rig at a glance, the next or current
