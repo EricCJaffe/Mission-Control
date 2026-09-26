@@ -7,6 +7,21 @@
 
 ## Latest Changes (Rolling)
 
+### September 26, 2026 — One table for every list
+
+- `src/components/ui/DataTable.tsx`, hand-ported from honeylakeos (no
+  template merges reach this app, so it is maintained by hand): one line per
+  row, a funnel filter and sort in each header, grouping, status pills,
+  skeleton and empty states, identifier pinned left and actions pinned right.
+  On a phone the table scrolls sideways; it never becomes cards.
+- Converted: /tasks (grouped by status by default), /helpers, /h, /maintenance
+  and asset pages, open issues, brain, clients, sync, reviews, and the fitness
+  and lab tables. Lab flags share one color rule (normal green, borderline
+  yellow, out of range red).
+- `npm test` now fails on a raw `<table>` in a screen
+  (`scripts/tables/check-raw-tables.mjs`); five exceptions are allowlisted,
+  each with its reason.
+
 ### September 26, 2026 — Public job page
 
 - `/jobs/<slug>` is a public, no-login, phone-first job page with a short

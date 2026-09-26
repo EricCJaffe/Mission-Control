@@ -1,15 +1,16 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Wrench, Sparkles, History, Trash2, Plus, Landmark } from 'lucide-react'
+import { ArrowLeft, Wrench, Sparkles, History, Landmark } from 'lucide-react'
 import { supabaseServer } from '@/lib/supabase/server'
 import { today } from '@/lib/day'
 import { CATEGORIES, CATEGORY_KEYS, itemsFor } from '@/lib/maintenance/library'
-import { ASSET_COLUMNS, loadPlans, VERDICT_CLASS, type AssetRow } from '@/lib/maintenance/load'
+import { ASSET_COLUMNS, loadPlans, type AssetRow } from '@/lib/maintenance/load'
 import { dueLabel } from '@/lib/maintenance/status'
 import type { Research } from '@/lib/maintenance/research'
 import { describeRRule } from '@/lib/tasks/recurrence'
 import RecurrencePicker from '@/components/tasks/RecurrencePicker'
 import IssuesList, { AddIssueForm, ISSUE_COLUMNS, type IssueRow } from '@/components/maintenance/IssuesList'
+import { PlansTable, SuggestionsTable, HistoryTable, type PlanView } from '@/components/maintenance/MaintenanceTables'
 
 export const dynamic = 'force-dynamic'
 
@@ -89,6 +90,25 @@ export default async function MaintenanceAssetPage({
   const research = asset.research as Research | null
   const totalCost = log.reduce((s, l) => s + (l.cost ?? 0), 0)
   const unit = asset.meter_unit
+  const planViews: PlanView[] = plans.map((p) => {
+    const byMeter = p.meterUsed !== null && p.meter_interval !== null && p.meterUsed >= p.meter_interval
+    return {
+      id: p.task_id,
+      title: p.task.title.replace(`${asset.name}: `, ''),
+      assetId: asset.id,
+      assetName: asset.name,
+      typeLabel: CATEGORIES[asset.category]?.label ?? 'Other',
+      group: CATEGORIES[asset.category]?.group ?? 'Other',
+      repeats: `${describeRRule(p.task.recurrence_rule) ?? 'Once'}${p.meter_interval && unit ? ` · or every ${p.meter_interval.toLocaleString()} ${unit}` : ''}`,
+      dueDate: p.task.due_date,
+      days: p.days,
+      dueText: byMeter ? 'due by meter' : dueLabel(p.days),
+      meterText: p.meter_interval && p.meterUsed !== null ? `${Math.round(p.meterUsed).toLocaleString()} of ${p.meter_interval.toLocaleString()} used` : '',
+      verdict: p.verdict,
+      description: p.task.description,
+      why: p.task.why,
+    }
+  })
 
   return (
     <main className="pt-4 md:pt-8 pb-16">
@@ -134,49 +154,8 @@ export default async function MaintenanceAssetPage({
       {/* ---------------------------------------------------------------- */}
       <section className="mt-6">
         <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Schedule ({plans.length})</h2>
-        <div className="mt-3 grid gap-3">
-          {plans.length === 0 && <p className="text-sm text-slate-500">Nothing scheduled yet — add from the list below.</p>}
-          {plans.map((p) => (
-            <div key={p.task_id} className={card}>
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="font-medium">{p.task.title.replace(`${asset.name}: `, '')}</div>
-                  <div className="text-xs text-slate-500">
-                    {describeRRule(p.task.recurrence_rule)}
-                    {p.meter_interval && unit && ` · or every ${p.meter_interval.toLocaleString()} ${unit}`}
-                    {p.task.due_date && ` · next ${p.task.due_date}`}
-                    {p.meter_interval && p.meterUsed !== null && ` · ${Math.round(p.meterUsed).toLocaleString()} of ${p.meter_interval.toLocaleString()} used`}
-                  </div>
-                </div>
-                <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${VERDICT_CLASS[p.verdict]}`}>
-                  {p.meterUsed !== null && p.meter_interval && p.meterUsed >= p.meter_interval ? 'due by meter' : dueLabel(p.days)}
-                </span>
-              </div>
-              {p.task.description && <p className="mt-2 text-sm text-slate-700">{p.task.description}</p>}
-              {p.task.why && <p className="mt-1 text-xs italic text-slate-500">Why: {p.task.why}</p>}
-
-              <details className="mt-3">
-                <summary className="cursor-pointer text-sm font-medium text-blue-700">Mark done…</summary>
-                <form action={`/maintenance/tasks/${p.task_id}/complete`} method="post" className="mt-2 grid gap-2 sm:grid-cols-4">
-                  <input type="hidden" name="redirect" value={here} />
-                  <input name="performed_on" type="date" defaultValue={todayIso} className={input} aria-label="Date done" />
-                  {unit && <input name="meter_reading" type="number" step="any" placeholder={`${unit} now`} className={input} />}
-                  <input name="cost" type="number" step="0.01" placeholder="Cost $" className={input} />
-                  <input name="vendor" placeholder="Who did it" className={input} />
-                  <input name="notes" placeholder="Notes — parts used, what you found" className={`${input} sm:col-span-3`} />
-                  <button className="rounded-xl bg-blue-700 px-3 py-2 text-sm font-medium text-white" type="submit">
-                    Done — roll forward
-                  </button>
-                </form>
-                <form action={`/maintenance/tasks/${p.task_id}/delete`} method="post" className="mt-2">
-                  <input type="hidden" name="redirect" value={here} />
-                  <button className="flex items-center gap-1 text-xs text-slate-400 hover:text-red-600" type="submit">
-                    <Trash2 className="h-3 w-3" /> Stop this schedule
-                  </button>
-                </form>
-              </details>
-            </div>
-          ))}
+        <div className="mt-3">
+          <PlansTable plans={planViews} mode="asset" redirect={here} todayIso={todayIso} unit={unit} />
         </div>
       </section>
 
@@ -195,24 +174,18 @@ export default async function MaintenanceAssetPage({
       {suggestions.length > 0 && (
         <section className="mt-8">
           <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Best-practice items not yet scheduled</h2>
-          <div className="mt-3 grid gap-2">
-            {suggestions.map((s) => (
-              <div key={s.key} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium">{s.title}</div>
-                  <div className="text-xs text-slate-500">
-                    {describeRRule(s.rule)}
-                    {s.meterInterval && unit && ` · or every ${s.meterInterval} ${unit}`} — {s.why}
-                  </div>
-                </div>
-                <form action={`${here}/schedule`} method="post">
-                  <input type="hidden" name="library_key" value={s.key} />
-                  <button className="flex items-center gap-1 rounded-lg bg-blue-700 px-2.5 py-1 text-xs font-medium text-white" type="submit">
-                    <Plus className="h-3.5 w-3.5" /> Add
-                  </button>
-                </form>
-              </div>
-            ))}
+          <div className="mt-3">
+            <SuggestionsTable
+              action={`${here}/schedule`}
+              rows={suggestions.map((sg) => ({
+                id: sg.key,
+                title: sg.title,
+                repeats: `${describeRRule(sg.rule) ?? 'Once'}${sg.meterInterval && unit ? ` · or every ${sg.meterInterval} ${unit}` : ''}`,
+                why: sg.why,
+                field: 'library_key' as const,
+                value: sg.key,
+              }))}
+            />
           </div>
         </section>
       )}
@@ -246,24 +219,20 @@ export default async function MaintenanceAssetPage({
                   ))}
                 </div>
               )}
-              {research.items.map((item, i) => (
-                <div key={i} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2">
-                  <div className="min-w-0">
-                    <div className="font-medium">{item.title}</div>
-                    <div className="text-xs text-slate-500">
-                      {describeRRule(item.rule)}
-                      {item.meter_interval && unit && ` · or every ${item.meter_interval} ${unit}`}
-                      {item.why && ` — ${item.why}`}
-                    </div>
-                  </div>
-                  <form action={`${here}/schedule`} method="post">
-                    <input type="hidden" name="research_index" value={i} />
-                    <button className="flex items-center gap-1 rounded-lg bg-blue-700 px-2.5 py-1 text-xs font-medium text-white" type="submit">
-                      <Plus className="h-3.5 w-3.5" /> Add
-                    </button>
-                  </form>
-                </div>
-              ))}
+              {research.items.length > 0 && (
+                <SuggestionsTable
+                  action={`${here}/schedule`}
+                  noun={['researched item', 'researched items']}
+                  rows={research.items.map((item, i) => ({
+                    id: String(i),
+                    title: item.title,
+                    repeats: `${describeRRule(item.rule) ?? 'Once'}${item.meter_interval && unit ? ` · or every ${item.meter_interval} ${unit}` : ''}`,
+                    why: item.why ?? null,
+                    field: 'research_index' as const,
+                    value: String(i),
+                  }))}
+                />
+              )}
               <p className="text-[11px] text-slate-400">
                 AI-suggested from {research.model}
                 {asset.researched_at && ` on ${asset.researched_at.slice(0, 10)}`}. Nothing is scheduled until you add
@@ -380,25 +349,19 @@ export default async function MaintenanceAssetPage({
             </h2>
             {totalCost > 0 && <span className="text-sm text-slate-500">Spent {money(totalCost)}</span>}
           </div>
-          <div className="mt-3 grid gap-2">
-            {log.length === 0 && <p className="text-sm text-slate-500">Nothing logged yet. Completing a schedule logs it here automatically.</p>}
-            {log.map((l) => (
-              <div key={l.id} className="flex flex-wrap justify-between gap-2 border-b border-slate-100 pb-2 text-sm last:border-0">
-                <div className="min-w-0">
-                  <div className="font-medium">{l.title.replace(`${asset.name}: `, '')}</div>
-                  <div className="text-xs text-slate-500">
-                    {[l.vendor, l.notes].filter(Boolean).join(' — ')}
-                  </div>
-                </div>
-                <div className="text-right text-xs text-slate-500">
-                  <div>{l.performed_on}</div>
-                  <div>
-                    {l.meter_reading !== null && unit && `${l.meter_reading.toLocaleString()} ${unit}`}
-                    {l.cost !== null && ` · ${money(l.cost)}`}
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="mt-3">
+            <HistoryTable
+              rows={log.map((l) => ({
+                id: l.id,
+                title: l.title.replace(`${asset.name}: `, ''),
+                performed_on: l.performed_on,
+                meterText: l.meter_reading !== null && unit ? `${l.meter_reading.toLocaleString()} ${unit}` : '',
+                cost: l.cost,
+                vendor: l.vendor,
+                notes: l.notes,
+                source: l.source,
+              }))}
+            />
           </div>
           <details className="mt-3">
             <summary className="cursor-pointer text-sm font-medium text-blue-700">Log a repair or one-off…</summary>

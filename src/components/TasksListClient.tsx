@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import MarkdownEditor from "@/components/MarkdownEditor";
-import { Check } from "lucide-react";
+import { Check, ExternalLink, Pencil, Plus, Repeat, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import RecurrencePicker from "@/components/tasks/RecurrencePicker";
-import { today } from "@/lib/day";
+import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone } from "@/components/ui/DataTable";
+import { daysBetween, today } from "@/lib/day";
 
 type Task = {
   id: string;
@@ -42,7 +43,7 @@ type ProjectOption = {
   last_synced_at: string | null;
 };
 
-/** Short pill labels; the select carries the long form. */
+/** Short labels for the table; the edit form's select carries the long form. */
 const DOMAIN_LABEL: Record<string, string> = {
   spirit: "Spirit",
   body: "Body",
@@ -50,6 +51,9 @@ const DOMAIN_LABEL: Record<string, string> = {
   family: "Family",
   work: "Work",
 };
+
+/** Matrix order — God First → Health → Family → Impact — for grouping. */
+const DOMAIN_ORDER = ["spirit", "body", "soul", "family", "work"];
 
 type TaskAttachment = {
   id: string;
@@ -85,149 +89,14 @@ type NoteOption = {
   title: string;
 };
 
+/** A task as the table sees it: the project resolved to a name once. */
+type Row = Task & { projectName: string | null };
+
 function toDateInput(value: string | null) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toISOString().slice(0, 10);
-}
-
-function TaskRow({
-  task,
-  onOpen,
-  onToggleDone,
-  busy,
-  projectName,
-}: {
-  task: Task;
-  onOpen: (task: Task) => void;
-  onToggleDone: (task: Task) => void;
-  busy: boolean;
-  projectName?: string | null;
-}) {
-  const isDone = task.status === "done";
-  // `new Date("2026-08-16")` is UTC midnight, which is BEFORE local midnight
-  // anywhere west of UTC — so a task due today rendered as "Overdue" all day.
-  // Both sides are 'YYYY-MM-DD', which compares correctly as a string.
-  const overdue = Boolean(task.due_date && task.due_date < today() && !isDone);
-  const dueToday = task.due_date === today();
-
-  return (
-    // The whole row opens the task. It was previously only the small circle
-    // and the Edit button, so most of the card looked clickable and wasn't.
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen(task)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onOpen(task);
-        }
-      }}
-      className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border-2 bg-white px-3 py-2.5 transition-colors hover:border-slate-400 hover:bg-slate-50 ${
-        isDone ? "border-emerald-300 bg-emerald-50/40" : "border-slate-300"
-      }`}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        {/* stopPropagation so completing doesn't also open the task. */}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleDone(task);
-          }}
-          aria-label={isDone ? `Mark ${task.title} not done` : `Mark ${task.title} done`}
-          aria-pressed={isDone}
-          // 44px touch target on a phone; the visual circle stays small on
-          // desktop where a cursor is doing the aiming.
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-50 sm:h-6 sm:w-6 ${
-            isDone
-              ? "border-emerald-600 bg-emerald-600 text-white"
-              : "border-slate-300 bg-white text-transparent hover:border-emerald-500 hover:text-emerald-300"
-          }`}
-        >
-          <Check className="h-5 w-5 sm:h-3.5 sm:w-3.5" strokeWidth={3} />
-        </button>
-        <div className="min-w-0 flex-1">
-          <div
-            className={`text-sm font-medium ${
-              // Truncating to one line on a 390px screen cut most titles in
-              // half. Two lines on a phone, one on the desktop table.
-              isDone ? "text-slate-400 line-through" : "text-slate-900"
-            } line-clamp-2 sm:truncate`}
-          >
-            {task.title}
-          </div>
-          <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-slate-500">
-            <span className="rounded-full bg-slate-100 px-2 py-0.5">{normalizeStatus(task.status)}</span>
-            {task.priority && <span className="rounded-full bg-amber-100 px-2 py-0.5">P{task.priority}</span>}
-            {task.due_date && (
-              <span
-                className={`rounded-full px-2 py-0.5 ${
-                  overdue ? "bg-rose-100 text-rose-700" : dueToday ? "bg-blue-50 text-blue-700" : "bg-rose-50"
-                }`}
-              >
-                {overdue ? "Overdue" : dueToday ? "Due today" : `Due ${task.due_date}`}
-              </span>
-            )}
-            {task.category && <span className="rounded-full bg-blue-50 px-2 py-0.5">{task.category}</span>}
-            {task.domain && (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
-                {DOMAIN_LABEL[task.domain] ?? task.domain}
-              </span>
-            )}
-            {/* Where a synced task came from. Slate, not blue: blue is for
-                things you act on, and this is provenance. */}
-            {task.source && task.source !== "manual" && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-slate-500">
-                {projectName ?? task.source}
-                {task.source_url && (
-                  <a
-                    className="text-blue-700 hover:underline"
-                    href={task.source_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(event) => event.stopPropagation()}
-                    title="Open where this task is written"
-                  >
-                    open
-                  </a>
-                )}
-              </span>
-            )}
-            {task.external_status === "gone" && (
-              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">no longer in source</span>
-            )}
-          </div>
-          {task.why && <div className="mt-1 line-clamp-2 text-xs text-slate-500">{snippet(task.why)}</div>}
-        </div>
-      </div>
-      {/* Hidden on phones: the whole row already opens the task, so this only
-          stole horizontal space from the title and pushed the layout to wrap. */}
-      <button
-        className="hidden shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs hover:bg-slate-100 sm:block"
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpen(task);
-        }}
-      >
-        Edit
-      </button>
-    </div>
-  );
-}
-
-function snippet(text: string, max = 160) {
-  const cleaned = text
-    .replace(/[#*_>`]/g, "")
-    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!cleaned) return "";
-  return cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned;
 }
 
 /**
@@ -236,7 +105,7 @@ function snippet(text: string, max = 160) {
  * The tasks table defaults to 'todo' and the reviews route writes 'todo', but
  * this screen used 'open' throughout. A new task therefore matched no bucket
  * and vanished, and ticking the circle wrote 'open' — a value nothing else
- * recognises — so the task reappeared as soon as the list refetched. 'todo' is
+ * recognizes — so the task reappeared as soon as the list refetched. 'todo' is
  * canonical; 'open' and null are read as the same thing for anything already
  * written that way.
  */
@@ -244,6 +113,50 @@ function normalizeStatus(status: string | null | undefined): string {
   if (!status || status === "open") return "todo";
   return status;
 }
+
+const STATUS_LABEL: Record<string, string> = {
+  todo: "To do",
+  in_progress: "In progress",
+  blocked: "Blocked",
+  done: "Done",
+};
+
+/** The old screen's section order, kept as the Status grouping's order. */
+const STATUS_RANK: Record<string, number> = { pinned: 0, todo: 1, in_progress: 2, blocked: 3, done: 4 };
+
+const statusLabel = (task: Task) => STATUS_LABEL[normalizeStatus(task.status)] ?? normalizeStatus(task.status);
+
+/**
+ * The due day as 'YYYY-MM-DD'. Compared as strings against `today()` — never
+ * through `new Date("2026-08-16")`, which is UTC midnight and therefore the
+ * previous evening anywhere west of UTC, so a task due today read "Overdue".
+ */
+const dueDay = (task: Task) => (task.due_date ? task.due_date.slice(0, 10) : null);
+
+function isOverdue(task: Task, todayIso: string) {
+  const day = dueDay(task);
+  return Boolean(day && day < todayIso && normalizeStatus(task.status) !== "done");
+}
+
+/** Red / yellow / green by meaning: done, off track, at risk. */
+function statusTone(task: Task, todayIso: string): PillTone {
+  const status = normalizeStatus(task.status);
+  if (status === "done") return "green";
+  if (status === "blocked" || isOverdue(task, todayIso)) return "red";
+  const day = dueDay(task);
+  if (day && daysBetween(todayIso, day) <= 2) return "yellow";
+  if (status === "in_progress") return "blue";
+  return "slate";
+}
+
+function formatDay(day: string, todayIso: string) {
+  const date = new Date(`${day}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return day;
+  const sameYear = day.slice(0, 4) === todayIso.slice(0, 4);
+  return date.toLocaleDateString("en-US", sameYear ? { month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" });
+}
+
+const isSynced = (task: Task) => Boolean(task.source && task.source !== "manual");
 
 export default function TasksListClient({
   tasks,
@@ -275,13 +188,18 @@ export default function TasksListClient({
   notes: NoteOption[];
 }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const todayIso = today();
+  /** All tasks, only recurring ones, or only templates. */
+  const [view, setView] = useState<"all" | "recurring" | "templates">("all");
+  // Done was a collapsed section on the old screen: a synced repo can close
+  // hundreds of tasks, and they bury the ones still open. Hidden until asked.
   const [showDone, setShowDone] = useState(false);
-  const [tab, setTab] = useState("my");
+  // The dashboard's matrix and the project pages link here with a slice
+  // already chosen (?domain=, ?project=). Those arrive before the table does
+  // and can be a comma list ("body,soul") or "none", which a column filter
+  // cannot express — so they stay a pre-filter, shown as a chip to clear.
   const [domainFilter, setDomainFilter] = useState(initialDomain);
   const [projectFilter, setProjectFilter] = useState(initialProject);
-  const [sourceFilter, setSourceFilter] = useState("all");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   /** Optimistic status overrides, keyed by task id. */
   const [statusOverrides, setStatusOverrides] = useState<Record<string, string>>({});
@@ -312,43 +230,34 @@ export default function TasksListClient({
   const linksForSelected = selectedTask ? links.filter((item) => item.task_id === selectedTask.id) : [];
   const noteLinksForSelected = selectedTask ? noteLinks.filter((item) => item.task_id === selectedTask.id) : [];
 
-  const filtered = useMemo(() => {
-    return tasks.filter((task) => {
-      // Status is applied at the section level, not here — filtering twice
-      // meant picking "Done" emptied every section including Done.
-      if (domainFilter === "none") {
-        if (task.domain) return false;
-      } else if (domainFilter !== "all") {
-        // A comma list, because the Health tile owns two domains.
-        if (!task.domain || !domainFilter.split(",").includes(task.domain)) return false;
-      }
-      if (projectFilter !== "all" && task.project_id !== projectFilter) return false;
-      if (sourceFilter === "manual" && task.source && task.source !== "manual") return false;
-      if (sourceFilter === "synced" && (!task.source || task.source === "manual")) return false;
-      if (!search.trim()) return true;
-      const hay = `${task.title} ${task.category || ""} ${task.why || ""} ${task.assignee || ""}`.toLowerCase();
-      return hay.includes(search.toLowerCase());
-    });
-  }, [tasks, search, domainFilter, projectFilter, sourceFilter]);
+  const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
+  const noteById = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes]);
 
-  const projectById = useMemo(
-    () => new Map(projects.map((p) => [p.id, p])),
-    [projects],
-  );
-  const syncedCount = useMemo(
-    () => tasks.filter((t) => t.source && t.source !== "manual").length,
-    [tasks],
-  );
-  const manualCount = tasks.length - syncedCount;
+  const rows: Row[] = useMemo(() => {
+    return tasks
+      .map((task) => (statusOverrides[task.id] ? { ...task, status: statusOverrides[task.id] } : task))
+      .filter((task) => {
+        if (domainFilter === "none") {
+          if (task.domain) return false;
+        } else if (domainFilter !== "all") {
+          // A comma list, because the Health tile owns two domains.
+          if (!task.domain || !domainFilter.split(",").includes(task.domain)) return false;
+        }
+        if (projectFilter !== "all" && task.project_id !== projectFilter) return false;
+        if (view === "recurring" && !task.recurrence_rule) return false;
+        if (view === "templates" && !task.is_template) return false;
+        if (!showDone && normalizeStatus(task.status) === "done") return false;
+        return true;
+      })
+      .map((task) => {
+        const project = task.project_id ? projectById.get(task.project_id) : undefined;
+        return { ...task, projectName: project ? project.title || project.slug : null };
+      });
+  }, [tasks, statusOverrides, domainFilter, projectFilter, view, showDone, projectById]);
 
-  const visibleTasks = useMemo(() => {
-    if (tab === "recurring") return filtered.filter((task) => task.recurrence_rule);
-    if (tab === "templates") return filtered.filter((task) => task.is_template);
-    return filtered;
-  }, [filtered, tab]);
-
-  const withOverrides = visibleTasks.map((task) =>
-    statusOverrides[task.id] ? { ...task, status: statusOverrides[task.id] } : task,
+  const doneCount = useMemo(
+    () => tasks.filter((t) => normalizeStatus(statusOverrides[t.id] ?? t.status) === "done").length,
+    [tasks, statusOverrides],
   );
 
   /**
@@ -357,7 +266,7 @@ export default function TasksListClient({
    * fails, so the tick never claims something that did not save.
    */
   async function toggleDone(task: Task) {
-    const next = task.status === "done" ? "todo" : "done";
+    const next = normalizeStatus(task.status) === "done" ? "todo" : "done";
     setStatusOverrides((prev) => ({ ...prev, [task.id]: next }));
     setTogglingId(task.id);
     try {
@@ -384,16 +293,6 @@ export default function TasksListClient({
       setTogglingId(null);
     }
   }
-
-  // Pinned means "important", not "permanent" — a completed pinned task drops
-  // into Done with everything else rather than sitting at the top for good.
-  const pinned = withOverrides.filter(
-    (task) => task.priority === 1 && normalizeStatus(task.status) !== "done",
-  );
-  const todo = withOverrides.filter((task) => normalizeStatus(task.status) === "todo" && task.priority !== 1);
-  const inProgress = withOverrides.filter((task) => task.status === "in_progress");
-  const done = withOverrides.filter((task) => task.status === "done");
-  const blocked = withOverrides.filter((task) => task.status === "blocked");
 
   function openTask(task: Task) {
     setSelectedTask(task);
@@ -431,214 +330,391 @@ export default function TasksListClient({
     if (!target) return;
     deepLinked.current = true;
     openTask(target);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTaskId, tasks]);
+
+  const columns: DataColumn<Row>[] = [
+    {
+      key: "title",
+      header: "Task",
+      sortable: true,
+      filter: "text",
+      pinLeft: true,
+      value: (t) => t.title,
+      render: (t) => (
+        <span className="flex items-center gap-1.5">
+          {t.recurrence_rule && <Repeat className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-label="Recurring" />}
+          {/* Narrow on a phone so the pinned title leaves room to scroll the
+              rest of the row past it. */}
+          <span
+            className={`block max-w-[10rem] truncate sm:max-w-[21rem] ${normalizeStatus(t.status) === "done" ? "text-slate-400 line-through" : ""}`}
+            title={t.title}
+          >
+            {t.title}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      sortable: true,
+      filter: "select",
+      value: (t) => statusLabel(t),
+      render: (t) => (
+        <span className="inline-flex items-center gap-1">
+          <StatusPill tone={statusTone(t, todayIso)}>{statusLabel(t)}</StatusPill>
+          {t.external_status === "gone" && <StatusPill tone="yellow">Gone from source</StatusPill>}
+        </span>
+      ),
+    },
+    {
+      key: "priority",
+      header: "Priority",
+      sortable: true,
+      filter: "select",
+      value: (t) => (t.priority ? `P${t.priority}` : null),
+      render: (t) =>
+        t.priority ? (
+          <span className={t.priority === 1 ? "font-semibold text-slate-900" : "text-slate-600"}>P{t.priority}</span>
+        ) : (
+          <span className="text-slate-300">—</span>
+        ),
+    },
+    {
+      key: "due",
+      header: "Due",
+      sortable: true,
+      value: (t) => dueDay(t),
+      render: (t) => {
+        const day = dueDay(t);
+        if (!day) return <span className="text-slate-300">—</span>;
+        const overdue = isOverdue(t, todayIso);
+        const soon = !overdue && normalizeStatus(t.status) !== "done" && daysBetween(todayIso, day) <= 2;
+        return (
+          <span className={`tabular-nums ${overdue ? "font-medium text-red-700" : soon ? "font-medium text-yellow-800" : ""}`}>
+            {day === todayIso ? "Today" : formatDay(day, todayIso)}
+          </span>
+        );
+      },
+    },
+    {
+      key: "domain",
+      header: "Domain",
+      sortable: true,
+      filter: "select",
+      value: (t) => (t.domain ? (DOMAIN_LABEL[t.domain] ?? t.domain) : "Unclassified"),
+      render: (t) =>
+        t.domain ? DOMAIN_LABEL[t.domain] ?? t.domain : <span className="text-slate-400">Unclassified</span>,
+    },
+    {
+      key: "project",
+      header: "Project",
+      sortable: true,
+      filter: "select",
+      value: (t) => t.projectName,
+    },
+    {
+      key: "category",
+      header: "Category",
+      sortable: true,
+      filter: "select",
+      value: (t) => t.category,
+    },
+    {
+      key: "source",
+      header: "Source",
+      sortable: true,
+      filter: "select",
+      // Provenance, so slate — blue is for things you act on.
+      value: (t) => (isSynced(t) ? (t.source as string) : "Typed here"),
+      render: (t) => (
+        <span className="inline-flex items-center gap-1 text-slate-500">
+          {isSynced(t) ? t.source : "Typed here"}
+          {t.source_url && (
+            <a
+              className="inline-flex h-7 w-7 items-center justify-center rounded text-blue-700 hover:bg-blue-50"
+              href={t.source_url}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(event) => event.stopPropagation()}
+              title="Open where this task is written"
+              aria-label="Open where this task is written"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: "assignee",
+      header: "Assignee",
+      sortable: true,
+      filter: "select",
+      value: (t) => t.assignee,
+    },
+    {
+      key: "actions",
+      header: "",
+      pinRight: true,
+      width: "5.5rem",
+      value: () => null,
+      render: (t) => {
+        const done = normalizeStatus(t.status) === "done";
+        return (
+          <span className="flex items-center justify-end gap-1">
+            {/* stopPropagation so completing does not also open the row. */}
+            <button
+              type="button"
+              disabled={togglingId === t.id}
+              onClick={(event) => {
+                event.stopPropagation();
+                void toggleDone(t);
+              }}
+              aria-label={done ? `Mark ${t.title} not done` : `Mark ${t.title} done`}
+              aria-pressed={done}
+              title={done ? "Mark not done" : "Mark done"}
+              className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-50 ${
+                done
+                  ? "border-green-600 bg-green-600 text-white"
+                  : "border-slate-300 bg-white text-transparent hover:border-green-500 hover:text-green-400"
+              }`}
+            >
+              <Check className="h-4 w-4" strokeWidth={3} />
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                openTask(t);
+              }}
+              aria-label={`Edit ${t.title}`}
+              title="Edit"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          </span>
+        );
+      },
+    },
+  ];
+
+  const groups: GroupDef<Row>[] = [
+    {
+      key: "status",
+      label: "Status",
+      // Pinned means "important", not "permanent" — a completed pinned task
+      // drops into Done with everything else rather than sitting on top.
+      of: (t) => {
+        const status = normalizeStatus(t.status);
+        if (t.priority === 1 && status !== "done") return { id: "pinned", label: "Pinned" };
+        return { id: status, label: STATUS_LABEL[status] ?? status };
+      },
+      rank: (id) => STATUS_RANK[id] ?? 9,
+    },
+    {
+      key: "domain",
+      label: "Domain",
+      of: (t) => (t.domain ? { id: t.domain, label: DOMAIN_LABEL[t.domain] ?? t.domain } : null),
+      rank: (id) => {
+        const i = DOMAIN_ORDER.indexOf(id);
+        return i === -1 ? 99 : i;
+      },
+      emptyLabel: "Unclassified",
+    },
+    {
+      key: "project",
+      label: "Project",
+      of: (t) => (t.project_id && t.projectName ? { id: t.project_id, label: t.projectName } : null),
+      emptyLabel: "No project",
+    },
+    {
+      key: "due",
+      label: "Due",
+      of: (t) => {
+        const day = dueDay(t);
+        if (!day) return null;
+        if (isOverdue(t, todayIso)) return { id: "past", label: "Past due" };
+        const days = daysBetween(todayIso, day);
+        if (days <= 0) return { id: "today", label: "Today" };
+        if (days <= 7) return { id: "week", label: "Next 7 days" };
+        return { id: "later", label: "Later" };
+      },
+      rank: (id) => ["past", "today", "week", "later"].indexOf(id),
+      emptyLabel: "No due date",
+    },
+  ];
+
+  const domainChip =
+    domainFilter === "all"
+      ? null
+      : domainFilter === "none"
+        ? "Unclassified"
+        : domainFilter === "body,soul"
+          ? "Health — Body and Soul"
+          : domainFilter
+              .split(",")
+              .map((d) => domains.find((o) => o.value === d)?.label ?? d)
+              .join(", ");
+  const projectChip =
+    projectFilter === "all"
+      ? null
+      : (projectById.get(projectFilter)?.title ?? projectById.get(projectFilter)?.slug ?? "Unknown project");
+
+  const chipClass =
+    "inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 text-sm text-blue-800 hover:bg-blue-100";
 
   return (
     <div className="mt-4">
-      {/* The page already renders an <h1>Tasks</h1> with this same subtitle
-          directly above. Repeating it cost a phone screen ~60px before a
-          single task was visible. */}
-      <div className="flex items-center gap-2">
-        <button
-          className="min-h-[44px] flex-1 rounded-xl bg-blue-700 px-3 text-sm font-medium text-white shadow-sm sm:flex-none"
-          type="button"
-          onClick={() => (document.getElementById("new-task-dialog") as HTMLDialogElement | null)?.showModal()}
-        >
-          + New Task
-        </button>
-        <button
-          className="hidden min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm sm:block"
-          type="button"
-        >
-          Manage Lists
-        </button>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-        {/* These were dead placeholders with one option and no handler. They
-            do something now: the project harvester can add hundreds of rows
-            from ten repos, and a list you cannot narrow is a list you stop
-            opening. */}
-        <select
-          aria-label="Filter by domain"
-          className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2"
-          value={domainFilter}
-          onChange={(e) => setDomainFilter(e.target.value)}
-        >
-          <option value="all">All domains</option>
-          {domains.map((d) => (
-            <option key={d.value} value={d.value}>
-              {d.label}
-            </option>
-          ))}
-          {/* The matrix's Health tile spans two domains and links here with
-              both. Without a matching option the select renders blank on
-              arrival, which reads as a broken filter rather than a set one. */}
-          <option value="body,soul">Health — Body and Soul</option>
-          <option value="none">Unclassified</option>
-        </select>
-        {projects.length > 0 && (
-          <select
-            aria-label="Filter by project"
-            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2"
-            value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
-          >
-            <option value="all">All projects</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.title || p.slug}
-              </option>
-            ))}
-          </select>
-        )}
-        {syncedCount > 0 && (
-          <select
-            aria-label="Filter by source"
-            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2"
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-          >
-            <option value="all">All sources ({tasks.length})</option>
-            <option value="manual">Typed here ({manualCount})</option>
-            <option value="synced">From projects ({syncedCount})</option>
-          </select>
-        )}
-        <input
-          className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-base sm:w-56 sm:text-xs"
-          placeholder="Search tasks..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      {/* Two rows, not one wrapping row. Nine pills at 390px wrapped into a
-          ragged block with a vertical divider stranded mid-line, and every
-          pill was a 26px tap target. */}
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-        {[
-          { key: "my", label: "My Tasks" },
-          { key: "all", label: "All Tasks" },
-          { key: "recurring", label: "Recurring" },
-          { key: "templates", label: "Templates" },
-        ].map((item) => (
-          <button
-            key={item.key}
-            className={`min-h-[36px] rounded-full border px-3 ${tab === item.key ? "bg-blue-700 text-white" : "bg-white"}`}
-            type="button"
-            onClick={() => setTab(item.key)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-        {[
-          { key: "all", label: "All" },
-          { key: "todo", label: "To Do", count: todo.length + pinned.length },
-          { key: "in_progress", label: "In Progress", count: inProgress.length },
-          { key: "done", label: "Done", count: done.length },
-          { key: "blocked", label: "Blocked", count: blocked.length },
-        ].map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => {
-              setStatusFilter(item.key);
-              if (item.key === "done") setShowDone(true);
-            }}
-            className={`min-h-[36px] rounded-full border px-3 ${
-              statusFilter === item.key ? "bg-blue-700 text-white" : "bg-white"
-            }`}
-          >
-            {item.label}
-            {item.count !== undefined && (
-              <span className={statusFilter === item.key ? "ml-1 text-blue-200" : "ml-1 text-slate-400"}>
-                {item.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4 rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-4 py-2 text-xs font-semibold text-slate-500">Tasks</div>
-        {tab === "templates" && (
-          <div className="px-4 py-6 text-sm text-slate-500">No templates yet.</div>
-        )}
-        {tab !== "templates" && (
-          <div className="divide-y divide-slate-100">
-            {pinned.length > 0 && (statusFilter === "all" || statusFilter === "todo") && (
-              <div className="px-4 py-3">
-                <div className="text-xs font-semibold text-slate-500">Pinned</div>
-                <div className="mt-2 grid gap-2">
-                  {pinned.map((task) => (
-                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} projectName={projectById.get(task.project_id ?? "")?.title ?? projectById.get(task.project_id ?? "")?.slug ?? null} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {(statusFilter === "all" || statusFilter === "todo") && (
-            <div className="px-4 py-3">
-              <div className="text-xs font-semibold text-slate-500">To Do</div>
-              <div className="mt-2 grid gap-2">
-                {todo.map((task) => (
-                  <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} projectName={projectById.get(task.project_id ?? "")?.title ?? projectById.get(task.project_id ?? "")?.slug ?? null} />
-                ))}
-                {todo.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
-              </div>
-            </div>
-            )}
-
-            {inProgress.length > 0 && (statusFilter === "all" || statusFilter === "in_progress") && (
-              <div className="px-4 py-3">
-                <div className="text-xs font-semibold text-slate-500">In Progress</div>
-                <div className="mt-2 grid gap-2">
-                  {inProgress.map((task) => (
-                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} projectName={projectById.get(task.project_id ?? "")?.title ?? projectById.get(task.project_id ?? "")?.slug ?? null} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {(statusFilter === "all" || statusFilter === "done") && (
-            <div className="px-4 py-3">
-              <button
-                type="button"
-                onClick={() => setShowDone((v) => !v)}
-                className="flex w-full items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700"
-              >
-                <span>{showDone ? "▾" : "▸"}</span>
-                Done
-                <span className="font-normal text-slate-400">{done.length}</span>
+      <DataTable
+        rows={rows}
+        columns={columns}
+        noun={["task", "tasks"]}
+        searchPlaceholder="Search tasks…"
+        searchText={(t) => [t.why, t.assignee].filter(Boolean).join(" ")}
+        groups={groups}
+        defaultGroup="status"
+        groupAlert={(groupRows) => {
+          const count = groupRows.filter((t) => isOverdue(t, todayIso)).length;
+          return count ? { count, label: "overdue" } : null;
+        }}
+        rowClassName={(t) => (normalizeStatus(t.status) === "done" ? "text-slate-400" : "")}
+        emptyState={
+          <p className="text-sm text-slate-500">
+            {view === "templates" ? "No templates yet." : view === "recurring" ? "No recurring tasks yet." : "No tasks here."}
+          </p>
+        }
+        actions={
+          <>
+            {domainChip && (
+              <button type="button" className={chipClass} onClick={() => setDomainFilter("all")} aria-label={`Clear domain filter ${domainChip}`}>
+                {domainChip}
+                <X className="h-3.5 w-3.5" />
               </button>
-              {showDone && (
-                <div className="mt-2 grid gap-2">
-                  {done.map((task) => (
-                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} projectName={projectById.get(task.project_id ?? "")?.title ?? projectById.get(task.project_id ?? "")?.slug ?? null} />
-                  ))}
-                  {done.length === 0 && <div className="text-xs text-slate-500">No tasks here.</div>}
+            )}
+            {projectChip && (
+              <button type="button" className={chipClass} onClick={() => setProjectFilter("all")} aria-label={`Clear project filter ${projectChip}`}>
+                {projectChip}
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <select
+              aria-label="Which tasks"
+              className="h-9 shrink-0 rounded-lg border border-slate-300 bg-white px-2 text-sm"
+              value={view}
+              onChange={(e) => setView(e.target.value as typeof view)}
+            >
+              <option value="all">All tasks</option>
+              <option value="recurring">Recurring</option>
+              <option value="templates">Templates</option>
+            </select>
+            <label className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-700">
+              <input type="checkbox" className="h-4 w-4" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
+              Show done
+              <span className="text-slate-400">{doneCount}</span>
+            </label>
+            <button
+              className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-blue-700 px-3 text-sm font-medium text-white shadow-sm hover:bg-blue-800"
+              type="button"
+              onClick={() => (document.getElementById("new-task-dialog") as HTMLDialogElement | null)?.showModal()}
+            >
+              <Plus className="h-4 w-4" />
+              New task
+            </button>
+          </>
+        }
+        renderExpanded={(t) => {
+          const taskSubtasks = subtasks.filter((s) => s.task_id === t.id);
+          const taskLinks = links.filter((l) => l.task_id === t.id);
+          const taskNotes = noteLinks.filter((l) => l.task_id === t.id);
+          const files = attachmentsByTask[t.id] || [];
+          return (
+            <div className="grid gap-3 text-sm">
+              {t.why ? (
+                <p className="whitespace-pre-line text-slate-700">{t.why}</p>
+              ) : (
+                <p className="text-slate-400">No description.</p>
+              )}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                {t.recurrence_rule && <span>Repeats: {t.recurrence_rule}</span>}
+                {t.is_template && <span>Template</span>}
+                {t.source_ref && <span>Ref: {t.source_ref}</span>}
+                <span>Created {formatDay(t.created_at.slice(0, 10), todayIso)}</span>
+              </div>
+              {(taskSubtasks.length > 0 || taskLinks.length > 0 || taskNotes.length > 0 || files.length > 0) && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {taskSubtasks.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Subtasks</div>
+                      <ul className="mt-1 grid gap-1">
+                        {taskSubtasks.map((s) => (
+                          <li key={s.id} className="flex items-center gap-2">
+                            <StatusPill tone={normalizeStatus(s.status) === "done" ? "green" : normalizeStatus(s.status) === "blocked" ? "red" : "slate"}>
+                              {STATUS_LABEL[normalizeStatus(s.status)] ?? s.status}
+                            </StatusPill>
+                            <span className="truncate">{s.title}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {taskLinks.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Links</div>
+                      <ul className="mt-1 grid gap-1">
+                        {taskLinks.map((l) => (
+                          <li key={l.id} className="truncate">
+                            <a className="text-blue-700 hover:underline" href={l.url} target="_blank" rel="noreferrer">
+                              {l.label || l.url}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {taskNotes.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Linked notes</div>
+                      <ul className="mt-1 grid gap-1">
+                        {taskNotes.map((l) => (
+                          <li key={l.id} className="truncate">
+                            {noteById.get(l.note_id)?.title || "Linked note"}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {files.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Attachments</div>
+                      <ul className="mt-1 grid gap-1">
+                        {files.map((f) => (
+                          <li key={f.id} className="truncate">
+                            <a className="text-blue-700 hover:underline" href={`/attachments/${f.id}/download`}>
+                              {f.filename}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-            )}
-
-            {blocked.length > 0 && (statusFilter === "all" || statusFilter === "blocked") && (
-              <div className="px-4 py-3">
-                <div className="text-xs font-semibold text-slate-500">Blocked</div>
-                <div className="mt-2 grid gap-2">
-                  {blocked.map((task) => (
-                    <TaskRow key={task.id} task={task} onOpen={openTask} onToggleDone={toggleDone} busy={togglingId === task.id} projectName={projectById.get(task.project_id ?? "")?.title ?? projectById.get(task.project_id ?? "")?.slug ?? null} />
-                  ))}
-                </div>
+              <div>
+                <button
+                  type="button"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-blue-700 px-3 text-sm font-medium text-white shadow-sm hover:bg-blue-800"
+                  onClick={() => openTask(t)}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit, subtasks, links &amp; files
+                </button>
               </div>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          );
+        }}
+      />
 
       <dialog
         id="task-detail-dialog"

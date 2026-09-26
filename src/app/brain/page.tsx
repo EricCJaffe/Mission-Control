@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { AlertTriangle, Cloud, Server, Bot, CircleSlash } from "lucide-react";
+import { AlertTriangle, Cloud, Server, Bot } from "lucide-react";
 import { supabaseServer } from "@/lib/supabase/server";
 import BrainTabs from "@/components/BrainTabs";
+import JobsTable from "./JobsTable";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,6 @@ type OutputStub = { job_name: string; produced_on: string };
 const GROUPS = [
   {
     mechanism: "systemd_timer" as const,
-    title: "systemd timers — ubuntu-dev",
     icon: Server,
     tone: "text-emerald-600",
     // Restating the capability, because it is the reason a job is here and not
@@ -53,14 +53,12 @@ const GROUPS = [
   },
   {
     mechanism: "vercel_cron" as const,
-    title: "Vercel crons — the cloud",
     icon: Cloud,
     tone: "text-sky-600",
     note: "Can reach each app's own database and APIs. Cannot see ~/dev.",
   },
   {
     mechanism: "paperclip" as const,
-    title: "Paperclip — agents VM",
     icon: Bot,
     tone: "text-violet-600",
     note: "The agent runtime. Isolated from client data by design.",
@@ -180,98 +178,37 @@ export default async function BrainPage() {
         </div>
       )}
 
-      {GROUPS.map((group) => {
-        const rows = jobs.filter((j) => j.mechanism === group.mechanism);
-        if (rows.length === 0) return null;
-        const Icon = group.icon;
+      <section className="mb-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-700">
+          Scheduled jobs <span className="font-normal text-slate-400">({jobs.length})</span>
+        </h2>
+        <div className="mt-3">
+          <JobsTable
+            rows={jobs.map((job) => {
+              const produced = (job.output_key ? lastOutput.get(job.output_key) : undefined) ?? null;
+              return {
+                id: job.id,
+                name: job.name,
+                mechanism: job.mechanism,
+                prompt_path: job.prompt_path,
+                where: job.project ?? job.host ?? null,
+                when: job.schedule ?? job.cadence ?? null,
+                produced,
+                age: produced ? daysSince(produced) : null,
+                what: job.what,
+                state: job.state,
+              };
+            })}
+          />
+        </div>
 
-        return (
-          <section
-            key={group.mechanism}
-            className="mb-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm"
-          >
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-              <Icon className={`h-4 w-4 ${group.tone}`} />
-              {group.title}
-              <span className="font-normal text-slate-400">({rows.length})</span>
-            </h2>
-
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="text-slate-500">
-                  <tr>
-                    <th className="pb-2 pr-4 font-medium">Job</th>
-                    <th className="pb-2 pr-4 font-medium">Where</th>
-                    <th className="pb-2 pr-4 font-medium">When</th>
-                    <th className="pb-2 pr-4 font-medium">Last output</th>
-                    <th className="pb-2 font-medium">What</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((job) => {
-                    const produced = job.output_key ? lastOutput.get(job.output_key) : undefined;
-                    const age = produced ? daysSince(produced) : null;
-
-                    return (
-                      <tr key={job.id} className="border-t border-slate-100 align-top">
-                        <td className="py-2 pr-4 font-medium text-slate-800">
-                          {job.name}
-                          {job.prompt_path && (
-                            <div className="font-mono text-[11px] font-normal text-slate-400">
-                              {job.prompt_path}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-2 pr-4 text-slate-600">
-                          {job.project ?? job.host ?? "—"}
-                        </td>
-                        <td className="py-2 pr-4 font-mono text-slate-600">
-                          {job.schedule ?? job.cadence ?? "—"}
-                        </td>
-                        <td className="py-2 pr-4 text-slate-600">
-                          {produced ? (
-                            <Link className="text-blue-700 hover:underline" href="/brain/briefs">
-                              {produced}
-                              {age !== null && age > 0 && (
-                                <span className="text-slate-400"> · {age}d ago</span>
-                              )}
-                            </Link>
-                          ) : (
-                            /*
-                             * "No file" is not "did not run". The project sync
-                             * writes rows into this database and every Vercel
-                             * cron acts on its own app; only the brain jobs
-                             * leave a file behind. Saying so here stops the
-                             * column reading as twenty-six failures.
-                             */
-                            <span className="inline-flex items-center gap-1 text-slate-400">
-                              <CircleSlash className="h-3 w-3" />
-                              no file
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2 text-slate-600">
-                          {job.what ?? job.state ?? "—"}
-                          {job.state && job.what && (
-                            <div className="mt-0.5 text-amber-700">{job.state}</div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {group.mechanism === "paperclip" && (
-              <p className="mt-3 text-xs text-amber-700">
-                The heartbeat runs; the Chief of Staff has never completed a run. An inventory that
-                could not say so would be worse than no inventory.
-              </p>
-            )}
-          </section>
-        );
-      })}
+        {jobs.some((j) => j.mechanism === "paperclip") && (
+          <p className="mt-3 text-xs text-amber-700">
+            Paperclip: the heartbeat runs; the Chief of Staff has never completed a run. An
+            inventory that could not say so would be worse than no inventory.
+          </p>
+        )}
+      </section>
 
       <p className="text-xs text-slate-500">
         Compiled from <code>jobs/REGISTRY.md</code> in <code>~/dev/brain</code>. Add a job there in

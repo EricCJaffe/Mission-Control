@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { DataTable, type DataColumn } from '@/components/ui/DataTable';
 
 type Metric = {
   id: string;
@@ -33,8 +34,6 @@ type Props = {
 };
 
 type DateRange = '7d' | '30d' | '90d' | '1y' | 'all';
-type SortField = 'date' | 'rhr' | 'hrv' | 'bodyBattery' | 'sleep' | 'weight';
-type SortDirection = 'asc' | 'desc';
 type MetricFocus = 'all' | 'weight' | 'body_fat_pct' | 'muscle_mass_lbs' | 'bone_mass_lbs' | 'hydration_lbs' | 'resting_hr' | 'hrv_ms' | 'body_battery' | 'sleep_score' | 'vo2_max';
 
 const METRIC_LABELS: Record<MetricFocus, string> = {
@@ -115,14 +114,94 @@ function deltaOverWindow(rows: Metric[], key: Exclude<MetricFocus, 'all'>): { ch
   };
 }
 
+const unit = (v: number | null, suffix: string) => (v != null ? `${v} ${suffix}` : '—');
+const numCol = (key: keyof Metric, header: string, render?: (m: Metric) => React.ReactNode): DataColumn<Metric> => ({
+  key,
+  header,
+  sortable: true,
+  className: 'tabular-nums',
+  value: (m) => m[key] as number | null,
+  render,
+});
+
+/* One line per day. Everything else a day holds opens under its row. */
+const HISTORY_COLUMNS: DataColumn<Metric>[] = [
+  {
+    key: 'metric_date',
+    header: 'Date',
+    sortable: true,
+    pinLeft: true,
+    render: (m) => new Date(m.metric_date).toLocaleDateString(),
+  },
+  numCol('resting_hr', 'RHR', (m) => (m.resting_hr ? `${m.resting_hr} bpm` : '—')),
+  numCol('hrv_ms', 'HRV', (m) => (m.hrv_ms ? `${m.hrv_ms} ms` : '—')),
+  numCol('weight_lbs', 'Weight', (m) => (m.weight_lbs ? `${m.weight_lbs} lbs` : '—')),
+  numCol('body_fat_pct', 'BF %', (m) => unit(m.body_fat_pct, '%')),
+  numCol('muscle_mass_lbs', 'Muscle'),
+  numCol('bone_mass_lbs', 'Bone'),
+  numCol('hydration_lbs', 'Hyd'),
+  numCol('sleep_score', 'Sleep'),
+  numCol('vo2_max', 'VO2'),
+  numCol('body_battery', 'BB'),
+  {
+    key: 'notes',
+    header: 'Notes',
+    filter: 'text',
+    className: 'text-xs text-slate-500',
+    render: (m) => (m.notes ? <span title={m.notes}>{m.notes}</span> : ''),
+  },
+];
+
+function renderMetricDetail(metric: Metric) {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div>
+          <div className="text-xs font-medium text-slate-600">Stress Avg</div>
+          <div className="text-sm">{metric.stress_avg ?? 'N/A'}</div>
+        </div>
+        <div>
+          <div className="text-xs font-medium text-slate-600">Body Fat %</div>
+          <div className="text-sm">{metric.body_fat_pct ?? 'N/A'}</div>
+        </div>
+        <div>
+          <div className="text-xs font-medium text-slate-600">Muscle / Bone</div>
+          <div className="text-sm">{metric.muscle_mass_lbs ?? 'N/A'} / {metric.bone_mass_lbs ?? 'N/A'}</div>
+        </div>
+        <div>
+          <div className="text-xs font-medium text-slate-600">Hydration</div>
+          <div className="text-sm">{metric.hydration_lbs ?? 'N/A'}</div>
+        </div>
+        <div>
+          <div className="text-xs font-medium text-slate-600">VO2 Max</div>
+          <div className="text-sm">{metric.vo2_max ?? 'N/A'}</div>
+        </div>
+        <div>
+          <div className="text-xs font-medium text-slate-600">Training Readiness</div>
+          <div className="text-sm">{metric.training_readiness ?? 'N/A'}</div>
+        </div>
+      </div>
+      {metric.notes && (
+        <div>
+          <div className="text-xs font-medium text-slate-600">Notes</div>
+          <div className="whitespace-pre-wrap text-sm">{metric.notes}</div>
+        </div>
+      )}
+      {metric.garmin_data && (
+        <details className="text-xs" onClick={(e) => e.stopPropagation()}>
+          <summary className="cursor-pointer font-medium text-slate-600">Raw Garmin Data</summary>
+          <pre className="mt-2 overflow-x-auto rounded bg-slate-100 p-2">{JSON.stringify(metric.garmin_data, null, 2)}</pre>
+        </details>
+      )}
+    </div>
+  );
+}
+
 export default function MetricsHistoryClient({ metrics, initialMetric, initialRange }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [dateRange, setDateRange] = useState<DateRange>(isDateRange(initialRange) ? initialRange : 'all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<SortField>('date');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [metricFocus, setMetricFocus] = useState<MetricFocus>(isMetricFocus(initialMetric) ? initialMetric : 'all');
 
   function updateQuery(nextMetric: MetricFocus, nextRange: DateRange) {
@@ -178,60 +257,13 @@ export default function MetricsHistoryClient({ metrics, initialMetric, initialRa
     return filteredBySearch.filter((m) => metricValue(m, metricFocus) != null);
   }, [filteredBySearch, metricFocus]);
 
-  const sortedMetrics = useMemo(() => {
-    const sorted = [...focusedMetrics];
-
-    sorted.sort((a, b) => {
-      let aVal: number;
-      let bVal: number;
-
-      switch (sortField) {
-        case 'date':
-          aVal = new Date(a.metric_date).getTime();
-          bVal = new Date(b.metric_date).getTime();
-          break;
-        case 'rhr':
-          aVal = a.resting_hr ?? -Infinity;
-          bVal = b.resting_hr ?? -Infinity;
-          break;
-        case 'hrv':
-          aVal = a.hrv_ms ?? -Infinity;
-          bVal = b.hrv_ms ?? -Infinity;
-          break;
-        case 'bodyBattery':
-          aVal = a.body_battery ?? -Infinity;
-          bVal = b.body_battery ?? -Infinity;
-          break;
-        case 'sleep':
-          aVal = a.sleep_score ?? -Infinity;
-          bVal = b.sleep_score ?? -Infinity;
-          break;
-        case 'weight':
-          aVal = a.weight_lbs ?? -Infinity;
-          bVal = b.weight_lbs ?? -Infinity;
-          break;
-      }
-
-      if (aVal === bVal) return 0;
-      const comparison = aVal < bVal ? -1 : 1;
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return sorted;
-  }, [focusedMetrics, sortField, sortDirection]);
-
-  function toggleSort(field: SortField) {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('desc');
-    }
-  }
-
-  function toggleExpanded(id: string) {
-    setExpandedRow(expandedRow === id ? null : id);
-  }
+  // Newest first. The table sorts by column on top of this; the stats, the
+  // sparkline and the deltas below read this order and must not follow a
+  // column sort someone clicked.
+  const sortedMetrics = useMemo(
+    () => [...focusedMetrics].sort((a, b) => new Date(b.metric_date).getTime() - new Date(a.metric_date).getTime()),
+    [focusedMetrics]
+  );
 
   function selectMetric(nextMetric: MetricFocus) {
     setMetricFocus(nextMetric);
@@ -416,129 +448,14 @@ export default function MetricsHistoryClient({ metrics, initialMetric, initialRa
         </Link>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
-        <table className="w-full">
-          <thead className="border-b border-slate-200 bg-slate-50">
-            <tr>
-              <th className="p-3 text-left">
-                <button
-                  onClick={() => toggleSort('date')}
-                  className="flex items-center gap-1 text-sm font-semibold hover:text-blue-600"
-                >
-                  Date
-                  {sortField === 'date' && <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>}
-                </button>
-              </th>
-              <th className="p-3 text-left">
-                <button
-                  onClick={() => toggleSort('rhr')}
-                  className="flex items-center gap-1 text-sm font-semibold hover:text-blue-600"
-                >
-                  RHR
-                  {sortField === 'rhr' && <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>}
-                </button>
-              </th>
-              <th className="p-3 text-left">
-                <button
-                  onClick={() => toggleSort('hrv')}
-                  className="flex items-center gap-1 text-sm font-semibold hover:text-blue-600"
-                >
-                  HRV
-                  {sortField === 'hrv' && <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>}
-                </button>
-              </th>
-              <th className="p-3 text-left">Body Comp</th>
-              <th className="p-3 text-left">Sleep / VO2</th>
-              <th className="p-3 text-left text-sm font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedMetrics.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="p-8 text-center text-slate-500">
-                  No metrics found. Import FIT files to get started.
-                </td>
-              </tr>
-            ) : (
-              sortedMetrics.map((metric) => (
-                <>
-                  <tr key={metric.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="p-3 text-sm">{new Date(metric.metric_date).toLocaleDateString()}</td>
-                    <td className="p-3 text-sm">{metric.resting_hr ? `${metric.resting_hr} bpm` : '—'}</td>
-                    <td className="p-3 text-sm">{metric.hrv_ms ? `${metric.hrv_ms} ms` : '—'}</td>
-                    <td className="p-3 text-sm">
-                      <div>{metric.weight_lbs ? `${metric.weight_lbs} lbs` : '—'}</div>
-                      <div className="text-xs text-slate-500">
-                        BF {metric.body_fat_pct ?? '—'}% · MM {metric.muscle_mass_lbs ?? '—'} · Bone {metric.bone_mass_lbs ?? '—'} · Hyd {metric.hydration_lbs ?? '—'}
-                      </div>
-                    </td>
-                    <td className="p-3 text-sm">
-                      <div>{metric.sleep_score ? `${metric.sleep_score} sleep` : '—'}</div>
-                      <div className="text-xs text-slate-500">VO2 {metric.vo2_max ?? '—'} · BB {metric.body_battery ?? '—'}</div>
-                    </td>
-                    <td className="p-3 text-sm">
-                      <button
-                        onClick={() => toggleExpanded(metric.id)}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        {expandedRow === metric.id ? 'Hide' : 'Details'}
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedRow === metric.id && (
-                    <tr className="bg-slate-50">
-                      <td colSpan={6} className="p-4">
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                            <div>
-                              <div className="text-xs font-medium text-slate-600">Stress Avg</div>
-                              <div className="text-sm">{metric.stress_avg ?? 'N/A'}</div>
-                            </div>
-                            <div>
-                              <div className="text-xs font-medium text-slate-600">Body Fat %</div>
-                              <div className="text-sm">{metric.body_fat_pct ?? 'N/A'}</div>
-                            </div>
-                            <div>
-                              <div className="text-xs font-medium text-slate-600">Muscle / Bone</div>
-                              <div className="text-sm">{metric.muscle_mass_lbs ?? 'N/A'} / {metric.bone_mass_lbs ?? 'N/A'}</div>
-                            </div>
-                            <div>
-                              <div className="text-xs font-medium text-slate-600">Hydration</div>
-                              <div className="text-sm">{metric.hydration_lbs ?? 'N/A'}</div>
-                            </div>
-                            <div>
-                              <div className="text-xs font-medium text-slate-600">VO2 Max</div>
-                              <div className="text-sm">{metric.vo2_max ?? 'N/A'}</div>
-                            </div>
-                            <div>
-                              <div className="text-xs font-medium text-slate-600">Training Readiness</div>
-                              <div className="text-sm">{metric.training_readiness ?? 'N/A'}</div>
-                            </div>
-                          </div>
-                          {metric.notes && (
-                            <div>
-                              <div className="text-xs font-medium text-slate-600">Notes</div>
-                              <div className="whitespace-pre-wrap text-sm">{metric.notes}</div>
-                            </div>
-                          )}
-                          {metric.garmin_data && (
-                            <details className="text-xs">
-                              <summary className="cursor-pointer font-medium text-slate-600">Raw Garmin Data</summary>
-                              <pre className="mt-2 overflow-x-auto rounded bg-slate-100 p-2">
-                                {JSON.stringify(metric.garmin_data, null, 2)}
-                              </pre>
-                            </details>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        rows={sortedMetrics}
+        columns={HISTORY_COLUMNS}
+        renderExpanded={renderMetricDetail}
+        noun={['day', 'days']}
+        hideSearch
+        emptyState={<p className="text-sm text-slate-500">No metrics found. Import FIT files to get started.</p>}
+      />
 
       <div className="text-center text-sm text-slate-500">
         Showing {sortedMetrics.length} of {metrics.length} total records

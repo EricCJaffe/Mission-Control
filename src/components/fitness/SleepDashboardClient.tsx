@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Moon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { DataTable, StatusPill, type DataColumn } from '@/components/ui/DataTable';
 import {
   LineChart,
   Line,
@@ -46,6 +47,50 @@ type Props = {
 };
 
 type DateRange = '7d' | '30d' | '90d' | 'all';
+
+const minutes = (secs: number | null) => (secs ? `${Math.round(secs / 60)}m` : '—');
+
+/* One line per night, newest first as loaded. */
+const SLEEP_COLUMNS: DataColumn<SleepLog>[] = [
+  {
+    key: 'sleep_date',
+    header: 'Date',
+    sortable: true,
+    pinLeft: true,
+    className: 'font-mono text-xs',
+    render: (l) => new Date(l.sleep_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  },
+  {
+    key: 'total_sleep_seconds',
+    header: 'Duration',
+    sortable: true,
+    className: 'text-right tabular-nums',
+    render: (l) => `${(l.total_sleep_seconds / 3600).toFixed(1)}h`,
+  },
+  { key: 'sleep_score', header: 'Score', sortable: true, className: 'text-right tabular-nums', render: (l) => l.sleep_score || '—' },
+  {
+    key: 'deep_sleep_seconds',
+    header: 'Deep',
+    sortable: true,
+    className: 'text-right tabular-nums text-xs text-slate-500',
+    render: (l) => minutes(l.deep_sleep_seconds),
+  },
+  {
+    key: 'rem_sleep_seconds',
+    header: 'REM',
+    sortable: true,
+    className: 'text-right tabular-nums text-xs text-slate-500',
+    render: (l) => minutes(l.rem_sleep_seconds),
+  },
+  { key: 'avg_hr', header: 'Avg HR', sortable: true, className: 'text-right tabular-nums', render: (l) => l.avg_hr || '—' },
+  {
+    key: 'source',
+    header: 'Source',
+    sortable: true,
+    filter: 'select',
+    render: (l) => <StatusPill tone="slate">{l.source}</StatusPill>,
+  },
+];
 
 export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
   const [sleepLogs] = useState(initial);
@@ -405,45 +450,8 @@ export default function SleepDashboardClient({ sleepLogs: initial }: Props) {
           <div className="px-5 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-700">Sleep History ({filteredLogs.length} nights)</h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-slate-500 border-b border-slate-100">
-                  <th className="px-4 py-2 text-left font-medium">Date</th>
-                  <th className="px-4 py-2 text-right font-medium">Duration</th>
-                  <th className="px-4 py-2 text-right font-medium">Score</th>
-                  <th className="px-4 py-2 text-right font-medium">Deep</th>
-                  <th className="px-4 py-2 text-right font-medium">REM</th>
-                  <th className="px-4 py-2 text-right font-medium">Avg HR</th>
-                  <th className="px-4 py-2 text-right font-medium">Source</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredLogs.map((log) => (
-                  <tr key={log.id}>
-                    <td className="px-4 py-2 text-slate-600 font-mono text-xs">
-                      {new Date(log.sleep_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums">
-                      {(log.total_sleep_seconds / 3600).toFixed(1)}h
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums">{log.sleep_score || '—'}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-xs text-slate-500">
-                      {log.deep_sleep_seconds ? `${Math.round(log.deep_sleep_seconds / 60)}m` : '—'}
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums text-xs text-slate-500">
-                      {log.rem_sleep_seconds ? `${Math.round(log.rem_sleep_seconds / 60)}m` : '—'}
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums">{log.avg_hr || '—'}</td>
-                    <td className="px-4 py-2 text-right text-xs">
-                      <span className="rounded-full bg-purple-100 text-purple-700 px-2 py-0.5">
-                        {log.source}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="p-3">
+            <DataTable rows={filteredLogs} columns={SLEEP_COLUMNS} noun={['night', 'nights']} hideSearch />
           </div>
         </div>
       )}

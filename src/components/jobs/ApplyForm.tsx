@@ -25,15 +25,15 @@ export default function ApplyForm({ slug }: { slug: string }) {
 
   if (state === 'sent')
     return (
-      <div className="mt-6 rounded-2xl border-2 border-green-300 bg-green-50 p-5 text-green-900">
+      <div className="mt-4 rounded-2xl border-2 border-green-300 bg-green-50 p-5 text-green-900">
         <p className="font-semibold">Thanks, we got it.</p>
         <p className="mt-1 text-sm">We’ll reach out by phone or text if it looks like a fit.</p>
       </div>
     );
 
   return (
-    <form onSubmit={submit} className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-4">
-      <h2 className="text-lg font-semibold">Apply</h2>
+    <form onSubmit={submit} className="mt-4 rounded-2xl border-2 border-blue-600 bg-white p-4 shadow-sm">
+      <h2 className="text-lg font-semibold">Apply now</h2>
       <p className="text-sm text-slate-500">Takes about two minutes.</p>
       <label className="mt-4 block text-sm font-medium">Your name
         <input className={input} autoComplete="name" required onChange={(e) => set('name', e.target.value)} />

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ShieldCheck, Inbox, FileWarning, UserCheck } from "lucide-react";
+import { Inbox, UserCheck } from "lucide-react";
 import { supabaseServer } from "@/lib/supabase/server";
 import BrainTabs from "@/components/BrainTabs";
+import ClientsTable from "./ClientsTable";
 
 export const dynamic = "force-dynamic";
 
@@ -113,104 +114,22 @@ export default async function BrainClientsPage() {
           Client brains <span className="font-normal text-slate-400">({withBrain.length})</span>
         </h2>
 
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="text-slate-500">
-              <tr>
-                <th className="pb-2 pr-4 font-medium">Client</th>
-                <th className="pb-2 pr-4 font-medium">Engagement</th>
-                <th className="pb-2 pr-4 font-medium">Day-to-day owner</th>
-                <th className="pb-2 pr-4 font-medium">Eric&apos;s role</th>
-                <th className="pb-2 pr-4 font-medium">Last contact</th>
-                <th className="pb-2 font-medium">Brain</th>
-              </tr>
-            </thead>
-            <tbody>
-              {withBrain.map((client) => {
-                const missing = FULL_BRAIN.filter((f) => !client.files.includes(f));
-                const age = client.last_contact_on ? daysSince(client.last_contact_on) : null;
-
-                return (
-                  <tr key={client.id} className="border-t border-slate-100 align-top">
-                    <td className="py-2 pr-4">
-                      <div className="flex items-center gap-1.5 font-medium text-slate-800">
-                        {client.name}
-                        {client.has_proposed && (
-                          <span
-                            className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800"
-                            title="A _proposed.md is waiting for you"
-                          >
-                            <Inbox className="h-3 w-3" />
-                            proposed
-                          </span>
-                        )}
-                      </div>
-                      <div className="font-mono text-[11px] text-slate-400">
-                        clients/{client.slug}/
-                      </div>
-                    </td>
-
-                    <td className="py-2 pr-4 text-slate-700">
-                      {client.status ?? <span className="text-slate-400">not stated</span>}
-                    </td>
-
-                    <td className="py-2 pr-4">
-                      {client.owner ? (
-                        <span className="inline-flex items-start gap-1 text-slate-700">
-                          <ShieldCheck
-                            className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600"
-                            aria-label="stated in _ownership.md"
-                          />
-                          {client.owner}
-                        </span>
-                      ) : (
-                        /*
-                         * Blank means _ownership.md does not name this account,
-                         * not that Eric runs it. Inferring an owner from a
-                         * profile.md written out of the mailbox is precisely
-                         * what that file was created to stop.
-                         */
-                        <span className="text-slate-400">not in _ownership.md</span>
-                      )}
-                    </td>
-
-                    <td className="py-2 pr-4 text-slate-600">{client.eric_role ?? "—"}</td>
-
-                    <td className="py-2 pr-4 text-slate-600">
-                      {client.last_contact_on ? (
-                        <>
-                          {client.last_contact_on}
-                          {age !== null && age > 0 && (
-                            <span className="text-slate-400"> · {age}d</span>
-                          )}
-                        </>
-                      ) : (
-                        /*
-                         * Never back-filled from a file date. An mtime says when
-                         * a job last ran, and showing that as contact would
-                         * report the agent's activity as the relationship's.
-                         */
-                        <span className="text-slate-400">not stated</span>
-                      )}
-                    </td>
-
-                    <td className="py-2 text-slate-600">
-                      {missing.length === 0 ? (
-                        <span className="text-slate-500">complete</span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-amber-700">
-                          <FileWarning className="h-3 w-3" />
-                          {client.files.length === 0
-                            ? "empty"
-                            : `missing ${missing.join(", ")}`}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="mt-3">
+          <ClientsTable
+            rows={withBrain.map((client) => ({
+              id: client.id,
+              slug: client.slug,
+              name: client.name,
+              status: client.status,
+              owner: client.owner,
+              eric_role: client.eric_role,
+              last_contact_on: client.last_contact_on,
+              has_proposed: client.has_proposed,
+              files: client.files,
+              missing: FULL_BRAIN.filter((f) => !client.files.includes(f)),
+              age: client.last_contact_on ? daysSince(client.last_contact_on) : null,
+            }))}
+          />
         </div>
 
         <p className="mt-3 text-xs text-slate-500">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CircleCheck, CircleAlert, CircleSlash, Clock } from "lucide-react";
 import { supabaseServer } from "@/lib/supabase/server";
+import RunsTable from "./RunsTable";
 
 export const dynamic = "force-dynamic";
 
@@ -145,37 +146,21 @@ export default async function SyncHealthPage() {
         {(runs || []).length === 0 ? (
           <p className="mt-2 text-sm text-slate-500">Nothing recorded yet.</p>
         ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="text-slate-500">
-                <tr>
-                  <th className="pb-2 pr-4 font-medium">When</th>
-                  <th className="pb-2 pr-4 font-medium">Source</th>
-                  <th className="pb-2 pr-4 font-medium">Status</th>
-                  <th className="pb-2 pr-4 text-right font-medium">Seen</th>
-                  <th className="pb-2 pr-4 text-right font-medium">New</th>
-                  <th className="pb-2 pr-4 text-right font-medium">Updated</th>
-                  <th className="pb-2 text-right font-medium">Closed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {((runs || []) as Run[]).slice(0, 25).map((run) => (
-                  <tr key={run.id} className="border-t border-slate-100">
-                    <td className="py-1.5 pr-4 text-slate-600">
-                      {new Date(run.started_at).toLocaleString()}
-                    </td>
-                    <td className="py-1.5 pr-4 text-slate-600">{run.source}</td>
-                    <td className={`py-1.5 pr-4 ${run.status === "error" ? "text-red-700" : "text-slate-600"}`}>
-                      {run.status}
-                    </td>
-                    <td className="py-1.5 pr-4 text-right tabular-nums">{run.items_seen}</td>
-                    <td className="py-1.5 pr-4 text-right tabular-nums">{run.items_created}</td>
-                    <td className="py-1.5 pr-4 text-right tabular-nums">{run.items_updated}</td>
-                    <td className="py-1.5 text-right tabular-nums">{run.items_closed}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-3">
+            <RunsTable
+              rows={((runs || []) as Run[]).map((run) => ({
+                id: run.id,
+                started_at: run.started_at,
+                when: new Date(run.started_at).toLocaleString(),
+                source: run.source,
+                status: run.status,
+                items_seen: run.items_seen,
+                items_created: run.items_created,
+                items_updated: run.items_updated,
+                items_closed: run.items_closed,
+                error: run.error,
+              }))}
+            />
           </div>
         )}
         <p className="mt-3 text-xs text-slate-500">

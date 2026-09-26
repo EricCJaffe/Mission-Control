@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { DataTable, StatusPill, type DataColumn } from '@/components/ui/DataTable';
+import { labFlagTone } from './labFlagTone';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { AlertCircle, Bot, FileHeart, Target, TrendingUp, ArrowRight, Dumbbell, Leaf, Stethoscope, Upload, RefreshCw, ChevronDown, ChevronRight, Brain, Zap, FlaskConical, Activity, Pill } from 'lucide-react';
 
@@ -21,6 +23,33 @@ interface TestDataPoint {
   flag: string;
   panel_date: string;
 }
+
+type TrendRow = TestDataPoint & { id: string };
+
+/* One test's history in the trend modal, newest first. */
+const TREND_COLUMNS: DataColumn<TrendRow>[] = [
+  {
+    key: 'panel_date',
+    header: 'Date',
+    sortable: true,
+    render: (p) => new Date(p.panel_date).toLocaleDateString(),
+  },
+  {
+    key: 'value',
+    header: 'Value',
+    sortable: true,
+    className: 'text-right font-mono',
+    value: (p) => (Number.isFinite(parseFloat(p.value)) ? parseFloat(p.value) : p.value),
+    render: (p) => `${p.value} ${p.unit ?? ''}`.trim(),
+  },
+  {
+    key: 'flag',
+    header: 'Flag',
+    sortable: true,
+    filter: 'select',
+    render: (p) => <StatusPill tone={labFlagTone(p.flag)}>{p.flag}</StatusPill>,
+  },
+];
 
 interface FlaggedResult {
   test_name: string;
@@ -925,32 +954,15 @@ export default function LabDashboardClient({ initialTab }: LabDashboardClientPro
             </div>
 
             {/* Data Table */}
-            <div className="overflow-x-auto rounded-xl border border-gray-200">
-              <table className="w-full min-w-[520px] text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Date</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Value</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Flag</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.test_trends[selectedTest].slice().reverse().map((point, idx) => (
-                    <tr key={idx} className="border-t border-gray-100">
-                      <td className="py-3 px-4">{new Date(point.panel_date).toLocaleDateString()}</td>
-                      <td className="py-3 px-4 text-right font-mono">
-                        {point.value} {point.unit}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getFlagBadgeColor(point.flag)}`}>
-                          {point.flag}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              rows={data.test_trends[selectedTest]
+                .slice()
+                .reverse()
+                .map((point, idx) => ({ ...point, id: `${point.panel_date}-${idx}` }))}
+              columns={TREND_COLUMNS}
+              noun={['measurement', 'measurements']}
+              hideSearch
+            />
 
             {/* AI Insights Placeholder */}
             <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
