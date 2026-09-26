@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Bot, AlertCircle } from 'lucide-react';
+import { DataTable, StatusPill, type DataColumn, type GroupDef } from '@/components/ui/DataTable';
+import { labFlagTone } from './labFlagTone';
 
 interface LabPanel {
   id: string;
@@ -25,6 +27,31 @@ interface LabResult {
   flag: 'normal' | 'low' | 'high' | 'critical';
   test_category: string;
 }
+
+const RESULT_COLUMNS: DataColumn<LabResult>[] = [
+  { key: 'test_name', header: 'Test', sortable: true, pinLeft: true },
+  { key: 'test_category', header: 'Category', sortable: true, filter: 'select' },
+  {
+    key: 'value',
+    header: 'Value',
+    sortable: true,
+    className: 'text-right font-mono',
+    render: (r) => `${r.value} ${r.unit ?? ''}`.trim(),
+  },
+  { key: 'reference_range', header: 'Reference', className: 'text-right text-xs text-slate-500' },
+  {
+    key: 'flag',
+    header: 'Flag',
+    sortable: true,
+    filter: 'select',
+    render: (r) => <StatusPill tone={labFlagTone(r.flag)}>{r.flag}</StatusPill>,
+  },
+];
+
+const RESULT_GROUPS: GroupDef<LabResult>[] = [
+  { key: 'category', label: 'Category', of: (r) => (r.test_category ? { id: r.test_category, label: r.test_category } : null) },
+  { key: 'flag', label: 'Flag', of: (r) => ({ id: r.flag, label: r.flag }) },
+];
 
 interface HealthLabReviewClientProps {
   pendingPanels: LabPanel[];
@@ -283,38 +310,13 @@ export default function HealthLabReviewClient({
           <h3 className="text-lg font-semibold mb-3">
             All Test Results ({results.length})
           </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 px-3 font-medium text-gray-700">Test</th>
-                  <th className="text-left py-2 px-3 font-medium text-gray-700">Category</th>
-                  <th className="text-right py-2 px-3 font-medium text-gray-700">Value</th>
-                  <th className="text-right py-2 px-3 font-medium text-gray-700">Reference</th>
-                  <th className="text-center py-2 px-3 font-medium text-gray-700">Flag</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map(result => (
-                  <tr key={result.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-2 px-3 font-medium text-gray-900">{result.test_name}</td>
-                    <td className="py-2 px-3 text-gray-600">{result.test_category}</td>
-                    <td className="py-2 px-3 text-right font-mono">
-                      {result.value} {result.unit}
-                    </td>
-                    <td className="py-2 px-3 text-right text-gray-500 text-xs">
-                      {result.reference_range}
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getFlagColor(result.flag)}`}>
-                        {result.flag}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            rows={results}
+            columns={RESULT_COLUMNS}
+            groups={RESULT_GROUPS}
+            noun={['result', 'results']}
+            searchPlaceholder="Search tests…"
+          />
         </div>
 
         {/* Actions */}

@@ -1,6 +1,8 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { BarChart3, TrendingUp, Bot, FolderOpen } from 'lucide-react';
+import { today as appToday } from '@/lib/day';
+import RecentMetricsTable from './RecentMetricsTable';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +12,7 @@ export default async function BodyMetricsPage() {
   const user = userData.user;
   if (!user) return null;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = appToday();
 
   const { data: todayMetrics } = await supabase
     .from('body_metrics')
@@ -222,33 +224,18 @@ export default async function BodyMetricsPage() {
               View All →
             </Link>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-slate-500 border-b border-slate-100">
-                  <th className="px-4 py-2 text-left font-medium">Date</th>
-                  <th className="px-4 py-2 text-right font-medium">Weight</th>
-                  <th className="px-4 py-2 text-right font-medium">RHR</th>
-                  <th className="px-4 py-2 text-right font-medium">HRV</th>
-                  <th className="px-4 py-2 text-right font-medium">Battery</th>
-                  <th className="px-4 py-2 text-right font-medium">Sleep</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {recentMetrics.map((m) => (
-                  <tr key={m.metric_date}>
-                    <td className="px-4 py-2 text-slate-600 font-mono text-xs">
-                      {new Date(m.metric_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums">{m.weight_lbs ?? '—'}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{m.resting_hr ?? '—'}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{m.hrv_ms ?? '—'}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{m.body_battery ?? '—'}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{m.sleep_score ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="p-3">
+            <RecentMetricsTable
+              rows={recentMetrics.map((m) => ({
+                id: m.metric_date,
+                metric_date: m.metric_date,
+                weight_lbs: m.weight_lbs,
+                resting_hr: m.resting_hr,
+                hrv_ms: m.hrv_ms,
+                body_battery: m.body_battery,
+                sleep_score: m.sleep_score,
+              }))}
+            />
           </div>
         </div>
       )}

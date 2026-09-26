@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import TrainingPlanActionsClient from '@/components/fitness/TrainingPlanActionsClient';
+import PlanWeeklyProgressTable from '@/components/fitness/PlanWeeklyProgressTable';
 import { supabaseServer } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -160,33 +161,8 @@ export default async function TrainingPlanDetailPage({
           {progress.weeklyRows.length === 0 ? (
             <p className="mt-4 text-sm text-slate-500">No scheduled or completed plan activity yet.</p>
           ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="text-left text-slate-500">
-                  <tr>
-                    <th className="pb-2 pr-4">Week</th>
-                    <th className="pb-2 pr-4">Planned</th>
-                    <th className="pb-2 pr-4">Done</th>
-                    <th className="pb-2 pr-4">Adherence</th>
-                    <th className="pb-2 pr-4">Z2 Min</th>
-                    <th className="pb-2 pr-4">Strength</th>
-                    <th className="pb-2">Recovery</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {progress.weeklyRows.map((row) => (
-                    <tr key={row.week} className="border-t border-slate-100">
-                      <td className="py-3 pr-4 font-medium text-slate-900">Week {row.week}</td>
-                      <td className="py-3 pr-4 text-slate-700">{row.planned}</td>
-                      <td className="py-3 pr-4 text-slate-700">{row.completed}</td>
-                      <td className="py-3 pr-4 text-slate-700">{row.adherence}%</td>
-                      <td className="py-3 pr-4 text-slate-700">{row.zone2Minutes}</td>
-                      <td className="py-3 pr-4 text-slate-700">{row.strengthCompleted}/{row.strengthPlanned}</td>
-                      <td className="py-3 text-slate-700">{row.recoverySessions}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="mt-4">
+              <PlanWeeklyProgressTable rows={progress.weeklyRows} />
             </div>
           )}
         </div>

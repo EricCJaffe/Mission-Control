@@ -1,12 +1,13 @@
 import Link from 'next/link'
-import { Wrench, CheckCircle2, Package } from 'lucide-react'
+import { Wrench, Package } from 'lucide-react'
 import { supabaseServer } from '@/lib/supabase/server'
 import { today } from '@/lib/day'
 import { CATEGORIES, CATEGORY_KEYS, STARTER, type Category } from '@/lib/maintenance/library'
-import { ASSET_COLUMNS, loadPlans, worst, VERDICT_CLASS, VERDICT_DOT, type AssetRow, type PlanRow } from '@/lib/maintenance/load'
+import { ASSET_COLUMNS, loadPlans, worst, type AssetRow, type PlanRow } from '@/lib/maintenance/load'
 import { dueLabel } from '@/lib/maintenance/status'
 import { describeRRule } from '@/lib/tasks/recurrence'
 import IssuesList, { AddIssueForm, ISSUE_COLUMNS, type IssueRow } from '@/components/maintenance/IssuesList'
+import { PlansTable, AssetsTable, type PlanView, type AssetView } from '@/components/maintenance/MaintenanceTables'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,24 +21,33 @@ export const dynamic = 'force-dynamic'
  * tractor need?"), and adds the two things a task list cannot: an hours/miles
  * clock and a service history.
  *
- * Plain form posts, no client state, matching /ideas and /projects.
+ * Plain form posts for every change. The lists are the fleet table
+ * (components/maintenance/MaintenanceTables), fed plain rows built here.
  */
 
-const GROUPS = ['Engines & equipment', 'Vehicles & water', 'Home systems', 'Appliances', 'Other'] as const
-
-function DoneForm({ plan }: { plan: PlanRow }) {
-  return (
-    <form action={`/maintenance/tasks/${plan.task_id}/complete`} method="post">
-      <input type="hidden" name="redirect" value="/maintenance" />
-      <button
-        type="submit"
-        className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-green-300 hover:text-green-700"
-        title="Mark done — it rolls forward to the next date and is logged in the history"
-      >
-        <CheckCircle2 className="h-3.5 w-3.5" /> Done
-      </button>
-    </form>
-  )
+/* One schedule as a plain table row: the table is a client component. */
+function planView(p: PlanRow, asset: AssetRow | undefined): PlanView {
+  const unit = asset?.meter_unit ?? null
+  const byMeter = p.meterUsed !== null && p.meter_interval !== null && p.meterUsed >= p.meter_interval
+  return {
+    id: p.task_id,
+    title: p.task.title,
+    assetId: p.asset_id,
+    assetName: asset?.name ?? 'Unknown',
+    typeLabel: asset ? (CATEGORIES[asset.category]?.label ?? 'Other') : 'Other',
+    group: asset ? (CATEGORIES[asset.category]?.group ?? 'Other') : 'Other',
+    repeats: describeRRule(p.task.recurrence_rule) ?? 'Once',
+    dueDate: p.task.due_date,
+    days: p.days,
+    dueText: byMeter ? 'due by meter' : dueLabel(p.days),
+    meterText:
+      p.meter_interval && p.meterUsed !== null
+        ? `${Math.round(p.meterUsed).toLocaleString()} of ${p.meter_interval.toLocaleString()}${unit ? ` ${unit}` : ''} since last`
+        : '',
+    verdict: p.verdict,
+    description: p.task.description,
+    why: p.task.why,
+  }
 }
 
 export default async function MaintenancePage({
@@ -73,6 +83,29 @@ export default async function MaintenancePage({
   const red = plans.filter((p) => p.verdict === 'red').length
   const yellow = attention.length - red
   const next30 = plans.filter((p) => p.days !== null && p.days >= 0 && p.days <= 30).length
+
+  const assetById = new Map(assets.map((a) => [a.id, a]))
+  const planViews = plans.map((p) => planView(p, assetById.get(p.asset_id)))
+  const assetViews: AssetView[] = assets.map((a) => {
+    const own = byAsset.get(a.id) ?? []
+    const next = own[0]
+    return {
+      id: a.id,
+      name: a.name,
+      typeLabel: CATEGORIES[a.category]?.label ?? 'Other',
+      group: CATEGORIES[a.category]?.group ?? 'Other',
+      makeModel: [a.model_year, a.make, a.model].filter(Boolean).join(' '),
+      location: a.location ?? '',
+      next: next ? next.task.title.replace(`${a.name}: `, '') : null,
+      nextDays: next?.days ?? null,
+      nextDueText: next ? dueLabel(next.days) : '',
+      verdict: own.length ? worst(own.map((p) => p.verdict)) : null,
+      schedules: own.length,
+      meterText: a.meter_reading !== null && a.meter_unit ? `${a.meter_reading.toLocaleString()} ${a.meter_unit}` : '',
+      state: a.status === 'stored' ? 'Stored' : 'Active',
+      financeLinked: Boolean(a.finance_asset_id),
+    }
+  })
 
   return (
     <main className="pt-4 md:pt-8 pb-16">
@@ -131,39 +164,13 @@ export default async function MaintenancePage({
         </div>
       )}
 
-      {attention.length > 0 && (
+      {plans.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Needs attention ({attention.length})</h2>
-          <div className="mt-3 grid gap-2">
-            {attention.map((p) => (
-              <div
-                key={p.task_id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${VERDICT_DOT[p.verdict]}`} />
-                  <div className="min-w-0">
-                    <Link href={`/maintenance/${p.asset_id}`} className="font-medium hover:underline">
-                      {p.task.title}
-                    </Link>
-                    <div className="text-xs text-slate-500">
-                      {describeRRule(p.task.recurrence_rule)}
-                      {p.meter_interval && p.meterUsed !== null && (
-                        <> · {Math.round(p.meterUsed)} of {p.meter_interval} since last</>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${VERDICT_CLASS[p.verdict]}`}>
-                    {p.meterUsed !== null && p.meter_interval && p.meterUsed >= p.meter_interval
-                      ? 'due by meter'
-                      : dueLabel(p.days)}
-                  </span>
-                  <DoneForm plan={p} />
-                </div>
-              </div>
-            ))}
+          <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">
+            Schedules ({plans.length}){attention.length > 0 && ` · ${attention.length} need attention`}
+          </h2>
+          <div className="mt-3">
+            <PlansTable plans={planViews} mode="overview" redirect="/maintenance" todayIso={todayIso} />
           </div>
         </section>
       )}
@@ -181,61 +188,14 @@ export default async function MaintenancePage({
       </section>
 
       {/* The inventory, grouped the way it is thought about. */}
-      {GROUPS.map((group) => {
-        const inGroup = assets.filter((a) => CATEGORIES[a.category]?.group === group)
-        if (inGroup.length === 0) return null
-        return (
-          <section key={group} className="mt-8">
-            <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">{group}</h2>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {inGroup.map((a) => {
-                const own = byAsset.get(a.id) ?? []
-                const v = worst(own.map((p) => p.verdict))
-                const next = own[0]
-                return (
-                  <Link
-                    key={a.id}
-                    href={`/maintenance/${a.id}`}
-                    className="block rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm transition hover:border-blue-300"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="truncate font-semibold">{a.name}</div>
-                        <div className="truncate text-xs text-slate-500">
-                          {[a.model_year, a.make, a.model].filter(Boolean).join(' ') || (
-                            <span className="text-yellow-700">Add make and model</span>
-                          )}
-                        </div>
-                      </div>
-                      <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${own.length ? VERDICT_DOT[v] : 'bg-slate-300'}`} />
-                    </div>
-                    <div className="mt-3 text-xs text-slate-600">
-                      {next ? (
-                        <>
-                          Next: {next.task.title.replace(`${a.name}: `, '')}{' '}
-                          <span className="text-slate-400">({dueLabel(next.days)})</span>
-                        </>
-                      ) : (
-                        'Nothing scheduled'
-                      )}
-                    </div>
-                    <div className="mt-1 flex gap-3 text-[11px] text-slate-400">
-                      <span>{own.length} schedule{own.length === 1 ? '' : 's'}</span>
-                      {a.meter_reading !== null && a.meter_unit && (
-                        <span>
-                          {a.meter_reading.toLocaleString()} {a.meter_unit}
-                        </span>
-                      )}
-                      {a.status === 'stored' && <span>stored</span>}
-                      {a.finance_asset_id && <span>linked to FinanceOS</span>}
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          </section>
-        )
-      })}
+      {assets.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Inventory ({assets.length})</h2>
+          <div className="mt-3">
+            <AssetsTable assets={assetViews} />
+          </div>
+        </section>
+      )}
 
       <section className="mt-10">
         <details className="rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm" open={assets.length === 0}>

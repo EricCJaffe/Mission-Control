@@ -1,0 +1,6 @@
+{
+  "src/lib/brief/render.ts": "HTML email body: mail clients need layout tables, and it is not a screen",
+  "src/lib/markdown.ts": "Renders tables a person wrote inside a markdown note or document; that is their content, not a record list",
+  "src/components/fitness/WorkoutDetailClient.tsx": "Per-exercise set breakdown inside an exercise card: a few rows in fixed set order, a detail grid rather than a record list",
+  "src/components/fitness/WorkoutTextLogger.tsx": "Preview of parsed sets before saving: part of a data-entry flow, not a record list"
+}

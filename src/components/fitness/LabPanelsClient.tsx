@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import type { LabResultFlag } from '@/lib/fitness/types';
+import { DataTable, StatusPill, type DataColumn, type GroupDef } from '@/components/ui/DataTable';
+import { labFlagTone } from './labFlagTone';
 
 type PanelSummary = {
   id: string;
@@ -41,6 +43,62 @@ const FLAG_BADGE: Record<string, string> = {
   critical_low: 'bg-red-100 text-red-700',
   critical_high: 'bg-red-100 text-red-700',
 };
+
+/* A panel's results, one line each; the AI's notes open under the row. */
+const RESULT_COLUMNS: DataColumn<LabResultRow>[] = [
+  {
+    key: 'test_name',
+    header: 'Test',
+    sortable: true,
+    pinLeft: true,
+    render: (r) => (
+      <span title={r.ai_interpretation ?? undefined}>
+        {r.test_name}
+        {(r.ai_interpretation || r.ai_trend_note) && <span className="ml-1.5 text-xs font-normal text-blue-500">·</span>}
+      </span>
+    ),
+  },
+  { key: 'test_category', header: 'Category', sortable: true, filter: 'select' },
+  {
+    key: 'value',
+    header: 'Value',
+    sortable: true,
+    className: 'text-right font-mono tabular-nums',
+    value: (r) => r.value ?? r.value_text,
+    render: (r) => (
+      <>
+        {r.value ?? r.value_text} {r.unit && <span className="text-xs text-slate-400">{r.unit}</span>}
+      </>
+    ),
+  },
+  {
+    key: 'reference_range_text',
+    header: 'Ref Range',
+    className: 'text-right text-xs text-slate-400',
+  },
+  {
+    key: 'flag',
+    header: 'Flag',
+    sortable: true,
+    filter: 'select',
+    render: (r) => <StatusPill tone={labFlagTone(r.flag)}>{r.flag}</StatusPill>,
+  },
+];
+
+const RESULT_GROUPS: GroupDef<LabResultRow>[] = [
+  { key: 'category', label: 'Category', of: (r) => (r.test_category ? { id: r.test_category, label: r.test_category } : null) },
+  { key: 'flag', label: 'Flag', of: (r) => ({ id: r.flag, label: r.flag }) },
+];
+
+function renderResultDetail(r: LabResultRow) {
+  if (!r.ai_interpretation && !r.ai_trend_note) return <p className="text-xs text-slate-400">No interpretation for this result.</p>;
+  return (
+    <div className="space-y-1">
+      {r.ai_interpretation && <p className="text-xs text-slate-600">{r.ai_interpretation}</p>}
+      {r.ai_trend_note && <p className="text-xs text-blue-600">{r.ai_trend_note}</p>}
+    </div>
+  );
+}
 
 export default function LabPanelsClient({ panels: initial }: { panels: PanelSummary[] }) {
   const [panels, setPanels] = useState(initial);
@@ -178,37 +236,15 @@ export default function LabPanelsClient({ panels: initial }: { panels: PanelSumm
             <div className="px-5 py-3 border-b border-slate-100">
               <h3 className="text-sm font-semibold text-slate-700">All Results</h3>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-slate-500 border-b border-slate-100">
-                    <th className="px-4 py-2 text-left font-medium">Test</th>
-                    <th className="px-4 py-2 text-right font-medium">Value</th>
-                    <th className="px-4 py-2 text-right font-medium">Ref Range</th>
-                    <th className="px-4 py-2 text-center font-medium">Flag</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {selectedPanel.results.map(r => (
-                    <tr key={r.id}>
-                      <td className="px-4 py-2">
-                        <p className="text-slate-700 font-medium">{r.test_name}</p>
-                        {r.ai_interpretation && <p className="text-xs text-slate-400 mt-0.5">{r.ai_interpretation}</p>}
-                        {r.ai_trend_note && <p className="text-xs text-blue-500 mt-0.5">{r.ai_trend_note}</p>}
-                      </td>
-                      <td className="px-4 py-2 text-right font-mono tabular-nums">
-                        {r.value ?? r.value_text} {r.unit && <span className="text-xs text-slate-400">{r.unit}</span>}
-                      </td>
-                      <td className="px-4 py-2 text-right text-xs text-slate-400">{r.reference_range_text ?? '—'}</td>
-                      <td className="px-4 py-2 text-center">
-                        <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${FLAG_BADGE[r.flag] ?? FLAG_BADGE.normal}`}>
-                          {r.flag}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="p-3">
+              <DataTable
+                rows={selectedPanel.results}
+                columns={RESULT_COLUMNS}
+                groups={RESULT_GROUPS}
+                renderExpanded={renderResultDetail}
+                noun={['result', 'results']}
+                searchPlaceholder="Search tests…"
+              />
             </div>
           </div>
         )}

@@ -8,6 +8,7 @@ import { formatValue, styleFor, unitLabelFor, type ReviewStatus } from '@/lib/re
 import { needsAction, type ProjectLine, type ReviewReading } from '@/lib/reviews/types';
 import { StatusChip, StatusPill } from '@/components/reviews/StatusPill';
 import { supabaseServer } from '@/lib/supabase/server';
+import ProjectLinesTable from './ProjectLinesTable';
 
 export const dynamic = 'force-dynamic';
 
@@ -233,42 +234,8 @@ export default async function ReviewsPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
                 Projects — worst first
               </h2>
-              <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
-                    <tr>
-                      <th className="px-4 py-2">Project</th>
-                      <th className="px-4 py-2">Status</th>
-                      <th className="px-4 py-2">Why</th>
-                      <th className="px-4 py-2 text-right">Open</th>
-                      <th className="px-4 py-2 text-right">Late</th>
-                      <th className="px-4 py-2 text-right">Idle</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {projectLines.map((line) => (
-                      <tr key={line.id} className={styleFor(line.status).bg}>
-                        <td className="px-4 py-2 font-medium">
-                          {line.title}
-                          {line.client && (
-                            <span className="ml-2 text-xs text-slate-500">{line.client}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2">
-                          <StatusPill status={line.status} />
-                        </td>
-                        <td className="px-4 py-2 text-xs text-slate-600">{line.reason}</td>
-                        <td className="px-4 py-2 text-right tabular-nums">{line.openTasks}</td>
-                        <td className="px-4 py-2 text-right tabular-nums">
-                          {line.overdueTasks || '—'}
-                        </td>
-                        <td className="px-4 py-2 text-right tabular-nums text-slate-500">
-                          {line.daysSinceTouch === null ? '—' : `${line.daysSinceTouch}d`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="mt-2">
+                <ProjectLinesTable rows={projectLines} />
               </div>
             </section>
           )}
