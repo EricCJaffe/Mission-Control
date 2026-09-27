@@ -25,7 +25,7 @@ export type AdminData = {
   postings: Array<{ id: string; slug: string; title: string; active: boolean }>;
 };
 
-const card = 'rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm';
+const card = 'min-w-0 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm';
 const input = 'mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm';
 const label = 'block text-xs font-medium text-slate-600';
 const OTHER = '__other__';
