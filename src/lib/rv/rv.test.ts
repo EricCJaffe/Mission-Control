@@ -122,10 +122,10 @@ test('the two-account checklists are ordered, and prepare cannot be skipped past
   assert.deepEqual(OPS_CHECKLISTS.map((c) => c.id), ['reserve-setup', 'account-switch']);
   assert.ok(!CHECKLISTS.some((c) => c.id === 'reserve-setup'), 'ops lists stay off the RV page');
   const setup = getChecklist('reserve-setup')!;
-  assert.equal(itemIds(setup).length, 3);
+  assert.equal(itemIds(setup).length, 4);
   assert.equal(blockedBy(setup, [], 'reserve-setup-i1'), null);
-  assert.equal(blockedBy(setup, ['reserve-setup-i1'], 'reserve-setup-i3'), 'reserve-setup-i2');
-  assert.equal(blockedBy(setup, ['reserve-setup-i1', 'reserve-setup-i2'], 'reserve-setup-i3'), null);
+  assert.equal(blockedBy(setup, ['reserve-setup-i1'], 'reserve-setup-i3'), 'reserve-setup-i1b', 'the private-window sign-in comes before prepare');
+  assert.equal(blockedBy(setup, ['reserve-setup-i1', 'reserve-setup-i1b', 'reserve-setup-i2'], 'reserve-setup-i3'), null);
   const sw = getChecklist('account-switch')!;
   assert.equal(itemIds(sw).length, 5);
   assert.equal(blockedBy(sw, [], 'account-switch-i3'), 'account-switch-i1', 'fsa-park comes first');
