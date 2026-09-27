@@ -17,7 +17,12 @@
             {
               "id": "reserve-setup-i1",
               "text": "CLAUDE_CONFIG_DIR=~/.claude-reserve claude",
-              "note": "Then /login as the reserve (4lot.org) account. Run nothing else in it."
+              "note": "Then type /login. Run nothing else in it."
+            },
+            {
+              "id": "reserve-setup-i1b",
+              "text": "Open the sign-in link in a PRIVATE (incognito) window and sign in as the 4lot.org account",
+              "note": "If the window is already signed in as your primary Gmail account, STOP: you are authorizing the wrong account, and nothing will warn you. Both config folders would point at one plan and the week still runs out."
             },
             {
               "id": "reserve-setup-i2",
