@@ -424,7 +424,11 @@ export function DataTable<T extends { id: string }>({
   const firstCol = columns[0];
 
   return (
-    <div className="space-y-3">
+    /* A one-column grid of minmax(0, 1fr): the table's natural width then
+       counts as zero toward whatever contains it, so a card or grid cell stays
+       the width of the screen and the table scrolls inside it. Without this,
+       a wide table stretched its card past the right edge (/helpers, 9/26). */
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
       {openRow && renderExpanded && (
         <RowDetails
           title={firstCol ? String((firstCol.value ? firstCol.value(openRow) : (openRow as Record<string, unknown>)[firstCol.key]) ?? '') : ''}
