@@ -75,11 +75,13 @@ export interface DataColumn<T> extends ColumnView<T> {
 /* Sticky cell classes. Opaque, so the scrolled cells do not show through. */
 const PIN_RIGHT = 'sticky right-0 z-10 bg-white shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.12)]';
 const PIN_LEFT = 'sticky left-0 z-10 bg-white shadow-[6px_0_6px_-6px_rgba(0,0,0,0.10)]';
-/* The look is Trellis's mother list, which Eric sent as the reference on
-   2026-09-26: a warm band behind small tracked capitals, hairline rules, roomy
-   single-line rows, the name in a deep teal, and soft outlined pills. */
-const HEAD_BG = 'bg-[#F3EEE6]';
-const RULE = 'border-[#EEE8DF]';
+/* The LAYOUT is Trellis's mother list, which Eric sent as the reference on
+   2026-09-26: a band behind small tracked capitals, hairline rules, compact
+   single-line rows, outlined pills. The COLORS are this app's own slate and
+   blue, not Trellis's: Eric, same day, "it should have kept the color scheme
+   of the site and template". */
+const HEAD_BG = 'bg-slate-50';
+const RULE = 'border-slate-100';
 
 interface DataTableProps<T extends { id: string }> {
   rows: T[];
@@ -192,7 +194,7 @@ function ColumnFilter<T>({
           place();
           setOpen((o) => !o);
         }}
-        className={`ml-0.5 rounded p-1.5 hover:bg-[#E9E2D6] ${set ? 'text-blue-700' : 'text-[#C9C1B3] hover:text-[#8C8375]'}`}
+        className={`ml-0.5 rounded p-1.5 hover:bg-slate-200 ${set ? 'text-blue-700' : 'text-slate-300 hover:text-slate-600'}`}
         aria-label={set ? `Filter on ${column.header} (active)` : `Filter by ${column.header}`}
         aria-expanded={open}
       >
@@ -306,7 +308,7 @@ function RowDetails({ title, onClose, children }: { title: string; onClose: () =
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-3">
-          <h2 className="text-base font-semibold text-[#1E3A3F]">{title}</h2>
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100">
             <X className="h-4 w-4" />
           </button>
@@ -403,13 +405,13 @@ export function DataTable<T extends { id: string }>({
     return [
       <tr
         key={row.id}
-        className={`group border-b ${RULE} last:border-0 ${clickable ? 'cursor-pointer hover:bg-[#FBF8F3]' : ''} ${open ? 'bg-[#FBF8F3]' : ''} ${rowClassName?.(row) ?? ''}`}
+        className={`group border-b ${RULE} last:border-0 ${clickable ? 'cursor-pointer hover:bg-slate-50' : ''} ${open ? 'bg-slate-50' : ''} ${rowClassName?.(row) ?? ''}`}
         onClick={() => (renderExpanded ? setOpenId(row.id) : onRowClick?.(row))}
       >
         {columns.map((col, i) => (
           <td
             key={col.key}
-            className={`max-w-[22rem] truncate whitespace-nowrap px-4 py-2 align-middle text-sm ${i === 0 ? 'font-medium text-[#1E3A3F]' : 'text-[#2F2F2F]'} ${pinClass(col)} ${col.pinRight || col.pinLeft ? 'group-hover:bg-[#FBF8F3]' : ''} ${col.className ?? ''}`}
+            className={`max-w-[22rem] truncate whitespace-nowrap px-4 py-2 align-middle text-sm ${i === 0 ? 'font-medium text-slate-900' : 'text-slate-700'} ${pinClass(col)} ${col.pinRight || col.pinLeft ? 'group-hover:bg-slate-50' : ''} ${col.className ?? ''}`}
           >
             {col.render ? col.render(row) : ((col.value ? col.value(row) : ((row as Record<string, unknown>)[col.key] as React.ReactNode)) ?? '—')}
           </td>
@@ -478,16 +480,16 @@ export function DataTable<T extends { id: string }>({
       )}
 
       {/* The table scrolls inside this box; the page never scrolls sideways. */}
-      <div className="overflow-x-auto rounded-xl border border-[#EAE4DA] bg-white">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead>
-            <tr className={`border-b border-[#E7E0D4] ${HEAD_BG}`}>
+            <tr className={`border-b border-slate-200 ${HEAD_BG}`}>
               {columns.map((col) => {
                 const sorted = sort?.key === col.key ? sort.direction : null;
                 return (
                   <th
                     key={col.key}
-                    className={`whitespace-nowrap px-4 py-2 text-left align-middle text-[11px] font-semibold uppercase tracking-[0.1em] text-[#8C8375] ${headPinClass(col)}`}
+                    className={`whitespace-nowrap px-4 py-2 text-left align-middle text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 ${headPinClass(col)}`}
                     style={col.width ? { width: col.width } : undefined}
                     aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}
                   >
@@ -498,7 +500,7 @@ export function DataTable<T extends { id: string }>({
                         {col.sortable ? (
                           <button
                             type="button"
-                            className={`py-1 uppercase tracking-[0.1em] hover:text-[#3F3A33] ${sorted ? 'text-[#3F3A33]' : ''}`}
+                            className={`py-1 uppercase tracking-[0.1em] hover:text-slate-800 ${sorted ? 'text-slate-800' : ''}`}
                             onClick={() => setState({ sort: nextSort(sort, col.key) })}
                           >
                             {col.header}
@@ -519,7 +521,7 @@ export function DataTable<T extends { id: string }>({
                       {col.sortable && (
                         <button
                           type="button"
-                          className={`rounded p-1 ${sorted ? 'text-[#3F3A33]' : 'text-[#C9C1B3] hover:text-[#8C8375]'}`}
+                          className={`rounded p-1 ${sorted ? 'text-slate-800' : 'text-slate-300 hover:text-slate-600'}`}
                           onClick={() => setState({ sort: nextSort(sort, col.key) })}
                           aria-label={`Sort by ${col.header}`}
                         >
@@ -572,7 +574,7 @@ export function DataTable<T extends { id: string }>({
                 const hidden = group.rows.length - groupRowsShown.length;
                 const alert = groupAlert?.(group.rows) ?? null;
                 return [
-                  <tr key={`g-${group.id}`} className="cursor-pointer border-b border-[#E7E0D4] bg-[#F8F4EE] hover:bg-[#F3EEE6]" onClick={() => toggleGroup(group.id)}>
+                  <tr key={`g-${group.id}`} className="cursor-pointer border-b border-slate-200 bg-slate-100/70 hover:bg-slate-100" onClick={() => toggleGroup(group.id)}>
                     <td colSpan={colCount} className="px-3 py-1.5">
                       <span className="sticky left-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
                         {open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
@@ -652,11 +654,11 @@ export function DataTable<T extends { id: string }>({
 export type PillTone = 'red' | 'yellow' | 'green' | 'blue' | 'slate';
 
 const PILL: Record<PillTone, string> = {
-  red: 'bg-[#FCECE8] text-[#B4321F] border-[#F1C7BD]',
-  yellow: 'bg-[#FBF3DC] text-[#7A5A0A] border-[#EAD9A4]',
-  green: 'bg-[#EEF2E4] text-[#3E5A28] border-[#CFDBB8]',
-  blue: 'bg-white text-[#1F3A5F] border-[#D6DCE6]',
-  slate: 'bg-[#F1EEE9] text-[#8C8375] border-[#E1DBD1]',
+  red: 'bg-red-50 text-red-700 border-red-200',
+  yellow: 'bg-yellow-50 text-yellow-800 border-yellow-300',
+  green: 'bg-green-50 text-green-700 border-green-200',
+  blue: 'bg-blue-50 text-blue-700 border-blue-200',
+  slate: 'bg-slate-50 text-slate-600 border-slate-200',
 };
 
 export function StatusPill({ tone, children, title }: { tone: PillTone; children: React.ReactNode; title?: string }) {
