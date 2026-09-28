@@ -102,6 +102,19 @@ type LoggedSet = {
 let _setSeq = 0;
 const newSetId = () => `set-${Date.now().toString(36)}-${++_setSeq}`;
 
+/*
+ * The live-stats panel and the Complete button stay on screen for the whole
+ * workout, so you scroll between them (Eric, 2026-09-28).
+ *
+ * The panel's top clears AppShell's own pinned bar (py-3 around a 44px
+ * button, plus its border: 69px). It was `top-2`, which put it UNDER that bar
+ * (z-30 over z-20): it looked pinned in the source and scrolled out of sight
+ * on the phone.
+ */
+const PINNED_HEADER = 'sticky top-[4.75rem] z-20 rounded-2xl bg-slate-900 px-4 py-3 shadow-lg';
+/* Sticky, not fixed: it stays inside the content column, clear of the sidebar. */
+const PINNED_FOOTER = 'sticky bottom-0 z-20 -mx-4 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:-mx-6 md:px-6';
+
 /** Rest length one tap of the inline timer gives you. */
 const REST_DEFAULT_SECONDS = 60;
 const REST_BUMP_SECONDS = 30;
@@ -1982,7 +1995,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
           </div>
         )}
         {/* Live stats — same pinned dark instrument panel as the strength screen. */}
-        <div className="sticky top-2 z-20 rounded-2xl bg-slate-900 px-4 py-3 shadow-lg">
+        <div className={PINNED_HEADER}>
           <div className={`grid ${cardioStats.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2 text-center`}>
             {cardioStats.map((stat) => (
               <div key={stat.label}>
@@ -2221,11 +2234,6 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         </div>
         )}
 
-        <button onClick={saveWorkout} disabled={saving}
-          className="w-full rounded-xl bg-blue-700 text-white text-sm font-semibold py-3 hover:bg-blue-800 min-h-[44px] disabled:opacity-50">
-          {saving ? 'Saving...' : isLive ? 'Complete Workout' : 'Save Workout'}
-        </button>
-
         {/* Cancel — abandon the session and return to the start screen */}
         <button
           onClick={cancelWorkout}
@@ -2234,6 +2242,13 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         >
           Cancel Workout
         </button>
+
+        <div className={PINNED_FOOTER}>
+          <button onClick={saveWorkout} disabled={saving}
+            className="w-full rounded-xl bg-blue-700 text-white text-sm font-semibold py-3 hover:bg-blue-800 min-h-[44px] disabled:opacity-50">
+            {saving ? 'Saving...' : isLive ? 'Complete Workout' : 'Save Workout'}
+          </button>
+        </div>
       </div>
     );
   }
@@ -2452,7 +2467,7 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       {/* Live stats — a dark "instrument panel" that stays pinned while you
           scroll and log. The one bold element on an otherwise light screen.
           Time counts up live; when logging a past workout, it's a duration you type. */}
-      <div className="sticky top-2 z-20 rounded-2xl bg-slate-900 px-4 py-3 shadow-lg">
+      <div className={PINNED_HEADER}>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-300">
@@ -2679,11 +2694,6 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         Save as Template
       </button>
 
-      <button onClick={saveWorkout} disabled={saving || totalSets === 0}
-        className="w-full rounded-xl bg-green-700 text-white text-sm font-semibold py-3 hover:bg-green-800 min-h-[44px] disabled:opacity-50">
-        {saving ? 'Saving...' : `${isLive ? 'Complete' : 'Save'} Workout (${blocks.length} exercises, ${totalSets} sets)`}
-      </button>
-
       {/* Cancel — abandon the session and return to the start screen */}
       <button
         onClick={cancelWorkout}
@@ -2697,6 +2707,13 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
         className="w-full rounded-xl border border-slate-200 text-slate-600 text-sm py-2.5 hover:bg-slate-50">
         Cancel
       </button>
+
+      <div className={PINNED_FOOTER}>
+        <button onClick={saveWorkout} disabled={saving || totalSets === 0}
+          className="w-full rounded-xl bg-green-700 text-white text-sm font-semibold py-3 hover:bg-green-800 min-h-[44px] disabled:opacity-50">
+          {saving ? 'Saving...' : `${isLive ? 'Complete' : 'Save'} Workout (${blocks.length} exercises, ${totalSets} sets)`}
+        </button>
+      </div>
 
       {/* Quick exercise creator modal */}
       {showQuickCreator && (
