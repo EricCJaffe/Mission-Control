@@ -3,6 +3,7 @@ import { owner, properties, JOBS_PROJECT } from '@/lib/helpers/owner'
 import { serviceClient } from '@/lib/helpers/server'
 import { addDays, type WorkRow } from '@/lib/helpers/list'
 import { today } from '@/lib/day'
+import { loadNeeds, loadSupplies } from '@/lib/supplies-load'
 import HelpersAdmin, { type AdminData } from '@/components/helpers/HelpersAdmin'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,8 @@ export default async function HelpersPage() {
     db.from('job_applications').select('id,posting_id,name,phone,email,drivers_license,experience,availability,heard_from,status,worker_id,created_at').order('created_at', { ascending: false }).limit(100),
     db.from('job_postings').select('id,slug,title,active'),
   ])
+
+  const [shelf, supplyNeeds] = await Promise.all([loadSupplies(db, userId), loadNeeds(db, userId, (items ?? []).map((i) => i.task_id as string))])
 
   const itemByTask = new Map((items ?? []).map((i) => [i.task_id as string, i]))
   const projectIds = (projects ?? []).map((p) => p.id as string)
@@ -88,6 +91,8 @@ export default async function HelpersPage() {
     blockerTitles,
     applications: (applications ?? []) as AdminData['applications'],
     postings: (postings ?? []) as AdminData['postings'],
+    supplies: shelf.map((s) => ({ id: s.id, name: s.name, unit: s.unit, on_hand: s.on_hand })),
+    supplyNeeds,
   }
 
   return (

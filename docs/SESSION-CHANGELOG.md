@@ -10,6 +10,29 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-09-28 09:45 ET — Supplies and the shopping list
+
+### What changed
+- Migration `20260928133000_supplies.sql` (applied through the Management API
+  with its ledger row, `npm run db:ledger` clean): `mission.supplies`,
+  `mission.supply_needs`, and the `supplies_use_on_completion` trigger on
+  `mission.tasks`. Trigger dry-run in an aborted transaction: 3 on hand, need
+  2, done → 1, done again → 0 (floors at zero).
+- `src/lib/supplies.ts` (pure: shopping list, store grouping, stock verdict,
+  starter shelf) + `supplies.test.ts`; `src/lib/supplies-load.ts` (reads).
+- `/maintenance/supplies` + `/maintenance/supplies/api` (one JSON route).
+- `TaskSupplies` on schedule rows (/maintenance, asset pages) and on helper
+  jobs (/helpers). /h shows a job's supplies and a "used the last of
+  something" form (`/h/api/supply`, service role, owner-filtered).
+
+### Why
+- Eric, 2026-09-28: an inventory of maintenance consumables and small parts,
+  tied to maintenance requests, with a running shopping list divided by store.
+
+### Follow-ups
+- Counts start at zero; Eric sets on-hand and keep-at-least per item.
+- The weekly brief does not mention the list yet.
+
 ## 2026-09-26 15:10 ET — Helper work list
 
 ### What changed

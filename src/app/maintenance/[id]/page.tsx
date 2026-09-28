@@ -10,6 +10,7 @@ import type { Research } from '@/lib/maintenance/research'
 import { describeRRule } from '@/lib/tasks/recurrence'
 import RecurrencePicker from '@/components/tasks/RecurrencePicker'
 import IssuesList, { AddIssueForm, ISSUE_COLUMNS, type IssueRow } from '@/components/maintenance/IssuesList'
+import { loadNeeds, loadSupplies } from '@/lib/supplies-load'
 import { PlansTable, SuggestionsTable, HistoryTable, type PlanView } from '@/components/maintenance/MaintenanceTables'
 
 export const dynamic = 'force-dynamic'
@@ -59,6 +60,7 @@ export default async function MaintenanceAssetPage({
   const asset = assetData as AssetRow
   const here = `/maintenance/${id}`
   const todayIso = today()
+  const shelf = loadSupplies(supabase, userData.user.id)
 
   /*
    * FinanceOS's inventory is `public.assets`, in the same database. Read with
@@ -109,6 +111,11 @@ export default async function MaintenanceAssetPage({
       why: p.task.why,
     }
   })
+  const [supplyRows, needRows] = await Promise.all([shelf, loadNeeds(supabase, userData.user.id, plans.map((p) => p.task_id))])
+  const supplyProps = {
+    options: supplyRows.map((s) => ({ id: s.id, name: s.name, unit: s.unit, on_hand: s.on_hand })),
+    needs: needRows,
+  }
 
   return (
     <main className="pt-4 md:pt-8 pb-16">
@@ -155,7 +162,7 @@ export default async function MaintenanceAssetPage({
       <section className="mt-6">
         <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Schedule ({plans.length})</h2>
         <div className="mt-3">
-          <PlansTable plans={planViews} mode="asset" redirect={here} todayIso={todayIso} unit={unit} />
+          <PlansTable plans={planViews} mode="asset" redirect={here} todayIso={todayIso} unit={unit} supplies={supplyProps} />
         </div>
       </section>
 

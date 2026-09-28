@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { CheckCircle2, Plus, Trash2 } from 'lucide-react';
 import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone } from '@/components/ui/DataTable';
 import type { IssueRow } from './IssuesList';
+import TaskSupplies, { type NeedView, type SupplyOption } from './TaskSupplies';
 
 export type Verdict = 'red' | 'yellow' | 'green';
 
@@ -86,12 +87,15 @@ export function PlansTable({
   redirect,
   todayIso,
   unit,
+  supplies,
 }: {
   plans: PlanView[];
   mode: 'overview' | 'asset';
   redirect: string;
   todayIso: string;
   unit?: string | null;
+  /** The shelf and what each schedule takes from it. Omitted: no supplies row. */
+  supplies?: { options: SupplyOption[]; needs: NeedView[] };
 }) {
   const rows = [...plans].sort(
     (a, b) => VERDICT_RANK[a.verdict] - VERDICT_RANK[b.verdict] || (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'),
@@ -165,6 +169,7 @@ export function PlansTable({
           </div>
           {p.description && <p className="text-slate-700">{p.description}</p>}
           {p.why && <p className="text-xs italic text-slate-500">Why: {p.why}</p>}
+          {supplies && <TaskSupplies taskId={p.id} needs={supplies.needs} supplies={supplies.options} />}
           {overview ? (
             <Link href={`/maintenance/${p.assetId}`} className="text-sm font-medium text-blue-700 hover:underline">
               Open {p.assetName} →

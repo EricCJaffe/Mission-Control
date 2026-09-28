@@ -8,6 +8,7 @@
  */
 
 import { cookies } from 'next/headers';
+import { helperSupplies } from '@/lib/supplies-load';
 import { createClient } from '@supabase/supabase-js';
 import { DB_SCHEMA, type MissionClient } from '@/lib/supabase/schema';
 import { today } from '@/lib/day';
@@ -102,7 +103,13 @@ export type HourEntry = { task_title: string; started_at: string; ended_at: stri
 /** What the helper page renders. Their own hours only, last 14 days. */
 export async function helperPage(
   h: HelperSession,
-): Promise<{ maintenance: HelperItem[]; oneOff: HelperItem[]; clock: OpenClock | null; hours: HourEntry[] }> {
+): Promise<{
+  maintenance: HelperItem[];
+  oneOff: HelperItem[];
+  clock: OpenClock | null;
+  hours: HourEntry[];
+  supplies: { byTask: Record<string, string[]>; shelf: Array<{ id: string; name: string }> };
+}> {
   const db = serviceClient();
   const since = new Date(Date.now() - 14 * 86_400_000).toISOString();
   const [rows, names, clock, hours] = await Promise.all([
@@ -111,10 +118,14 @@ export async function helperPage(
     openClock(db, h.worker.id),
     db.from('work_time').select('task_title,started_at,ended_at').eq('worker_id', h.worker.id).gte('started_at', since).order('started_at', { ascending: false }),
   ]);
+  const view = helperView(rows, { worker_id: h.worker.id, skills: h.worker.skills }, names, today());
+  // Only the jobs on this helper's screen, so a job they cannot see names nothing.
+  const supplies = await helperSupplies(db, h.owner_id, [...view.maintenance, ...view.oneOff].map((i) => i.id));
   return {
-    ...helperView(rows, { worker_id: h.worker.id, skills: h.worker.skills }, names, today()),
+    ...view,
     clock,
     hours: (hours.data ?? []) as HourEntry[],
+    supplies,
   };
 }
 

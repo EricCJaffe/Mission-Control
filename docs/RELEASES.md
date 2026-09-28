@@ -7,6 +7,22 @@
 
 ## Latest Changes (Rolling)
 
+### September 28, 2026 — Supplies and the shopping list
+
+- `/maintenance/supplies`: what we keep on hand for maintenance (bug spray,
+  weed killer, cleaners, trash bags, gas, mix oil, small-engine parts), with
+  a count, a keep-at-least level, and where to buy it.
+- The shopping list is derived, grouped by store, with "Got it" to restock
+  and "Copy as text" to send to whoever is going. Something is on it when it
+  is below its keep-at-least level, flagged, or short for a job due in the
+  next 30 days.
+- A maintenance schedule or helper job can list the supplies it needs;
+  finishing the job takes them off the shelf (trigger
+  `supplies_use_on_completion`), which puts them back on the list.
+- Helpers see a job's supplies on /h and can flag "used the last of
+  something" onto the list. They cannot change counts or see the list.
+- Migration `20260928133000_supplies.sql`: `supplies`, `supply_needs`.
+
 ### September 26, 2026 — One table for every list
 
 - `src/components/ui/DataTable.tsx`, hand-ported from honeylakeos (no

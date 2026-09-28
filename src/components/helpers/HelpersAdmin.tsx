@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowDown, ArrowUp, Pin, Plus, Share2, KeyRound, UserPlus, Eye } from 'lucide-react';
 import { SKILLS, SKILL_LABELS, DUE_SOON_DAYS, addDays, helperView, formatHours, minutesWorked, type WorkRow } from '@/lib/helpers/list';
 import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone } from '@/components/ui/DataTable';
+import TaskSupplies, { type NeedView, type SupplyOption } from '@/components/maintenance/TaskSupplies';
 
 export type AdminData = {
   today: string;
@@ -23,6 +24,8 @@ export type AdminData = {
     experience: string | null; availability: string | null; heard_from: string | null; status: string; worker_id: string | null; created_at: string;
   }>;
   postings: Array<{ id: string; slug: string; title: string; active: boolean }>;
+  supplies: SupplyOption[];
+  supplyNeeds: NeedView[];
 };
 
 const card = 'min-w-0 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm';
@@ -400,6 +403,9 @@ function ItemForm({ row, data, locationId, onSave }: { row: WorkRow; data: Admin
         What to buy
         <textarea className={input} rows={2} defaultValue={row.materials ?? ''} onChange={(e) => set('materials', e.target.value)} />
       </label>
+      <div className="md:col-span-2">
+        <TaskSupplies taskId={row.task_id} needs={data.supplyNeeds} supplies={data.supplies} />
+      </div>
       <div>
         <label className={label}>
           Gift card
