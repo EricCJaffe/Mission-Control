@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase/server';
-import { Brain, FileText, Flame, Pin, HeartPulse, BarChart3, Plug, Settings } from 'lucide-react';
+import { Brain, FileText, Flame, Pin, HeartPulse, BarChart3, Plug, Settings, Network } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Admin | Mission Control' };
@@ -87,6 +87,14 @@ export default async function AdminPage() {
       title: 'Templates',
       body: 'Reusable structures — workout templates the logger pre-fills from, plus the quarterly and annual review templates.',
       meta: `${templateCount ?? 0} workout template${templateCount === 1 ? '' : 's'}`,
+      meta2: null,
+    },
+    {
+      href: '/admin/estate',
+      icon: <Network className="h-5 w-5 text-sky-700" />,
+      title: 'Estate authority chart',
+      body: 'Which Claude session can write where: dispatch, BibleOS, the peer pair, purpose sessions, projects, and the other dev boxes.',
+      meta: 'Updated 2026-09-29',
       meta2: null,
     },
     {
