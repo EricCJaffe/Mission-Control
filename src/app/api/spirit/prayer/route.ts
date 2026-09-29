@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
+import { today as appToday } from '@/lib/day';
+import { tickPractice } from '@/lib/spirit/tick';
 
 export const dynamic = 'force-dynamic';
 
@@ -280,6 +282,9 @@ export async function PATCH(req: NextRequest) {
       .eq('user_id', user.id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Praying through a request IS the prayer practice for today.
+    await tickPractice(supabase, user.id, 'prayer', appToday());
     return NextResponse.json({ ok: true, prayed_at: prayedAt, prayed_count: count ?? 1 });
   }
 

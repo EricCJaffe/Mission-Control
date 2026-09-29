@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addDays, today as appToday } from '@/lib/day';
 import { supabaseServer } from '@/lib/supabase/server';
+import { tickPractice } from '@/lib/spirit/tick';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,18 +67,7 @@ export async function POST(req: NextRequest) {
 
     // Reading through a plan IS the Bible-reading practice — don't make him
     // record it twice.
-    const { data: practice } = await supabase
-      .from('practices')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('key', 'bible_reading')
-      .maybeSingle();
-    if (practice) {
-      await supabase.from('practice_logs').upsert(
-        { user_id: user.id, practice_id: practice.id, log_date: todayIso, completed: true },
-        { onConflict: 'user_id,practice_id,log_date' }
-      );
-    }
+    await tickPractice(supabase, user.id, 'bible_reading', todayIso);
 
     // Close the plan out once the final day is done.
     const { count: doneCount } = await supabase
