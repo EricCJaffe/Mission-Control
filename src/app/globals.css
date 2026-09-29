@@ -195,6 +195,15 @@ html,
 body {
   max-width: 100%;
   overflow-x: hidden;
+  /*
+   * `clip`, not `hidden`, wherever the browser has it (Safari 16+). `hidden`
+   * on both html and body turns body into a scroll container that never
+   * scrolls, and every `position: sticky` inside it then sticks to that dead
+   * box instead of the screen: the workout logger's pinned time panel and
+   * Complete bar scrolled away on Eric's tablet (2026-09-28). `clip` hides the
+   * sideways overflow without making a scroll container.
+   */
+  overflow-x: clip;
 }
 
 /* Tap targets. Anything interactive should be reachable with a thumb. */
