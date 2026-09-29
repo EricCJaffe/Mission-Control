@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { Check, Flame } from 'lucide-react';
+import Link from 'next/link';
+import { Check, ChevronRight, Flame } from 'lucide-react';
 import {
   summarisePractices,
   type Practice,
@@ -20,6 +21,18 @@ const CADENCE_LABEL: Record<string, string> = {
   daily: 'today',
   weekly: 'this week',
   monthly: 'this month',
+};
+
+/*
+ * Where a practice is actually done, when the app has a page for it. Tapping
+ * the card goes there; the tick box still ticks. Reading a plan day and
+ * marking a prayer prayed both tick their practice on their own
+ * (src/lib/spirit/tick.ts). Faith reading has no page: it is usually a
+ * physical book, so it is ticked by hand.
+ */
+const PRACTICE_HREF: Record<string, string> = {
+  bible_reading: '/spirit/reading',
+  prayer: '/spirit/prayer',
 };
 
 /** How many days back the strip offers. A week is as far as memory is honest. */
@@ -146,6 +159,28 @@ export default function PracticeTracker({ practices, logs: initialLogs, today }:
         // show a tick and back-dating would be impossible to see.
         const done = backdating ? tickedOn(practice, day) : adherence.doneThisPeriod;
         const style = standing ? STATUS_STYLES[standing] : STATUS_STYLES.unknown;
+        const href = PRACTICE_HREF[practice.key];
+        const detail = (
+          <>
+            <p className="text-sm font-semibold text-slate-900">{practice.label}</p>
+            <p className="text-xs text-slate-500">
+              {adherence.rate === null ? (
+                'No history yet'
+              ) : (
+                <>
+                  {adherence.met}/{adherence.periods}{' '}
+                  {practice.cadence === 'daily' ? 'days' : practice.cadence === 'weekly' ? 'weeks' : 'months'}
+                </>
+              )}
+              {adherence.streak > 1 && (
+                <span className="ml-2 inline-flex items-center gap-0.5 font-medium text-orange-600">
+                  <Flame className="h-3 w-3" />
+                  {adherence.streak}
+                </span>
+              )}
+            </p>
+          </>
+        );
         return (
           <div
             key={practice.id}
@@ -168,25 +203,14 @@ export default function PracticeTracker({ practices, logs: initialLogs, today }:
               <Check className="h-5 w-5" strokeWidth={3} />
             </button>
 
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-900">{practice.label}</p>
-              <p className="text-xs text-slate-500">
-                {adherence.rate === null ? (
-                  'No history yet'
-                ) : (
-                  <>
-                    {adherence.met}/{adherence.periods}{' '}
-                    {practice.cadence === 'daily' ? 'days' : practice.cadence === 'weekly' ? 'weeks' : 'months'}
-                  </>
-                )}
-                {adherence.streak > 1 && (
-                  <span className="ml-2 inline-flex items-center gap-0.5 font-medium text-orange-600">
-                    <Flame className="h-3 w-3" />
-                    {adherence.streak}
-                  </span>
-                )}
-              </p>
-            </div>
+            {href ? (
+              <Link href={href} className="group flex min-w-0 flex-1 items-center gap-1">
+                <div className="min-w-0 flex-1">{detail}</div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-500" />
+              </Link>
+            ) : (
+              <div className="min-w-0 flex-1">{detail}</div>
+            )}
 
             {/* Label alongside the color — hue alone can't carry the status. */}
             <span
