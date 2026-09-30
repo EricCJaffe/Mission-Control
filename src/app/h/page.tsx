@@ -25,6 +25,7 @@ export default async function HelperPage() {
         tracksHours={h.worker.tracks_hours}
         clock={page.clock}
         hours={page.hours}
+        supplies={page.supplies}
       />
     </main>
   )

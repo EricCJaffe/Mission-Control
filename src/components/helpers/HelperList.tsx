@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, MapPin, Pin, ShoppingCart, Gift, User, LogOut } from 'lucide-react';
+import { Check, MapPin, Pin, ShoppingCart, Gift, User, LogOut, Package } from 'lucide-react';
 import { SKILL_LABELS, formatHours, minutesWorked, type HelperItem } from '@/lib/helpers/list';
 import { DataTable, StatusPill, type DataColumn, type GroupDef } from '@/components/ui/DataTable';
 
@@ -46,6 +46,7 @@ export default function HelperList({
   tracksHours,
   clock,
   hours,
+  supplies,
   preview = false,
 }: {
   name: string;
@@ -54,6 +55,8 @@ export default function HelperList({
   tracksHours: boolean;
   clock: Clock;
   hours: Hour[];
+  /** Each job's supplies as lines of text, and item names for "we're out of…". */
+  supplies?: { byTask: Record<string, string[]>; shelf: Array<{ id: string; name: string }> };
   preview?: boolean;
 }) {
   const router = useRouter();
@@ -62,22 +65,25 @@ export default function HelperList({
   const [confirming, setConfirming] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
-  async function post(path: string, body: unknown, key: string) {
-    if (preview) return;
+  /* True when it saved, so a caller can say so. */
+  async function post(path: string, body: unknown, key: string): Promise<boolean> {
+    if (preview) return false;
     setBusy(key);
     setError(null);
     try {
       const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (res.status === 401) {
         router.push('/h/login');
-        return;
+        return false;
       }
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`);
       setConfirming(null);
       setNotes({});
       router.refresh();
+      return true;
     } catch (e) {
       setError(`Not saved: ${(e as Error).message}`);
+      return false;
     } finally {
       setBusy(null);
     }
@@ -164,6 +170,14 @@ export default function HelperList({
             <ShoppingCart className="mt-0.5 h-4 w-4 shrink-0" /> <span className="whitespace-pre-line">{item.materials}</span>
           </div>
         )}
+        {supplies?.byTask[item.id]?.length ? (
+          <div className="flex gap-1.5 rounded-xl bg-white p-2">
+            <Package className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              From the shelf: {supplies.byTask[item.id].join(', ')}
+            </span>
+          </div>
+        ) : null}
         {item.gift_card && (
           <div className="flex gap-1.5 rounded-xl bg-blue-50 p-2 text-blue-900">
             <Gift className="mt-0.5 h-4 w-4 shrink-0" /> {item.gift_card}
@@ -277,6 +291,8 @@ export default function HelperList({
         {table(oneOff, 'No jobs right now.')}
       </section>
 
+      <OutOf shelf={supplies?.shelf ?? []} disabled={busy !== null || preview} onSend={(body) => post('/h/api/supply', body, 'supply')} />
+
       {tracksHours && (
         <section className="mt-8">
           <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Your hours, last 14 days</h2>
@@ -293,5 +309,54 @@ export default function HelperList({
         </section>
       )}
     </div>
+  );
+}
+
+/*
+ * "Used the last of something?" The person holding the empty bottle is the
+ * only one who knows, so they put it on Eric's shopping list from here.
+ */
+function OutOf({ shelf, disabled, onSend }: { shelf: Array<{ id: string; name: string }>; disabled: boolean; onSend: (body: Record<string, string>) => Promise<boolean> }) {
+  const [pick, setPick] = useState('');
+  const [name, setName] = useState('');
+  const [note, setNote] = useState('');
+  const [sent, setSent] = useState<string | null>(null);
+  const OTHER = '__other__';
+  const ctl = 'min-h-[44px] w-full rounded-xl border border-slate-300 bg-white px-3 text-sm';
+  const ready = pick === OTHER ? name.trim() : pick;
+  return (
+    <section className="mt-8 rounded-2xl border-2 border-slate-300 bg-white p-4">
+      <h2 className="flex items-center gap-2 font-semibold">
+        <ShoppingCart className="h-4 w-4 text-blue-700" /> Used the last of something?
+      </h2>
+      <p className="text-sm text-slate-500">Put it on the shopping list so it gets bought.</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <select aria-label="What ran out" className={ctl} value={pick} onChange={(e) => setPick(e.target.value)}>
+          <option value="">Pick an item…</option>
+          {shelf.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+          <option value={OTHER}>Something else…</option>
+        </select>
+        {pick === OTHER && <input aria-label="Item" className={ctl} placeholder="What do we need?" value={name} onChange={(e) => setName(e.target.value)} />}
+        <input aria-label="Note" className={ctl} placeholder="Note (optional): size, brand" value={note} onChange={(e) => setNote(e.target.value)} />
+        <button
+          type="button"
+          disabled={disabled || !ready}
+          className="min-h-[44px] rounded-xl bg-blue-700 px-4 text-sm font-medium text-white disabled:opacity-60"
+          onClick={async () => {
+            const label = pick === OTHER ? name.trim() : (shelf.find((s) => s.id === pick)?.name ?? '');
+            if (!(await onSend(pick === OTHER ? { name: name.trim(), note } : { supply_id: pick, note }))) return;
+            setSent(label);
+            setPick('');
+            setName('');
+            setNote('');
+          }}
+        >
+          Add to shopping list
+        </button>
+      </div>
+      {sent && <p className="mt-2 text-sm text-green-700">Added: {sent}. Thanks.</p>}
+    </section>
   );
 }

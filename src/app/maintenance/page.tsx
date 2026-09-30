@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { Wrench, Package } from 'lucide-react'
+import { Wrench, Package, ShoppingCart } from 'lucide-react'
+import { loadList, loadNeeds } from '@/lib/supplies-load'
 import { supabaseServer } from '@/lib/supabase/server'
 import { today } from '@/lib/day'
 import { CATEGORIES, CATEGORY_KEYS, STARTER, type Category } from '@/lib/maintenance/library'
@@ -75,6 +76,11 @@ export default async function MaintenancePage({
     .order('opened_on')
   const issues = (issueData ?? []) as IssueRow[]
   const assetNames = Object.fromEntries(assets.map((a) => [a.id, a.name]))
+  const [{ supplies, list }, needRows] = await Promise.all([
+    loadList(supabase, userData.user.id),
+    loadNeeds(supabase, userData.user.id, plans.map((p) => p.task_id)),
+  ])
+  const supplyProps = { options: supplies.map((s) => ({ id: s.id, name: s.name, unit: s.unit, on_hand: s.on_hand })), needs: needRows }
 
   const byAsset = new Map<string, PlanRow[]>()
   for (const p of plans) byAsset.set(p.asset_id, [...(byAsset.get(p.asset_id) ?? []), p])
@@ -120,9 +126,14 @@ export default async function MaintenancePage({
             recurring task — it also shows in Tasks, the weekly brief and the calendar.
           </p>
         </div>
-        <Link href="/maintenance/calendar" className="text-sm font-medium text-blue-700 hover:underline">
-          Maintenance calendar →
-        </Link>
+        <div className="flex flex-wrap items-center gap-4">
+          <Link href="/maintenance/supplies" className="text-sm font-medium text-blue-700 hover:underline">
+            Supplies →
+          </Link>
+          <Link href="/maintenance/calendar" className="text-sm font-medium text-blue-700 hover:underline">
+            Maintenance calendar →
+          </Link>
+        </div>
       </div>
 
       {sp?.error && (
@@ -149,6 +160,25 @@ export default async function MaintenancePage({
         ))}
       </div>
 
+      {/* The shopping list, where it will be seen: it is derived, so it is only as good as being looked at. */}
+      <Link
+        href="/maintenance/supplies"
+        className="mt-3 flex items-center justify-between gap-3 rounded-2xl border-2 border-slate-300 bg-white px-4 py-3 shadow-sm hover:border-blue-300"
+      >
+        <span className="flex items-center gap-2 text-sm">
+          <ShoppingCart className="h-4 w-4 text-blue-700" />
+          {list.length ? (
+            <span>
+              <b>{list.length} to buy</b>
+              <span className="text-slate-500"> · {[...new Set(list.map((l) => l.supply.store?.trim() || 'Anywhere'))].slice(0, 3).join(', ')}</span>
+            </span>
+          ) : (
+            <span className="text-slate-600">{supplies.length ? `Supplies: nothing to buy (${supplies.length} on the shelf)` : 'Supplies: add what we keep on hand'}</span>
+          )}
+        </span>
+        <span className="text-sm font-medium text-blue-700">Shopping list →</span>
+      </Link>
+
       {assets.length === 0 && !error && (
         <div className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
           <h2 className="font-semibold">Start with what we have</h2>
@@ -170,7 +200,7 @@ export default async function MaintenancePage({
             Schedules ({plans.length}){attention.length > 0 && ` · ${attention.length} need attention`}
           </h2>
           <div className="mt-3">
-            <PlansTable plans={planViews} mode="overview" redirect="/maintenance" todayIso={todayIso} />
+            <PlansTable plans={planViews} mode="overview" redirect="/maintenance" todayIso={todayIso} supplies={supplyProps} />
           </div>
         </section>
       )}

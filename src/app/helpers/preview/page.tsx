@@ -3,6 +3,7 @@ import { owner } from '@/lib/helpers/owner'
 import { sharedRows, workerNames } from '@/lib/helpers/server'
 import { helperView } from '@/lib/helpers/list'
 import { today } from '@/lib/day'
+import { helperSupplies } from '@/lib/supplies-load'
 import HelperList from '@/components/helpers/HelperList'
 
 export const dynamic = 'force-dynamic'
@@ -22,6 +23,7 @@ export default async function HelperPreview({ searchParams }: { searchParams: Pr
   ])
   const w = (workers ?? []).find((x) => x.id === workerId) as { id: string; name: string; skills: string[]; tracks_hours: boolean } | undefined
   const view = helperView(rows, w ? { worker_id: w.id, skills: w.skills } : { worker_id: null, skills: null }, names, today())
+  const supplies = await helperSupplies(o.db, o.userId, [...view.maintenance, ...view.oneOff].map((i) => i.id))
 
   return (
     <main className="pt-4 pb-16 md:pt-8">
@@ -37,7 +39,7 @@ export default async function HelperPreview({ searchParams }: { searchParams: Pr
         ))}
       </div>
       <div className="mt-4 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50">
-        <HelperList name={w?.name ?? 'a helper with every skill'} maintenance={view.maintenance} oneOff={view.oneOff} tracksHours={w?.tracks_hours ?? false} clock={null} hours={[]} preview />
+        <HelperList name={w?.name ?? 'a helper with every skill'} maintenance={view.maintenance} oneOff={view.oneOff} tracksHours={w?.tracks_hours ?? false} clock={null} hours={[]} supplies={supplies} preview />
       </div>
     </main>
   )
