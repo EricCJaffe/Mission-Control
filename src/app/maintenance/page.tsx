@@ -120,8 +120,8 @@ export default async function MaintenancePage({
             recurring task — it also shows in Tasks, the weekly brief and the calendar.
           </p>
         </div>
-        <Link href="/calendar" className="text-sm font-medium text-blue-700 hover:underline">
-          See it on the calendar →
+        <Link href="/maintenance/calendar" className="text-sm font-medium text-blue-700 hover:underline">
+          Maintenance calendar →
         </Link>
       </div>
 
