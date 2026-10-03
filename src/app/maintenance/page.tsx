@@ -9,6 +9,8 @@ import { dueLabel } from '@/lib/maintenance/status'
 import { describeRRule } from '@/lib/tasks/recurrence'
 import IssuesList, { AddIssueForm, ISSUE_COLUMNS, type IssueRow } from '@/components/maintenance/IssuesList'
 import { PlansTable, AssetsTable, type PlanView, type AssetView } from '@/components/maintenance/MaintenanceTables'
+import PropertyMap from '@/components/maintenance/PropertyMap'
+import { buildingOptions, loadPropertyMap } from '@/lib/maintenance/map'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,6 +82,8 @@ export default async function MaintenancePage({
     loadList(supabase, userData.user.id),
     loadNeeds(supabase, userData.user.id, plans.map((p) => p.task_id)),
   ])
+  const propertyMap = await loadPropertyMap(supabase, assets, plans)
+  const buildings = buildingOptions(assets)
   const supplyProps = { options: supplies.map((s) => ({ id: s.id, name: s.name, unit: s.unit, on_hand: s.on_hand })), needs: needRows }
 
   const byAsset = new Map<string, PlanRow[]>()
@@ -101,7 +105,7 @@ export default async function MaintenancePage({
       typeLabel: CATEGORIES[a.category]?.label ?? 'Other',
       group: CATEGORIES[a.category]?.group ?? 'Other',
       makeModel: [a.model_year, a.make, a.model].filter(Boolean).join(' '),
-      location: a.location ?? '',
+      location: (a.building_id && assetById.get(a.building_id)?.name) || a.location || '',
       next: next ? next.task.title.replace(`${a.name}: `, '') : null,
       nextDays: next?.days ?? null,
       nextDueText: next ? dueLabel(next.days) : '',
@@ -148,39 +152,58 @@ export default async function MaintenancePage({
         </div>
       )}
 
-      {/* The numbers first: is anything waiting on me? */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: 'Overdue', value: red, cls: red ? 'text-red-700' : 'text-slate-900' },
-          { label: 'Due in 2 weeks', value: yellow, cls: yellow ? 'text-yellow-700' : 'text-slate-900' },
-          { label: 'Next 30 days', value: next30, cls: 'text-slate-900' },
-          { label: 'Open issues', value: issues.length, cls: issues.length ? 'text-red-700' : 'text-slate-900' },
-        ].map((s) => (
-          <div key={s.label} className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
-            <div className="text-xs uppercase tracking-[0.15em] text-slate-500">{s.label}</div>
-            <div className={`mt-1 text-2xl font-semibold ${s.cls}`}>{s.value}</div>
+      {/*
+        The property first: where the work is. The map is the header so a red
+        pin on the barn is the first thing seen, with the numbers beside it.
+      */}
+      <div className={`mt-6 grid gap-4 ${propertyMap.imageUrl ? 'lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]' : ''}`}>
+        {propertyMap.imageUrl && (
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">The property</h2>
+              <Link href="/maintenance/map" className="text-sm font-medium text-blue-700 hover:underline">
+                Full map →
+              </Link>
+            </div>
+            <PropertyMap imageUrl={propertyMap.imageUrl} pins={propertyMap.pins} compact />
+          </section>
+        )}
+        <div>
+          {/* The numbers first: is anything waiting on me? */}
+          <div className={`grid grid-cols-2 gap-3 sm:grid-cols-4 ${propertyMap.imageUrl ? 'lg:mt-7' : ''}`}>
+            {[
+              { label: 'Overdue', value: red, cls: red ? 'text-red-700' : 'text-slate-900' },
+              { label: 'Due in 2 weeks', value: yellow, cls: yellow ? 'text-yellow-700' : 'text-slate-900' },
+              { label: 'Next 30 days', value: next30, cls: 'text-slate-900' },
+              { label: 'Open issues', value: issues.length, cls: issues.length ? 'text-red-700' : 'text-slate-900' },
+            ].map((s) => (
+              <div key={s.label} className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-500">{s.label}</div>
+                <div className={`mt-1 text-2xl font-semibold ${s.cls}`}>{s.value}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* The shopping list, where it will be seen: it is derived, so it is only as good as being looked at. */}
-      <Link
-        href="/maintenance/supplies"
-        className="mt-3 flex items-center justify-between gap-3 rounded-2xl border-2 border-slate-300 bg-white px-4 py-3 shadow-sm hover:border-blue-300"
-      >
-        <span className="flex items-center gap-2 text-sm">
-          <ShoppingCart className="h-4 w-4 text-blue-700" />
-          {list.length ? (
-            <span>
-              <b>{list.length} to buy</b>
-              <span className="text-slate-500"> · {[...new Set(list.map((l) => l.supply.store?.trim() || 'Anywhere'))].slice(0, 3).join(', ')}</span>
+          {/* The shopping list, where it will be seen: it is derived, so it is only as good as being looked at. */}
+          <Link
+            href="/maintenance/supplies"
+            className="mt-3 flex items-center justify-between gap-3 rounded-2xl border-2 border-slate-300 bg-white px-4 py-3 shadow-sm hover:border-blue-300"
+          >
+            <span className="flex items-center gap-2 text-sm">
+              <ShoppingCart className="h-4 w-4 text-blue-700" />
+              {list.length ? (
+                <span>
+                  <b>{list.length} to buy</b>
+                  <span className="text-slate-500"> · {[...new Set(list.map((l) => l.supply.store?.trim() || 'Anywhere'))].slice(0, 3).join(', ')}</span>
+                </span>
+              ) : (
+                <span className="text-slate-600">{supplies.length ? `Supplies: nothing to buy (${supplies.length} on the shelf)` : 'Supplies: add what we keep on hand'}</span>
+              )}
             </span>
-          ) : (
-            <span className="text-slate-600">{supplies.length ? `Supplies: nothing to buy (${supplies.length} on the shelf)` : 'Supplies: add what we keep on hand'}</span>
-          )}
-        </span>
-        <span className="text-sm font-medium text-blue-700">Shopping list →</span>
-      </Link>
+            <span className="text-sm font-medium text-blue-700">Shopping list →</span>
+          </Link>
+        </div>
+      </div>
 
       {assets.length === 0 && !error && (
         <div className="mt-6 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm">
@@ -248,7 +271,15 @@ export default async function MaintenancePage({
             <input name="make" placeholder="Make — e.g. Kubota" className="rounded-xl border border-slate-200 px-3 py-2" />
             <input name="model" placeholder="Model — e.g. L2501" className="rounded-xl border border-slate-200 px-3 py-2" />
             <input name="model_year" type="number" placeholder="Year" className="rounded-xl border border-slate-200 px-3 py-2" />
-            <input name="location" placeholder="Where it lives — barn, garage, dock" className="rounded-xl border border-slate-200 px-3 py-2" />
+            {buildings.length > 0 ? (
+              <select name="building_id" defaultValue="" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" aria-label="Building">
+                <option value="">Which building? (optional)</option>
+                {buildings.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            ) : null}
+            <input name="location" placeholder="Or where it lives — garage, dock, RV" className="rounded-xl border border-slate-200 px-3 py-2" />
             <input name="meter_reading" type="number" step="any" placeholder="Hours or miles now (if it has a meter)" className="rounded-xl border border-slate-200 px-3 py-2" />
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input type="checkbox" name="seed" defaultChecked className="h-4 w-4 rounded border-slate-300" />

@@ -26,6 +26,7 @@ export async function POST(req: Request) {
         model: text(form, 'model'),
         model_year: num(form, 'model_year'),
         location: text(form, 'location'),
+        building_id: /^[0-9a-f-]{36}$/i.test(text(form, 'building_id') ?? '') ? text(form, 'building_id') : null,
         purchased_on: date(form, 'purchased_on'),
         meter_reading: meter,
         meter_read_at: meter !== null ? new Date().toISOString() : null,
