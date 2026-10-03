@@ -1,4 +1,5 @@
 import Link from "next/link";
+import DashboardTaskList from "@/components/DashboardTaskList";
 import { supabaseServer } from "@/lib/supabase/server";
 import HybridTrainingIndicator from "@/components/fitness/HybridTrainingIndicator";
 import { computeHybridBalance } from "@/lib/fitness/hybrid-balance";
@@ -94,6 +95,7 @@ function OpenList({
   browseHref,
   items,
   emptyLabel,
+  checkable = false,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -101,6 +103,8 @@ function OpenList({
   browseHref: string;
   items: Array<{ id: string; label: string; hint?: string | null }>;
   emptyLabel: string;
+  /* Tasks only: a box to tick each one done, and the title opens it to edit. */
+  checkable?: boolean;
 }) {
   return (
     <div className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
@@ -119,6 +123,8 @@ function OpenList({
       </div>
       {items.length === 0 ? (
         <p className="mt-3 text-xs text-slate-400">{emptyLabel}</p>
+      ) : checkable ? (
+        <DashboardTaskList items={items} />
       ) : (
         <ul className="mt-3 space-y-1.5">
           {items.map((item) => (
@@ -689,6 +695,7 @@ export default async function DashboardHome() {
           icon={<CheckSquare className="h-4 w-4 text-green-600" />}
           addHref="/tasks/new"
           browseHref="/tasks"
+          checkable
           items={[...mustDo, ...overdue.filter((t) => !mustDo.some((m) => m.id === t.id))]
             .slice(0, 5)
             .map((t) => ({
