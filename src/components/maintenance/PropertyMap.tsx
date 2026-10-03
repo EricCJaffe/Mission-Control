@@ -4,16 +4,9 @@ import { useState, type MouseEvent } from 'react'
 import Link from 'next/link'
 import { MapPin as PinIcon, Plus, Move, X } from 'lucide-react'
 import type { Verdict } from '@/lib/maintenance/status'
+import type { MapPin } from '@/lib/maintenance/map'
 
-export type MapPin = {
-  id: string
-  name: string
-  x: number | null
-  y: number | null
-  verdict: Verdict | null
-  next: string | null
-  schedules: number
-}
+export type { MapPin }
 
 /* Red / yellow / green, and slate for a building with nothing scheduled yet. */
 const PIN_COLOR: Record<Verdict | 'none', string> = {
@@ -34,7 +27,21 @@ type Spot = { x: number; y: number }
  * /maintenance, so a pin is saved the moment it is placed and a reload never
  * loses one.
  */
-export default function PropertyMap({ imageUrl, pins }: { imageUrl: string | null; pins: MapPin[] }) {
+/*
+ * The photo is a phone screenshot about 1,000 px wide. Stretched to a desktop
+ * page it went soft and towered off the screen, so it is capped at roughly its
+ * own width (full page) or about half of it (the /maintenance header), and it
+ * is only ever scaled down, which is what keeps it sharp.
+ */
+export default function PropertyMap({
+  imageUrl,
+  pins,
+  compact = false,
+}: {
+  imageUrl: string | null
+  pins: MapPin[]
+  compact?: boolean
+}) {
   const [mode, setMode] = useState<Mode>({ kind: 'view' })
   const [spot, setSpot] = useState<Spot | null>(null)
   const [open, setOpen] = useState<string | null>(null)
@@ -86,7 +93,7 @@ export default function PropertyMap({ imageUrl, pins }: { imageUrl: string | nul
       </div>
 
       <div
-        className={`relative w-full select-none overflow-hidden rounded-2xl border-2 border-slate-300 shadow-sm ${mode.kind === 'view' ? '' : 'cursor-crosshair'}`}
+        className={`relative mx-auto w-full ${compact ? 'max-w-md' : 'max-w-2xl'} select-none overflow-hidden rounded-2xl border-2 border-slate-300 shadow-sm ${mode.kind === 'view' ? '' : 'cursor-crosshair'}`}
         onClick={onImageClick}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- a signed private URL; next/image would proxy and cache it */}
@@ -119,6 +126,18 @@ export default function PropertyMap({ imageUrl, pins }: { imageUrl: string | nul
                     {p.next ?? 'Nothing scheduled yet.'}
                     {p.schedules > 1 ? ` (+${p.schedules - 1} more)` : ''}
                   </div>
+                  {p.inside.length > 0 && (
+                    <div className="mt-2 text-xs text-slate-600">
+                      <div className="font-medium text-slate-700">Inside</div>
+                      <ul className="mt-0.5 space-y-0.5">
+                        {p.inside.map((c) => (
+                          <li key={c.id}>
+                            <Link href={`/maintenance/${c.id}`} className="text-blue-700 hover:underline">{c.name}</Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Link href={`/maintenance/${p.id}`} className="rounded-lg bg-blue-700 px-2.5 py-1 text-xs font-medium text-white">
                       Open

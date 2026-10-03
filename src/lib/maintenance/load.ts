@@ -23,10 +23,15 @@ export type AssetRow = {
   status: 'active' | 'stored' | 'retired';
   research: unknown;
   researched_at: string | null;
+  /* Pinned on the property map (percent of the photo); null = not on it. */
+  map_x: number | null;
+  map_y: number | null;
+  /* The pinned building this item lives in. */
+  building_id: string | null;
 };
 
 export const ASSET_COLUMNS =
-  'id,name,category,make,model,model_year,serial_number,location,meter_unit,meter_reading,meter_read_at,purchased_on,parts_notes,notes,finance_asset_id,status,research,researched_at';
+  'id,name,category,make,model,model_year,serial_number,location,meter_unit,meter_reading,meter_read_at,purchased_on,parts_notes,notes,finance_asset_id,status,research,researched_at,map_x,map_y,building_id';
 
 export type PlanRow = {
   task_id: string;

@@ -39,6 +39,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     patch.meter_reading = num(form, 'meter_reading');
     patch.meter_read_at = new Date().toISOString();
   }
+  if (form.has('building_id')) {
+    const b = text(form, 'building_id');
+    patch.building_id = b && /^[0-9a-f-]{36}$/i.test(b) && b !== id ? b : null;
+  }
   if (form.has('finance_asset_id')) {
     const f = text(form, 'finance_asset_id');
     patch.finance_asset_id = f && /^[0-9a-f-]{36}$/i.test(f) ? f : null;

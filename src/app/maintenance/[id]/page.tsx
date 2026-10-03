@@ -61,6 +61,16 @@ export default async function MaintenanceAssetPage({
   const here = `/maintenance/${id}`
   const todayIso = today()
   const shelf = loadSupplies(supabase, userData.user.id)
+  // Pinned buildings (to choose where this lives) and what lives in this one.
+  const { data: siblingData } = await supabase
+    .from('maintenance_assets')
+    .select('id,name,map_x,building_id')
+    .neq('status', 'retired')
+    .order('name')
+  const siblings = (siblingData ?? []) as Array<{ id: string; name: string; map_x: number | null; building_id: string | null }>
+  const buildings = siblings.filter((b) => b.map_x !== null && b.id !== id)
+  const inside = siblings.filter((c) => c.building_id === id)
+  const building = siblings.find((b) => b.id === asset.building_id) ?? null
 
   /*
    * FinanceOS's inventory is `public.assets`, in the same database. Read with
@@ -132,9 +142,27 @@ export default async function MaintenanceAssetPage({
             {CATEGORIES[asset.category]?.label}
             {[asset.model_year, asset.make, asset.model].some(Boolean) &&
               ` · ${[asset.model_year, asset.make, asset.model].filter(Boolean).join(' ')}`}
-            {asset.location && ` · ${asset.location}`}
+            {building ? (
+              <>
+                {' · in '}
+                <Link href={`/maintenance/${building.id}`} className="text-blue-700 hover:underline">{building.name}</Link>
+              </>
+            ) : (
+              asset.location && ` · ${asset.location}`
+            )}
             {asset.status !== 'active' && ` · ${asset.status}`}
           </p>
+          {inside.length > 0 && (
+            <p className="mt-1 text-sm text-slate-600">
+              Inside:{' '}
+              {inside.map((c, i) => (
+                <span key={c.id}>
+                  {i > 0 && ', '}
+                  <Link href={`/maintenance/${c.id}`} className="text-blue-700 hover:underline">{c.name}</Link>
+                </span>
+              ))}
+            </p>
+          )}
         </div>
         {unit && (
           <form action={`${here}/update`} method="post" className="flex items-center gap-2">
@@ -289,6 +317,12 @@ export default async function MaintenanceAssetPage({
             <input name="model" defaultValue={asset.model ?? ''} placeholder="Model" className={input} />
             <input name="model_year" type="number" defaultValue={asset.model_year ?? ''} placeholder="Year" className={input} />
             <input name="serial_number" defaultValue={asset.serial_number ?? ''} placeholder="Serial / VIN" className={input} />
+            <select name="building_id" defaultValue={asset.building_id ?? ''} className={`${input} bg-white`} aria-label="Building">
+              <option value="">Not in a building on the map</option>
+              {buildings.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
             <input name="location" defaultValue={asset.location ?? ''} placeholder="Location" className={input} />
             <label className="text-xs text-slate-500">
               Purchased
