@@ -127,6 +127,9 @@ export default async function MaintenancePage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
+          <Link href="/maintenance/map" className="text-sm font-medium text-blue-700 hover:underline">
+            Property map →
+          </Link>
           <Link href="/maintenance/supplies" className="text-sm font-medium text-blue-700 hover:underline">
             Supplies →
           </Link>
