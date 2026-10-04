@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { today as easternToday } from "@/lib/day";
 import DashboardTaskList from "@/components/DashboardTaskList";
 import { supabaseServer } from "@/lib/supabase/server";
 import HybridTrainingIndicator from "@/components/fitness/HybridTrainingIndicator";
@@ -34,10 +35,6 @@ function formatTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatDate(value: Date) {
-  return value.toISOString().slice(0, 10);
 }
 
 function startOfDay(date: Date) {
@@ -151,7 +148,8 @@ export default async function DashboardHome() {
   if (!user) return null;
 
   const today = new Date();
-  const todayIso = formatDate(today);
+  // Eastern, not the server's UTC: after 8 PM UTC rolled "today" into tomorrow.
+  const todayIso = easternToday();
   const start = startOfDay(today).toISOString();
   const end = endOfDay(today).toISOString();
   const HYBRID_CONTEXT_DAYS = 30;
@@ -197,7 +195,14 @@ export default async function DashboardHome() {
     supabase
       .from("tasks")
       .select("id,title,status,due_date,priority")
-      .order("created_at", { ascending: false })
+      // Open, due today or earlier. This read the newest 50 of every status,
+      // so a task ticked done stayed on the card and the tick looked broken
+      // (Eric, 2026-10-04), and an old overdue task past the newest 50 never
+      // showed at all.
+      .or("status.is.null,status.neq.done")
+      .eq("is_template", false)
+      .lte("due_date", todayIso)
+      .order("due_date", { ascending: true })
       .limit(50),
     // Hybrid balance needs a 30-day look-back so the ring can show the week
     // against a longer trend.
