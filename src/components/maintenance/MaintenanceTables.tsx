@@ -74,7 +74,8 @@ function shortRepeats(r: string): string {
   const one: Record<string, string> = { 'Every day': 'Daily', 'Every week': 'Weekly', 'Every month': 'Monthly', 'Every year': 'Yearly' };
   if (one[r]) return one[r];
   const m = r.match(/^Every (\d+) (day|week|month|year)s?$/);
-  return m ? `${m[1]} ${{ day: 'd', week: 'wk', month: 'mo', year: 'yr' }[m[2]]}` : r;
+  const unit: Record<string, string> = { day: 'd', week: 'wk', month: 'mo', year: 'yr' };
+  return m ? `${m[1]} ${unit[m[2]]}` : r;
 }
 
 /** The date and how far off it is, colored by the verdict — the column the eye goes to. */
