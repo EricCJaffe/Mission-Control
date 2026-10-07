@@ -305,6 +305,10 @@ export default function TasksListClient({
     body.set("json", "1");
     const res = await fetch("/tasks/update", { method: "POST", body, redirect: "manual" });
     if (!res.ok) throw new Error("Save failed");
+    // The Done checkbox keeps an optimistic status override per task, and it
+    // wins over the row. Without this, a status edited here after a tick
+    // showed the ticked status until reload.
+    if (field === "status") setStatusOverrides((prev) => ({ ...prev, [task.id]: value }));
     router.refresh();
   }
 
