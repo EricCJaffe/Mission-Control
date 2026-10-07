@@ -100,9 +100,11 @@ function EditableCell<T>({ row, edit, children }: { row: T; edit: CellEdit<T>; c
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(current);
   // The value just saved, and what the row held when it was saved. It is shown
-  // only while the row still holds that old value: once the refresh lands, or
-  // the row changes any other way, the row is the truth again.
-  const [pending, setPending] = useState<{ value: string; from: string } | null>(null);
+  // only while it is still the same row object holding that old value: a
+  // refresh brings new row objects, so once it lands the row is the truth
+  // again — even when the server stored something else (a recurring task
+  // marked done comes back as to-do, rolled forward).
+  const [pending, setPending] = useState<{ value: string; from: string; row: T } | null>(null);
   const [failed, setFailed] = useState(false);
   // Enter saves and then the input blurs, which would save again; Escape
   // blurs too, which must not save at all. One flag answers both.
@@ -120,7 +122,7 @@ function EditableCell<T>({ row, edit, children }: { row: T; edit: CellEdit<T>; c
     done.current = true;
     setEditing(false);
     if (value === current) return;
-    setPending({ value, from: current });
+    setPending({ value, from: current, row });
     try {
       await edit.save(row, value);
     } catch {
@@ -166,7 +168,7 @@ function EditableCell<T>({ row, edit, children }: { row: T; edit: CellEdit<T>; c
     );
   }
 
-  const shown = pending !== null && current === pending.from;
+  const shown = pending !== null && pending.row === row && current === pending.from;
   const label = shown
     ? edit.type === 'select'
       ? optionLabel((edit.options ?? []).find((o) => optionValue(o) === pending.value) ?? pending.value) || '—'
