@@ -289,3 +289,27 @@ describe("multiselect filters", () => {
     expect(isViewClean({ ...emptyView(), filters: { staff: ["a"] } })).toBe(false);
   });
 });
+
+describe("date-range filter", () => {
+  interface Dated { id: string; due: string | null }
+  const dated: Dated[] = [
+    { id: "a", due: "2026-10-01" },
+    { id: "b", due: "2026-10-15T09:00:00Z" },
+    { id: "c", due: null },
+  ];
+  const cols: ColumnView<Dated>[] = [{ key: "due", header: "Due", filter: "daterange" }];
+
+  it("keeps rows inside both ends, inclusive", () => {
+    expect(applyFilters(dated, { due: "2026-10-01..2026-10-15" }, cols).map((r) => r.id)).toEqual(["a", "b"]);
+  });
+
+  it("takes an open end", () => {
+    expect(applyFilters(dated, { due: "2026-10-02.." }, cols).map((r) => r.id)).toEqual(["b"]);
+    expect(applyFilters(dated, { due: "..2026-10-01" }, cols).map((r) => r.id)).toEqual(["a"]);
+  });
+
+  it("both ends empty is not a filter", () => {
+    expect(isFilterSet("..")).toBe(false);
+    expect(applyFilters(dated, { due: ".." }, cols)).toHaveLength(3);
+  });
+});

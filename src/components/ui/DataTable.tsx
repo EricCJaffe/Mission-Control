@@ -36,6 +36,8 @@ import {
   updateView,
   isFilterSet,
   groupRows,
+  parseDateRange,
+  DATE_RANGE_SEP,
   type ColumnView,
   type FilterValue,
   type GroupDef,
@@ -70,6 +72,115 @@ export interface DataColumn<T> extends ColumnView<T> {
    * scroll never leaves a row of values with no name.
    */
   pinLeft?: boolean;
+  /**
+   * Click-to-edit. Only where a permission-checked update path already exists:
+   * `save` calls it and throws when it refuses, and the cell goes back to what
+   * it was. Enter or leaving the cell saves once; Escape puts it back.
+   */
+  edit?: CellEdit<T>;
+}
+
+export interface CellEdit<T> {
+  type: 'text' | 'number' | 'select' | 'date' | 'time';
+  /** The value as the input holds it: "2026-10-07", "14:30", "2". */
+  value: (row: T) => string;
+  /** For `select`. An empty value is offered as "—" when `allowEmpty`. */
+  options?: FilterOption[];
+  allowEmpty?: boolean;
+  save: (row: T, value: string) => Promise<void>;
+}
+
+/**
+ * One editable cell. It shows the column's normal rendering until clicked,
+ * then the input. After a save it shows the new value until the row itself
+ * carries it, so a refresh in flight does not flash the old one back.
+ */
+function EditableCell<T>({ row, edit, children }: { row: T; edit: CellEdit<T>; children: React.ReactNode }) {
+  const current = edit.value(row);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(current);
+  const [pending, setPending] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  // Enter saves and then the input blurs, which would save again; Escape
+  // blurs too, which must not save at all. One flag answers both.
+  const done = useRef(false);
+
+  const begin = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    done.current = false;
+    setDraft(current);
+    setFailed(false);
+    setEditing(true);
+  };
+  const commit = async (value: string) => {
+    if (done.current) return;
+    done.current = true;
+    setEditing(false);
+    if (value === current) return;
+    setPending(value);
+    try {
+      await edit.save(row, value);
+    } catch {
+      setPending(null);
+      setFailed(true);
+    }
+  };
+  const cancel = () => {
+    done.current = true;
+    setEditing(false);
+  };
+
+  if (editing) {
+    const common = {
+      autoFocus: true,
+      className: 'h-6 rounded border border-blue-400 bg-white px-1 text-sm outline-none',
+      onClick: (e: React.MouseEvent) => e.stopPropagation(),
+      onKeyDown: (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') commit((e.target as HTMLInputElement).value);
+        if (e.key === 'Escape') cancel();
+      },
+    };
+    if (edit.type === 'select') {
+      return (
+        <select {...common} value={draft} onChange={(e) => commit(e.target.value)} onBlur={() => cancel()}>
+          {edit.allowEmpty && <option value="">—</option>}
+          {(edit.options ?? []).map((o) => (
+            <option key={optionValue(o)} value={optionValue(o)}>
+              {optionLabel(o)}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    return (
+      <input
+        {...common}
+        type={edit.type}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={(e) => commit(e.target.value)}
+      />
+    );
+  }
+
+  const shown = pending !== null && pending !== current;
+  const label = shown
+    ? edit.type === 'select'
+      ? optionLabel((edit.options ?? []).find((o) => optionValue(o) === pending) ?? pending) || '—'
+      : pending || '—'
+    : null;
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={begin}
+      onKeyDown={(e) => e.key === 'Enter' && begin(e as unknown as React.MouseEvent)}
+      title={failed ? 'That did not save — click to try again' : 'Click to edit'}
+      className={`-mx-1 inline-block cursor-text rounded px-1 hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 ${failed ? 'ring-1 ring-red-400' : ''} ${shown ? 'opacity-60' : ''}`}
+    >
+      {shown ? label : children}
+    </span>
+  );
 }
 
 /* Sticky cell classes. Opaque, so the scrolled cells do not show through. */
@@ -253,7 +364,24 @@ function ColumnFilter<T>({
               </button>
             )}
           </div>
-          {column.filter === 'text' ? (
+          {column.filter === 'daterange' ? (
+            (() => {
+              const { from, to } = parseDateRange(typeof value === 'string' ? value : '');
+              const put = (f: string, t: string) => onSet(`${f}${DATE_RANGE_SEP}${t}`);
+              return (
+                <div className="space-y-1.5 text-xs font-normal text-slate-600">
+                  <label className="flex items-center justify-between gap-2">
+                    From
+                    <input type="date" className="h-8 rounded-lg border border-slate-300 px-1.5 text-sm" value={from} onChange={(e) => put(e.target.value, to)} />
+                  </label>
+                  <label className="flex items-center justify-between gap-2">
+                    To
+                    <input type="date" className="h-8 rounded-lg border border-slate-300 px-1.5 text-sm" value={to} onChange={(e) => put(from, e.target.value)} />
+                  </label>
+                </div>
+              );
+            })()
+          ) : column.filter === 'text' ? (
             <input
               autoFocus
               className="h-9 w-full rounded-lg border border-slate-300 px-2 text-sm font-normal"
@@ -352,9 +480,37 @@ function RowDetails({ title, onClose, children }: { title: string; onClose: () =
   );
 }
 
+/**
+ * Sort and filter on every column unless it says otherwise — Eric,
+ * 2026-10-07: every table gets both on the header line by default.
+ *
+ * A column that leaves `sortable` or `filter` unset gets them from its data:
+ * dates get a date range, a handful of distinct values a multi-select, the
+ * rest a text match. A column with no value in any row (Open, Add, Done) is
+ * an action column and stays plain. `sortable: false` or `filter: 'none'`
+ * opts out.
+ */
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}/;
+function withDefaults<T>(columns: DataColumn<T>[], rows: T[]): DataColumn<T>[] {
+  return columns.map((col) => {
+    if (col.sortable !== undefined && col.filter !== undefined) return col;
+    const values = rows
+      .map((r) => (col.value ? col.value(r) : (r as Record<string, unknown>)[col.key]))
+      .filter((v): v is string | number => (typeof v === 'string' && v.trim() !== '') || typeof v === 'number');
+    if (values.length === 0) return col;
+    const distinct = new Set(values.map(String)).size;
+    const kind =
+      values.every((v) => typeof v === 'string' && ISO_DAY.test(v)) ? 'daterange'
+      : typeof values[0] === 'number' ? 'text'
+      : distinct <= 25 ? 'multiselect'
+      : 'text';
+    return { ...col, sortable: col.sortable ?? true, filter: col.filter ?? kind };
+  });
+}
+
 export function DataTable<T extends { id: string }>({
   rows,
-  columns,
+  columns: declared,
   isLoading = false,
   renderExpanded,
   searchPlaceholder = 'Search…',
@@ -371,6 +527,7 @@ export function DataTable<T extends { id: string }>({
   rowClassName,
   searchText,
 }: DataTableProps<T>) {
+  const columns = useMemo(() => withDefaults(declared, rows), [declared, rows]);
   const [state, setLocal] = useState<ViewState>(emptyView);
   const [openId, setOpenId] = useState<string | null>(null);
   // `undefined` until the reader picks an arrangement; until then the default
@@ -452,7 +609,15 @@ export function DataTable<T extends { id: string }>({
               title={hover}
               className={`max-w-[22rem] truncate whitespace-nowrap align-middle ${CELL} ${i === 0 ? 'font-medium text-slate-900' : 'text-slate-700'} ${pinClass(col)} ${col.pinRight || col.pinLeft ? 'group-hover:bg-slate-50' : ''} ${col.className ?? ''}`}
             >
-              {col.render ? col.render(row) : ((raw as React.ReactNode) ?? '—')}
+              {col.edit ? (
+                <EditableCell row={row} edit={col.edit}>
+                  {col.render ? col.render(row) : ((raw as React.ReactNode) ?? '—')}
+                </EditableCell>
+              ) : col.render ? (
+                col.render(row)
+              ) : (
+                ((raw as React.ReactNode) ?? '—')
+              )}
             </td>
           );
         })}
