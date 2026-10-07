@@ -431,7 +431,7 @@ export default function TasksListClient({
           {isSynced(t) ? t.source : "Typed here"}
           {t.source_url && (
             <a
-              className="inline-flex h-7 w-7 items-center justify-center rounded text-blue-700 hover:bg-blue-50"
+              className="inline-flex h-6 w-6 items-center justify-center rounded text-blue-700 hover:bg-blue-50"
               href={t.source_url}
               target="_blank"
               rel="noreferrer"

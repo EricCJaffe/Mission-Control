@@ -26,7 +26,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, ChevronDown, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, X, Filter, Layers } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, ArrowUpDown, X, Filter, Layers } from 'lucide-react';
 import {
   applyView,
   filterOptions,
@@ -82,6 +82,39 @@ const PIN_LEFT = 'sticky left-0 z-10 bg-white shadow-[6px_0_6px_-6px_rgba(0,0,0,
    of the site and template". */
 const HEAD_BG = 'bg-slate-50';
 const RULE = 'border-slate-100';
+
+/* ---------------------------------------------------------------------------
+ * The roster density — the fleet's table standard since 2026-10-07.
+ *
+ * Lifted from honeylakeos `src/components/data-table/RosterStyleTable.tsx`
+ * (the Scheduling Hub's Roster tab, tuned against real use) and set as the
+ * default for every OS app. Eric, 2026-10-07: "make the roster table the
+ * standard … this tight view is the right view", and "single lines wherever
+ * possible … not so much padding between rows."
+ *
+ * Exported so a hand-built table outside DataTable can match it.
+ * ------------------------------------------------------------------------- */
+
+/** Every body cell: one line, tight padding, readable text. */
+export const CELL = 'px-2 py-0.5 text-sm leading-tight';
+/** Dates, times, codes, short status words: never wraps. */
+export const NOWRAP = `${CELL} whitespace-nowrap`;
+/** Numbers: right-aligned tabular figures, no wrap. */
+export const NUM = `${NOWRAP} text-right tabular-nums`;
+/** Every header cell. */
+export const HEAD = 'h-8 whitespace-nowrap px-2';
+/** A control inside a row — Done, Log, Edit. h-6 keeps the row one line tall. */
+export const ROW_BUTTON = 'inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium';
+
+/** Long text on one line, with the whole of it on hover. */
+export function TruncatedText({ text, className = '', fallback = '—' }: { text: string | null | undefined; className?: string; fallback?: React.ReactNode }) {
+  if (!text) return <span className="text-slate-400">{fallback}</span>;
+  return (
+    <span className={`block max-w-[24rem] truncate ${className}`} title={text}>
+      {text}
+    </span>
+  );
+}
 
 interface DataTableProps<T extends { id: string }> {
   rows: T[];
@@ -194,11 +227,11 @@ function ColumnFilter<T>({
           place();
           setOpen((o) => !o);
         }}
-        className={`ml-0.5 rounded p-1.5 hover:bg-slate-200 ${set ? 'text-blue-700' : 'text-slate-300 hover:text-slate-600'}`}
+        className={`ml-0.5 rounded p-1 hover:bg-slate-200 ${set ? 'text-blue-700' : 'text-slate-300 hover:text-slate-600'}`}
         aria-label={set ? `Filter on ${column.header} (active)` : `Filter by ${column.header}`}
         aria-expanded={open}
       >
-        <Filter className={`h-3.5 w-3.5 ${set ? 'fill-current' : ''}`} aria-hidden="true" />
+        <Filter className={`h-3 w-3 ${set ? 'fill-current' : ''}`} aria-hidden="true" />
       </button>
       {open && at && (
         <div
@@ -408,14 +441,21 @@ export function DataTable<T extends { id: string }>({
         className={`group border-b ${RULE} last:border-0 ${clickable ? 'cursor-pointer hover:bg-slate-50' : ''} ${open ? 'bg-slate-50' : ''} ${rowClassName?.(row) ?? ''}`}
         onClick={() => (renderExpanded ? setOpenId(row.id) : onRowClick?.(row))}
       >
-        {columns.map((col, i) => (
-          <td
-            key={col.key}
-            className={`max-w-[22rem] truncate whitespace-nowrap px-4 py-2 align-middle text-sm ${i === 0 ? 'font-medium text-slate-900' : 'text-slate-700'} ${pinClass(col)} ${col.pinRight || col.pinLeft ? 'group-hover:bg-slate-50' : ''} ${col.className ?? ''}`}
-          >
-            {col.render ? col.render(row) : ((col.value ? col.value(row) : ((row as Record<string, unknown>)[col.key] as React.ReactNode)) ?? '—')}
-          </td>
-        ))}
+        {columns.map((col, i) => {
+          const raw = col.value ? col.value(row) : (row as Record<string, unknown>)[col.key];
+          // A cell that truncates shows the whole of itself on hover, when
+          // the whole of it is plain text.
+          const hover = typeof raw === 'string' || typeof raw === 'number' ? String(raw) : undefined;
+          return (
+            <td
+              key={col.key}
+              title={hover}
+              className={`max-w-[22rem] truncate whitespace-nowrap align-middle ${CELL} ${i === 0 ? 'font-medium text-slate-900' : 'text-slate-700'} ${pinClass(col)} ${col.pinRight || col.pinLeft ? 'group-hover:bg-slate-50' : ''} ${col.className ?? ''}`}
+            >
+              {col.render ? col.render(row) : ((raw as React.ReactNode) ?? '—')}
+            </td>
+          );
+        })}
       </tr>,
     ];
   };
@@ -437,13 +477,16 @@ export function DataTable<T extends { id: string }>({
           {renderExpanded(openRow)}
         </RowDetails>
       )}
+      {/* The toolbar sits on top of the card, and stays while the body loads
+          or comes back empty: its controls are the way out of an empty result. */}
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       {(!hideSearch || groups?.length || actions) && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-2 py-1.5">
           {!hideSearch && (
             <div className="relative min-w-48 flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-400" />
               <input
-                className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 text-sm"
+                className="h-8 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 text-sm"
                 placeholder={searchPlaceholder}
                 value={search}
                 onChange={(e) => setState({ search: e.target.value })}
@@ -451,14 +494,14 @@ export function DataTable<T extends { id: string }>({
             </div>
           )}
           {(filterCount > 0 || search || sort) && (
-            <button type="button" onClick={clearAll} className="flex h-9 shrink-0 items-center rounded-lg px-2 text-sm text-slate-600 hover:bg-slate-100">
+            <button type="button" onClick={clearAll} className="flex h-8 shrink-0 items-center rounded-lg px-2 text-sm text-slate-600 hover:bg-slate-100">
               <X className="mr-1 h-3.5 w-3.5" />
               Clear
               {filterCount > 0 && <span className="ml-1.5 rounded-full bg-slate-200 px-1.5 text-xs">{filterCount}</span>}
             </button>
           )}
           {groups && groups.length > 0 && (
-            <label className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 text-sm">
+            <label className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 text-sm">
               <Layers className="h-4 w-4 text-slate-400" aria-hidden="true" />
               <span className="sr-only">Group by</span>
               <select
@@ -484,7 +527,7 @@ export function DataTable<T extends { id: string }>({
       )}
 
       {/* The table scrolls inside this box; the page never scrolls sideways. */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className={`border-b border-slate-200 ${HEAD_BG}`}>
@@ -493,50 +536,35 @@ export function DataTable<T extends { id: string }>({
                 return (
                   <th
                     key={col.key}
-                    className={`whitespace-nowrap px-4 py-2 text-left align-middle text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 ${headPinClass(col)}`}
+                    className={`${HEAD} text-left align-middle text-xs font-medium text-slate-500 ${headPinClass(col)}`}
                     style={col.width ? { width: col.width } : undefined}
                     aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}
                   >
-                    {/* Name and its filter on the left, the sort control at the
-                        right edge of the cell: the reference's layout. */}
-                    <span className="flex items-center justify-between gap-3">
-                      <span className="inline-flex items-center gap-0.5">
-                        {col.sortable ? (
-                          <button
-                            type="button"
-                            className={`py-1 uppercase tracking-[0.1em] hover:text-slate-800 ${sorted ? 'text-slate-800' : ''}`}
-                            onClick={() => setState({ sort: nextSort(sort, col.key) })}
-                          >
-                            {col.header}
-                          </button>
-                        ) : (
-                          <span>{col.header}</span>
-                        )}
-                        {col.filter && col.filter !== 'none' && (
-                          <ColumnFilter
-                            column={col}
-                            value={filters[col.key]}
-                            options={optionsFor.get(col.key) ?? []}
-                            onSet={(v) => setFilter(col.key, v)}
-                            onToggle={(v) => toggleFilterValue(col.key, v)}
-                          />
-                        )}
-                      </span>
-                      {col.sortable && (
+                    {/* The roster header: the name, a small sort icon dark on the
+                        active column, ▲/▼ beside it, then the column's filter. */}
+                    <span className="inline-flex items-center gap-0.5">
+                      {col.sortable ? (
                         <button
                           type="button"
-                          className={`rounded p-1 ${sorted ? 'text-slate-800' : 'text-slate-300 hover:text-slate-600'}`}
+                          className={`inline-flex items-center gap-1 hover:text-slate-800 ${sorted ? 'text-slate-800' : ''}`}
                           onClick={() => setState({ sort: nextSort(sort, col.key) })}
                           aria-label={`Sort by ${col.header}`}
                         >
-                          {sorted === 'asc' ? (
-                            <ArrowUp className="h-4 w-4" />
-                          ) : sorted === 'desc' ? (
-                            <ArrowDown className="h-4 w-4" />
-                          ) : (
-                            <ArrowUpDown className="h-3.5 w-3.5" />
-                          )}
+                          {col.header}
+                          <ArrowUpDown className={`h-3 w-3 ${sorted ? 'text-slate-800' : 'text-slate-300'}`} aria-hidden="true" />
+                          {sorted && <span className="text-[10px]">{sorted === 'asc' ? '▲' : '▼'}</span>}
                         </button>
+                      ) : (
+                        <span>{col.header}</span>
+                      )}
+                      {col.filter && col.filter !== 'none' && (
+                        <ColumnFilter
+                          column={col}
+                          value={filters[col.key]}
+                          options={optionsFor.get(col.key) ?? []}
+                          onSet={(v) => setFilter(col.key, v)}
+                          onToggle={(v) => toggleFilterValue(col.key, v)}
+                        />
                       )}
                     </span>
                   </th>
@@ -549,14 +577,14 @@ export function DataTable<T extends { id: string }>({
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className={`border-b ${RULE}`}>
-                  <td colSpan={colCount} className="px-3 py-2.5">
-                    <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
+                  <td colSpan={colCount} className="px-2 py-1.5">
+                    <div className="h-3.5 w-full animate-pulse rounded bg-slate-100" />
                   </td>
                 </tr>
               ))
             ) : shown.length === 0 ? (
               <tr>
-                <td colSpan={colCount} className="px-3 py-10 text-center">
+                <td colSpan={colCount} className="px-2 py-8 text-center">
                   {rows.length > 0 ? (
                     <p className="text-sm text-slate-500">
                       Nothing matches.{' '}
@@ -579,13 +607,14 @@ export function DataTable<T extends { id: string }>({
                 const alert = groupAlert?.(group.rows) ?? null;
                 return [
                   <tr key={`g-${group.id}`} className="cursor-pointer border-b border-slate-200 bg-slate-100/70 hover:bg-slate-100" onClick={() => toggleGroup(group.id)}>
-                    <td colSpan={colCount} className="px-3 py-1.5">
-                      <span className="sticky left-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-                        {open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                    <td colSpan={colCount} className="px-2 py-1">
+                      {/* The roster band: muted, uppercase, a plain count. */}
+                      <span className="sticky left-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-slate-500">
+                        {open ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
                         <span className="truncate">{group.label}</span>
-                        <span className="rounded-full bg-white px-1.5 text-xs font-normal text-slate-600">{group.rows.length}</span>
+                        <span className="font-normal normal-case tracking-normal">{group.rows.length}</span>
                         {alert && alert.count > 0 && (
-                          <span className="rounded-full bg-red-100 px-1.5 text-xs font-normal text-red-800">
+                          <span className="rounded-full bg-red-100 px-1.5 font-normal normal-case tracking-normal text-red-800">
                             {alert.count} {alert.label}
                           </span>
                         )}
@@ -595,7 +624,7 @@ export function DataTable<T extends { id: string }>({
                   ...(open ? groupRowsShown.flatMap(renderRow) : []),
                   open && hidden > 0 ? (
                     <tr key={`g-${group.id}-more`} className={`border-b ${RULE}`}>
-                      <td colSpan={colCount} className="px-3 py-2">
+                      <td colSpan={colCount} className="px-2 py-1">
                         <button
                           type="button"
                           className="text-xs text-slate-500 underline hover:text-slate-800"
@@ -613,6 +642,7 @@ export function DataTable<T extends { id: string }>({
             )}
           </tbody>
         </table>
+      </div>
       </div>
 
       <div className="flex items-center justify-between text-xs text-slate-500">

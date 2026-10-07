@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowDown, ArrowUp, Pin, Plus, Share2, KeyRound, UserPlus, Eye } from 'lucide-react';
 import { SKILLS, SKILL_LABELS, DUE_SOON_DAYS, addDays, helperView, formatHours, minutesWorked, type WorkRow } from '@/lib/helpers/list';
-import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone } from '@/components/ui/DataTable';
+import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone, ROW_BUTTON } from '@/components/ui/DataTable';
 import TaskSupplies, { type NeedView, type SupplyOption } from '@/components/maintenance/TaskSupplies';
 
 export type AdminData = {
@@ -626,10 +626,10 @@ function Applicants({ data, act }: { data: AdminData; act: (path: string, body: 
       render: (a) => (
         <span className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
           {!a.worker_id && (
-            <button type="button" onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'add' })} className="h-7 rounded-lg bg-blue-700 px-2 text-xs font-medium text-white">Add to people</button>
+            <button type="button" onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'add' })} className={`${ROW_BUTTON} bg-blue-700 text-white`}>Add to people</button>
           )}
-          <button type="button" disabled={a.status === 'contacted'} onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'status', status: 'contacted' })} className="h-7 rounded-lg border border-slate-300 px-2 text-xs disabled:opacity-40">Contacted</button>
-          <button type="button" disabled={a.status === 'declined'} onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'status', status: 'declined' })} className="h-7 rounded-lg border border-slate-300 px-2 text-xs disabled:opacity-40">Not a fit</button>
+          <button type="button" disabled={a.status === 'contacted'} onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'status', status: 'contacted' })} className={`${ROW_BUTTON} border border-slate-300 font-normal disabled:opacity-40`}>Contacted</button>
+          <button type="button" disabled={a.status === 'declined'} onClick={() => act('/helpers/api/applicant', { id: a.id, action: 'status', status: 'declined' })} className={`${ROW_BUTTON} border border-slate-300 font-normal disabled:opacity-40`}>Not a fit</button>
         </span>
       ),
     },

@@ -14,7 +14,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Plus, Trash2 } from 'lucide-react';
-import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone } from '@/components/ui/DataTable';
+import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone, ROW_BUTTON } from '@/components/ui/DataTable';
 import type { IssueRow } from './IssuesList';
 import TaskSupplies, { type NeedView, type SupplyOption } from './TaskSupplies';
 
@@ -50,11 +50,11 @@ function DoneButton({ taskId, redirect }: { taskId: string; redirect: string }) 
       <input type="hidden" name="redirect" value={redirect} />
       <button
         type="submit"
-        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:text-blue-700"
+        className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:text-blue-700"
         title="Mark done — it rolls forward to the next date and is logged in the history"
         aria-label="Mark done"
       >
-        <CheckCircle2 className="h-4 w-4" />
+        <CheckCircle2 className="h-3.5 w-3.5" />
       </button>
     </form>
   );
@@ -310,7 +310,7 @@ export function AssetsTable({ assets, todayIso }: { assets: AssetView[]; todayIs
       header: 'Open',
       pinRight: true,
       render: (a) => (
-        <Link href={`/maintenance/${a.id}`} onClick={(e) => e.stopPropagation()} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-blue-700">
+        <Link href={`/maintenance/${a.id}`} onClick={(e) => e.stopPropagation()} className={`${ROW_BUTTON} border border-slate-200 bg-white text-blue-700`}>
           Open
         </Link>
       ),
@@ -363,7 +363,7 @@ export function SuggestionsTable({ rows, action, noun = ['suggestion', 'suggesti
         <Actions>
           <form action={action} method="post">
             <input type="hidden" name={s.field} value={s.value} />
-            <button className="flex items-center gap-1 rounded-lg bg-blue-700 px-2.5 py-1.5 text-xs font-medium text-white" type="submit">
+            <button className={`${ROW_BUTTON} bg-blue-700 text-white`} type="submit">
               <Plus className="h-3.5 w-3.5" /> Add
             </button>
           </form>
@@ -427,7 +427,7 @@ function IssueButton({ id, redirect, status, children }: { id: string; redirect:
     <form action={`/maintenance/issues/${id}/update`} method="post">
       <input type="hidden" name="redirect" value={redirect} />
       <input type="hidden" name="status" value={status} />
-      <button className="h-7 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700" type="submit">
+      <button className={`${ROW_BUTTON} border border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:text-blue-700`} type="submit">
         {children}
       </button>
     </form>
