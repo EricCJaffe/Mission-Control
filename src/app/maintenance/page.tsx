@@ -98,7 +98,12 @@ export default async function MaintenancePage({
   const planViews = plans.map((p) => planView(p, assetById.get(p.asset_id)))
   const assetViews: AssetView[] = assets.map((a) => {
     const own = byAsset.get(a.id) ?? []
-    const next = own[0]
+    /* The row shows the schedule that earns its color: the worst verdict,
+       soonest within it. own[0] alone is date order, so a meter-overdue oil
+       change would paint a far-off date red. */
+    const verdict = own.length ? worst(own.map((p) => p.verdict)) : null
+    const next = own.find((p) => p.verdict === verdict)
+    const nextView = next ? planView(next, a) : null
     return {
       id: a.id,
       name: a.name,
@@ -109,8 +114,8 @@ export default async function MaintenancePage({
       next: next ? next.task.title.replace(`${a.name}: `, '') : null,
       nextDate: next?.task.due_date ?? null,
       nextDays: next?.days ?? null,
-      nextDueText: next ? dueLabel(next.days) : '',
-      verdict: own.length ? worst(own.map((p) => p.verdict)) : null,
+      nextDueText: nextView?.dueText ?? '',
+      verdict,
       schedules: own.length,
       meterText: a.meter_reading !== null && a.meter_unit ? `${a.meter_reading.toLocaleString()} ${a.meter_unit}` : '',
       state: a.status === 'stored' ? 'Stored' : 'Active',
