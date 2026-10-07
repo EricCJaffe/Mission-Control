@@ -27,7 +27,18 @@ export interface SortState {
  * in: the stored value becomes an array, and a server-mode hook that does
  * `.eq()` on it would match nothing at all (see `toQueryFilters`).
  */
-export type FilterKind = "text" | "select" | "multiselect" | "none";
+export type FilterKind = "text" | "select" | "multiselect" | "daterange" | "none";
+
+/**
+ * A date-range filter is stored as one string, "from..to", either side
+ * optional ("2026-10-01..", "..2026-10-31"). One string keeps FilterValue's
+ * shape, so the view state and query helpers need no second case.
+ */
+export const DATE_RANGE_SEP = "..";
+export const parseDateRange = (v: string): { from: string; to: string } => {
+  const [from = "", to = ""] = v.split(DATE_RANGE_SEP);
+  return { from: from.trim(), to: to.trim() };
+};
 
 /**
  * What one column's filter is set to. A string for text and single select; an
@@ -38,7 +49,7 @@ export type FilterValue = string | string[];
 
 /** True when this filter would actually exclude something. */
 export const isFilterSet = (v: FilterValue | undefined): boolean =>
-  Array.isArray(v) ? v.length > 0 : !!v && v.trim() !== "";
+  Array.isArray(v) ? v.length > 0 : !!v && v.trim() !== "" && v.trim() !== DATE_RANGE_SEP;
 
 export interface ColumnView<T> {
   key: string;
@@ -134,6 +145,14 @@ export function applyFilters<T>(
       if (!col) return true;
       const hay = asText(rawValue(row, col));
       if (Array.isArray(needle)) return needle.includes(hay);
+      if (col.filter === "daterange") {
+        // ISO dates and timestamps compare as text on their first ten
+        // characters. A row with no date is outside every range.
+        const { from, to } = parseDateRange(needle);
+        const day = hay.slice(0, 10);
+        if (!day) return false;
+        return (!from || day >= from) && (!to || day <= to);
+      }
       return col.filter === "select" || col.filter === "multiselect"
         ? hay === needle
         : hay.toLowerCase().includes(needle.trim().toLowerCase());

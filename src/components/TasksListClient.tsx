@@ -5,7 +5,7 @@ import MarkdownEditor from "@/components/MarkdownEditor";
 import { ExternalLink, Plus, Repeat, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import RecurrencePicker from "@/components/tasks/RecurrencePicker";
-import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone } from "@/components/ui/DataTable";
+import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone, TOUCH_TARGET } from "@/components/ui/DataTable";
 import { daysBetween, today } from "@/lib/day";
 
 type Task = {
@@ -293,6 +293,21 @@ export default function TasksListClient({
     }
   }
 
+  /**
+   * One field, saved from a click-to-edit cell, through the same route the
+   * dialog uses: it checks the user, stamps `edited_at` and rolls a recurring
+   * task forward on done. Throws on refusal so the cell reverts.
+   */
+  async function saveField(task: Task, field: string, value: string) {
+    const body = new FormData();
+    body.set("id", task.id);
+    body.set(field, value);
+    body.set("json", "1");
+    const res = await fetch("/tasks/update", { method: "POST", body, redirect: "manual" });
+    if (!res.ok) throw new Error("Save failed");
+    router.refresh();
+  }
+
   function openTask(task: Task) {
     setSelectedTask(task);
     setEditTitle(task.title);
@@ -359,6 +374,12 @@ export default function TasksListClient({
       sortable: true,
       filter: "select",
       value: (t) => statusLabel(t),
+      edit: {
+        type: "select",
+        value: (t) => normalizeStatus(t.status),
+        options: Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label })),
+        save: (t, v) => saveField(t, "status", v),
+      },
       render: (t) => (
         <span className="inline-flex items-center gap-1">
           <StatusPill tone={statusTone(t, todayIso)}>{statusLabel(t)}</StatusPill>
@@ -372,6 +393,13 @@ export default function TasksListClient({
       sortable: true,
       filter: "select",
       value: (t) => (t.priority ? `P${t.priority}` : null),
+      edit: {
+        type: "select",
+        value: (t) => (t.priority ? String(t.priority) : ""),
+        options: ["1", "2", "3", "4", "5"].map((v) => ({ value: v, label: `P${v}` })),
+        allowEmpty: true,
+        save: (t, v) => saveField(t, "priority", v),
+      },
       render: (t) =>
         t.priority ? (
           <span className={t.priority === 1 ? "font-semibold text-slate-900" : "text-slate-600"}>P{t.priority}</span>
@@ -383,7 +411,9 @@ export default function TasksListClient({
       key: "due",
       header: "Due",
       sortable: true,
+      filter: "daterange",
       value: (t) => dueDay(t),
+      edit: { type: "date", value: (t) => dueDay(t) ?? "", save: (t, v) => saveField(t, "due_date", v) },
       render: (t) => {
         const day = dueDay(t);
         if (!day) return <span className="text-slate-300">—</span>;
@@ -431,7 +461,7 @@ export default function TasksListClient({
           {isSynced(t) ? t.source : "Typed here"}
           {t.source_url && (
             <a
-              className="inline-flex h-7 w-7 items-center justify-center rounded text-blue-700 hover:bg-blue-50"
+              className={`inline-flex h-6 w-6 items-center justify-center rounded text-blue-700 hover:bg-blue-50 ${TOUCH_TARGET}`}
               href={t.source_url}
               target="_blank"
               rel="noreferrer"
