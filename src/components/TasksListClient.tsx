@@ -5,7 +5,7 @@ import MarkdownEditor from "@/components/MarkdownEditor";
 import { ExternalLink, Plus, Repeat, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import RecurrencePicker from "@/components/tasks/RecurrencePicker";
-import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone } from "@/components/ui/DataTable";
+import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone, TOUCH_TARGET } from "@/components/ui/DataTable";
 import { daysBetween, today } from "@/lib/day";
 
 type Task = {
@@ -461,7 +461,7 @@ export default function TasksListClient({
           {isSynced(t) ? t.source : "Typed here"}
           {t.source_url && (
             <a
-              className="inline-flex h-6 w-6 items-center justify-center rounded text-blue-700 hover:bg-blue-50"
+              className={`inline-flex h-6 w-6 items-center justify-center rounded text-blue-700 hover:bg-blue-50 ${TOUCH_TARGET}`}
               href={t.source_url}
               target="_blank"
               rel="noreferrer"

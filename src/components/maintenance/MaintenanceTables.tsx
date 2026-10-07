@@ -14,7 +14,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Plus, Trash2 } from 'lucide-react';
-import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone, ROW_BUTTON } from '@/components/ui/DataTable';
+import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone, ROW_BUTTON, TOUCH_TARGET } from '@/components/ui/DataTable';
 import type { IssueRow } from './IssuesList';
 import TaskSupplies, { type NeedView, type SupplyOption } from './TaskSupplies';
 
@@ -50,7 +50,7 @@ function DoneButton({ taskId, redirect }: { taskId: string; redirect: string }) 
       <input type="hidden" name="redirect" value={redirect} />
       <button
         type="submit"
-        className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:text-blue-700"
+        className={`flex h-6 w-6 items-center justify-center rounded-full ${TOUCH_TARGET} border border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:text-blue-700`}
         title="Mark done — it rolls forward to the next date and is logged in the history"
         aria-label="Mark done"
       >

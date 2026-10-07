@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, Copy, Minus, Plus, ShoppingCart } from 'lucide-react';
-import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone } from '@/components/ui/DataTable';
+import { DataTable, StatusPill, type DataColumn, type GroupDef, type PillTone, TOUCH_TARGET } from '@/components/ui/DataTable';
 import {
   COMMON_STORES,
   STARTER_SUPPLIES,
@@ -20,7 +20,7 @@ import {
 const card = 'min-w-0 rounded-2xl border-2 border-slate-300 bg-white p-5 shadow-sm';
 const input = 'w-full rounded-xl border border-slate-300 px-3 py-2 text-sm';
 const label = 'block text-xs font-medium text-slate-600';
-const small = 'flex h-6 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium disabled:opacity-40';
+const small = `flex h-6 items-center justify-center gap-1 rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium disabled:opacity-40 ${TOUCH_TARGET}`;
 
 const STOCK_WORD: Record<Stock, string> = { out: 'Out', low: 'Low', ok: 'In stock' };
 const STOCK_TONE: Record<Stock, PillTone> = { out: 'red', low: 'yellow', ok: 'slate' };
