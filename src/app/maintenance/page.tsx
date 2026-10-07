@@ -107,6 +107,7 @@ export default async function MaintenancePage({
       makeModel: [a.model_year, a.make, a.model].filter(Boolean).join(' '),
       location: (a.building_id && assetById.get(a.building_id)?.name) || a.location || '',
       next: next ? next.task.title.replace(`${a.name}: `, '') : null,
+      nextDate: next?.task.due_date ?? null,
       nextDays: next?.days ?? null,
       nextDueText: next ? dueLabel(next.days) : '',
       verdict: own.length ? worst(own.map((p) => p.verdict)) : null,
@@ -172,7 +173,7 @@ export default async function MaintenancePage({
           {/* The numbers first: is anything waiting on me? */}
           <div className={`grid grid-cols-2 gap-3 sm:grid-cols-4 ${propertyMap.imageUrl ? 'lg:mt-7' : ''}`}>
             {[
-              { label: 'Overdue', value: red, cls: red ? 'text-red-700' : 'text-slate-900' },
+              { label: 'Past due', value: red, cls: red ? 'text-red-700' : 'text-slate-900' },
               { label: 'Due in 2 weeks', value: yellow, cls: yellow ? 'text-yellow-700' : 'text-slate-900' },
               { label: 'Next 30 days', value: next30, cls: 'text-slate-900' },
               { label: 'Open issues', value: issues.length, cls: issues.length ? 'text-red-700' : 'text-slate-900' },
@@ -248,7 +249,7 @@ export default async function MaintenancePage({
         <section className="mt-8">
           <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Inventory ({assets.length})</h2>
           <div className="mt-3">
-            <AssetsTable assets={assetViews} />
+            <AssetsTable assets={assetViews} todayIso={todayIso} />
           </div>
         </section>
       )}
