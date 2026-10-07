@@ -21,7 +21,9 @@ import TaskSupplies, { type NeedView, type SupplyOption } from './TaskSupplies';
 export type Verdict = 'red' | 'yellow' | 'green';
 
 const VERDICT_TONE: Record<Verdict, PillTone> = { red: 'red', yellow: 'yellow', green: 'green' };
-const VERDICT_WORD: Record<Verdict, string> = { red: 'Overdue', yellow: 'Due soon', green: 'OK' };
+/* How a person sorts a to-do pile: what is late, what is now, what is coming. */
+const VERDICT_WORD: Record<Verdict, string> = { red: 'Past due', yellow: 'Due now', green: 'Upcoming' };
+const VERDICT_TEXT: Record<Verdict, string> = { red: 'text-red-700', yellow: 'text-yellow-700', green: 'text-slate-600' };
 const VERDICT_RANK: Record<Verdict, number> = { red: 0, yellow: 1, green: 2 };
 const input = 'rounded-xl border border-slate-200 px-3 py-2 text-sm';
 
@@ -48,16 +50,43 @@ function DoneButton({ taskId, redirect }: { taskId: string; redirect: string }) 
       <input type="hidden" name="redirect" value={redirect} />
       <button
         type="submit"
-        className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700"
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:text-blue-700"
         title="Mark done — it rolls forward to the next date and is logged in the history"
+        aria-label="Mark done"
       >
-        <CheckCircle2 className="h-3.5 w-3.5" /> Done
+        <CheckCircle2 className="h-4 w-4" />
       </button>
     </form>
   );
 }
 
 /* ------------------------------------------------------------------ plans */
+
+/** "Dec 2", or "Mar 28 '27" outside this year: short enough to sit beside the name. */
+function shortDate(iso: string, todayIso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const month = new Date(Date.UTC(y, m - 1, d)).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+  return iso.slice(0, 4) === todayIso.slice(0, 4) ? `${month} ${d}` : `${month} ${d} '${String(y).slice(2)}`;
+}
+
+/** "Every 6 months" is a column-width problem on a tablet; "6 mo" is not. */
+function shortRepeats(r: string): string {
+  const one: Record<string, string> = { 'Every day': 'Daily', 'Every week': 'Weekly', 'Every month': 'Monthly', 'Every year': 'Yearly' };
+  if (one[r]) return one[r];
+  const m = r.match(/^Every (\d+) (day|week|month|year)s?$/);
+  const unit: Record<string, string> = { day: 'd', week: 'wk', month: 'mo', year: 'yr' };
+  return m ? `${m[1]} ${unit[m[2]]}` : r;
+}
+
+/** The date and how far off it is, colored by the verdict — the column the eye goes to. */
+function DueCell({ date, text, verdict, todayIso }: { date: string | null; text: string; verdict: Verdict | null; todayIso: string }) {
+  return (
+    <span className={`whitespace-nowrap ${verdict ? VERDICT_TEXT[verdict] : 'text-slate-500'} ${verdict === 'red' ? 'font-semibold' : ''}`}>
+      {date ? <span className="font-medium">{shortDate(date, todayIso)}</span> : null}
+      <span className="ml-1.5 text-xs">{text}</span>
+    </span>
+  );
+}
 
 export type PlanView = {
   id: string;
@@ -102,13 +131,23 @@ export function PlansTable({
   );
   const overview = mode === 'overview';
 
+  const hasMeter = plans.some((p) => p.meterText);
+
+  /* Name, then when — the two things read first — then the rest. */
   const columns: DataColumn<PlanView>[] = [
     {
       key: 'title',
       header: 'Schedule',
       sortable: true,
       pinLeft: true,
-      render: (p) => <span className="block max-w-[12rem] truncate sm:max-w-[22rem]">{p.title}</span>,
+      render: (p) => <span className="block max-w-[11rem] truncate sm:max-w-[22rem]">{p.title}</span>,
+    },
+    {
+      key: 'due',
+      header: 'Due',
+      sortable: true,
+      value: (p) => p.days,
+      render: (p) => <DueCell date={p.dueDate} text={p.dueText} verdict={p.verdict} todayIso={todayIso} />,
     },
     ...(overview
       ? ([
@@ -126,13 +165,11 @@ export function PlansTable({
           { key: 'typeLabel', header: 'Type', sortable: true, filter: 'select' },
         ] as DataColumn<PlanView>[])
       : []),
-    { key: 'repeats', header: 'Repeats', filter: 'select' },
-    { key: 'due', header: 'Due', sortable: true, value: (p) => p.days, render: (p) => (p.dueDate ? `${p.dueText} (${p.dueDate})` : p.dueText) },
-    { key: 'meterText', header: 'Meter', render: (p) => p.meterText || '—' },
-    { key: 'status', header: 'Status', filter: 'select', value: (p) => VERDICT_WORD[p.verdict], render: (p) => <VerdictPill verdict={p.verdict} title={p.dueText} /> },
+    { key: 'repeats', header: 'Repeats', filter: 'select', render: (p) => <span className="whitespace-nowrap">{shortRepeats(p.repeats)}</span> },
+    ...(hasMeter ? ([{ key: 'meterText', header: 'Meter', render: (p: PlanView) => p.meterText || '—' }] as DataColumn<PlanView>[]) : []),
     {
       key: 'done',
-      header: 'Done',
+      header: '',
       pinRight: true,
       render: (p) => (
         <Actions>
@@ -160,7 +197,8 @@ export function PlansTable({
       searchPlaceholder="Search schedules…"
       hideSearch={!overview}
       groups={groups}
-      groupAlert={(rs) => ({ count: rs.filter((p) => p.verdict === 'red').length, label: 'overdue' })}
+      defaultGroup="status"
+      groupAlert={(rs) => ({ count: rs.filter((p) => p.verdict === 'red').length, label: 'past due' })}
       emptyState={<p className="text-sm text-slate-500">{overview ? 'Nothing scheduled yet.' : 'Nothing scheduled yet — add from the list below.'}</p>}
       renderExpanded={(p) => (
         <div className="grid gap-2 text-sm">
@@ -213,6 +251,7 @@ export type AssetView = {
   makeModel: string;
   location: string;
   next: string | null;
+  nextDate: string | null;
   nextDays: number | null;
   nextDueText: string;
   verdict: Verdict | null;
@@ -223,8 +262,15 @@ export type AssetView = {
 };
 
 /** The inventory: one line per thing we own, grouped the way it is thought about. */
-export function AssetsTable({ assets }: { assets: AssetView[] }) {
+export function AssetsTable({ assets, todayIso }: { assets: AssetView[]; todayIso: string }) {
   const router = useRouter();
+  /* Within each category, what is late first, then by date; nothing scheduled last. */
+  const rows = [...assets].sort(
+    (a, b) =>
+      (a.verdict ? VERDICT_RANK[a.verdict] : 9) - (b.verdict ? VERDICT_RANK[b.verdict] : 9) ||
+      (a.nextDays ?? Infinity) - (b.nextDays ?? Infinity) ||
+      a.name.localeCompare(b.name),
+  );
   const columns: DataColumn<AssetView>[] = [
     {
       key: 'name',
@@ -237,11 +283,17 @@ export function AssetsTable({ assets }: { assets: AssetView[] }) {
         </Link>
       ),
     },
+    {
+      key: 'due',
+      header: 'Due',
+      sortable: true,
+      value: (a) => a.nextDays,
+      render: (a) => (a.next ? <DueCell date={a.nextDate} text={a.nextDueText} verdict={a.verdict} todayIso={todayIso} /> : '—'),
+    },
+    { key: 'next', header: 'Next', render: (a) => (a.next ? <span className="block max-w-[14rem] truncate">{a.next}</span> : 'Nothing scheduled') },
     { key: 'typeLabel', header: 'Type', sortable: true, filter: 'select' },
     { key: 'makeModel', header: 'Make & model', sortable: true, filter: 'text', render: (a) => a.makeModel || <span className="text-yellow-700">Add make and model</span> },
     { key: 'location', header: 'Where', sortable: true, filter: 'select', render: (a) => a.location || '—' },
-    { key: 'next', header: 'Next', render: (a) => (a.next ? <span className="block max-w-[14rem] truncate">{a.next}</span> : 'Nothing scheduled') },
-    { key: 'due', header: 'Due', sortable: true, value: (a) => a.nextDays, render: (a) => (a.next ? a.nextDueText : '—') },
     {
       key: 'status',
       header: 'Status',
@@ -280,13 +332,13 @@ export function AssetsTable({ assets }: { assets: AssetView[] }) {
 
   return (
     <DataTable
-      rows={assets}
+      rows={rows}
       columns={columns}
       noun={['item', 'items']}
       searchPlaceholder="Search the inventory…"
       groups={groups}
       defaultGroup="group"
-      groupAlert={(rs) => ({ count: rs.filter((a) => a.verdict === 'red').length, label: 'overdue' })}
+      groupAlert={(rs) => ({ count: rs.filter((a) => a.verdict === 'red').length, label: 'past due' })}
       onRowClick={(a) => router.push(`/maintenance/${a.id}`)}
       emptyState={<p className="text-sm text-slate-500">Nothing in the inventory yet.</p>}
     />

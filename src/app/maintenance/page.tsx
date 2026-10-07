@@ -98,7 +98,12 @@ export default async function MaintenancePage({
   const planViews = plans.map((p) => planView(p, assetById.get(p.asset_id)))
   const assetViews: AssetView[] = assets.map((a) => {
     const own = byAsset.get(a.id) ?? []
-    const next = own[0]
+    /* The row shows the schedule that earns its color: the worst verdict,
+       soonest within it. own[0] alone is date order, so a meter-overdue oil
+       change would paint a far-off date red. */
+    const verdict = own.length ? worst(own.map((p) => p.verdict)) : null
+    const next = own.find((p) => p.verdict === verdict)
+    const nextView = next ? planView(next, a) : null
     return {
       id: a.id,
       name: a.name,
@@ -107,9 +112,10 @@ export default async function MaintenancePage({
       makeModel: [a.model_year, a.make, a.model].filter(Boolean).join(' '),
       location: (a.building_id && assetById.get(a.building_id)?.name) || a.location || '',
       next: next ? next.task.title.replace(`${a.name}: `, '') : null,
+      nextDate: next?.task.due_date ?? null,
       nextDays: next?.days ?? null,
-      nextDueText: next ? dueLabel(next.days) : '',
-      verdict: own.length ? worst(own.map((p) => p.verdict)) : null,
+      nextDueText: nextView?.dueText ?? '',
+      verdict,
       schedules: own.length,
       meterText: a.meter_reading !== null && a.meter_unit ? `${a.meter_reading.toLocaleString()} ${a.meter_unit}` : '',
       state: a.status === 'stored' ? 'Stored' : 'Active',
@@ -172,7 +178,7 @@ export default async function MaintenancePage({
           {/* The numbers first: is anything waiting on me? */}
           <div className={`grid grid-cols-2 gap-3 sm:grid-cols-4 ${propertyMap.imageUrl ? 'lg:mt-7' : ''}`}>
             {[
-              { label: 'Overdue', value: red, cls: red ? 'text-red-700' : 'text-slate-900' },
+              { label: 'Past due', value: red, cls: red ? 'text-red-700' : 'text-slate-900' },
               { label: 'Due in 2 weeks', value: yellow, cls: yellow ? 'text-yellow-700' : 'text-slate-900' },
               { label: 'Next 30 days', value: next30, cls: 'text-slate-900' },
               { label: 'Open issues', value: issues.length, cls: issues.length ? 'text-red-700' : 'text-slate-900' },
@@ -248,7 +254,7 @@ export default async function MaintenancePage({
         <section className="mt-8">
           <h2 className="text-xs uppercase tracking-[0.2em] text-slate-500">Inventory ({assets.length})</h2>
           <div className="mt-3">
-            <AssetsTable assets={assetViews} />
+            <AssetsTable assets={assetViews} todayIso={todayIso} />
           </div>
         </section>
       )}
