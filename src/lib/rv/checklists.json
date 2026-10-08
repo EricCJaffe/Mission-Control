@@ -252,7 +252,7 @@
             },
             {
               "id": "pretrip-s4-i9",
-              "text": "Starlink Speedmount: frame tight to the roof, 4 dish screws snug",
+              "text": "Starlink Speedmount: frame tight to the roof, both corner bolts snug",
               "note": "Push on each corner; any lift at the VHB pads means re-bond before driving."
             }
           ],
@@ -1036,7 +1036,7 @@
             },
             {
               "id": "departure-s9-i6",
-              "text": "Starlink dish back in the Speedmount, 4 screws snug, tug-tested",
+              "text": "Starlink dish back in the Speedmount, both corner bolts snug, tug-tested",
               "note": "Only if it came off the roof while parked."
             }
           ],
