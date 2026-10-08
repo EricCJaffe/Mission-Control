@@ -264,6 +264,16 @@ export default function TasksListClient({
    * that waits on a round-trip feels broken — and rolled back if the write
    * fails, so the tick never claims something that did not save.
    */
+  /** The status /tasks/update saved, which differs for a recurring task. */
+  async function serverStatus(res: Response): Promise<string | null> {
+    try {
+      const json = (await res.json()) as { status?: string | null };
+      return json.status ? normalizeStatus(json.status) : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function toggleDone(task: Task) {
     const next = normalizeStatus(task.status) === "done" ? "todo" : "done";
     setStatusOverrides((prev) => ({ ...prev, [task.id]: next }));
@@ -277,6 +287,10 @@ export default function TasksListClient({
       body.set("json", "1");
       const res = await fetch("/tasks/update", { method: "POST", body, redirect: "manual" });
       if (!res.ok) throw new Error("Save failed");
+      // A recurring task marked done rolls forward to todo on the server, so
+      // the override takes the status the route actually saved.
+      const saved = await serverStatus(res);
+      if (saved && saved !== next) setStatusOverrides((prev) => ({ ...prev, [task.id]: saved }));
       // The override is deliberately NOT cleared here. router.refresh() is not
       // awaitable, so dropping it now would show the old status again until the
       // new server data lands — exactly the flash this was fixing. It is
@@ -308,7 +322,10 @@ export default function TasksListClient({
     // The Done checkbox keeps an optimistic status override per task, and it
     // wins over the row. Without this, a status edited here after a tick
     // showed the ticked status until reload.
-    if (field === "status") setStatusOverrides((prev) => ({ ...prev, [task.id]: value }));
+    if (field === "status") {
+      const saved = (await serverStatus(res)) ?? value;
+      setStatusOverrides((prev) => ({ ...prev, [task.id]: saved }));
+    }
     router.refresh();
   }
 
