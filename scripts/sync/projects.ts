@@ -12,9 +12,9 @@
  *
  * WHAT IT INGESTS BY DEFAULT. The corpus holds ~1,270 open items across ten
  * repos. Mirroring all of them into a personal task list produces something
- * nobody reads, so the default is `--mine`: items with your handle on them,
- * plus unassigned urgent items, plus everything from repos that have no
- * assignee convention at all. `--all` takes the lot. Either way the per-repo
+ * nobody reads, so the default is `--mine`: only items with your handle on
+ * them (see isMine for why unassigned work no longer counts). `--all` takes
+ * the lot. Either way the per-repo
  * totals are written to sync_runs.log, so the rollups are honest even when the
  * tasks themselves were not imported.
  */
@@ -79,17 +79,19 @@ function parseArgs(argv: string[]): Args {
 }
 
 /*
- * Whether an item is worth putting in front of you.
+ * Whether an item is worth putting in front of you: only when it names you.
  *
- * A repo with no assignee convention (mission-control, financeos, the
- * intranet-migration list) has no way to say an item is yours, and its tasks
- * are all yours by default — so they all come in. In a repo that does name
- * people, silence means somebody else, and only urgent unowned work surfaces.
+ * This used to let in every unassigned urgent item, and every item at all from
+ * a repo with no assignee convention. On 2026-10-08 that was 112 of the 119
+ * pinned tasks on /tasks — agent work items from brain, trellisv2, honeylakeos
+ * and four others ("Delete runs/tmp/ci-gate-…", "Make test/test a required
+ * check") with no context for a person to act on. Unowned work in a repo's
+ * TASKS.md belongs to the session working that repo; it reaches you when
+ * somebody writes `[@eric]` on it. Anything already imported that no longer
+ * qualifies is closed by reconcile() on the next run, with the reason recorded.
  */
-function isMine(task: ParsedTask, repoNamesPeople: boolean): boolean {
-  if (isEric(task)) return true;
-  if (!repoNamesPeople) return true;
-  return task.assignees.length === 0 && task.priority === 1;
+function isMine(task: ParsedTask): boolean {
+  return isEric(task);
 }
 
 type Harvested = {
@@ -178,7 +180,7 @@ function harvestRepo(repo: Repo, maxPriority: number): { all: ParsedTask[]; mine
   const namesPeople = all.some((t) => t.assignees.length > 0);
   const unique = uniquifyRefs(found);
   const mine = unique.filter(
-    (h) => h.task.status === 'todo' && h.task.priority <= maxPriority && isMine(h.task, namesPeople),
+    (h) => h.task.status === 'todo' && h.task.priority <= maxPriority && isMine(h.task),
   );
   return { all, mine, namesPeople };
 }
@@ -516,9 +518,12 @@ async function reconcile(
   for (const [ref, prior] of byRef) {
     if (seenRefs.has(ref)) continue;
     const patch: Record<string, unknown> = { external_status: 'gone', synced_at: now };
-    if (prior.status === 'todo') {
+    // An edited task is yours: the same edited_at contract as above, so the
+    // sync neither closes it nor overwrites the why you wrote. "Gone" here
+    // also covers "no longer assigned to you", so the reason says both.
+    if (prior.status === 'todo' && !prior.edited_at) {
       patch.status = 'done';
-      patch.why = 'closed by sync — no longer in source';
+      patch.why = 'closed by sync — gone from source, or no longer marked [@eric]';
     }
     const { error: closeError } = await db.from('tasks').update(patch).eq('id', prior.id);
     if (closeError) throw new Error(`Close failed: ${closeError.message}`);
