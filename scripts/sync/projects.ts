@@ -79,17 +79,19 @@ function parseArgs(argv: string[]): Args {
 }
 
 /*
- * Whether an item is worth putting in front of you.
+ * Whether an item is worth putting in front of you: only when it names you.
  *
- * A repo with no assignee convention (mission-control, financeos, the
- * intranet-migration list) has no way to say an item is yours, and its tasks
- * are all yours by default — so they all come in. In a repo that does name
- * people, silence means somebody else, and only urgent unowned work surfaces.
+ * This used to let in every unassigned urgent item, and every item at all from
+ * a repo with no assignee convention. On 2026-10-08 that was 112 of the 119
+ * pinned tasks on /tasks — agent work items from brain, trellisv2, honeylakeos
+ * and four others ("Delete runs/tmp/ci-gate-…", "Make test/test a required
+ * check") with no context for a person to act on. Unowned work in a repo's
+ * TASKS.md belongs to the session working that repo; it reaches you when
+ * somebody writes `[@eric]` on it. Anything already imported that no longer
+ * qualifies is closed by reconcile() on the next run, with the reason recorded.
  */
-function isMine(task: ParsedTask, repoNamesPeople: boolean): boolean {
-  if (isEric(task)) return true;
-  if (!repoNamesPeople) return true;
-  return task.assignees.length === 0 && task.priority === 1;
+function isMine(task: ParsedTask): boolean {
+  return isEric(task);
 }
 
 type Harvested = {
@@ -178,7 +180,7 @@ function harvestRepo(repo: Repo, maxPriority: number): { all: ParsedTask[]; mine
   const namesPeople = all.some((t) => t.assignees.length > 0);
   const unique = uniquifyRefs(found);
   const mine = unique.filter(
-    (h) => h.task.status === 'todo' && h.task.priority <= maxPriority && isMine(h.task, namesPeople),
+    (h) => h.task.status === 'todo' && h.task.priority <= maxPriority && isMine(h.task),
   );
   return { all, mine, namesPeople };
 }
