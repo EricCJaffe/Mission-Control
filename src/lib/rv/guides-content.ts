@@ -158,7 +158,7 @@ The wet bay uses **numbered** positions. Read the **pointed tip** of each handle
 ---
 
 ## [starlink] Starlink — Gen 3 Standard on the TRIO Speedmount
-*Link from: Arrival → "Set up" section; Departure → "Roof check."*
+*Link from: Pre-trip → "Exterior walk-around"; Arrival → "Outside setup." The Departure item sits under "Final walk-around", which links the TPMS guide.*
 
 **Your hardware:** Starlink **Standard (Gen 3)** dish, 11.5 lb, 140° field of view, about 75–100 W. It runs on AC through its router; TRIO sells a 12V conversion kit if you ever want to skip the inverter. It's mounted flat on the roof in a **TRIO Gen 3 Standard Speedmount**: two L-shaped frame halves, about 2.1 in. tall, joined around the dish by **2 M6 stainless bolts with nylock nuts at opposite corners** (4 mm hex key). The frame attaches to the roof through its outer mounting holes; per TRIO's options that's VHB landing pads, steel VHB discs plus rubber-coated magnets, or through-bolts.
 
