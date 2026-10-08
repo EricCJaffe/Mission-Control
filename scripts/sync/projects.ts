@@ -12,9 +12,9 @@
  *
  * WHAT IT INGESTS BY DEFAULT. The corpus holds ~1,270 open items across ten
  * repos. Mirroring all of them into a personal task list produces something
- * nobody reads, so the default is `--mine`: items with your handle on them,
- * plus unassigned urgent items, plus everything from repos that have no
- * assignee convention at all. `--all` takes the lot. Either way the per-repo
+ * nobody reads, so the default is `--mine`: only items with your handle on
+ * them (see isMine for why unassigned work no longer counts). `--all` takes
+ * the lot. Either way the per-repo
  * totals are written to sync_runs.log, so the rollups are honest even when the
  * tasks themselves were not imported.
  */
@@ -518,9 +518,12 @@ async function reconcile(
   for (const [ref, prior] of byRef) {
     if (seenRefs.has(ref)) continue;
     const patch: Record<string, unknown> = { external_status: 'gone', synced_at: now };
-    if (prior.status === 'todo') {
+    // An edited task is yours: the same edited_at contract as above, so the
+    // sync neither closes it nor overwrites the why you wrote. "Gone" here
+    // also covers "no longer assigned to you", so the reason says both.
+    if (prior.status === 'todo' && !prior.edited_at) {
       patch.status = 'done';
-      patch.why = 'closed by sync — no longer in source';
+      patch.why = 'closed by sync — gone from source, or no longer marked [@eric]';
     }
     const { error: closeError } = await db.from('tasks').update(patch).eq('id', prior.id);
     if (closeError) throw new Error(`Close failed: ${closeError.message}`);
