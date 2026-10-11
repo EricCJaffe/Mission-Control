@@ -37,10 +37,16 @@ update mission.calendar_events
    and domain = 'work'
    and domain_origin is null;
 
+--    Before this file, nothing but the harvester ever wrote `domain` on a
+--    synced row (the update route did not accept one), so `work` there is
+--    the machine's. Applied 2026-10-11 BEFORE the code merged, so the new
+--    route's pre-migration fallback never had a window to save a hand `work`.
+--    A null domain is unclassified, not a choice: left unset for the sync.
 update mission.calendar_events
    set domain_origin = 'hand'
  where external_id is not null
-   and domain is distinct from 'work'
+   and domain is not null
+   and domain <> 'work'
    and domain_origin is null;
 
 update mission.review_areas

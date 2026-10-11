@@ -31,6 +31,7 @@
  */
 
 import { eventHoursInPeriod, familyTripHours, spansFromStops } from '@/lib/calendar/hours';
+import { expandInRange, normalizeRule } from '@/lib/calendar/recurrence';
 import { addDays, daysBetween, dayOf, today as todayInAppTz } from '@/lib/day';
 import {
   computePillarScores,
@@ -221,6 +222,49 @@ function roundHours(hours: number): number {
 
 type CalendarSpan = { start_at: string; end_at: string | null };
 
+type DomainEventRow = CalendarSpan & {
+  recurrence_rule: string | null;
+  recurrence_until: string | null;
+};
+
+/**
+ * Every occurrence of a domain's events that overlaps the period.
+ *
+ * A recurring row sits on the date it was created, usually weeks behind the
+ * period, so it is fetched regardless of its own dates and expanded here —
+ * the same rule the priority matrix uses, so the review and the matrix
+ * report the same hours for the same week.
+ */
+async function domainOccurrences(
+  db: MissionClient,
+  userId: string,
+  period: Period,
+  domain: string,
+): Promise<Array<{ startAt: string; endAt: string | null }>> {
+  const bounds = calendarOverlap(period);
+  const { data } = await db
+    .from('calendar_events')
+    .select('start_at,end_at,recurrence_rule,recurrence_until')
+    .eq('user_id', userId)
+    .eq('domain', domain)
+    .or(`and(start_at.lt.${bounds.to},end_at.gt.${bounds.from}),recurrence_rule.not.is.null`);
+
+  const out: Array<{ startAt: string; endAt: string | null }> = [];
+  for (const row of (data ?? []) as DomainEventRow[]) {
+    if (normalizeRule(row.recurrence_rule) === 'none') {
+      out.push({ startAt: row.start_at, endAt: row.end_at });
+      continue;
+    }
+    const expanded = expandInRange(
+      [{ ...row, end_at: row.end_at ?? row.start_at }],
+      addDays(period.start, -1),
+      period.end,
+    );
+    for (const occurrence of expanded) out.push({ startAt: occurrence.startAt, endAt: occurrence.endAt });
+  }
+  return out.filter((span) => eventHoursInPeriod(span, period.start, period.end) > 0);
+}
+
 /** Scheduled hours in one domain, clipped to the period. */
 async function collectCalendar(
   db: MissionClient,
@@ -228,35 +272,19 @@ async function collectCalendar(
   period: Period,
   domain: string
 ): Promise<CollectedReading> {
-  const bounds = calendarOverlap(period);
-  const { data } = await db
-    .from('calendar_events')
-    .select('id,title,start_at,end_at,domain')
-    .eq('user_id', userId)
-    .eq('domain', domain)
-    .lt('start_at', bounds.to)
-    .gt('end_at', bounds.from);
-
-  const events = (data ?? []) as CalendarSpan[];
+  const spans = await domainOccurrences(db, userId, period, domain);
   const hours = roundHours(
-    events.reduce(
-      (sum, event) =>
-        sum + eventHoursInPeriod({ startAt: event.start_at, endAt: event.end_at }, period.start, period.end),
-      0,
-    ),
+    spans.reduce((sum, span) => sum + eventHoursInPeriod(span, period.start, period.end), 0),
   );
-  const contributing = events.filter(
-    (event) => eventHoursInPeriod({ startAt: event.start_at, endAt: event.end_at }, period.start, period.end) > 0,
-  ).length;
 
-  if (contributing === 0) {
+  if (spans.length === 0) {
     return { hasReading: false, value: null, detail: { domain, events: 0, hours: 0 } };
   }
 
   return {
     hasReading: true,
     value: hours,
-    detail: { domain, events: contributing, hours },
+    detail: { domain, events: spans.length, hours },
   };
 }
 
@@ -297,15 +325,8 @@ async function collectFamily(
   period: Period,
   areaKey: string,
 ): Promise<CollectedReading> {
-  const bounds = calendarOverlap(period);
-  const [{ data: eventRows }, { data: stopRows }, override] = await Promise.all([
-    db
-      .from('calendar_events')
-      .select('id,start_at,end_at')
-      .eq('user_id', userId)
-      .eq('domain', 'family')
-      .lt('start_at', bounds.to)
-      .gt('end_at', bounds.from),
+  const [events, { data: stopRows }, override] = await Promise.all([
+    domainOccurrences(db, userId, period, 'family'),
     db
       .from('rv_trip_stops')
       .select('trip_id,kind,arrive_on,depart_on,trip:rv_trips!inner(status)')
@@ -314,13 +335,8 @@ async function collectFamily(
     familyOverride(db, userId, period, areaKey),
   ]);
 
-  const events = (eventRows ?? []) as CalendarSpan[];
   const calendarHours = roundHours(
-    events.reduce(
-      (sum, event) =>
-        sum + eventHoursInPeriod({ startAt: event.start_at, endAt: event.end_at }, period.start, period.end),
-      0,
-    ),
+    events.reduce((sum, event) => sum + eventHoursInPeriod(event, period.start, period.end), 0),
   );
   const spans = spansFromStops(
     ((stopRows ?? []) as Array<{
@@ -337,16 +353,9 @@ async function collectFamily(
       status: Array.isArray(stop.trip) ? stop.trip[0]?.status : stop.trip?.status,
     })),
   );
-  const tripHours = familyTripHours(
-    spans,
-    events.map((event) => ({ startAt: event.start_at, endAt: event.end_at })),
-    period.start,
-    period.end,
-  );
+  const tripHours = familyTripHours(spans, events, period.start, period.end);
   const derivedHours = roundHours(calendarHours + tripHours);
-  const contributing = events.filter(
-    (event) => eventHoursInPeriod({ startAt: event.start_at, endAt: event.end_at }, period.start, period.end) > 0,
-  ).length;
+  const contributing = events.length;
   const detail = {
     domain: 'family',
     events: contributing,

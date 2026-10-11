@@ -21,6 +21,7 @@
 
 import { loadEnv } from './lib/env.ts';
 import { createSyncClient, type SyncClient } from './lib/db.ts';
+import { domainOriginColumn } from './lib/domainOrigin.ts';
 import { loadGraphEnv, graphGet, mailboxPath, type GraphEnv } from './lib/graph.ts';
 import {
   needsReply,
@@ -307,19 +308,6 @@ type StoredCalendarEvent = {
   origin: DomainOrigin | null;
 };
 
-/** PostgREST says PGRST204; Postgres says 42703. Either means the column is not there yet. */
-function missingDomainOrigin(error: { message?: string; code?: string } | null): boolean {
-  if (!error) return false;
-  return error.code === '42703' || error.code === 'PGRST204' || /domain_origin/i.test(error.message ?? '');
-}
-
-async function domainOriginColumn(db: SyncClient): Promise<boolean> {
-  const { error } = await db.from('calendar_events').select('domain_origin').limit(1);
-  if (!error) return true;
-  if (missingDomainOrigin(error)) return false;
-  throw new Error(`Could not read calendar domain origin: ${error.message}`);
-}
-
 async function loadExistingEvents(
   db: SyncClient,
   userId: string,
@@ -473,8 +461,18 @@ async function syncCalendar(
     }
 
     if (prior) {
-      const { error } = await db.from('calendar_events').update(facts).eq('id', prior.id);
+      // The overwrite decision came from a read at the top of the run. A hand
+      // edit landing since then must win, so the domain is written in its own
+      // update that only matches while the origin is still the one we read.
+      const { domain, domain_origin, ...rest } = facts;
+      const { error } = await db.from('calendar_events').update(rest).eq('id', prior.id);
       if (error) throw new Error(`Update failed for event "${event.title}": ${error.message}`);
+      if (assignment.writeDomain) {
+        let guarded = db.from('calendar_events').update(withOrigin ? { domain, domain_origin } : { domain }).eq('id', prior.id);
+        if (withOrigin) guarded = guarded.eq('domain_origin', 'sync');
+        const { error: domainError } = await guarded;
+        if (domainError) throw new Error(`Domain update failed for event "${event.title}": ${domainError.message}`);
+      }
       result.updated += 1;
       continue;
     }

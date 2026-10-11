@@ -21,11 +21,11 @@ The sync already refused to overwrite `domain` on update, because a reassignment
 
 ## Consequences
 
-- Until `20261011130000_calendar_domain_origin_and_family_review.sql` is applied, new events get the right domain and existing rows are not reclassified. After it is applied, the next sync may correct rows that are still the old hard-coded `work`.
+- Until `20261011143629_calendar_domain_origin_and_family_review.sql` is applied, new events get the right domain and existing rows are not reclassified. After it is applied, the next sync may correct rows that are still the old hard-coded `work`.
 - The Family review reads the calendar even while that area's stored source is still `manual`.
 
 ## Links
 
 - `scripts/sync/lib/eventDomain.ts`
 - `src/lib/calendar/hours.ts`
-- `supabase/migrations/20261011130000_calendar_domain_origin_and_family_review.sql`
+- `supabase/migrations/20261011143629_calendar_domain_origin_and_family_review.sql`

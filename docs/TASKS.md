@@ -14,7 +14,7 @@ re-raising them. Source of truth: `~/dev/brain/open/resolved.md`.
 ## In progress — calendar domains (not deployed)
 
 - Outlook categories now map to spirit / body / soul / family / work. Hours for all-day and multi-day events are 12 per day of overlap.
-- Migration `20261011130000_calendar_domain_origin_and_family_review.sql` was approved by Eric on 2026-10-11 at 9:09 AM ET. It is not applied yet. Until it is, events already in the database keep their domain.
+- Migration `20261011143629_calendar_domain_origin_and_family_review.sql` was approved by Eric on 2026-10-11 at 9:09 AM ET. It was applied 2026-10-11 at 10:36 AM ET as ledger version `20261011143629`, before the code merged (254 synced rows stamped `sync`, Family review area now `calendar`).
 
 ## Current Status
 - Build Status: ✅ Production build passing

@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 import { loadEnv } from './lib/env.ts';
 import { createSyncClient } from './lib/db.ts';
 import { resolveEventDomain } from './lib/eventDomain.ts';
+import { domainOriginColumn } from './lib/domainOrigin.ts';
 
 // Matches INTERNAL_DOMAINS in lib/needsReply.ts, and for the same reason:
 // ema.org is a client, so a meeting with them is an external meeting and
@@ -87,6 +88,9 @@ async function main() {
   const env = loadEnv();
   const db = createSyncClient(env);
   const now = new Date().toISOString();
+  // New rows are the import's own classification; stamp them so the live
+  // sync may correct them later. Absent column: insert as before.
+  const withOrigin = await domainOriginColumn(db);
 
   let eventsWritten = 0;
   let mailWritten = 0;
@@ -126,6 +130,7 @@ async function main() {
       : await db.from('calendar_events').insert({
           ...row,
           domain: resolveEventDomain({ categories: ev.categories, title }),
+          ...(withOrigin ? { domain_origin: 'sync' } : {}),
         });
     if (error) throw new Error(`calendar_events: ${error.message}`);
     eventsWritten += 1;
