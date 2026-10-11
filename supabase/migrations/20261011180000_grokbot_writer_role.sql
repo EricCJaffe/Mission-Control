@@ -29,6 +29,9 @@
 --
 -- Dry-run 2026-10-11 (inside an aborted transaction): 9 grants, insert ok,
 -- status->done ok, delete denied, forged sub refused (42501), labs denied.
+-- Re-run after the trigger EXECUTE revoke: status->done under the role still
+-- fires both triggers (1 row); attaching supplies_use_on_completion to a temp
+-- table as the role is refused (42501).
 --
 -- Rollback:
 --   drop policy if exists grokbot_writer_eric_only on mission.tasks;
@@ -42,6 +45,7 @@
 --   alter function mission.supplies_use_on_completion() security invoker reset search_path;
 --   (the user_id filters added below are harmless to keep)
 --   grant execute on function <each of the 12 below> to public;
+--   grant execute on function mission.supplies_use_on_completion(), mission.maintenance_log_completion() to public, anon, authenticated;
 
 -- Codex review (2026-10-11) found the bigger hole: 12 SECURITY DEFINER
 -- functions in mission carry PUBLIC EXECUTE (Postgres's default), including
@@ -153,3 +157,14 @@ begin
     execute format('grant execute on function %s to authenticated, service_role', f);
   end loop;
 end $$;
+
+-- The two completion triggers are now SECURITY DEFINER, so EXECUTE on them is
+-- a privilege, not a formality. Anyone holding it, with the TEMPORARY privilege
+-- every role gets by default, can attach the function to a temporary table of
+-- their own, forge NEW.user_id and a victim's task id, and have it update that
+-- user's supplies or maintenance rows; mission.tasks's RLS never runs on the
+-- temporary table. A trigger firing does not check EXECUTE (only CREATE TRIGGER
+-- does), so revoking it from everyone but the owner and service_role leaves the
+-- real triggers on mission.tasks working. Found by Codex review, 2026-10-11.
+revoke execute on function mission.supplies_use_on_completion() from public, anon, authenticated;
+revoke execute on function mission.maintenance_log_completion() from public, anon, authenticated;
