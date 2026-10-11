@@ -156,6 +156,11 @@ function zonedToUtc(dateIso: string, timeIso: string, timeZone: string): Date {
   return new Date(guess.getTime() - offsetMinutesAt(corrected, timeZone) * 60_000);
 }
 
+/** Midnight at the start of `dateIso` in `timeZone`, as a real instant. */
+export function zonedDayStart(dateIso: string, timeZone = 'America/New_York'): Date {
+  return zonedToUtc(dateIso, '00:00:00', timeZone);
+}
+
 /**
  * Every occurrence of `events` between two dates, as concrete start/end pairs.
  *

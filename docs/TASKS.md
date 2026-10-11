@@ -9,7 +9,12 @@ re-raising them. Source of truth: `~/dev/brain/open/resolved.md`.
 - The three blocked credentials (Graph app registration, `ANTHROPIC_API_KEY` in Vercel, `MC_USER_ID` + `CRON_SECRET` in Production) — **all supplied**.
 
 
-**Last Updated:** March 10, 2026
+**Last Updated:** October 11, 2026
+
+## In progress — calendar domains (not deployed)
+
+- Outlook categories now map to spirit / body / soul / family / work. Hours for all-day and multi-day events are 12 per day of overlap.
+- Migration `20261011130000_calendar_domain_origin_and_family_review.sql` needs Eric's OK before it is applied. Until then, events already in the database keep their domain.
 
 ## Current Status
 - Build Status: ✅ Production build passing

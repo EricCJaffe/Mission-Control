@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Compass, HeartPulse, Users, Briefcase, AlertTriangle, Target } from "lucide-react";
 import { supabaseServer } from "@/lib/supabase/server";
-import { expandInRange } from "@/lib/calendar/recurrence";
+import { eventHoursInPeriod, familyTripHours, spansFromStops } from "@/lib/calendar/hours";
+import { expandInRange, normalizeRule } from "@/lib/calendar/recurrence";
 import { today as todayInAppTz, addDays } from "@/lib/day";
 
 /**
@@ -46,12 +47,31 @@ function mondayIndex(iso: string): number {
   return (dow + 6) % 7;
 }
 
-function hoursBetween(startAt: string | null, endAt: string | null): number {
-  if (!startAt || !endAt) return 0;
-  const start = new Date(startAt).getTime();
-  const end = new Date(endAt).getTime();
-  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return 0;
-  return (end - start) / 3_600_000;
+type MatrixEvent = {
+  start_at: string;
+  end_at: string;
+  domain: string | null;
+  recurrence_rule: string | null;
+  recurrence_until: string | null;
+};
+
+/**
+ * Hours of one stored event inside the week.
+ *
+ * A recurring row is expanded first — the standing commitments are the
+ * hours most reliably kept, and they live on the day they were created.
+ * A multi-day event that is not recurring is one span, clipped to the
+ * week, including when it started before Monday.
+ */
+function hoursInWeek(event: MatrixEvent, weekStart: string, weekEnd: string): number {
+  if (normalizeRule(event.recurrence_rule) === "none") {
+    return eventHoursInPeriod({ startAt: event.start_at, endAt: event.end_at }, weekStart, weekEnd);
+  }
+  return expandInRange([event], weekStart, weekEnd).reduce(
+    (sum, occurrence) =>
+      sum + eventHoursInPeriod({ startAt: occurrence.startAt, endAt: occurrence.endAt }, weekStart, weekEnd),
+    0,
+  );
 }
 
 /** One quadrant of the matrix. */
@@ -120,7 +140,7 @@ export default async function PriorityMatrix() {
   const fetchFrom = `${addDays(weekStartIso, -1)}T00:00:00Z`;
   const fetchTo = `${addDays(weekEndIso, 2)}T00:00:00Z`;
 
-  const [tasksResult, eventsResult] = await Promise.all([
+  const [tasksResult, eventsResult, stopsResult] = await Promise.all([
     supabase
       .from("tasks")
       .select("id,status,due_date,domain")
@@ -133,8 +153,14 @@ export default async function PriorityMatrix() {
       // A recurring event's stored row sits on the date it was created, which
       // is usually months behind this week. Filtering on start_at alone would
       // drop every standing commitment — and the standing ones are the hours
-      // most reliably kept.
-      .or(`and(start_at.gte.${fetchFrom},start_at.lt.${fetchTo}),recurrence_rule.not.is.null`),
+      // most reliably kept. A multi-day event is included when it overlaps
+      // the week, even if it started before Monday.
+      .or(`and(start_at.lt.${fetchTo},end_at.gt.${fetchFrom}),recurrence_rule.not.is.null`),
+    supabase
+      .from("rv_trip_stops")
+      .select("trip_id,kind,arrive_on,depart_on,trip:rv_trips!inner(status)")
+      .eq("user_id", user.id)
+      .neq("trip.status", "canceled"),
   ]);
 
   const tasks = tasksResult.data ?? [];
@@ -160,32 +186,53 @@ export default async function PriorityMatrix() {
   const hoursByDomain = new Map<string, number>();
   let unclassifiedHours = 0;
 
-  // Expanded, so a Mon–Sat anchor counts six times this week rather than once
-  // on whatever day it was first created.
-  const occurrences = expandInRange(
-    events
-      .filter((e) => e.start_at && e.end_at)
-      .map((e) => ({
-        start_at: e.start_at as string,
-        end_at: e.end_at as string,
-        recurrence_rule: (e.recurrence_rule as string | null) ?? null,
-        recurrence_until: (e.recurrence_until as string | null) ?? null,
-        domain: (e.domain as string | null) ?? null,
-      })),
-    weekStartIso,
-    weekEndIso,
-  );
+  const matrixEvents: MatrixEvent[] = events
+    .filter((e) => e.start_at && e.end_at)
+    .map((e) => ({
+      start_at: e.start_at as string,
+      end_at: e.end_at as string,
+      recurrence_rule: (e.recurrence_rule as string | null) ?? null,
+      recurrence_until: (e.recurrence_until as string | null) ?? null,
+      domain: (e.domain as string | null) ?? null,
+    }));
 
-  for (const event of occurrences) {
-    const startAt = event.startAt;
-    const hours = hoursBetween(startAt, event.endAt);
+  const familyEvents: MatrixEvent[] = [];
+  for (const event of matrixEvents) {
+    const hours = hoursInWeek(event, weekStartIso, weekEndIso);
     if (hours <= 0) continue;
-    const domain = event.domain;
-    if (!domain) {
+    if (event.domain === "family") familyEvents.push(event);
+    if (!event.domain) {
       unclassifiedHours += hours;
       continue;
     }
-    hoursByDomain.set(domain, (hoursByDomain.get(domain) ?? 0) + hours);
+    hoursByDomain.set(event.domain, (hoursByDomain.get(event.domain) ?? 0) + hours);
+  }
+
+  // Trip days the calendar is not already counting as family. A family
+  // all-day event for the same trip is in familyEvents, and the helper
+  // skips the days it covers.
+  const tripHours = familyTripHours(
+    spansFromStops(
+      ((stopsResult.data ?? []) as Array<{
+        trip_id: string;
+        kind: string;
+        arrive_on: string | null;
+        depart_on: string | null;
+        trip: { status: string } | { status: string }[] | null;
+      }>).map((stop) => ({
+        tripId: stop.trip_id,
+        kind: stop.kind,
+        arriveOn: stop.arrive_on,
+        departOn: stop.depart_on,
+        status: Array.isArray(stop.trip) ? stop.trip[0]?.status : stop.trip?.status,
+      })),
+    ),
+    familyEvents.map((event) => ({ startAt: event.start_at, endAt: event.end_at })),
+    weekStartIso,
+    weekEndIso,
+  );
+  if (tripHours > 0) {
+    hoursByDomain.set("family", (hoursByDomain.get("family") ?? 0) + tripHours);
   }
 
   const rows = TILES.map((tile) => ({

@@ -21,7 +21,7 @@ function event(id: string, title: string, date: string, hour: string, tripId: st
     start_at: `${date}T${hour}:00`,
     end_at: `${date}T${hour.slice(0, 2)}:45:00`,
     event_type: 'RV Trip',
-    domain: 'Family',
+    domain: 'family',
     alignment_tag: `rv-trip:${tripId}`,
     recurrence_rule: null,
     recurrence_until: null,

@@ -29,6 +29,13 @@ import {
   isInternalDomain,
   type MailMessage,
 } from './lib/needsReply.ts';
+import {
+  PREP_TITLE_RE,
+  domainAssignment,
+  resolveEventDomain,
+  type DomainOrigin,
+  type EventDomain,
+} from './lib/eventDomain.ts';
 
 /*
  * The calendar window. Backwards because a brief has to say what happened as
@@ -45,10 +52,12 @@ const MAIL_DAYS_BACK = 14;
 const SNIPPET_CHARS = 280;
 
 /*
- * Everything from this mailbox is work. The domain CHECK constraint allows
- * five values, and a work Outlook account cannot honestly claim any of the
- * other four — anything that turns out to be family or spirit gets reassigned
- * in the UI, and the sync leaves that reassignment alone afterwards.
+ * Mail from this mailbox is work. Calendar events are not: the category
+ * Eric put on the event in Outlook names the domain, and the title rules
+ * are the fallback. See lib/eventDomain.ts. A domain set by hand in the UI
+ * is left alone — `domain_origin = 'hand'` is that mark. Until that column
+ * exists, an update still does not touch `domain`, which is the protection
+ * this file has always given a reassignment.
  */
 const MAILBOX_DOMAIN = 'work';
 
@@ -56,10 +65,10 @@ const MAILBOX_DOMAIN = 'work';
 const EVENT_TYPE = 'Meeting';
 
 /*
- * What counts as preparation for a later meeting. Titles, not categories,
- * because nobody categorises a block they typed in at 8pm.
+ * What counts as preparation for a later meeting. The regex lives with the
+ * title-domain rules so a "prep" block cannot be work for one question and
+ * something else for the other.
  */
-const PREP_TITLE_RE = /\b(prep|prepping|prepare|block|blocked|review|focus)\b/i;
 const PREP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type Args = {
@@ -114,6 +123,7 @@ type GraphEvent = {
   organizer?: { emailAddress?: { address?: string | null } | null } | null;
   attendees?: { emailAddress?: { address?: string | null } | null }[] | null;
   webLink?: string | null;
+  categories?: string[] | null;
 };
 
 type GraphMessage = {
@@ -232,6 +242,7 @@ type PreparedEvent = {
   location: string | null;
   webLink: string | null;
   isAllDay: boolean;
+  domain: EventDomain;
 };
 
 /*
@@ -284,6 +295,72 @@ function findOverlaps(events: PreparedEvent[]): Record<string, unknown>[] {
   return conflicts;
 }
 
+function countDomains(events: PreparedEvent[]): Record<EventDomain, number> {
+  const counts: Record<EventDomain, number> = { spirit: 0, body: 0, soul: 0, family: 0, work: 0 };
+  for (const event of events) counts[event.domain] += 1;
+  return counts;
+}
+
+type StoredCalendarEvent = {
+  id: string;
+  domain: string | null;
+  origin: DomainOrigin | null;
+};
+
+/** PostgREST says PGRST204; Postgres says 42703. Either means the column is not there yet. */
+function missingDomainOrigin(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === '42703' || error.code === 'PGRST204' || /domain_origin/i.test(error.message ?? '');
+}
+
+async function domainOriginColumn(db: SyncClient): Promise<boolean> {
+  const { error } = await db.from('calendar_events').select('domain_origin').limit(1);
+  if (!error) return true;
+  if (missingDomainOrigin(error)) return false;
+  throw new Error(`Could not read calendar domain origin: ${error.message}`);
+}
+
+async function loadExistingEvents(
+  db: SyncClient,
+  userId: string,
+  externalIds: string[],
+  withOrigin: boolean,
+): Promise<Map<string, StoredCalendarEvent>> {
+  const existing = new Map<string, StoredCalendarEvent>();
+  for (const chunk of chunkedByLength(externalIds)) {
+    // Two literal selects. A ternary string is not a column list to PostgREST's
+    // type parser, and it reports the row as an error type.
+    const read = withOrigin
+      ? await db
+          .from('calendar_events')
+          .select('id, external_id, domain, domain_origin')
+          .eq('user_id', userId)
+          .in('external_id', chunk)
+      : await db
+          .from('calendar_events')
+          .select('id, external_id, domain')
+          .eq('user_id', userId)
+          .in('external_id', chunk);
+    if (read.error) throw new Error(`Could not read existing calendar events: ${read.error.message}`);
+    for (const row of read.data ?? []) {
+      const record = row as unknown as {
+        id: string;
+        external_id: string | null;
+        domain: string | null;
+        domain_origin?: string | null;
+      };
+      if (!record.external_id) continue;
+      const rawOrigin = withOrigin ? (record.domain_origin ?? null) : null;
+      existing.set(record.external_id, {
+        id: record.id,
+        domain: record.domain ?? null,
+        origin: rawOrigin === 'sync' || rawOrigin === 'hand' ? rawOrigin : null,
+      });
+    }
+  }
+  return existing;
+}
+
 async function syncCalendar(
   db: SyncClient,
   userId: string,
@@ -300,7 +377,7 @@ async function syncCalendar(
   const raw = await graphGet<GraphEvent>(graph, mailboxPath(graph, '/calendarView'), {
     startDateTime,
     endDateTime,
-    $select: 'id,subject,start,end,isAllDay,isCancelled,location,organizer,attendees,webLink',
+    $select: 'id,subject,start,end,isAllDay,isCancelled,location,organizer,attendees,webLink,categories',
     $orderby: 'start/dateTime',
     $top: '100',
   });
@@ -321,9 +398,10 @@ async function syncCalendar(
       continue;
     }
     const attendees = addressesOf(event);
+    const title = (event.subject ?? '').trim() || '(no subject)';
     prepared.push({
       externalId: event.id,
-      title: (event.subject ?? '').trim() || '(no subject)',
+      title,
       startAt,
       endAt,
       attendees,
@@ -332,6 +410,7 @@ async function syncCalendar(
       location: event.location?.displayName?.trim() || null,
       webLink: event.webLink ?? null,
       isAllDay: event.isAllDay === true,
+      domain: resolveEventDomain({ categories: event.categories, title }),
     });
   }
 
@@ -349,28 +428,29 @@ async function syncCalendar(
       unreadable_times: unreadable,
       external: prepared.filter((e) => e.isExternal).length,
       with_prep: prepared.filter((e) => e.hasPrep).length,
+      domains: countDomains(prepared),
       conflicts,
     },
   };
   if (dryRun) return result;
 
-  const existing = new Map<string, string>();
-  for (const chunk of chunkedByLength(prepared.map((e) => e.externalId))) {
-    const { data, error } = await db
-      .from('calendar_events')
-      .select('id, external_id')
-      .eq('user_id', userId)
-      .in('external_id', chunk);
-    if (error) throw new Error(`Could not read existing calendar events: ${error.message}`);
-    for (const row of data ?? []) if (row.external_id) existing.set(row.external_id, row.id);
-  }
+  // Absent column: behave as before an origin existed. New rows get the
+  // resolved domain; rows already stored keep whatever domain they have,
+  // because a hand edit cannot be told from the old hard-coded `work`.
+  const withOrigin = await domainOriginColumn(db);
+  const existing = await loadExistingEvents(
+    db,
+    userId,
+    prepared.map((e) => e.externalId),
+    withOrigin,
+  );
 
   const syncedAt = new Date().toISOString();
   for (const event of prepared) {
-    // Facts the source owns. `domain`, `notes` and `event_type` are absent on
-    // purpose: those are the fields somebody reclassifies by hand, and a sync
-    // that reasserted its own guess every half hour would undo that silently.
-    const facts = {
+    // `notes` and `event_type` stay out of the update. Those are reclassified
+    // by hand and a sync that reasserted them would undo that silently.
+    // `domain` is included only when this sync is the one that set it.
+    const facts: Record<string, unknown> = {
       title: event.title.slice(0, 500),
       start_at: event.startAt,
       end_at: event.endAt,
@@ -382,9 +462,18 @@ async function syncCalendar(
       synced_at: syncedAt,
     };
 
-    const priorId = existing.get(event.externalId);
-    if (priorId) {
-      const { error } = await db.from('calendar_events').update(facts).eq('id', priorId);
+    const prior = existing.get(event.externalId) ?? null;
+    const assignment = domainAssignment(
+      event.domain,
+      prior ? { domain: prior.domain, origin: prior.origin } : null,
+    );
+    if (assignment.writeDomain) {
+      facts.domain = assignment.domain;
+      if (withOrigin) facts.domain_origin = assignment.origin;
+    }
+
+    if (prior) {
+      const { error } = await db.from('calendar_events').update(facts).eq('id', prior.id);
       if (error) throw new Error(`Update failed for event "${event.title}": ${error.message}`);
       result.updated += 1;
       continue;
@@ -394,7 +483,6 @@ async function syncCalendar(
       user_id: userId,
       external_id: event.externalId,
       event_type: EVENT_TYPE,
-      domain: MAILBOX_DOMAIN,
       ...facts,
     });
     if (error) throw new Error(`Insert failed for event "${event.title}": ${error.message}`);

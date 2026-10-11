@@ -7,6 +7,13 @@
 
 ## Latest Changes (Rolling)
 
+### October 11, 2026 — Calendar domains and hours that fit the week
+
+- Outlook categories map to a domain (Spirit / God First / God, Health / Body, Soul, Family, Impact / Work). An unknown category falls through to the title rules, then to work. A domain set by hand is not overwritten.
+- All-day and multi-day events count 12 hours per day they overlap the week. A 20-day trip inside a full week is 84 hours, not 480.
+- The weekly Family review reads those hours. A number typed on the review replaces them. RV trip days count as family when the calendar does not already.
+- Migration `20261011130000_calendar_domain_origin_and_family_review.sql` is in the repo and not applied. It adds `domain_origin` and points the Family review area at the calendar. The code works before it runs; existing events stay as they are until it does.
+
 ### September 28, 2026 — Supplies and the shopping list
 
 - `/maintenance/supplies`: what we keep on hand for maintenance (bug spray,

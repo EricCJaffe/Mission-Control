@@ -26,3 +26,5 @@ Use lightweight ADRs to capture high-impact decisions and their rationale.
 - `0008-tiptap-rich-text-editor.md`
 - `0009-react-19-compiler.md`
 - `0010-mission-control-into-shared-database.md`
+- `0011-helper-accounts.md`
+- `0012-calendar-domain-from-outlook-categories.md`

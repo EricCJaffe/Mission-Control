@@ -32,16 +32,28 @@ export default function ReviewWorkClient({
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState(reading.note_md ?? '');
   const [action, setAction] = useState(reading.action_md ?? '');
-  const [value, setValue] = useState(
-    reading.has_reading && reading.value !== null ? String(reading.value) : ''
-  );
+  const [value, setValue] = useState(() => {
+    const detailNow = reading.detail as { entered?: boolean; derivedHours?: number };
+    const backed = typeof detailNow.derivedHours === 'number';
+    if (backed && detailNow.entered !== true) return '';
+    return reading.has_reading && reading.value !== null ? String(reading.value) : '';
+  });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   const style = styleFor(reading.status);
   const unit = unitLabelFor(reading.unit);
-  const manual = (reading.detail as { entered?: boolean })?.entered !== undefined;
-  const projects = ((reading.detail as { projects?: ProjectLine[] })?.projects ?? []) as ProjectLine[];
+  const detail = reading.detail as {
+    entered?: boolean;
+    derivedHours?: number;
+    projects?: ProjectLine[];
+  };
+  const manual = detail.entered !== undefined;
+  // Family (and any calendar-backed area) keeps a typed override. The field
+  // starts empty so a blur does not freeze the calendar's own number.
+  const calendarBacked = typeof detail.derivedHours === 'number';
+  const overrideOn = detail.entered === true;
+  const projects = (detail.projects ?? []) as ProjectLine[];
 
   async function save(includeValue: boolean) {
     setError(null);
@@ -52,7 +64,10 @@ export default function ReviewWorkClient({
       note_md: note,
       action_md: action,
     };
-    if (includeValue) body.value = value === '' ? null : value;
+    const sendValue =
+      includeValue &&
+      (calendarBacked ? value.trim() !== '' || overrideOn : true);
+    if (sendValue) body.value = value === '' ? null : value;
 
     const res = await fetch('/api/reviews', {
       method: 'POST',
@@ -124,16 +139,26 @@ export default function ReviewWorkClient({
           {manual && (
             <label className="grid gap-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                The reading {unit ? `(${unit})` : ''}
+                {calendarBacked ? `Override ${unit ? `(${unit})` : ''}` : `The reading ${unit ? `(${unit})` : ''}`}
               </span>
+              {calendarBacked && (
+                <span className="text-xs text-slate-500">
+                  {overrideOn
+                    ? `Calendar and RV trips come to ${formatValue(Number(detail.derivedHours))}${unit ?? ''}. Clear this to use that.`
+                    : 'Blank uses the calendar. A number here replaces it for this period.'}
+                </span>
+              )}
               <input
                 type="number"
                 step="0.5"
                 inputMode="decimal"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                onBlur={() => save(true)}
-                placeholder="Blank stays red"
+                onBlur={() => {
+                  if (calendarBacked && value.trim() === '' && !overrideOn) return;
+                  save(true);
+                }}
+                placeholder={calendarBacked ? 'Calendar' : 'Blank stays red'}
                 className="w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
