@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Compass, HeartPulse, Users, Briefcase, AlertTriangle, Target } from "lucide-react";
 import { supabaseServer } from "@/lib/supabase/server";
-import { eventHoursInPeriod, familyTripHours, spansFromStops } from "@/lib/calendar/hours";
+import { eventHoursInPeriod, familyTripHours, spansFromStops, type SpanEvent } from "@/lib/calendar/hours";
 import { expandInRange, normalizeRule } from "@/lib/calendar/recurrence";
 import { today as todayInAppTz, addDays } from "@/lib/day";
 
@@ -56,22 +56,27 @@ type MatrixEvent = {
 };
 
 /**
- * Hours of one stored event inside the week.
+ * The spans of one stored event that can touch the week.
  *
  * A recurring row is expanded first — the standing commitments are the
  * hours most reliably kept, and they live on the day they were created.
- * A multi-day event that is not recurring is one span, clipped to the
- * week, including when it started before Monday.
+ * Expansion starts the day before Monday, so a Sunday-night occurrence
+ * that runs past midnight still brings its Monday hours, matching the
+ * weekly review. A multi-day event that is not recurring is one span.
  */
-function hoursInWeek(event: MatrixEvent, weekStart: string, weekEnd: string): number {
+function spansInWeek(event: MatrixEvent, weekStart: string, weekEnd: string): SpanEvent[] {
   if (normalizeRule(event.recurrence_rule) === "none") {
-    return eventHoursInPeriod({ startAt: event.start_at, endAt: event.end_at }, weekStart, weekEnd);
+    return [{ startAt: event.start_at, endAt: event.end_at }];
   }
-  return expandInRange([event], weekStart, weekEnd).reduce(
-    (sum, occurrence) =>
-      sum + eventHoursInPeriod({ startAt: occurrence.startAt, endAt: occurrence.endAt }, weekStart, weekEnd),
-    0,
-  );
+  return expandInRange([event], addDays(weekStart, -1), weekEnd).map((occurrence) => ({
+    startAt: occurrence.startAt,
+    endAt: occurrence.endAt,
+  }));
+}
+
+/** Hours of a set of spans inside the week, each clipped to it. */
+function hoursOf(spans: SpanEvent[], weekStart: string, weekEnd: string): number {
+  return spans.reduce((sum, span) => sum + eventHoursInPeriod(span, weekStart, weekEnd), 0);
 }
 
 /** One quadrant of the matrix. */
@@ -196,11 +201,14 @@ export default async function PriorityMatrix() {
       domain: (e.domain as string | null) ?? null,
     }));
 
-  const familyEvents: MatrixEvent[] = [];
+  // Occurrences, not stored rows: a recurring all-day family event has to
+  // cover this week's trip days, not the day it was first created.
+  const familySpans: SpanEvent[] = [];
   for (const event of matrixEvents) {
-    const hours = hoursInWeek(event, weekStartIso, weekEndIso);
+    const spans = spansInWeek(event, weekStartIso, weekEndIso);
+    const hours = hoursOf(spans, weekStartIso, weekEndIso);
     if (hours <= 0) continue;
-    if (event.domain === "family") familyEvents.push(event);
+    if (event.domain === "family") familySpans.push(...spans);
     if (!event.domain) {
       unclassifiedHours += hours;
       continue;
@@ -209,7 +217,7 @@ export default async function PriorityMatrix() {
   }
 
   // Trip days the calendar is not already counting as family. A family
-  // all-day event for the same trip is in familyEvents, and the helper
+  // all-day event for the same trip is in familySpans, and the helper
   // skips the days it covers.
   const tripHours = familyTripHours(
     spansFromStops(
@@ -227,7 +235,7 @@ export default async function PriorityMatrix() {
         status: Array.isArray(stop.trip) ? stop.trip[0]?.status : stop.trip?.status,
       })),
     ),
-    familyEvents.map((event) => ({ startAt: event.start_at, endAt: event.end_at })),
+    familySpans,
     weekStartIso,
     weekEndIso,
   );

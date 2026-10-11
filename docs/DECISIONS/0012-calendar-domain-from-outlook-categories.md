@@ -4,7 +4,7 @@
 2026-10-11
 
 ## Status
-Accepted in code. Eric approved the migration on 2026-10-11 at 9:09 AM ET. It is written and not applied.
+Accepted. Eric approved the migration on 2026-10-11 at 9:09 AM ET. It was applied at 10:36 AM ET as ledger version `20261011143629`, before the code merged.
 
 ## Context
 
