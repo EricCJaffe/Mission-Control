@@ -41,6 +41,17 @@
 --   alter function mission.maintenance_log_completion() security invoker reset search_path;
 --   alter function mission.supplies_use_on_completion() security invoker reset search_path;
 --   (the user_id filters added below are harmless to keep)
+--   grant execute on function <each of the 12 below> to public;
+
+-- Codex review (2026-10-11) found the bigger hole: 12 SECURITY DEFINER
+-- functions in mission carry PUBLIC EXECUTE (Postgres's default), including
+-- the health/genetics upserts. A role that holds no table privileges could
+-- still write health data through them. grok-db never sends raw SQL, so it
+-- cannot reach them today, but the role is the fence and should hold on its
+-- own. Only the PUBLIC grant goes: anon, authenticated and service_role each
+-- already hold an explicit EXECUTE (checked live), so the app changes nothing
+-- and the re-grant below is belt and braces. handle_new_user is a trigger on
+-- auth.users, and trigger functions are not EXECUTE-checked when they fire.
 
 create role grokbot_writer nologin noinherit nobypassrls;
 -- postgres is not superuser on hosted Supabase; SET ROLE needs membership.
@@ -122,3 +133,23 @@ begin
   return new;
 end;
 $$;
+
+do $$
+declare f regprocedure;
+begin
+  for f in
+    select p.oid::regprocedure
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'mission' and p.prosecdef
+       and p.proname in (
+         'delete_planned_workout_calendar_event', 'get_file_upload_analysis',
+         'get_genetics_comprehensive_analysis', 'get_health_command_center_analysis',
+         'handle_new_user', 'insert_genetic_markers', 'match_chapter_chunks',
+         'seed_default_note_categories', 'sync_planned_workout_to_calendar',
+         'update_file_upload_analysis', 'upsert_genetics_comprehensive_analysis',
+         'upsert_health_command_center_analysis')
+  loop
+    execute format('revoke execute on function %s from public', f);
+    execute format('grant execute on function %s to authenticated, service_role', f);
+  end loop;
+end $$;
