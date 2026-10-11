@@ -20,6 +20,8 @@
 import { readFileSync } from 'node:fs';
 import { loadEnv } from './lib/env.ts';
 import { createSyncClient } from './lib/db.ts';
+import { resolveEventDomain } from './lib/eventDomain.ts';
+import { domainOriginColumn } from './lib/domainOrigin.ts';
 
 // Matches INTERNAL_DOMAINS in lib/needsReply.ts, and for the same reason:
 // ema.org is a client, so a meeting with them is an external meeting and
@@ -36,6 +38,7 @@ type RawEvent = {
   attendees?: string[] | null;
   organizer?: string | null;
   isAllDay?: boolean;
+  categories?: string[] | null;
 };
 
 type RawMail = {
@@ -85,23 +88,25 @@ async function main() {
   const env = loadEnv();
   const db = createSyncClient(env);
   const now = new Date().toISOString();
+  // New rows are the import's own classification; stamp them so the live
+  // sync may correct them later. Absent column: insert as before.
+  const withOrigin = await domainOriginColumn(db);
 
   let eventsWritten = 0;
   let mailWritten = 0;
 
   for (const ev of payload.events ?? []) {
     const attendees = (ev.attendees ?? []).filter(Boolean);
+    const title = ev.subject || '(no subject)';
+    // Same domain rules as m365.ts. An update does not send `domain`: a
+    // reassignment made in the UI, or a category the live sync already
+    // applied, must survive a replay of a captured payload.
     const row = {
       user_id: env.userId,
-      title: ev.subject || '(no subject)',
+      title,
       start_at: ev.start,
       end_at: ev.end,
       event_type: 'Meeting',
-      // This is the work mailbox, so `work` is the right default rather than a
-      // guess. A family lunch that lands in this calendar is reclassified in
-      // the UI, and the matrix reports unclassified time separately so a wrong
-      // default cannot hide inside Impact.
-      domain: 'work',
       external_id: ev.id,
       attendees,
       is_external: isExternal(attendees),
@@ -122,7 +127,11 @@ async function main() {
 
     const { error } = existing
       ? await db.from('calendar_events').update(row).eq('id', existing.id)
-      : await db.from('calendar_events').insert(row);
+      : await db.from('calendar_events').insert({
+          ...row,
+          domain: resolveEventDomain({ categories: ev.categories, title }),
+          ...(withOrigin ? { domain_origin: 'sync' } : {}),
+        });
     if (error) throw new Error(`calendar_events: ${error.message}`);
     eventsWritten += 1;
   }

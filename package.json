@@ -15,7 +15,7 @@
     "sync:brain": "node --env-file-if-exists=.env.local scripts/sync/brain.ts",
     "sync:expenses": "node --env-file-if-exists=.env.local scripts/sync/expenses.ts",
     "tasks:lint": "node scripts/sync/tasks-lint.ts",
-    "test:sync": "node --test scripts/sync/parse/*.test.ts scripts/sync/lib/expenses/*.test.ts",
+    "test:sync": "node --test scripts/sync/parse/*.test.ts scripts/sync/lib/expenses/*.test.ts scripts/sync/lib/eventDomain.test.ts",
     "test:db": "node --test scripts/db/lib/*.test.ts",
     "test:brief": "node --test src/lib/rv/*.test.ts src/lib/maintenance/*.test.ts src/lib/brief/*.test.ts src/lib/calendar/*.test.ts src/lib/spirit/*.test.ts src/lib/fitness/*.test.ts src/lib/reviews/*.test.ts src/lib/table/*.test.ts src/lib/helpers/*.test.ts src/lib/jobs/*.test.ts src/lib/supplies.test.ts",
     "typecheck:sync": "tsc -p scripts/tsconfig.json",

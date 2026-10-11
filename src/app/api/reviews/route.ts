@@ -117,8 +117,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'value must be a number' }, { status: 400 });
       }
 
+      const priorDetail = (reading.detail ?? {}) as { derivedHours?: number };
+      const derived =
+        cleared && typeof priorDetail.derivedHours === 'number' && Number.isFinite(priorDetail.derivedHours)
+          ? priorDetail.derivedHours
+          : null;
+      // Clearing a family override restores the calendar reading. Clearing a
+      // purely manual area leaves it blank, which is the silence the review
+      // is supposed to show.
+      const restored = derived !== null && derived > 0;
+      const hasReading = cleared ? restored : true;
+      const nextValue = cleared ? (restored ? derived : null) : (value as number);
+
       const verdict = verdictFor(
-        { hasReading: !cleared, value: cleared ? null : (value as number) },
+        { hasReading, value: nextValue },
         {
           greenAt: reading.green_at === null ? null : Number(reading.green_at),
           yellowAt: reading.yellow_at === null ? null : Number(reading.yellow_at),
@@ -128,11 +140,15 @@ export async function POST(req: NextRequest) {
         { unitLabel: unitLabelFor(reading.unit) }
       );
 
-      patch.has_reading = !cleared;
-      patch.value = cleared ? null : value;
+      patch.has_reading = hasReading;
+      patch.value = nextValue;
       patch.status = verdict.status;
       patch.status_reason = verdict.reason;
-      patch.detail = { ...(reading.detail ?? {}), entered: !cleared, enteredAt: new Date().toISOString() };
+      patch.detail = {
+        ...(reading.detail ?? {}),
+        entered: !cleared,
+        enteredAt: cleared ? null : new Date().toISOString(),
+      };
       patch.computed_at = new Date().toISOString();
     }
 
