@@ -24,7 +24,7 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 - Every synced event was `work`, so a Family category never counted as family. A 20-day RV trip was about 480 hours in the week it started.
 
 ### Follow-ups
-- Apply the migration only after Eric says so. The next sync can then correct rows still stamped with the old `work` default. Until then, new events are classified and existing ones are left alone.
+- Eric approved the migration on 2026-10-11 at 9:09 AM ET. It is not applied yet. After it is, the next sync can correct rows still stamped with the old `work` default. Until then, new events are classified and existing ones are left alone.
 
 ## 2026-09-28 09:45 ET — Supplies and the shopping list
 

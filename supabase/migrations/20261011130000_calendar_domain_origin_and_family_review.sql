@@ -1,4 +1,4 @@
--- Needs Eric's OK before applying. Do not run this from CI or a sync.
+-- Approved by Eric on 2026-10-11 at 9:09 AM ET.
 --
 -- Two changes, both idempotent, neither required for the code to run:
 --

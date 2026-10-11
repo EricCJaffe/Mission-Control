@@ -4,7 +4,7 @@
 2026-10-11
 
 ## Status
-Accepted in code. The migration that records who set a domain is written and not applied.
+Accepted in code. Eric approved the migration on 2026-10-11 at 9:09 AM ET. It is written and not applied.
 
 ## Context
 
