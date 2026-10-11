@@ -18,6 +18,8 @@ re-raising them. Source of truth: `~/dev/brain/open/resolved.md`.
 - Docs Status: ✅ Refreshed to match shipped state
 
 ## Recently Shipped
+- Workout history correction flow: edit date, session metadata, sets, and
+  cardio from workout detail; recalculates TSS, strain, and cardiac efficiency.
 - Withings OAuth/API integration with encrypted token storage, sync status, manual sync, disconnect flow, and legacy CSV fallback
 - Genetics multi-report dashboard with six report types and comprehensive synthesis
 - Source PDF viewer for labs and genetics
@@ -520,4 +522,3 @@ stay out of the default import.
 - [ ] **Retire `npxirjaawlpubrtjovpy`.** ADR 0010's soak now has real evidence —
       the new database moved on 2026-09-04 while the old one stayed frozen at
       2026-08-29. Backup off Supabase, then pause, then delete.
-

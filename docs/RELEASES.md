@@ -7,6 +7,15 @@
 
 ## Latest Changes (Rolling)
 
+### October 5, 2026 — Workout history corrections
+
+- Added an edit flow to workout detail pages, inspired by openGym's paper-log
+  correction workflow: fix the session date, duration, RPE, notes, individual
+  sets, and cardio details without deleting and re-logging the session.
+- Edits replace the owned set/cardio children safely and recalculate TSS,
+  strain, and cardiac efficiency so corrected history feeds later trends.
+- Existing Mission Control styling and guided logger behavior are unchanged.
+
 ### September 28, 2026 — Supplies and the shopping list
 
 - `/maintenance/supplies`: what we keep on hand for maintenance (bug spray,
