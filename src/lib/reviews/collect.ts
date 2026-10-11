@@ -16,9 +16,11 @@
  *   that only a device can produce goes red whenever the device is off his
  *   wrist, which measures the watch and not the man.
  *
- * - FAMILY is entered by hand, and that is a finding rather than a shortcut.
- *   Of 240 calendar events, ZERO carry the `family` domain. An automatic
- *   reading would print red every week about the tagging, not about his family.
+ * - FAMILY reads the calendar, the way the other scheduled time does. Hours
+ *   are the overlap with the week, and an all-day trip counts twelve hours
+ *   a day rather than its raw length. RV trip days count too, unless that
+ *   trip is already a family event on the calendar. A number he types on
+ *   the review replaces all of that for the period.
  *
  * - IMPACT counts overdue open tasks, not open tasks. A long list is a full
  *   life; a late list is a broken promise, and only one of those is a review
@@ -28,7 +30,9 @@
  *   project needs no migration. The per-project rows travel in `detail`.
  */
 
-import { daysBetween, dayOf, today as todayInAppTz } from '@/lib/day';
+import { eventHoursInPeriod, familyTripHours, spansFromStops } from '@/lib/calendar/hours';
+import { expandInRange, normalizeRule } from '@/lib/calendar/recurrence';
+import { addDays, daysBetween, dayOf, today as todayInAppTz } from '@/lib/day';
 import {
   computePillarScores,
   type DomainScoreInput,
@@ -199,37 +203,178 @@ async function collectTasks(
   };
 }
 
-/** Family, or anything else on `calendar`: scheduled hours in that domain. */
+/**
+ * Events that overlap the period, not events that start inside it.
+ *
+ * The bounds are widened by a day because a bare UTC midnight is not
+ * midnight in Jacksonville. `eventHoursInPeriod` does the real clip.
+ */
+function calendarOverlap(period: Period): { from: string; to: string } {
+  return {
+    from: `${addDays(period.start, -1)}T00:00:00Z`,
+    to: `${addDays(period.end, 2)}T00:00:00Z`,
+  };
+}
+
+function roundHours(hours: number): number {
+  return Math.round(hours * 10) / 10;
+}
+
+type CalendarSpan = { start_at: string; end_at: string | null };
+
+type DomainEventRow = CalendarSpan & {
+  recurrence_rule: string | null;
+  recurrence_until: string | null;
+};
+
+/**
+ * Every occurrence of a domain's events that overlaps the period.
+ *
+ * A recurring row sits on the date it was created, usually weeks behind the
+ * period, so it is fetched regardless of its own dates and expanded here —
+ * the same rule the priority matrix uses, so the review and the matrix
+ * report the same hours for the same week.
+ */
+async function domainOccurrences(
+  db: MissionClient,
+  userId: string,
+  period: Period,
+  domain: string,
+): Promise<Array<{ startAt: string; endAt: string | null }>> {
+  const bounds = calendarOverlap(period);
+  const { data } = await db
+    .from('calendar_events')
+    .select('start_at,end_at,recurrence_rule,recurrence_until')
+    .eq('user_id', userId)
+    .eq('domain', domain)
+    .or(`and(start_at.lt.${bounds.to},end_at.gt.${bounds.from}),recurrence_rule.not.is.null`);
+
+  const out: Array<{ startAt: string; endAt: string | null }> = [];
+  for (const row of (data ?? []) as DomainEventRow[]) {
+    if (normalizeRule(row.recurrence_rule) === 'none') {
+      out.push({ startAt: row.start_at, endAt: row.end_at });
+      continue;
+    }
+    const expanded = expandInRange(
+      [{ ...row, end_at: row.end_at ?? row.start_at }],
+      addDays(period.start, -1),
+      period.end,
+    );
+    for (const occurrence of expanded) out.push({ startAt: occurrence.startAt, endAt: occurrence.endAt });
+  }
+  return out.filter((span) => eventHoursInPeriod(span, period.start, period.end) > 0);
+}
+
+/** Scheduled hours in one domain, clipped to the period. */
 async function collectCalendar(
   db: MissionClient,
   userId: string,
   period: Period,
   domain: string
 ): Promise<CollectedReading> {
-  const { data } = await db
-    .from('calendar_events')
-    .select('id,title,start_at,end_at,domain')
-    .eq('user_id', userId)
-    .eq('domain', domain)
-    .gte('start_at', `${period.start}T00:00:00Z`)
-    .lte('start_at', `${period.end}T23:59:59Z`);
+  const spans = await domainOccurrences(db, userId, period, domain);
+  const hours = roundHours(
+    spans.reduce((sum, span) => sum + eventHoursInPeriod(span, period.start, period.end), 0),
+  );
 
-  const events = data ?? [];
-  if (events.length === 0) {
-    return { hasReading: false, value: null, detail: { domain, events: 0 } };
+  if (spans.length === 0) {
+    return { hasReading: false, value: null, detail: { domain, events: 0, hours: 0 } };
   }
-
-  const hours = events.reduce((sum: number, e: { start_at: string; end_at: string | null }) => {
-    if (!e.end_at) return sum;
-    const ms = new Date(e.end_at).getTime() - new Date(e.start_at).getTime();
-    return sum + (Number.isFinite(ms) && ms > 0 ? ms / 3_600_000 : 0);
-  }, 0);
 
   return {
     hasReading: true,
-    value: Math.round(hours * 10) / 10,
-    detail: { domain, events: events.length, hours: Math.round(hours * 10) / 10 },
+    value: hours,
+    detail: { domain, events: spans.length, hours },
   };
+}
+
+/**
+ * A number typed on this period's family reading. The stored value alone is
+ * not enough: the previous collect wrote the calendar's own number there,
+ * and treating that as an override would freeze the first guess forever.
+ */
+async function familyOverride(
+  db: MissionClient,
+  userId: string,
+  period: Period,
+  areaKey: string,
+): Promise<number | null> {
+  const { data } = await db
+    .from('review_readings')
+    .select('value,has_reading,detail,review_cycles!inner(period_start)')
+    .eq('user_id', userId)
+    .eq('area_key', areaKey)
+    .eq('review_cycles.period_start', period.start)
+    .limit(1);
+
+  const row = (data ?? [])[0] as
+    | { value: number | null; has_reading: boolean; detail: { entered?: boolean } | null }
+    | undefined;
+  if (!row?.has_reading || row.value === null || row.detail?.entered !== true) return null;
+  const value = Number(row.value);
+  return Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Family hours: calendar overlap, plus RV trip days the calendar does not
+ * already cover, unless he typed a number for this period.
+ */
+async function collectFamily(
+  db: MissionClient,
+  userId: string,
+  period: Period,
+  areaKey: string,
+): Promise<CollectedReading> {
+  const [events, { data: stopRows }, override] = await Promise.all([
+    domainOccurrences(db, userId, period, 'family'),
+    db
+      .from('rv_trip_stops')
+      .select('trip_id,kind,arrive_on,depart_on,trip:rv_trips!inner(status)')
+      .eq('user_id', userId)
+      .neq('trip.status', 'canceled'),
+    familyOverride(db, userId, period, areaKey),
+  ]);
+
+  const calendarHours = roundHours(
+    events.reduce((sum, event) => sum + eventHoursInPeriod(event, period.start, period.end), 0),
+  );
+  const spans = spansFromStops(
+    ((stopRows ?? []) as Array<{
+      trip_id: string;
+      kind: string;
+      arrive_on: string | null;
+      depart_on: string | null;
+      trip: { status: string } | { status: string }[] | null;
+    }>).map((stop) => ({
+      tripId: stop.trip_id,
+      kind: stop.kind,
+      arriveOn: stop.arrive_on,
+      departOn: stop.depart_on,
+      status: Array.isArray(stop.trip) ? stop.trip[0]?.status : stop.trip?.status,
+    })),
+  );
+  const tripHours = familyTripHours(spans, events, period.start, period.end);
+  const derivedHours = roundHours(calendarHours + tripHours);
+  const contributing = events.length;
+  const detail = {
+    domain: 'family',
+    events: contributing,
+    hours: derivedHours,
+    calendarHours,
+    tripHours,
+    derivedHours,
+    // Present either way, so the review can offer the override field.
+    // True only when the typed number is the one being reported.
+    entered: override !== null,
+  };
+
+  if (override !== null) {
+    return { hasReading: true, value: override, detail };
+  }
+  if (derivedHours <= 0) {
+    return { hasReading: false, value: null, detail };
+  }
+  return { hasReading: true, value: derivedHours, detail };
 }
 
 /**
@@ -495,6 +640,7 @@ async function readFor(
     case 'tasks':
       return collectTasks(db, userId, period);
     case 'calendar':
+      if (area.key === 'family') return collectFamily(db, userId, period, area.key);
       return collectCalendar(db, userId, period, area.matrix_key === 'family' ? 'family' : 'work');
     case 'flourishing':
       // The area's key names the pillar it wants: `health_soul` -> soul.
@@ -507,6 +653,10 @@ async function readFor(
     case 'projects':
       return collectProjects(db, userId, period);
     case 'manual':
+      // The seeded family area is still `manual` until the migration that
+      // points it at the calendar is applied. Either source reads the same
+      // way: calendar first, typed number wins.
+      if (area.key === 'family') return collectFamily(db, userId, period, area.key);
       return collectManual(db, userId, period, area.key);
     default:
       return { hasReading: false, value: null, detail: { reason: `no collector for ${area.source}` } };

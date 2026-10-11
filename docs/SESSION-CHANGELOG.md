@@ -10,6 +10,23 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-10-11 09:00 ET — Calendar domains follow Outlook, hours follow the week
+
+### What changed
+- `scripts/sync/lib/eventDomain.ts`: Outlook category → domain, title fallback, and the rule that a hand-set domain is not overwritten.
+- `src/lib/calendar/hours.ts`: overlap with the period; all-day and multi-day events are 12 hours per day. Used by the priority matrix and the weekly review.
+- Family review derives calendar hours (plus RV trip days that are not already a family calendar event). A typed number wins.
+- `src/lib/rv/calendar.ts` stores `family`, matching the domain check.
+- The event update route accepts an optional `domain` and marks it hand-set.
+- Migration `20261011143629_calendar_domain_origin_and_family_review.sql`: applied 2026-10-11 at 10:36 AM ET as ledger version `20261011143629`, before the code merged (254 synced rows stamped `sync`, Family review area now `calendar`).
+
+### Why
+- Every synced event was `work`, so a Family category never counted as family. A 20-day RV trip was about 480 hours in the week it started.
+
+### Follow-ups
+- Eric approved the migration on 2026-10-11 at 9:09 AM ET. It was applied 2026-10-11 at 10:36 AM ET as ledger version `20261011143629`, before the code merged (254 synced rows stamped `sync`, Family review area now `calendar`). The next sync can now correct rows still stamped with the old `work` default.
+- Cross-model review fixes (Codex): the sync writes a domain only while the row is still `sync` (a hand edit made mid-run wins); replayed imports stamp new rows `sync`; review calendar and Family hours expand recurring events like the priority matrix; the backfill leaves a null domain unset instead of `hand`.
+
 ## 2026-10-05 15:30 ET — Workout history corrections
 
 ### What changed
@@ -25,7 +42,6 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 ### Follow-ups
 - Existing personal-record rows are intentionally not deleted during edits;
   a future records maintenance pass could rebuild them from corrected history.
-
 
 ## 2026-09-28 09:45 ET — Supplies and the shopping list
 

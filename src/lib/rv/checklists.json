@@ -249,8 +249,14 @@
               "id": "pretrip-s4-i8",
               "text": "Satellite dish stowed",
               "note": null
+            },
+            {
+              "id": "pretrip-s4-i9",
+              "text": "Starlink Speedmount: frame tight to the roof, both corner bolts snug",
+              "note": "Push on each corner; any lift at the VHB pads means re-bond before driving."
             }
-          ]
+          ],
+          "guide": "starlink"
         },
         {
           "id": "pretrip-s5",
@@ -670,8 +676,14 @@
               "id": "arrival-s8-i4",
               "text": "Walk around once more",
               "note": "Look for drips at every connection."
+            },
+            {
+              "id": "arrival-s8-i5",
+              "text": "Starlink: power on, run Check for Obstructions in the app",
+              "note": "Flat on the roof works in open sky. Heavy trees and a call to make? Take the dish off the roof (see the guide)."
             }
-          ]
+          ],
+          "guide": "starlink"
         },
         {
           "id": "arrival-s9",
@@ -1021,6 +1033,11 @@
               "id": "departure-s9-i5",
               "text": "Mirrors, GPS with the RV profile, and seatbelts",
               "note": null
+            },
+            {
+              "id": "departure-s9-i6",
+              "text": "Starlink dish back in the Speedmount, both corner bolts snug, tug-tested",
+              "note": "Only if it came off the roof while parked."
             }
           ],
           "guide": "tpms"

@@ -66,6 +66,9 @@ Blocked on Eric: `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`,
 `MS_MAILBOX`. Everything else — the ingest CLI, the brief, the sender — is
 written and fails cleanly while they are absent.
 
+Calendar sync requests `categories` and maps the first recognised one to a
+domain (see `scripts/sync/lib/eventDomain.ts`). Mail is still work.
+
 ## Not Implemented
 - Garmin Connect OAuth live sync
 - Email notification provider for pending `health.md` updates

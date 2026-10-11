@@ -157,6 +157,38 @@ The wet bay uses **numbered** positions. Read the **pointed tip** of each handle
 
 ---
 
+## [starlink] Starlink — Gen 3 Standard on the TRIO Speedmount
+*Link from: Pre-trip → "Exterior walk-around"; Arrival → "Outside setup." The Departure item sits under "Final walk-around", which links the TPMS guide.*
+
+**Your hardware:** Starlink **Standard (Gen 3)** dish, 11.5 lb, 140° field of view, about 75–100 W. It runs on AC through its router; TRIO sells a 12V conversion kit if you ever want to skip the inverter. It's mounted flat on the roof in a **TRIO Gen 3 Standard Speedmount**: two L-shaped frame halves, about 2.1 in. tall, joined around the dish by **2 M6 stainless bolts with nylock nuts at opposite corners** (4 mm hex key). The frame attaches to the roof through its outer mounting holes; per TRIO's options that's VHB landing pads, steel VHB discs plus rubber-coated magnets, or through-bolts.
+
+**There is no quick release.** The dish is locked between the two frame halves for travel. Loosening the bolts alone is not enough, because the frame lip holds the dish edge. One half has to come away. If both halves are glued to the roof, that half has to come off its roof attachment, so how easy removal is depends on how the frame is attached. The quick-release setup TRIO sells is **steel VHB discs on the roof plus rubber-coated magnets on the frame**: the whole frame with the dish slides off sideways, and TRIO says it's tested to 120 mph.
+
+**You don't aim it.** It's an electronic phased array with no motors: it steers its beam to the satellites electronically, whether flat or tilted. On the kickstand, the dish tilts toward the best patch of sky. Flat, it looks straight up and gives up a little of that.
+
+**How much does flat cost?** Starlink and TRIO don't publish a number. Owner reports on flat mounts generally put it at somewhat lower peak speeds and a few more brief dropouts than the kickstand, not a different class of service. On this trip's latitudes (about 30–42°N) and in open sky, flat is generally fine for streaming, email and video calls. Treat that as typical experience, not a promise.
+
+**What matters far more than tilt: obstructions.** Trees and buildings block it; flat vs. tilted barely does by comparison.
+1. Park with the clearest sky you can, especially to the **north**.
+2. Run **Check for Obstructions** in the Starlink app after you set up.
+3. If the app shows heavy obstruction and you need a solid connection (a call, a meeting), that's when to take the dish off the roof.
+
+**Taking it off the roof (parked only)**
+1. Power off at the router. Ladder, gloves, hex key.
+2. Remove the 2 corner bolts, free one frame half (or, on magnets, slide the whole frame off sideways), and lift the dish out. Don't pry against a glued pad.
+3. Put it on the kickstand in the clearest spot the cable reaches. Re-run the obstruction check.
+4. **Before you drive:** dish back in the frame, both corner bolts snug (the nylock nuts stay tight), then tug-test it. Add this to the Departure roof check.
+
+**Likely spots on this trip:** Cape May and Prince William Forest are wooded. Check obstructions on arrival there first.
+
+**In motion:** TRIO tests the mount at highway speed. Whether Starlink allows use while driving depends on your plan and dish, so confirm in your Starlink account before counting on it.
+
+**Power:** on hookups, no concern. Boondocking on batteries, 75–100 W is about 150–200 Ah at 12V over 24 hours, so turn it off overnight or when you're out.
+
+**Handy tools:** Starlink app (obstructions, outages) · starlinkstatus.space (live outages and latency) · starlink.sx and findstarlink.com (what's overhead). Sources: TRIO Starlink Tools Hub (Eric's Google Drive) · TRIO Gen 3 Speedmount install sheet (2 components, 2× M6 40 mm bolts + nylocks, 4 mm hex key) · trioflatmount.com/products/gen3speedmount.
+
+---
+
 ## [door-lock] Keypad Door Lock (pending purchase)
 
 - **RVLock Atlas** = most likely fit for the Esteem 29V; **RVLock Charter** = alternative, depending on door cutout.

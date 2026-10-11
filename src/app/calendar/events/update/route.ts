@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { isDomain } from "@/lib/brief/types";
 
 function combineDateTime(date: string, time: string) {
   const dt = new Date(`${date}T${time}`);
@@ -28,6 +29,8 @@ export async function POST(req: Request) {
   const reviewId = String(form.get("review_id") || "").trim();
   const redirect = String(form.get("redirect") || "").trim();
   const expandCount = Number(String(form.get("expand_count") || "0").trim());
+  const domainRaw = String(form.get("domain") || "").trim();
+  const domain = domainRaw && isDomain(domainRaw) ? domainRaw : null;
 
   const startAt = combineDateTime(date, startTime);
   const endAt = combineDateTime(date, endTime);
@@ -36,23 +39,42 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL(redirect || "/calendar", req.url));
   }
 
-  const { error: updateError } = await supabase
+  const fields: Record<string, unknown> = {
+    title,
+    start_at: startAt,
+    end_at: endAt,
+    event_type: eventType,
+    recurrence_rule: recurrenceRule || null,
+    recurrence_until: recurrenceUntil || null,
+    alignment_tag: alignmentTag || null,
+    goal_id: goalId || null,
+    task_id: taskId || null,
+    note_id: noteId || null,
+    review_id: reviewId || null,
+  };
+  // A posted domain is a person's decision. `domain_origin` is what tells
+  // the Outlook sync not to put its own guess back. The column arrives with
+  // a migration that is not applied yet; without it the domain still saves,
+  // and the sync does not overwrite a row it cannot prove it set.
+  if (domain) {
+    fields.domain = domain;
+    fields.domain_origin = "hand";
+  }
+
+  let { error: updateError } = await supabase
     .from("calendar_events")
-    .update({
-      title,
-      start_at: startAt,
-      end_at: endAt,
-      event_type: eventType,
-      recurrence_rule: recurrenceRule || null,
-      recurrence_until: recurrenceUntil || null,
-      alignment_tag: alignmentTag || null,
-      goal_id: goalId || null,
-      task_id: taskId || null,
-      note_id: noteId || null,
-      review_id: reviewId || null,
-    })
+    .update(fields)
     .eq("id", id)
     .eq("user_id", user.id);
+
+  if (updateError && domain && /domain_origin/i.test(updateError.message)) {
+    delete fields.domain_origin;
+    ({ error: updateError } = await supabase
+      .from("calendar_events")
+      .update(fields)
+      .eq("id", id)
+      .eq("user_id", user.id));
+  }
 
   if (updateError) {
     console.error('Error updating calendar_events:', updateError);
@@ -62,8 +84,8 @@ export async function POST(req: Request) {
   const shouldExpand = expandCount && expandCount > 0 && recurrenceRule;
   if (shouldExpand) {
     const instances: Array<Record<string, unknown>> = [];
-    let currentStart = new Date(startAt);
-    let currentEnd = new Date(endAt);
+    const currentStart = new Date(startAt);
+    const currentEnd = new Date(endAt);
     for (let i = 0; i < expandCount; i++) {
       if (rule.includes("daily")) {
         currentStart.setDate(currentStart.getDate() + 1);
@@ -92,10 +114,20 @@ export async function POST(req: Request) {
         task_id: taskId || null,
         note_id: noteId || null,
         review_id: reviewId || null,
+        ...(domain ? { domain, domain_origin: "hand" } : {}),
       });
     }
     if (instances.length > 0) {
-      await supabase.from("calendar_events").insert(instances);
+      const inserted = await supabase.from("calendar_events").insert(instances);
+      if (inserted.error && domain && /domain_origin/i.test(inserted.error.message)) {
+        await supabase.from("calendar_events").insert(
+          instances.map((row) => {
+            const copy = { ...row };
+            delete copy.domain_origin;
+            return copy;
+          }),
+        );
+      }
     }
   }
 
