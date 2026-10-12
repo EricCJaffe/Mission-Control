@@ -27,6 +27,22 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 - Eric approved the migration on 2026-10-11 at 9:09 AM ET. It was applied 2026-10-11 at 10:36 AM ET as ledger version `20261011143629`, before the code merged (254 synced rows stamped `sync`, Family review area now `calendar`). The next sync can now correct rows still stamped with the old `work` default.
 - Cross-model review fixes (Codex): the sync writes a domain only while the row is still `sync` (a hand edit made mid-run wins); replayed imports stamp new rows `sync`; review calendar and Family hours expand recurring events like the priority matrix; the backfill leaves a null domain unset instead of `hand`.
 
+## 2026-10-05 15:30 ET — Workout history corrections
+
+### What changed
+- Added `PUT /api/fitness/workouts` for authenticated, owner-scoped edits.
+- Added an inline Edit panel to `/fitness/history/[id]` for date, duration,
+  RPE, notes, sets, and cardio values.
+- Recalculates TSS, strain, and cardio efficiency from the corrected record.
+
+### Why
+- openGym makes it easy to repair a workout entered from paper after the fact;
+  Mission Control could repeat a workout but could not correct one.
+
+### Follow-ups
+- Existing personal-record rows are intentionally not deleted during edits;
+  a future records maintenance pass could rebuild them from corrected history.
+
 ## 2026-09-28 09:45 ET — Supplies and the shopping list
 
 ### What changed
@@ -657,4 +673,3 @@ dashboard because the real pages are under `/fitness/metrics/`.
 
 Blocked on Eric: the Microsoft Graph app registration, `ANTHROPIC_API_KEY`, and
 `MC_USER_ID` + `CRON_SECRET` in Vercel Production. See `docs/TASKS.md`.
-

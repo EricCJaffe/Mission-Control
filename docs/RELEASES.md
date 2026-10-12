@@ -14,6 +14,15 @@
 - The weekly Family review reads those hours. A number typed on the review replaces them. RV trip days count as family when the calendar does not already.
 - Migration `20261011143629_calendar_domain_origin_and_family_review.sql` was approved by Eric on 2026-10-11 at 9:09 AM ET and was applied 2026-10-11 at 10:36 AM ET as ledger version `20261011143629`, before the code merged (254 synced rows stamped `sync`, Family review area now `calendar`). It adds `domain_origin` and points the Family review area at the calendar.
 
+### October 5, 2026 — Workout history corrections
+
+- Added an edit flow to workout detail pages, inspired by openGym's paper-log
+  correction workflow: fix the session date, duration, RPE, notes, individual
+  sets, and cardio details without deleting and re-logging the session.
+- Edits replace the owned set/cardio children safely and recalculate TSS,
+  strain, and cardiac efficiency so corrected history feeds later trends.
+- Existing Mission Control styling and guided logger behavior are unchanged.
+
 ### September 28, 2026 — Supplies and the shopping list
 
 - `/maintenance/supplies`: what we keep on hand for maintenance (bug spray,

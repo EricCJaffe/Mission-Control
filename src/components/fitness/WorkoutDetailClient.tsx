@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { ArrowLeft, Calendar, Clock, Zap, Heart, Repeat } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Zap, Heart, Repeat, Pencil, Save, X, Plus, Trash2 } from 'lucide-react';
 
 type WorkoutLog = {
   id: string;
@@ -45,7 +45,10 @@ type CardioLog = {
   activity_type: string;
   avg_hr: number | null;
   max_hr: number | null;
+  min_hr?: number | null;
   distance_miles: number | null;
+  avg_pace_per_mile?: string | null;
+  calories?: number | null;
   time_in_zone1_min: number | null;
   time_in_zone2_min: number | null;
   time_in_zone3_min: number | null;
@@ -67,6 +70,39 @@ type SessionPhoto = {
 
 export default function WorkoutDetailClient({ workout, sets, cardioData }: Props) {
   const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState(workout.workout_date.slice(0, 10));
+  const [editDuration, setEditDuration] = useState<number | ''>(workout.duration_minutes ?? '');
+  const [editRpe, setEditRpe] = useState<number | ''>(workout.rpe_session ?? '');
+  const [editNotes, setEditNotes] = useState(workout.notes ?? '');
+  const [editSets, setEditSets] = useState(() => sets.map((set) => ({
+    exercise_id: set.exercise_id,
+    exercise_name: set.exercises?.name ?? 'Exercise',
+    set_number: set.set_number,
+    set_type: set.set_type,
+    reps: set.reps ?? '',
+    weight_lbs: set.weight_lbs ?? '',
+    rpe: set.rpe ?? '',
+    rest_seconds: set.rest_seconds ?? null,
+    superset_group: set.superset_group,
+    superset_round: set.superset_round,
+    notes: set.notes ?? '',
+    completed: set.completed ?? true,
+  })));
+  const [editCardio, setEditCardio] = useState(() => cardioData ? ({
+    activity_type: cardioData.activity_type,
+    avg_hr: cardioData.avg_hr ?? '',
+    max_hr: cardioData.max_hr ?? '',
+    distance_miles: cardioData.distance_miles ?? '',
+    avg_pace_per_mile: cardioData.avg_pace_per_mile ?? '',
+    calories: cardioData.calories ?? '',
+    time_in_zone1_min: cardioData.time_in_zone1_min ?? '',
+    time_in_zone2_min: cardioData.time_in_zone2_min ?? '',
+    time_in_zone3_min: cardioData.time_in_zone3_min ?? '',
+    time_in_zone4_min: cardioData.time_in_zone4_min ?? '',
+  }) : null);
   const [photos, setPhotos] = useState<SessionPhoto[]>([]);
   const [photosLoading, setPhotosLoading] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -93,6 +129,123 @@ export default function WorkoutDetailClient({ workout, sets, cardioData }: Props
   useEffect(() => {
     void loadPhotos();
   }, [loadPhotos]);
+
+  function beginEditing() {
+    setEditError(null);
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setEditDate(workout.workout_date.slice(0, 10));
+    setEditDuration(workout.duration_minutes ?? '');
+    setEditRpe(workout.rpe_session ?? '');
+    setEditNotes(workout.notes ?? '');
+    setEditSets(sets.map((set) => ({
+      exercise_id: set.exercise_id,
+      exercise_name: set.exercises?.name ?? 'Exercise',
+      set_number: set.set_number,
+      set_type: set.set_type,
+      reps: set.reps ?? '',
+      weight_lbs: set.weight_lbs ?? '',
+      rpe: set.rpe ?? '',
+      rest_seconds: set.rest_seconds ?? null,
+      superset_group: set.superset_group,
+      superset_round: set.superset_round,
+      notes: set.notes ?? '',
+      completed: set.completed ?? true,
+    })));
+    setEditCardio(cardioData ? {
+      activity_type: cardioData.activity_type,
+      avg_hr: cardioData.avg_hr ?? '',
+      max_hr: cardioData.max_hr ?? '',
+      distance_miles: cardioData.distance_miles ?? '',
+      avg_pace_per_mile: cardioData.avg_pace_per_mile ?? '',
+      calories: cardioData.calories ?? '',
+      time_in_zone1_min: cardioData.time_in_zone1_min ?? '',
+      time_in_zone2_min: cardioData.time_in_zone2_min ?? '',
+      time_in_zone3_min: cardioData.time_in_zone3_min ?? '',
+      time_in_zone4_min: cardioData.time_in_zone4_min ?? '',
+    } : null);
+    setEditing(false);
+  }
+
+  function updateEditSet(index: number, field: string, value: string | number | boolean) {
+    setEditSets((current) => current.map((set, i) => i === index ? { ...set, [field]: value } : set));
+  }
+
+  function addEditSet() {
+    const last = editSets[editSets.length - 1];
+    setEditSets((current) => [...current, {
+      exercise_id: last?.exercise_id ?? null,
+      exercise_name: last?.exercise_name ?? 'Exercise',
+      set_number: (last?.set_number ?? 0) + 1,
+      set_type: 'working',
+      reps: last?.reps ?? '',
+      weight_lbs: last?.weight_lbs ?? '',
+      rpe: '',
+      rest_seconds: null,
+      superset_group: last?.superset_group ?? null,
+      superset_round: null,
+      notes: '',
+      completed: true,
+    }]);
+  }
+
+  async function saveEdit() {
+    if (savingEdit) return;
+    setSavingEdit(true);
+    setEditError(null);
+    try {
+      const response = await fetch('/api/fitness/workouts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: workout.id,
+          workout_date: editDate,
+          duration_minutes: editDuration === '' ? null : Number(editDuration),
+          rpe_session: editRpe === '' ? null : Number(editRpe),
+          notes: editNotes.trim() || null,
+          avg_hr: editCardio && editCardio.avg_hr !== '' ? Number(editCardio.avg_hr) : workout.avg_hr,
+          max_hr: editCardio && editCardio.max_hr !== '' ? Number(editCardio.max_hr) : workout.max_hr,
+          sets: editSets.map((set) => ({
+            exercise_id: set.exercise_id,
+            set_number: set.set_number,
+            set_type: set.set_type,
+            reps: set.reps === '' ? null : Number(set.reps),
+            weight_lbs: set.weight_lbs === '' ? null : Number(set.weight_lbs),
+            rpe: set.rpe === '' ? null : Number(set.rpe),
+            rest_seconds: set.rest_seconds,
+            superset_group: set.superset_group,
+            superset_round: set.superset_round,
+            notes: set.notes.trim() || null,
+            completed: set.completed,
+          })),
+          ...(editCardio ? {
+            cardio: {
+              activity_type: editCardio.activity_type,
+              avg_hr: editCardio.avg_hr === '' ? null : Number(editCardio.avg_hr),
+              max_hr: editCardio.max_hr === '' ? null : Number(editCardio.max_hr),
+              distance_miles: editCardio.distance_miles === '' ? null : Number(editCardio.distance_miles),
+              avg_pace_per_mile: editCardio.avg_pace_per_mile || null,
+              calories: editCardio.calories === '' ? null : Number(editCardio.calories),
+              time_in_zone1_min: editCardio.time_in_zone1_min === '' ? null : Number(editCardio.time_in_zone1_min),
+              time_in_zone2_min: editCardio.time_in_zone2_min === '' ? null : Number(editCardio.time_in_zone2_min),
+              time_in_zone3_min: editCardio.time_in_zone3_min === '' ? null : Number(editCardio.time_in_zone3_min),
+              time_in_zone4_min: editCardio.time_in_zone4_min === '' ? null : Number(editCardio.time_in_zone4_min),
+            },
+          } : {}),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || 'Could not save workout changes');
+      router.refresh();
+      setEditing(false);
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : 'Could not save workout changes');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   async function uploadPhoto(file: File) {
     setUploadingPhoto(true);
@@ -179,14 +332,78 @@ export default function WorkoutDetailClient({ workout, sets, cardioData }: Props
           <ArrowLeft className="h-4 w-4" />
           Back to History
         </button>
-        <button
-          onClick={handleRepeatWorkout}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 min-h-[44px]"
-        >
-          <Repeat className="h-4 w-4" />
-          Repeat Workout
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={beginEditing}
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 min-h-[44px]"
+          >
+            <Pencil className="h-4 w-4" />
+            Edit
+          </button>
+          <button
+            onClick={handleRepeatWorkout}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 min-h-[44px]"
+          >
+            <Repeat className="h-4 w-4" />
+            Repeat Workout
+          </button>
+        </div>
       </div>
+
+      {editing && (
+        <div className="rounded-2xl border-2 border-blue-200 bg-blue-50/40 p-4 shadow-sm md:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Correct this session</p>
+              <h2 className="mt-1 text-lg font-semibold text-slate-900">Edit workout record</h2>
+              <p className="mt-1 text-xs text-slate-500">Fix the date, details, or a set. Your trend calculations will be refreshed from the corrected record.</p>
+            </div>
+            <button onClick={cancelEditing} className="rounded-lg p-2 text-slate-400 hover:bg-white hover:text-slate-700" aria-label="Cancel editing"><X className="h-5 w-5" /></button>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <label className="text-xs font-semibold text-slate-500">Date<input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" /></label>
+            <label className="text-xs font-semibold text-slate-500">Duration (min)<input type="number" min={0} value={editDuration} onChange={(e) => setEditDuration(e.target.value === '' ? '' : Number(e.target.value))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" /></label>
+            <label className="text-xs font-semibold text-slate-500">Session RPE<input type="number" min={1} max={10} value={editRpe} onChange={(e) => setEditRpe(e.target.value === '' ? '' : Number(e.target.value))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" /></label>
+          </div>
+          <label className="mt-3 block text-xs font-semibold text-slate-500">Notes<textarea rows={3} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" /></label>
+
+          {editSets.length > 0 && (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+              <div className="mb-2 flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Sets</p><button type="button" onClick={addEditSet} className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900"><Plus className="h-3.5 w-3.5" /> Add set</button></div>
+              <div className="space-y-2">
+                {editSets.map((set, index) => (
+                  <div key={`${set.exercise_id}-${index}`} className="grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem_4rem_auto] items-center gap-2 border-t border-slate-100 pt-2 first:border-t-0 first:pt-0">
+                    <div className="min-w-0"><p className="truncate text-xs font-medium text-slate-700">{set.exercise_name}</p><p className="text-[10px] uppercase text-slate-400">Set {set.set_number} · {set.set_type}</p></div>
+                    <input aria-label={`${set.exercise_name} weight`} type="number" inputMode="decimal" value={set.weight_lbs} onChange={(e) => updateEditSet(index, 'weight_lbs', e.target.value === '' ? '' : Number(e.target.value))} placeholder="lbs" className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm" />
+                    <input aria-label={`${set.exercise_name} reps`} type="number" inputMode="numeric" value={set.reps} onChange={(e) => updateEditSet(index, 'reps', e.target.value === '' ? '' : Number(e.target.value))} placeholder="reps" className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm" />
+                    <input aria-label={`${set.exercise_name} RPE`} type="number" min={1} max={10} value={set.rpe} onChange={(e) => updateEditSet(index, 'rpe', e.target.value === '' ? '' : Number(e.target.value))} placeholder="RPE" className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm" />
+                    <button type="button" onClick={() => setEditSets((current) => current.filter((_, i) => i !== index))} className="rounded-lg p-2 text-slate-300 hover:bg-red-50 hover:text-red-600" aria-label={`Remove set ${index + 1}`}><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {editCardio && (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Cardio details</p>
+              <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-4">
+                <label className="text-xs text-slate-500">Activity<input value={editCardio.activity_type} onChange={(e) => setEditCardio((c) => c ? { ...c, activity_type: e.target.value } : c)} className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-2 text-sm" /></label>
+                <label className="text-xs text-slate-500">Distance<input type="number" step="0.01" value={editCardio.distance_miles} onChange={(e) => setEditCardio((c) => c ? { ...c, distance_miles: e.target.value === '' ? '' : Number(e.target.value) } : c)} className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-2 text-sm" /></label>
+                <label className="text-xs text-slate-500">Avg HR<input type="number" value={editCardio.avg_hr} onChange={(e) => setEditCardio((c) => c ? { ...c, avg_hr: e.target.value === '' ? '' : Number(e.target.value) } : c)} className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-2 text-sm" /></label>
+                <label className="text-xs text-slate-500">Max HR<input type="number" value={editCardio.max_hr} onChange={(e) => setEditCardio((c) => c ? { ...c, max_hr: e.target.value === '' ? '' : Number(e.target.value) } : c)} className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-2 text-sm" /></label>
+              </div>
+            </div>
+          )}
+
+          {editError && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{editError}</p>}
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={cancelEditing} className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+            <button type="button" onClick={() => void saveEdit()} disabled={savingEdit} className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"><Save className="h-4 w-4" />{savingEdit ? 'Saving…' : 'Save corrections'}</button>
+          </div>
+        </div>
+      )}
 
       {/* Workout Summary Card */}
       <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
