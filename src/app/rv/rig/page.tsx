@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, Truck, Wrench } from 'lucide-react'
+import { ArrowLeft, FileText, Truck, Wrench } from 'lucide-react'
 import { supabaseServer } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -78,6 +78,8 @@ export default async function RigPage({ searchParams }: { searchParams?: Promise
     ? await supabase.from('maintenance_assets').select('id,name').in('id', profile.maintenance_assets)
     : { data: [] }
   const k = profile.key_numbers ?? {}
+  // Documents with no trip belong to the coach itself: factory drawings, manuals.
+  const { data: docs } = await supabase.from('rv_documents').select('id,title,source_note').is('trip_id', null).order('created_at')
 
   return (
     <main className="pt-4 md:pt-8 pb-16">
@@ -125,6 +127,22 @@ export default async function RigPage({ searchParams }: { searchParams?: Promise
         {profile.tpms && <div className={card}><h2 className="font-semibold">Tires and TPMS</h2><div className="mt-3"><Value v={profile.tpms} /></div></div>}
         {profile.gear && <div className={card}><h2 className="font-semibold">Gear on board</h2><div className="mt-3"><Value v={profile.gear} /></div></div>}
       </div>
+
+      {docs && docs.length > 0 && (
+        <div className={`${card} mt-4`}>
+          <h2 className="font-semibold">Documents</h2>
+          <ul className="mt-2 grid gap-2">
+            {docs.map((d) => (
+              <li key={d.id}>
+                <Link href={`/rv/documents/${d.id}`} className="flex items-center gap-2 text-sm font-medium text-blue-700 hover:underline">
+                  <FileText className="h-4 w-4 shrink-0" /> {d.title}
+                </Link>
+                {d.source_note && <p className="ml-6 text-xs text-slate-500">{d.source_note}</p>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <details className="mt-8" open={sp?.edit === '1'}>
         <summary className="cursor-pointer text-sm font-medium text-blue-700">Edit the profile (JSON)…</summary>
