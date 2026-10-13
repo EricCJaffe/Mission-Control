@@ -28,7 +28,7 @@ export default async function RvDocumentPage({ params }: { params: Promise<{ did
 
   const { data: blob, error } = await supabase.storage.from(doc.bucket as string).download(doc.path as string)
   const text = blob ? await blob.text() : ''
-  const back = doc.trip_id ? `/rv/trips/${doc.trip_id}?tab=reservations` : '/rv'
+  const back = doc.trip_id ? `/rv/trips/${doc.trip_id}?tab=reservations` : '/rv/rig'
 
   return (
     <main className="mx-auto max-w-3xl pt-4 md:pt-8 pb-16">
