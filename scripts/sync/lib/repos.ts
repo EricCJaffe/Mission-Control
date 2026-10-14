@@ -101,6 +101,15 @@ function githubRepoFrom(remote: string | null): string | null {
   return m ? m[1] : null;
 }
 
+/** True when `.git` is a gitdir pointer file, i.e. a linked worktree or submodule. */
+export function isLinkedWorktree(dotGit: string): boolean {
+  try {
+    return statSync(dotGit).isFile();
+  } catch {
+    return false;
+  }
+}
+
 export function discoverRepos(devRoot: string): Repo[] {
   if (!existsSync(devRoot)) throw new Error(`DEV_ROOT does not exist: ${devRoot}`);
 
@@ -110,7 +119,13 @@ export function discoverRepos(devRoot: string): Repo[] {
   )) {
     if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
     const path = join(devRoot, entry.name);
-    if (!existsSync(join(path, '.git'))) continue;
+    const dotGit = join(path, '.git');
+    if (!existsSync(dotGit)) continue;
+    // A linked worktree (`git worktree add`) has a .git FILE pointing back at
+    // its main checkout. It carries the same task files as that checkout, so
+    // syncing it as its own project collides with the main repo on
+    // tasks_source_ref_idx and aborts the run (2026-10-14, trellisv2-tasks).
+    if (isLinkedWorktree(dotGit)) continue;
     repos.push({
       slug: entry.name,
       path,
