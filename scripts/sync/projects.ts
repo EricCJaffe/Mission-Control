@@ -27,6 +27,7 @@ import { discoverRepos, taskFilesIn, blobUrl, type Repo } from './lib/repos.ts';
 import { guessDomain, PROJECT_SEEDS } from './lib/domains.ts';
 import { parseTaskMarkdown, sourceRef, isEric, type ParsedTask } from './parse/markdown.ts';
 import { fetchIssues, issueIsMine, ghReady } from './lib/issues.ts';
+import { dedupeByRef, isUniqueViolation } from './lib/dedupe.ts';
 import { fetchCodeTodos, codeTodoRef, MAX_PER_PROJECT } from './lib/codeTodos.ts';
 
 const SOURCE = 'todo_md';
@@ -464,13 +465,21 @@ async function reconcile(
   const seenRefs = new Set<string>();
   let created = 0;
   let updated = 0;
+  let failed = 0;
 
-  for (const h of harvested) {
+  // One bad source must not abort the run: drop in-batch duplicates (logged),
+  // and a write that fails is logged and skipped rather than thrown.
+  const { unique, dropped } = dedupeByRef(harvested);
+  for (const d of dropped) {
+    console.warn(`[sync:projects] duplicate source_ref ${d.sourceRef} in ${source} batch, skipped: "${d.title}"`);
+  }
+
+  for (const h of unique) {
     seenRefs.add(h.sourceRef);
     const prior = byRef.get(h.sourceRef);
 
     if (!prior) {
-      const { error: insertError } = await db.from('tasks').insert({
+      const row = {
         user_id: userId,
         project_id: projectId,
         title: h.title.slice(0, 500),
@@ -487,9 +496,42 @@ async function reconcile(
         assignee: h.assignees.join(', ') || null,
         last_seen_at: now,
         synced_at: now,
-      });
-      if (insertError) throw new Error(`Insert failed for "${h.title}": ${insertError.message}`);
-      created += 1;
+      };
+      // Upsert on the natural key (user_id, source, source_ref).
+      // tasks_source_ref_idx is a PARTIAL unique index (where source <> 'manual'),
+      // which PostgREST's on_conflict cannot target, so this is
+      // insert-then-update: on a unique violation the existing row is updated
+      // in place under the same edited_at contract as below.
+      const { error: insertError } = await db.from('tasks').insert(row);
+      if (!insertError) {
+        created += 1;
+        continue;
+      }
+      if (!isUniqueViolation(insertError)) {
+        console.error(`[sync:projects] insert failed for "${h.title}" (${h.sourceRef}): ${insertError.message}; skipped`);
+        failed += 1;
+        continue;
+      }
+      const { data: clash } = await db
+        .from('tasks')
+        .select('id, project_id, edited_at')
+        .eq('user_id', userId)
+        .eq('source', source)
+        .eq('source_ref', h.sourceRef)
+        .maybeSingle();
+      if (!clash || clash.project_id !== projectId) {
+        // Same ref owned by another project: never move it, just report it.
+        console.warn(`[sync:projects] ${h.sourceRef} already stored under project ${clash?.project_id ?? '?'}; skipped "${h.title}"`);
+        failed += 1;
+        continue;
+      }
+      const conflictPatch: Record<string, unknown> = { last_seen_at: now, synced_at: now, external_status: 'open', source_url: h.sourceUrl };
+      if (!clash.edited_at) Object.assign(conflictPatch, { title: row.title, description: row.description, status: row.status, priority: row.priority });
+      const { error: upErr } = await db.from('tasks').update(conflictPatch).eq('id', clash.id);
+      if (upErr) {
+        console.error(`[sync:projects] upsert-update failed for "${h.title}": ${upErr.message}; skipped`);
+        failed += 1;
+      } else updated += 1;
       continue;
     }
 
@@ -507,7 +549,11 @@ async function reconcile(
       patch.priority = h.priority;
     }
     const { error: updateError } = await db.from('tasks').update(patch).eq('id', prior.id);
-    if (updateError) throw new Error(`Update failed for "${h.title}": ${updateError.message}`);
+    if (updateError) {
+      console.error(`[sync:projects] update failed for "${h.title}": ${updateError.message}; skipped`);
+      failed += 1;
+      continue;
+    }
     updated += 1;
   }
 
@@ -530,7 +576,7 @@ async function reconcile(
     closed += 1;
   }
 
-  return { created, updated, closed };
+  return { created, updated, closed, failed, duplicates: dropped.length };
 }
 
 main().catch((err) => {
