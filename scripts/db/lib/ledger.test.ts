@@ -65,6 +65,14 @@ test('handles if-not-exists and insert forms', () => {
   assert.deepEqual(unqualifiedRelations('create table if not exists mission.notes (id uuid);'), []);
 });
 
+test('a grant privilege list is not a relation', () => {
+  // `update on <relation>` in a grant reads like `update <relation>`.
+  assert.deepEqual(
+    unqualifiedRelations('grant select, insert, update on mission.tasks to grokbot_writer;'),
+    [],
+  );
+});
+
 test('a policy name is not a relation', () => {
   // `create policy <name> on <relation>` — flagging the name would make the
   // check fire on every RLS migration and get ignored.
