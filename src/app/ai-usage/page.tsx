@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { Download, Gauge, Lightbulb } from 'lucide-react';
 import { supabaseServer } from '@/lib/supabase/server';
 import { addDays, today } from '@/lib/day';
@@ -34,7 +35,7 @@ const HISTORY_DAYS = 30;
 export default async function AiUsagePage({ searchParams }: { searchParams?: Promise<{ month?: string }> }) {
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return null;
+  if (!userData.user) redirect('/login?next=/ai-usage');
 
   const params = searchParams ? await searchParams : undefined;
   const month = isMonth(params?.month) ? params.month : null;

@@ -1,7 +1,7 @@
 'use client';
 
 // Root error boundary: a crash in any page shows this instead of a blank screen.
-export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <div style={{ padding: 24, fontFamily: 'system-ui, sans-serif' }}>
       <h1 style={{ fontSize: 20, fontWeight: 700 }}>Something went wrong</h1>
