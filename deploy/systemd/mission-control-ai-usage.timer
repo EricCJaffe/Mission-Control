@@ -1,0 +1,13 @@
+[Unit]
+Description=Mission Control — AI usage meter, nightly (and 1:15 PM refresh)
+
+[Timer]
+# 2:15 AM ET, after the box / Mac mini push at ~2:00; a midday refresh keeps
+# the page and the run-out alert current. Persistent catches a missed run.
+OnCalendar=*-*-* 02:15:00 America/New_York
+OnCalendar=*-*-* 13:15:00 America/New_York
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target
