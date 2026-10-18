@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { usageJson, routingLine, routeScoreLine, stallLine } from './routing.mjs';
-import { planStatus } from './forecast.mjs';
+import { planStatus, FORECAST_COLUMNS } from './forecast.mjs';
 
 const now = new Date('2026-10-18T18:00:00Z');
 const iso = (h) => new Date(now.getTime() + h * 3600000).toISOString();
@@ -152,4 +152,9 @@ test('forecast: a stale meter never hides an exhausted manual reading on an idle
   const held = planStatus(lot, [tok, { ...meter, secondary_used_pct: 95, meter_at: iso(-50) }], now);
   assert.equal(held.idle, true);
   assert.equal(held.pct, 95);
+});
+
+test('report selects every column the forecast reads, bot included (meter rows)', () => {
+  const cols = FORECAST_COLUMNS.split(',');
+  for (const c of ['bot', 'source', 'secondary_used_pct', 'secondary_window_minutes', 'secondary_resets_at', 'meter_at', 'last_at', 'captured_at', 'tokens_total']) assert.ok(cols.includes(c), c);
 });

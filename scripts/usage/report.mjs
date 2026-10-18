@@ -28,7 +28,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkS
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
-import { planStatus } from './forecast.mjs';
+import { planStatus, FORECAST_COLUMNS } from './forecast.mjs';
 import { usageJson, routingLine, routeScoreLine, stallLine } from './routing.mjs';
 import { etDay } from './collect-logs.mjs';
 
@@ -48,7 +48,7 @@ if (pe) { console.error(`[usage-report] ai_plans: ${pe.message}`); process.exit(
 const rows = [];
 for (let from = 0; ; from += 1000) {
   const { data, error } = await db.from('ai_usage_snapshots')
-    .select('plan_slug,source,day,tokens_total,primary_used_pct,primary_window_minutes,primary_resets_at,secondary_used_pct,secondary_window_minutes,secondary_resets_at,meter_at,last_at,captured_at')
+    .select(FORECAST_COLUMNS)
     .eq('user_id', uid).gte('day', since).order('id').range(from, from + 999);
   if (error) { console.error(`[usage-report] snapshots: ${error.message}`); process.exit(1); }
   rows.push(...data);

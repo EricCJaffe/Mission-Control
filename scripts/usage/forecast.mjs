@@ -25,6 +25,13 @@ const WINDOW_MIN = { '5h': 300, daily: 1440, weekly: 10080, monthly: 43200 };
  * @param rows  mission.ai_usage_snapshots rows for this plan (any order)
  * @param now   Date
  */
+/**
+ * The snapshot columns planStatus reads (report.mjs selects exactly these).
+ * `bot` matters: the Claude /usage meter rows (bot `claude-usage`) carry no
+ * tokens, go stale after 12h, and are labeled by it.
+ */
+export const FORECAST_COLUMNS = 'plan_slug,source,bot,day,tokens_total,primary_used_pct,primary_window_minutes,primary_resets_at,secondary_used_pct,secondary_window_minutes,secondary_resets_at,meter_at,last_at,captured_at';
+
 export function planStatus(plan, rows, now = new Date()) {
   const t = now.getTime();
   const fresh = (r) => r.captured_at && t - new Date(r.last_at ?? r.captured_at).getTime() <= 48 * H;
