@@ -571,3 +571,17 @@ test('suggestions: a no-cap 4lot plan with no reading takes Claude main overflow
   assert.ok(out[0].text.endsWith('move builds and parallel work to Claude 4lot until then'));
   assert.ok(!out.some((x) => x.plan === 'claude-4lot'));
 });
+
+// ---------------------------------------------------------------- glance
+import { glanceNote, glanceAnchor, glanceReset } from './glance.ts';
+
+test('glance note restates the card status', () => {
+  const resetAt = new Date('2026-10-25T12:29:00Z');
+  const w = { resetAt } as never;
+  assert.equal(glanceNote({ usedPct: 4, note: 'too-early', runOutAt: new Date('2026-10-23T12:00:00Z'), window: w, rag: 'green' }), 'too early to forecast');
+  assert.equal(glanceNote({ usedPct: 40, note: null, runOutAt: new Date('2026-10-23T16:00:00Z'), window: w, rag: 'red' }), 'runs out Fri');
+  assert.equal(glanceNote({ usedPct: 40, note: null, runOutAt: new Date('2026-10-27T16:00:00Z'), window: w, rag: 'green' }), 'lasts to reset');
+  assert.equal(glanceNote({ usedPct: null, note: 'no-cap-known', runOutAt: null, window: w, rag: 'none' }), 'no cap known');
+  assert.equal(glanceAnchor('claude-4lot'), 'plan-claude-4lot');
+  assert.equal(glanceReset(new Date('2026-10-20T23:00:00Z'), new Date('2026-10-18T18:00:00Z')), 'Tue 7:00 PM');
+});
