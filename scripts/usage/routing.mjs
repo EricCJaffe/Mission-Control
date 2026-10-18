@@ -12,8 +12,10 @@
  */
 const H = 3600000;
 
-export function usageJson(statuses, now = new Date()) {
+export function usageJson(statuses, now = new Date(), { plans: planRows = [], capacity = null } = {}) {
   const plans = {};
+  const cap = capacity?.plans ?? {};
+  const limitOf = Object.fromEntries(planRows.map((p) => [p.slug, p.limit_kind === 'tokens' && p.limit_value ? Number(p.limit_value) : null]));
   for (const s of statuses) {
     const readingAt = s.readingAt ?? null;
     plans[s.slug] = {
@@ -27,9 +29,21 @@ export function usageJson(statuses, now = new Date()) {
       reading_age_h: readingAt ? Math.round(((now.getTime() - new Date(readingAt).getTime()) / H) * 10) / 10 : null,
       early: !!s.early,
       no_cap: !!s.noCap,
+      idle: !!s.idle,
+      limit_tokens: limitOf[s.slug] ?? null,
+      capacity_weight: cap[s.slug]?.weight ?? null,
+      overflow_target: cap[s.slug]?.overflow_target ?? null,
+      small_jobs_only: !!cap[s.slug]?.small_jobs_only,
     };
   }
-  return { generated_at: now.toISOString(), source: 'mission-control scripts/usage/report.mjs', version: 1, plans };
+  return {
+    generated_at: now.toISOString(),
+    source: 'mission-control scripts/usage/report.mjs',
+    version: 2,
+    max_weekly_tokens_baseline: capacity?.max_weekly_tokens_baseline ?? null,
+    job_size_tokens: capacity?.job_size_tokens ?? null,
+    plans,
+  };
 }
 
 const PLAN_SHORT = { 'claude-max': 'main', 'claude-4lot': '4lot' };

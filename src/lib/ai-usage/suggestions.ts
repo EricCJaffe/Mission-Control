@@ -32,10 +32,12 @@ const SHORT: Record<string, string> = {
 /** Where a strained plan's work can go, and what that work is. */
 const MOVE: Record<string, { to: string; what: string }> = {
   'chatgpt-codex': { to: 'claude-max', what: 'reviews' },
-  // Claude main overflows to the 4lot account, not to Codex: Eric keeps Codex's
-  // small allowance for cross-model reviews (2026-10-18).
-  'claude-max': { to: 'claude-4lot', what: 'builds and parallel work' },
-  'claude-4lot': { to: 'claude-max', what: 'builds and parallel work' },
+  // Claude main overflows to the 4lot account, never to Codex (Codex is kept
+  // for cross-model reviews and hard bugs). 4lot is a Team Standard seat at
+  // about 1/16 of main's capacity (config/ai-usage-capacity.json), so only
+  // small jobs move; big builds wait for main (Eric, 2026-10-18 2:09 PM).
+  'claude-max': { to: 'claude-4lot', what: 'small jobs and short follow-ups (big builds wait for main)' },
+  'claude-4lot': { to: 'claude-max', what: 'its jobs' },
 };
 
 export const shortName = (s: Pick<PlanStatus, 'slug' | 'name'>): string => SHORT[s.slug] ?? s.name;

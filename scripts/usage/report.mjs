@@ -69,7 +69,8 @@ const txt = join('open', 'ai-usage.txt');
 writeFileSync(join(brain, txt), `# AI usage meter, ${now.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET. One line per plan. Page: https://missioncontrol.bibleos.app/ai-usage\n${lines.join('\n')}\n${route ? `${route}\n` : ''}`);
 written.push(txt);
 const js = join('open', 'ai-usage.json');
-writeFileSync(join(brain, js), JSON.stringify(usageJson(statuses, now), null, 1) + '\n');
+const capacity = JSON.parse(readFileSync(new URL('../../config/ai-usage-capacity.json', import.meta.url), 'utf8'));
+writeFileSync(join(brain, js), JSON.stringify(usageJson(statuses, now, { plans, capacity }), null, 1) + '\n');
 written.push(js);
 
 // Dedupe: the note's file name AND a local state file, so an alert that

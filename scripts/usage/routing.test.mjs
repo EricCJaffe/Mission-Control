@@ -11,8 +11,11 @@ test('usage json carries used, projected-at-reset, reset and reading age per pla
   const lot = { slug: 'claude-4lot', name: 'Claude Team (4lot)', limit_kind: 'tokens', limit_value: null, reset_cadence: 'weekly' };
   const s1 = planStatus(claude, [{ source: 'manual', day: '2026-10-18', primary_used_pct: 51, primary_window_minutes: 10080, primary_resets_at: iso(53), meter_at: iso(-0.3), captured_at: iso(0) }], now);
   const s2 = planStatus(lot, [], now);
-  const j = usageJson([s1, s2], now);
-  assert.equal(j.version, 1);
+  const cap = { max_weekly_tokens_baseline: 5.2e9, job_size_tokens: { S: 5e7 }, plans: { 'claude-max': { weight: 1, overflow_target: true }, 'claude-4lot': { weight: 0.0625, overflow_target: true, small_jobs_only: true } } };
+  const j = usageJson([s1, s2], now, { plans: [claude, { ...lot, limit_value: 325000000 }], capacity: cap });
+  assert.equal(j.version, 2);
+  assert.equal(j.max_weekly_tokens_baseline, 5.2e9);
+  assert.deepEqual([j.plans['claude-4lot'].limit_tokens, j.plans['claude-4lot'].capacity_weight, j.plans['claude-4lot'].small_jobs_only], [325000000, 0.0625, true]);
   const m = j.plans['claude-max'];
   assert.equal(m.used_pct, 51);
   assert.equal(m.reset_at, iso(53));
@@ -33,4 +36,12 @@ test('routing line: latest decision per note in the last 24h', () => {
   ].map((r) => JSON.stringify(r)).join('\n') + '\nnot json\n';
   assert.equal(routingLine(log, now), 'routing (24h): 2 jobs to 4lot (main at 72%); 1 job to main; 1 held (main >= 90%). Log: runs/dispatch-routing.jsonl');
   assert.equal(routingLine('', now), '');
+});
+
+test('an idle token-budget plan (4lot with an estimated cap) reports 0% used, not unknown', () => {
+  const lot = { slug: 'claude-4lot', name: 'Claude Team (4lot)', limit_kind: 'tokens', limit_value: 325000000, limit_is_estimate: true, reset_cadence: 'weekly', reset_anchor: null };
+  const s = planStatus(lot, [], now);
+  assert.equal(s.status, 'grey');
+  assert.equal(s.pct, 0);
+  assert.equal(usageJson([s], now).plans['claude-4lot'].used_pct, 0);
 });
