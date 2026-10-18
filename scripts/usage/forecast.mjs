@@ -10,6 +10,7 @@
  *   green  otherwise
  */
 import { etDay } from './collect-logs.mjs';
+import { etNoon } from './rows.mjs';
 
 const H = 3600000;
 const WINDOW_MIN = { '5h': 300, daily: 1440, weekly: 10080, monthly: 43200 };
@@ -33,33 +34,32 @@ export function planStatus(plan, rows, now = new Date()) {
   // 1. A vendor percent: manual reading (newest), else Codex's weekly meter.
   // Manual readings count only when they measure the plan's own window (or
   // say nothing about the window); a 5h reading never stands for a week.
+  // Between a manual reading and a CLI meter, the newer OBSERVATION wins, and
+  // neither counts once it is older than 48h or its window has reset.
   const planWin = WINDOW_MIN[plan.reset_cadence];
-  const manual = rows.filter((r) => r.source === 'manual' && r.primary_used_pct != null && (r.primary_window_minutes == null || r.primary_window_minutes === planWin)).sort((a, b) => b.day.localeCompare(a.day) || String(b.meter_at ?? '').localeCompare(String(a.meter_at ?? '')));
-  // Newest reading whose window has not reset yet. Only the weekly
-  // (secondary) meter stands for a weekly plan; a lone 5h meter is used only
-  // when the plan itself resets every 5h.
   const weeklyOnly = plan.reset_cadence !== '5h';
-  const logPct = rows
-    .filter((r) => r.source === 'log' && (weeklyOnly ? r.secondary_used_pct != null : (r.secondary_used_pct != null || r.primary_used_pct != null)))
-    .filter((r) => freshMeter(r) && !expired(weeklyOnly || r.secondary_used_pct != null ? r.secondary_resets_at : r.primary_resets_at))
-    .sort(byLatest);
-  let reading = null;
-  const manualFreshDay = etDay(new Date(t - 48 * H).toISOString());
-  if (manual[0] && manual[0].day >= manualFreshDay && !expired(manual[0].primary_resets_at)) {
-    const m = manual[0];
-    reading = { pct: Number(m.primary_used_pct), resetsAt: m.primary_resets_at, windowMin: m.primary_window_minutes ?? WINDOW_MIN[plan.reset_cadence], basis: 'manual reading', estimate: false, at: m.meter_at ?? `${m.day}T16:00:00Z` };
-  } else if (logPct[0]) {
-    const r = logPct[0];
+  const candidates = [];
+  for (const m of rows) {
+    if (m.source !== 'manual' || m.primary_used_pct == null) continue;
+    if (m.primary_window_minutes != null && m.primary_window_minutes !== planWin) continue;
+    const at = m.meter_at ?? etNoon(m.day);
+    if (t - new Date(at).getTime() > 48 * H || expired(m.primary_resets_at)) continue;
+    candidates.push({ at, captured: m.captured_at, reading: { pct: Number(m.primary_used_pct), resetsAt: m.primary_resets_at, windowMin: m.primary_window_minutes ?? planWin, basis: 'manual reading', estimate: false, at } });
+  }
+  for (const r of rows) {
+    if (r.source !== 'log') continue;
     const useSec = r.secondary_used_pct != null;
-    reading = {
+    if (!useSec && (weeklyOnly || r.primary_used_pct == null)) continue;
+    if (!freshMeter(r) || expired(useSec ? r.secondary_resets_at : r.primary_resets_at)) continue;
+    candidates.push({ at: meterAt(r), captured: r.captured_at, reading: {
       pct: Number(useSec ? r.secondary_used_pct : r.primary_used_pct),
       resetsAt: useSec ? r.secondary_resets_at : r.primary_resets_at,
-      windowMin: (useSec ? r.secondary_window_minutes : r.primary_window_minutes) ?? WINDOW_MIN[plan.reset_cadence],
-      basis: useSec ? 'CLI weekly meter' : 'CLI meter',
-      estimate: false,
-      at: meterAt(r),
-    };
+      windowMin: (useSec ? r.secondary_window_minutes : r.primary_window_minutes) ?? planWin,
+      basis: useSec ? 'CLI weekly meter' : 'CLI meter', estimate: false, at: meterAt(r),
+    } });
   }
+  candidates.sort((x, y) => String(y.at).localeCompare(String(x.at)) || String(y.captured).localeCompare(String(x.captured)));
+  let reading = candidates[0]?.reading ?? null;
 
   // 2. Else a token budget (estimate) over the plan window.
   if (!reading && plan.limit_kind === 'tokens' && plan.limit_value) {

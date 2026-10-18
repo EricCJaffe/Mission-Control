@@ -83,3 +83,14 @@ test('manual readings: re-upload does not refresh them; a 5h manual reading does
   ], now);
   assert.equal(s.pct, 2);
 });
+
+test('a 60-hour-old manual reading does not override a fresh meter; noon ET follows DST', async () => {
+  const s = planStatus(codex, [
+    { source: 'manual', day: '2026-10-16', meter_at: iso(-60), captured_at: iso(0), primary_used_pct: 95, primary_window_minutes: 10080, primary_resets_at: iso(100) },
+    { source: 'log', day: '2026-10-18', meter_at: iso(-1), last_at: iso(-1), captured_at: iso(0), secondary_used_pct: 2, secondary_window_minutes: 10080, secondary_resets_at: iso(160) },
+  ], now);
+  assert.equal(s.pct, 2);
+  const { etNoon } = await import('./rows.mjs');
+  assert.equal(etNoon('2026-10-18'), '2026-10-18T16:00:00.000Z');
+  assert.equal(etNoon('2026-12-15'), '2026-12-15T17:00:00.000Z');
+});

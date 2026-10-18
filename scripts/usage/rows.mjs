@@ -58,6 +58,16 @@ export function attributeRows(rows, map, userId) {
   return [...out.values()];
 }
 
+const hourFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' });
+/** 12:00 America/New_York on YYYY-MM-DD, as ISO (EDT = 16:00Z, EST = 17:00Z). */
+export function etNoon(day) {
+  for (const h of ['16', '17']) {
+    const d = new Date(`${day}T${h}:00:00Z`);
+    if (Number(hourFmt.format(d)) === 12) return d.toISOString();
+  }
+  return new Date(`${day}T16:00:00Z`).toISOString();
+}
+
 function optNum(v, name, errs, lo = -Infinity, hi = Infinity) {
   if (v === undefined || v === null || v === '') return null;
   const n = typeof v === 'number' ? v : Number(v);
@@ -106,7 +116,7 @@ export function parseManual(text, { userId, planSlugs }) {
     };
     const resets_at = resets(o.resets_at, 'resets_at');
     const sec_resets = resets(o.secondary_resets_at, 'secondary_resets_at');
-    const observedAt = o.at ? resets(o.at, 'at') : (DAY_RE.test(String(o.date ?? '')) ? new Date(`${o.date}T16:00:00Z`).toISOString() : null);
+    const observedAt = o.at ? resets(o.at, 'at') : (DAY_RE.test(String(o.date ?? '')) ? etNoon(o.date) : null);
     if (o.window !== undefined && !(o.window in winMin)) errs.push('window must be 5h|daily|weekly|monthly');
     if (errs.length) { errors.push(`line ${i + 1}: ${errs.join('; ')}`); return; }
     const by = typeof o.by === 'string' && o.by.trim() ? o.by.trim().slice(0, 40) : 'cos';
