@@ -73,3 +73,13 @@ test('run-out is projected from the reading time, not now', () => {
   const s = planStatus(codex, [{ source: 'log', day: '2026-10-18', meter_at: iso(-36), last_at: iso(-36), captured_at: iso(0), secondary_used_pct: 40, secondary_window_minutes: 10080, secondary_resets_at: iso(72) }], now);
   assert.equal(s.runsOutBeforeReset, true);
 });
+
+test('manual readings: re-upload does not refresh them; a 5h manual reading does not override the weekly meter', () => {
+  const r17 = { source: 'manual', day: '2026-10-17', meter_at: '2026-10-17T16:00:00Z', captured_at: iso(0), primary_used_pct: 50, primary_window_minutes: 10080, primary_resets_at: '2026-10-21T16:00:00Z' };
+  assert.equal(planStatus(grok, [r17], now).runsOutBeforeReset, true);
+  const s = planStatus(codex, [
+    { source: 'manual', day: '2026-10-18', meter_at: iso(-1), captured_at: iso(0), primary_used_pct: 99, primary_window_minutes: 300, primary_resets_at: iso(3) },
+    { source: 'log', day: '2026-10-18', meter_at: iso(-1), last_at: iso(-1), captured_at: iso(0), secondary_used_pct: 2, secondary_window_minutes: 10080, secondary_resets_at: iso(160) },
+  ], now);
+  assert.equal(s.pct, 2);
+});

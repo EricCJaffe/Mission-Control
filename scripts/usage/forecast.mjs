@@ -31,7 +31,10 @@ export function planStatus(plan, rows, now = new Date()) {
   const expired = (resetsAt) => resetsAt && new Date(resetsAt).getTime() <= t;
 
   // 1. A vendor percent: manual reading (newest), else Codex's weekly meter.
-  const manual = rows.filter((r) => r.source === 'manual' && r.primary_used_pct != null).sort((a, b) => b.day.localeCompare(a.day) || String(b.captured_at).localeCompare(String(a.captured_at)));
+  // Manual readings count only when they measure the plan's own window (or
+  // say nothing about the window); a 5h reading never stands for a week.
+  const planWin = WINDOW_MIN[plan.reset_cadence];
+  const manual = rows.filter((r) => r.source === 'manual' && r.primary_used_pct != null && (r.primary_window_minutes == null || r.primary_window_minutes === planWin)).sort((a, b) => b.day.localeCompare(a.day) || String(b.meter_at ?? '').localeCompare(String(a.meter_at ?? '')));
   // Newest reading whose window has not reset yet. Only the weekly
   // (secondary) meter stands for a weekly plan; a lone 5h meter is used only
   // when the plan itself resets every 5h.
@@ -44,7 +47,7 @@ export function planStatus(plan, rows, now = new Date()) {
   const manualFreshDay = etDay(new Date(t - 48 * H).toISOString());
   if (manual[0] && manual[0].day >= manualFreshDay && !expired(manual[0].primary_resets_at)) {
     const m = manual[0];
-    reading = { pct: Number(m.primary_used_pct), resetsAt: m.primary_resets_at, windowMin: m.primary_window_minutes ?? WINDOW_MIN[plan.reset_cadence], basis: 'manual reading', estimate: false, at: m.captured_at };
+    reading = { pct: Number(m.primary_used_pct), resetsAt: m.primary_resets_at, windowMin: m.primary_window_minutes ?? WINDOW_MIN[plan.reset_cadence], basis: 'manual reading', estimate: false, at: m.meter_at ?? `${m.day}T16:00:00Z` };
   } else if (logPct[0]) {
     const r = logPct[0];
     const useSec = r.secondary_used_pct != null;

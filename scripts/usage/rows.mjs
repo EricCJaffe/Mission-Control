@@ -73,6 +73,7 @@ function optNum(v, name, errs, lo = -Infinity, hi = Infinity) {
  *   datetime), window ('5h'|'daily'|'weekly'|'monthly'),
  *   used, limit, unit (when the page shows a count instead of a %),
  *   secondary_used_pct, secondary_resets_at (a second meter, if shown),
+ *   at (ISO time the reading was taken; default midday ET of date),
  *   note, by (who entered it; default 'cos').
  * At least one of used_pct or used (with limit) is required; used/limit is
  * stored as a percent too. A later line for the same
@@ -105,6 +106,7 @@ export function parseManual(text, { userId, planSlugs }) {
     };
     const resets_at = resets(o.resets_at, 'resets_at');
     const sec_resets = resets(o.secondary_resets_at, 'secondary_resets_at');
+    const observedAt = o.at ? resets(o.at, 'at') : (DAY_RE.test(String(o.date ?? '')) ? new Date(`${o.date}T16:00:00Z`).toISOString() : null);
     if (o.window !== undefined && !(o.window in winMin)) errs.push('window must be 5h|daily|weekly|monthly');
     if (errs.length) { errors.push(`line ${i + 1}: ${errs.join('; ')}`); return; }
     const by = typeof o.by === 'string' && o.by.trim() ? o.by.trim().slice(0, 40) : 'cos';
@@ -115,7 +117,9 @@ export function parseManual(text, { userId, planSlugs }) {
       // A count reading becomes a percent so the forecast can use it.
       primary_used_pct: used_pct ?? (used !== null && limit > 0 ? Math.round((10000 * used) / limit) / 100 : null), primary_window_minutes: o.window ? winMin[o.window] : null, primary_resets_at: resets_at,
       secondary_used_pct: sec, secondary_window_minutes: null, secondary_resets_at: sec_resets,
-      meter_at: null, used_value: used, limit_value: limit, unit: typeof o.unit === 'string' ? o.unit.slice(0, 40) : null,
+      // Observation time: `at` if given, else midday ET of `date`. Kept stable
+      // across uploads so a re-upload never makes an old reading look new.
+      meter_at: observedAt, used_value: used, limit_value: limit, unit: typeof o.unit === 'string' ? o.unit.slice(0, 40) : null,
       note: typeof o.note === 'string' ? o.note.slice(0, 500) : null,
       first_at: null, last_at: null,
     };
