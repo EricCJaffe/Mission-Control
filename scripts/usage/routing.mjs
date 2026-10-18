@@ -81,3 +81,40 @@ export function routingLine(jsonl, now = new Date()) {
   });
   return `routing (24h): ${parts.join('; ')}. Log: runs/dispatch-routing.jsonl`;
 }
+
+/*
+ * routeScoreLine(jsonl, now): one weekly brief line from the outcome records
+ * dispatch-autostart writes (research R2, Eric 2:20 PM ET 10/18), e.g.
+ * "routes (7d, first-try): main/strong 8/9 (89%) · main/economy 3/5 (60%, below 80%: moves up a tier) · 1 escalated · 1 needs Eric".
+ * Backfilled outcomes (history used for size estimates) are not scored.
+ */
+export function routeScoreLine(jsonl, now = new Date(), { floor = 0.8, minN = 5 } = {}) {
+  const since = now.getTime() - 7 * 24 * H;
+  const score = {};
+  let esc = 0;
+  let eric = 0;
+  for (const line of String(jsonl || '').split('\n')) {
+    if (!line.trim()) continue;
+    let r;
+    try { r = JSON.parse(line); } catch { continue; }
+    if (!r || typeof r !== 'object') continue;
+    const at = Date.parse(r.at);
+    if (!Number.isFinite(at) || at < since || at > now.getTime() + H) continue;
+    if (r.action === 'escalate') esc += 1;
+    if (r.action === 'needs-eric') eric += 1;
+    if (r.action !== 'outcome' || r.backfill) continue;
+    const k = `${PLAN_SHORT[r.plan] ?? r.plan}/${r.tier ?? 'default'}`;
+    score[k] ??= { n: 0, ok: 0 };
+    score[k].n += 1;
+    if (r.first_try) score[k].ok += 1;
+  }
+  const parts = Object.keys(score).sort().map((k) => {
+    const { n, ok } = score[k];
+    const pct = Math.round((100 * ok) / n);
+    const low = n >= minN && ok / n < floor;
+    return `${k} ${ok}/${n} (${pct}%${low ? `, below ${Math.round(floor * 100)}%: ${k.endsWith('/economy') ? 'moves up a tier' : 'review this route'}` : ''})`;
+  });
+  if (esc) parts.push(`${esc} escalated`);
+  if (eric) parts.push(`${eric} needs Eric`);
+  return parts.length ? `routes (7d, first-try): ${parts.join(' · ')}` : '';
+}

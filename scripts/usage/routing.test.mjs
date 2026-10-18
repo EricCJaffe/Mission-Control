@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { usageJson, routingLine } from './routing.mjs';
+import { usageJson, routingLine, routeScoreLine } from './routing.mjs';
 import { planStatus } from './forecast.mjs';
 
 const now = new Date('2026-10-18T18:00:00Z');
@@ -71,4 +71,18 @@ test('routing line: order by time, not file order; JSON null lines are skipped',
     JSON.stringify({ at: iso(-3), action: 'hold', note: 'a', reason_short: 'main >= 90%' }),
   ].join('\n');
   assert.equal(routingLine(log, now), 'routing (24h): 1 job to main. Log: runs/dispatch-routing.jsonl');
+});
+
+test('weekly route score: first-try per plan/tier, economy under 80% flagged to move up, escalations counted', () => {
+  const o = (h, plan, tier, ok, extra = {}) => JSON.stringify({ at: iso(-h), action: 'outcome', plan, tier, first_try: ok, ...extra });
+  const log = [
+    o(1, 'claude-max', 'strong', true), o(2, 'claude-max', 'strong', true), o(3, 'claude-max', 'strong', false),
+    ...[1, 2, 3, 4, 5].map((h) => o(h, 'claude-4lot', 'economy', h <= 3)),
+    o(4, 'claude-max', 'strong', true, { backfill: true }),
+    o(24 * 8, 'claude-max', 'economy', false),
+    JSON.stringify({ at: iso(-2), action: 'escalate', note: 'x' }),
+    JSON.stringify({ at: iso(-1), action: 'needs-eric', note: 'y' }),
+  ].join('\n');
+  assert.equal(routeScoreLine(log, now), 'routes (7d, first-try): 4lot/economy 3/5 (60%, below 80%: moves up a tier) · main/strong 2/3 (67%) · 1 escalated · 1 needs Eric');
+  assert.equal(routeScoreLine('', now), '');
 });

@@ -28,7 +28,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { planStatus } from './forecast.mjs';
-import { usageJson, routingLine } from './routing.mjs';
+import { usageJson, routingLine, routeScoreLine } from './routing.mjs';
 import { etDay } from './collect-logs.mjs';
 
 const write = process.argv.includes('--write');
@@ -65,8 +65,9 @@ mkdirSync(join(brain, 'open'), { recursive: true });
 let routingLog = '';
 try { routingLog = readFileSync(join(brain, 'runs', 'dispatch-routing.jsonl'), 'utf8'); } catch { routingLog = ''; }
 const route = routingLine(routingLog, now);
+const scoreLine = routeScoreLine(routingLog, now);
 const txt = join('open', 'ai-usage.txt');
-writeFileSync(join(brain, txt), `# AI usage meter, ${now.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET. One line per plan. Page: https://missioncontrol.bibleos.app/ai-usage\n${lines.join('\n')}\n${route ? `${route}\n` : ''}`);
+writeFileSync(join(brain, txt), `# AI usage meter, ${now.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET. One line per plan. Page: https://missioncontrol.bibleos.app/ai-usage\n${lines.join('\n')}\n${route ? `${route}\n` : ''}${scoreLine ? `${scoreLine}\n` : ''}`);
 written.push(txt);
 const js = join('open', 'ai-usage.json');
 let capacity = null;
