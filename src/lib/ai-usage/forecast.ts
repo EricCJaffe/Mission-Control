@@ -88,7 +88,6 @@ type Row = Pick<
   AiUsageSnapshot,
   | 'plan_slug'
   | 'source'
-  | 'bot'
   | 'day'
   | 'tokens_total'
   | 'primary_used_pct'
@@ -100,7 +99,9 @@ type Row = Pick<
   | 'meter_at'
   | 'last_at'
   | 'captured_at'
->;
+> &
+  // Optional: only the Claude /usage meter rows (bot `claude-usage`) need it.
+  Partial<Pick<AiUsageSnapshot, 'bot'>>;
 
 type Reading = {
   pct: number;
