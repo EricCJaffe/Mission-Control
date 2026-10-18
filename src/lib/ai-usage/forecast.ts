@@ -34,20 +34,25 @@
  *
  * Red / yellow / green (the framework's words, never "amber"):
  *   none    no reading in 48 hours. Shown gray: no reading is not a green.
- *   red     ≥ 90% used, or projected to run out before the reset.
- *   yellow  ≥ 70% used, or projected to run out within a day after it.
+ *   (thresholds in config/ai-usage-thresholds.json)
+ *   early   first ~day / 15% of a window: green with 'too early to forecast',
+ *           red only at ≥ 80% used.
+ *   red     ≥ 90% used, or run-out before the reset AND ≥ 25% used.
+ *   yellow  ≥ 70% used, run-out before reset under 25%, or within a day after it.
  *   green   otherwise.
  */
 
 import { addDays, today } from '../day.ts';
+import T from '../../../config/ai-usage-thresholds.json' with { type: 'json' };
 import type { AiPlan, AiUsageSnapshot } from './types.ts';
 import { DAY_MS, etMidnight, resetWindow, type ResetWindow } from './window.ts';
 
 export type Rag = 'red' | 'yellow' | 'green' | 'none';
 
 export const STALE_AFTER_HOURS = 48;
-export const RED_AT = 90;
-export const YELLOW_AT = 70;
+export const THRESHOLDS = T;
+export const RED_AT = T.redAtPct;
+export const YELLOW_AT = T.yellowAtPct;
 
 export type PlanStatus = {
   slug: string;
@@ -68,7 +73,7 @@ export type PlanStatus = {
   hoursSinceReading: number | null;
   lastSource: 'log' | 'manual' | null;
   /** Why a plan with readings is still gray. */
-  note: 'reset-since-reading' | 'no-cap-known' | null;
+  note: 'reset-since-reading' | 'no-cap-known' | 'too-early' | null;
 };
 
 type Row = Pick<
@@ -174,13 +179,26 @@ function latestReading(rows: Row[], cadence: AiPlan['reset_cadence'], source?: R
   return best;
 }
 
-export function rag(input: { usedPct: number | null; runOutAt: Date | null; resetAt: Date; stale: boolean }): Rag {
-  const { usedPct, runOutAt, resetAt, stale } = input;
+/**
+ * Early in a window the pace is noise: a few hours of use projected over a
+ * week cried wolf (Codex red at 4% on 2026-10-18). Early = under
+ * earlyWindowFraction of the window, or under earlyMinHours (capped at half
+ * a short window).
+ */
+export function isEarly(elapsedMs: number, windowMs: number): boolean {
+  const H = 3_600_000;
+  return elapsedMs < windowMs * T.earlyWindowFraction || elapsedMs < Math.min(T.earlyMinHours * H, windowMs / 2);
+}
+
+export function rag(input: { usedPct: number | null; runOutAt: Date | null; resetAt: Date; stale: boolean; early?: boolean }): Rag {
+  const { usedPct, runOutAt, resetAt, stale, early } = input;
   if (stale || usedPct === null) return 'none';
   if (usedPct >= RED_AT) return 'red';
-  if (runOutAt && runOutAt.getTime() < resetAt.getTime()) return 'red';
-  if (usedPct >= YELLOW_AT) return 'yellow';
-  if (runOutAt && runOutAt.getTime() - resetAt.getTime() <= DAY_MS) return 'yellow';
+  if (early) return usedPct >= T.earlyRedAtPct ? 'red' : usedPct >= YELLOW_AT ? 'yellow' : 'green';
+  const beforeReset = !!runOutAt && runOutAt.getTime() < resetAt.getTime();
+  if (beforeReset && usedPct >= T.runOutRedFloorPct) return 'red';
+  if (usedPct >= YELLOW_AT || beforeReset) return 'yellow';
+  if (runOutAt && runOutAt.getTime() - resetAt.getTime() <= T.yellowAfterResetHours * 3_600_000) return 'yellow';
   return 'green';
 }
 
@@ -233,7 +251,12 @@ export function planStatus(
   // Burn is the pace up to when the reading was taken, not up to now: a
   // reading a day old divided by a day more would understate it.
   const burnOf = (r: Reading, pctUsed: number) =>
-    pctUsed / Math.max((r.at.getTime() - window.startAt.getTime()) / DAY_MS, 0.25);
+    // At least burnMinHours of window, so a first-hours spike is not the pace.
+    pctUsed /
+    Math.min(
+      (window.resetAt.getTime() - window.startAt.getTime()) / DAY_MS,
+      Math.max((r.at.getTime() - window.startAt.getTime()) / DAY_MS, T.burnMinHours / 24),
+    );
 
   if (plan.limit_kind === 'percent') {
     if (reading) {
@@ -284,6 +307,11 @@ export function planStatus(
     }
   }
 
+  const windowMs = window.resetAt.getTime() - window.startAt.getTime();
+  const early = basis === 'percent' && usedPct !== null && isEarly(measuredAt.getTime() - window.startAt.getTime(), windowMs);
+  const status = rag({ usedPct, runOutAt, resetAt: window.resetAt, stale, early });
+  if (early && note === null && status !== 'red') note = 'too-early';
+
   return {
     slug: plan.slug,
     name: planLabel(plan.name),
@@ -296,7 +324,7 @@ export function planStatus(
     tokensPerDay7,
     runOutAt,
     window,
-    rag: rag({ usedPct, runOutAt, resetAt: window.resetAt, stale }),
+    rag: status,
     lastReadingAt,
     hoursSinceReading,
     lastSource,

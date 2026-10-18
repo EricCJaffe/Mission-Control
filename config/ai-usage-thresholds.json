@@ -1,0 +1,11 @@
+{
+  "_doc": "AI usage meter RAG thresholds. Shared by src/lib/ai-usage/forecast.ts (page) and scripts/usage/forecast.mjs (brief line + Chief of Staff alert).",
+  "redAtPct": 90,
+  "yellowAtPct": 70,
+  "earlyRedAtPct": 80,
+  "runOutRedFloorPct": 25,
+  "earlyWindowFraction": 0.15,
+  "earlyMinHours": 24,
+  "burnMinHours": 24,
+  "yellowAfterResetHours": 24
+}

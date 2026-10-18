@@ -287,7 +287,7 @@ function PlanCard({ s, now, points }: { s: PlanStatus; now: Date; points: Histor
         <dd className="text-right">{s.lastReadingAt ? when(s.lastReadingAt) : 'never'}</dd>
       </dl>
       <p className="mt-2 text-sm text-slate-600">
-        {s.usedPct !== null ? runsOut : s.note === 'reset-since-reading' ? 'Reset since last reading' : s.note === 'no-cap-known' ? 'No cap known. Add a % reading from the plan’s usage page to forecast.' : 'No reading in this window'}
+        {s.usedPct !== null ? (s.note === 'too-early' ? 'Too early in this window to forecast' : runsOut) : s.note === 'reset-since-reading' ? 'Reset since last reading' : s.note === 'no-cap-known' ? 'No cap known. Add a % reading from the plan’s usage page to forecast.' : 'No reading in this window'}
       </p>
 
       <div className="mt-4">

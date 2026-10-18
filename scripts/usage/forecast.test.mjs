@@ -103,3 +103,32 @@ test('a token plan with no cap is neutral grey, never red, until a % reading arr
   const m = planStatus(nocap, [{ source: 'manual', day: '2026-10-18', meter_at: iso(-1), captured_at: iso(0), primary_used_pct: 30, primary_window_minutes: 10080, primary_resets_at: iso(100) }], now);
   assert.equal(m.pct, 30);
 });
+
+test('2026-10-18 false alarm: 4% a few hours into a weekly window is green, too early, no alert', () => {
+  // Window reset ~5h ago (resets in 163h), 4% used. First-hours pace said run-out Sat.
+  const s = planStatus(codex, [{ source: 'log', day: '2026-10-18', last_at: iso(0), captured_at: iso(0), secondary_used_pct: 4, secondary_window_minutes: 10080, secondary_resets_at: iso(163) }], now);
+  assert.equal(s.status, 'green');
+  assert.equal(s.early, true);
+  assert.equal(s.runsOutBeforeReset, false);
+  assert.match(s.line, /too early/);
+  assert.ok(s.burnPerDay <= 4.01, `burn over >=24h, got ${s.burnPerDay}`);
+});
+
+test('early but already >= 80% used is red', () => {
+  const s = planStatus(codex, [{ source: 'log', day: '2026-10-18', last_at: iso(0), captured_at: iso(0), secondary_used_pct: 82, secondary_window_minutes: 10080, secondary_resets_at: iso(160) }], now);
+  assert.equal(s.status, 'red');
+});
+
+test('run-out before reset under the 25% floor is yellow, not an alert', () => {
+  // 1.5 days in, 24% used → 16%/day → run-out in 4.75d, reset in 5.5d.
+  const s = planStatus(codex, [{ source: 'log', day: '2026-10-18', last_at: iso(0), captured_at: iso(0), secondary_used_pct: 24, secondary_window_minutes: 10080, secondary_resets_at: iso(132) }], now);
+  assert.equal(s.status, 'yellow');
+  assert.equal(s.runsOutBeforeReset, false);
+});
+
+test('early guard applies only to percent readings (parity with the page)', () => {
+  const anchored = { ...claude, reset_anchor: iso(-5) };
+  const s = planStatus(anchored, [{ source: 'log', day: '2026-10-18', last_at: iso(0), captured_at: iso(0), tokens_total: 600 }], now);
+  assert.equal(s.early, false);
+  assert.notEqual(s.status, 'green');
+});
