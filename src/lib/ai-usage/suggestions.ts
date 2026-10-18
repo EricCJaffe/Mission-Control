@@ -23,7 +23,8 @@ export const HEAVY_PROJECT_PCT = 40;
 export const UNATTRIBUTED_PCT = 25;
 
 const SHORT: Record<string, string> = {
-  'claude-max': 'Claude',
+  'claude-max': 'Claude main',
+  'claude-4lot': 'Claude 4lot',
   'chatgpt-codex': 'Codex',
   'grok-ultra': 'Grok',
 };
@@ -31,7 +32,10 @@ const SHORT: Record<string, string> = {
 /** Where a strained plan's work can go, and what that work is. */
 const MOVE: Record<string, { to: string; what: string }> = {
   'chatgpt-codex': { to: 'claude-max', what: 'reviews' },
-  'claude-max': { to: 'chatgpt-codex', what: 'reviews and heavy builds' },
+  // Claude main overflows to the 4lot account, not to Codex: Eric keeps Codex's
+  // small allowance for cross-model reviews (2026-10-18).
+  'claude-max': { to: 'claude-4lot', what: 'builds and parallel work' },
+  'claude-4lot': { to: 'claude-max', what: 'builds and parallel work' },
 };
 
 export const shortName = (s: Pick<PlanStatus, 'slug' | 'name'>): string => SHORT[s.slug] ?? s.name;
@@ -53,7 +57,10 @@ export function suggestions(statuses: PlanStatus[], shares: Record<string, Share
     const name = shortName(s);
     const resets = formatReset(s.window.resetAt, now);
 
-    if (s.rag === 'none') {
+    // A plan with no published cap and no % reading yet: its card already says
+    // "no cap known"; that is not a collector fault, so no nag (its
+    // unattributed check below still runs).
+    if (s.rag === 'none' && s.note !== 'no-cap-known') {
       const days = s.hoursSinceReading === null ? null : Math.floor(s.hoursSinceReading / 24);
       const since =
         s.note === 'reset-since-reading' && (s.hoursSinceReading ?? Infinity) <= 48
@@ -69,7 +76,9 @@ export function suggestions(statuses: PlanStatus[], shares: Record<string, Share
     if (s.rag === 'red' || s.rag === 'yellow') {
       const move = MOVE[s.slug];
       const target = move ? bySlug.get(move.to) : undefined;
-      const targetOk = target && target.rag === 'green';
+      // A green target, or a no-cap plan with no reading yet (e.g. Claude 4lot
+      // before its first manual %): it is not known to be strained.
+      const targetOk = target && (target.rag === 'green' || (target.rag === 'none' && target.note === 'no-cap-known'));
       const action = move && targetOk
         ? `move ${move.what} to ${shortName(target)} until then`
         : 'pause low-value sessions until then';

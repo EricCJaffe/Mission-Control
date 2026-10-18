@@ -1,9 +1,9 @@
 {
-  "//": "Plan budgets for the AI usage meter. The collector upserts these into mission.ai_plans for MC_USER_ID on every run. Edit here, not in the DB. Claude Max: Anthropic publishes no token cap, so limit_value is null ('no cap known', shown neutral grey with burn in tokens); a manual percent reading from Claude's usage page (CoS, manual.jsonl) drives its % and forecast when present. Set limit_value (tokens/week, estimate) only if Eric picks a budget.",
+  "//": "Plan budgets for the AI usage meter. The collector upserts these into mission.ai_plans for MC_USER_ID on every run. Edit here, not in the DB. Claude plans are split by ACCOUNT (the Claude config dir a log sits in; see scripts/usage/collect-logs.mjs and docs/ai-usage.md): claude-max = main (ejaffejax@gmail.com, ~/.claude), claude-4lot = ejaffe@4lot.org (~/.claude-4lot and ~/.claude-reserve). Anthropic publishes no token cap, so limit_value is null ('no cap known', shown neutral grey with burn in tokens); a manual percent reading from Claude's usage page (CoS, manual.jsonl) drives its % and forecast when present. Set limit_value (tokens/week, estimate) only if Eric picks a budget.",
   "plans": [
     {
       "slug": "claude-max",
-      "name": "Claude Max",
+      "name": "Claude Max (main)",
       "vendor": "Anthropic",
       "price_usd_month": 200,
       "limit_kind": "tokens",
@@ -11,7 +11,19 @@
       "limit_is_estimate": true,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "Claude Code logs on ubuntu-dev, box, mac-mini. No published cap: neutral until a manual % reading arrives."
+      "notes": "Main account: Claude Code logs under ~/.claude on ubuntu-dev (herdr fleet + tmux sessions), box, mac-mini. No published cap: neutral until a manual % reading arrives."
+    },
+    {
+      "slug": "claude-4lot",
+      "name": "Claude Team (4lot)",
+      "vendor": "Anthropic",
+      "price_usd_month": null,
+      "limit_kind": "tokens",
+      "limit_value": null,
+      "limit_is_estimate": true,
+      "reset_cadence": "weekly",
+      "reset_anchor": null,
+      "notes": "ejaffe@4lot.org (Team): logs under ~/.claude-4lot (claude-4lot wrapper, herdr pane w8P:p5) and ~/.claude-reserve (herdr-fleet --reserve). No published cap: neutral until a manual % reading (plan claude-4lot) arrives."
     },
     {
       "slug": "chatgpt-codex",

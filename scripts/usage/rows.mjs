@@ -14,7 +14,7 @@ const PCT = ['primary_used_pct', 'primary_window_minutes', 'primary_resets_at', 
 
 const NUM = [...SUM, 'primary_used_pct', 'primary_window_minutes', 'secondary_used_pct', 'secondary_window_minutes'];
 const STR = ['plan_slug', 'day', 'host', 'bot', 'session_id', 'model', 'primary_resets_at', 'secondary_resets_at', 'meter_at', 'first_at', 'last_at'];
-const PLAN_SLUGS = new Set(['claude-max', 'chatgpt-codex']);
+const PLAN_SLUGS = new Set(['claude-max', 'claude-4lot', 'chatgpt-codex']);
 
 /** Keep only known columns with the right types; null if the row is unusable. */
 export function cleanLogRow(r) {

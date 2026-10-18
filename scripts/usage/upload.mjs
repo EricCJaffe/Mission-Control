@@ -26,7 +26,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
-import { collectAll } from './collect-logs.mjs';
+import { collectAll, defaultClaudeDirs } from './collect-logs.mjs';
 import { loadMapping } from './attribution.mjs';
 import { attributeRows, newestPerHost, parseManual, UNIQUE_COLS } from './rows.mjs';
 
@@ -69,7 +69,7 @@ async function main() {
   const map = loadMapping(JSON.parse(readFileSync(join(ROOT, 'config', 'ai-usage-projects.json'), 'utf8')));
 
   let collected = [];
-  if (a.local) collected.push(await collectAll({ host: a.host, days: a.days, claudeDir: join(homedir(), '.claude', 'projects'), codexDir: join(homedir(), '.codex', 'sessions') }));
+  if (a.local) collected.push(await collectAll({ host: a.host, days: a.days, claudeDirs: defaultClaudeDirs(), codexDir: join(homedir(), '.codex', 'sessions') }));
 
   const inbox = expand(process.env.AI_USAGE_INBOX ?? '~/.local/share/ai-usage/inbox');
   const inboxFiles = [];
