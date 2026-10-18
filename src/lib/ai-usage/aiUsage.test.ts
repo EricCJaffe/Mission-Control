@@ -460,3 +460,51 @@ test('no dollars by default: plan labels drop a price, the page never reads pric
     assert.ok(!/price_usd_month|\bUSD\b|['"`>]\s*\$\s*\d|['"`]\$['"`]/.test(src), f);
   }
 });
+
+// ---------------------------------------------------------------- grokbot re-review (fixes 2)
+
+test('freshness on a percent basis comes from the selected reading only', () => {
+  const codex = plan({ slug: 'chatgpt-codex', limit_kind: 'percent', limit_value: 100 });
+  const weeklyAt = new Date(NOW.getTime() - 72 * 3_600_000).toISOString();
+  const rows = [
+    // The only weekly meter: 72h old.
+    row({ plan_slug: 'chatgpt-codex', day: '2026-10-11', secondary_used_pct: 50, secondary_resets_at: '2026-10-15T20:00:00Z', meter_at: weeklyAt }),
+    // Recent rows that say nothing about the weekly meter.
+    row({ plan_slug: 'chatgpt-codex', tokens_total: 5000, meter_at: '2026-10-14T15:30:00Z' }),
+    row({ plan_slug: 'chatgpt-codex', primary_used_pct: 10, meter_at: '2026-10-14T15:45:00Z' }),
+  ];
+  const s = planStatus(codex, rows, NOW);
+  assert.equal(s.rag, 'none');
+  assert.equal(s.lastReadingAt!.toISOString(), weeklyAt);
+  assert.ok(Math.abs(s.hoursSinceReading! - 72) < 1e-9);
+});
+
+test('manual readings: meter_at, else midday ET of the day; newer of manual and CLI wins', () => {
+  assert.equal(
+    observedAt({ source: 'manual', day: '2026-10-13', meter_at: null, last_at: null, captured_at: '2026-10-14T15:00:00Z' })!.toISOString(),
+    '2026-10-13T16:00:00.000Z',
+  );
+  const codex = plan({ slug: 'chatgpt-codex', limit_kind: 'percent', limit_value: 100 });
+  const reset = '2026-10-15T20:00:00Z';
+  const cli = row({ plan_slug: 'chatgpt-codex', secondary_used_pct: 60, secondary_resets_at: reset, meter_at: '2026-10-14T10:00:00Z' });
+  const manualNewer = row({ plan_slug: 'chatgpt-codex', source: 'manual', primary_used_pct: 65, primary_resets_at: reset, meter_at: '2026-10-14T14:00:00Z' });
+  const manualOlder = row({ plan_slug: 'chatgpt-codex', source: 'manual', primary_used_pct: 55, primary_resets_at: reset, meter_at: '2026-10-14T08:00:00Z' });
+  assert.equal(planStatus(codex, [cli, manualNewer], NOW).usedPct, 65);
+  assert.equal(planStatus(codex, [cli, manualOlder], NOW).usedPct, 60);
+});
+
+test('the 48h cutoff applies to a manual reading by its own time', () => {
+  const grok = plan({ slug: 'grok-ultra', limit_kind: 'percent', limit_value: 100, reset_cadence: 'monthly' });
+  // Day 2026-10-12, no meter_at: midday ET = 16:00Z, 48h before NOW. Saved just now.
+  const r = row({ plan_slug: 'grok-ultra', source: 'manual', day: '2026-10-12', primary_used_pct: 20, last_at: null, captured_at: '2026-10-14T15:59:00Z' });
+  assert.equal(planStatus(grok, [r], NOW).rag, 'green');
+  assert.equal(planStatus(grok, [r], new Date(NOW.getTime() + 60_000)).rag, 'none');
+});
+
+test('manual form stamps meter_at for today, leaves it null for a backdated day', () => {
+  const t = parseManual({ plan: 'grok-ultra', day: '2026-10-14', used_pct: 5 }, ['grok-ultra'], NOW);
+  const b = parseManual({ plan: 'grok-ultra', day: '2026-10-10', used_pct: 5 }, ['grok-ultra'], NOW);
+  assert.ok(t.ok && b.ok);
+  if (t.ok) assert.equal(t.row.meter_at, NOW.toISOString());
+  if (b.ok) assert.equal(b.row.meter_at, null);
+});

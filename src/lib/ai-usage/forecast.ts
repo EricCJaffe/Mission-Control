@@ -24,8 +24,13 @@
  *
  * Observation time: a log reading is `meter_at ?? last_at`, never
  * `captured_at` (re-importing old history must not make it look fresh). A
- * manual reading is its ET day, then `captured_at`, capped at the end of that
- * day so a backdated entry is not a fresh one.
+ * manual reading is `meter_at ?? midday ET of its day`, ties broken by
+ * `captured_at`. Between a manual reading and a CLI meter, the newer wins.
+ *
+ * Freshness: on a percent basis, "Last reading" and the 48h cutoff come from
+ * the selected percent reading ONLY. A recent token-only or 5h-only row says
+ * nothing about the weekly meter and must not make a 3-day-old one look live.
+ * On a token basis every row with an observation time counts.
  *
  * Red / yellow / green (the framework's words, never "amber"):
  *   none    no reading in 48 hours. Shown gray: no reading is not a green.
@@ -109,10 +114,13 @@ const ms = (v: string | null | undefined): number | null => {
 /** When a row's numbers were observed; null when a log row says nothing about it. */
 export function observedAt(r: Pick<Row, 'source' | 'day' | 'meter_at' | 'last_at' | 'captured_at'>): Date | null {
   if (r.source === 'manual') {
+    // When the reading was taken, else midday ET of the day it is for (the
+    // collector's convention). captured_at is when it was saved, which for a
+    // backdated entry is not when it was true.
+    const t = ms(r.meter_at);
+    if (t !== null) return new Date(t);
     if (!r.day) return null;
-    const endOfDay = etMidnight(addDays(r.day, 1)).getTime() - 1;
-    const captured = ms(r.captured_at);
-    return new Date(captured === null ? endOfDay : Math.min(captured, endOfDay));
+    return new Date(etMidnight(r.day).getTime() + 12 * 3_600_000);
   }
   const t = ms(r.meter_at) ?? ms(r.last_at);
   return t === null ? null : new Date(t);
@@ -184,17 +192,15 @@ export function planStatus(
   const rows = allRows.filter((r) => r.plan_slug === plan.slug);
   const todayEt = today(now);
 
-  let lastReadingAt: Date | null = null;
-  let lastSource: PlanStatus['lastSource'] = null;
+  let rowsLastAt: Date | null = null;
+  let rowsLastSource: PlanStatus['lastSource'] = null;
   for (const r of rows) {
     const at = observedAt(r);
-    if (at && (!lastReadingAt || at.getTime() > lastReadingAt.getTime())) {
-      lastReadingAt = at;
-      lastSource = r.source;
+    if (at && (!rowsLastAt || at.getTime() > rowsLastAt.getTime())) {
+      rowsLastAt = at;
+      rowsLastSource = r.source;
     }
   }
-  const hoursSinceReading = lastReadingAt ? (now.getTime() - lastReadingAt.getTime()) / 3_600_000 : null;
-  const stale = hoursSinceReading === null || hoursSinceReading > STALE_AFTER_HOURS;
 
   const cadence = plan.reset_cadence;
   const reading =
@@ -256,6 +262,14 @@ export function planStatus(
       burnPctPerDay = (tokensPerDay7 / limitTokens) * 100;
     }
   }
+
+  // Percent basis: the selected reading is the only evidence about the meter.
+  const percentReading =
+    basis === 'percent' ? (plan.limit_kind === 'percent' ? reading : readingInWindow(reading)) : null;
+  const lastReadingAt = basis === 'percent' ? (percentReading?.at ?? null) : rowsLastAt;
+  const lastSource = basis === 'percent' ? (percentReading?.source ?? null) : rowsLastSource;
+  const hoursSinceReading = lastReadingAt ? (now.getTime() - lastReadingAt.getTime()) / 3_600_000 : null;
+  const stale = hoursSinceReading === null || hoursSinceReading > STALE_AFTER_HOURS;
 
   let runOutAt: Date | null = null;
   if (usedPct !== null) {

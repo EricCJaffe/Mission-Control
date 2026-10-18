@@ -10,6 +10,7 @@
  * row's primary is the 5h meter). One row per plan per day: a second entry the same day replaces it.
  */
 
+import { today } from '../day.ts';
 import { UNATTRIBUTED } from './types.ts';
 
 export const MANUAL_CONFLICT = 'user_id,plan_slug,source,host,bot,session_id,project,day';
@@ -24,6 +25,8 @@ export type ManualRow = {
   project: typeof UNATTRIBUTED;
   primary_used_pct: number | null;
   primary_resets_at: string | null;
+  /** When it was read: now for today's entry; null (midday ET of `day`) for a backdated one. */
+  meter_at: string | null;
   used_value: number | null;
   limit_value: number | null;
   unit: string | null;
@@ -105,6 +108,7 @@ export function parseManual(
       project: UNATTRIBUTED,
       primary_used_pct: pct,
       primary_resets_at: resetsAt,
+      meter_at: day === today(now) ? now.toISOString() : null,
       used_value: used,
       limit_value: limit,
       unit: optText(b.unit, 40),
