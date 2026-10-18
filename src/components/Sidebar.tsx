@@ -1,7 +1,7 @@
 "use client";
 
 import NavLink from "@/components/NavLink";
-import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, ClipboardCheck, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper, Bot, Lightbulb, Wrench, Caravan, HardHat, ListChecks } from "lucide-react";
+import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, ClipboardCheck, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper, Bot, Lightbulb, Wrench, Caravan, HardHat, ListChecks, Gauge } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
 type SidebarProps = {
@@ -118,6 +118,9 @@ export default function Sidebar({
               {/* The agent workforce: what is scheduled, who it runs for, what
                   it produced. Read from ~/dev/brain, which is canonical. */}
               <NavLink href="/brain" label="Brain" shortLabel="BN" collapsed={isCollapsed} icon={<Bot size={18} className="text-violet-600" />} onClick={handleNavigate} />
+              {/* Whether each AI plan lasts until it resets, and which
+                  projects are using it. Beside Brain: it meters the workforce. */}
+              <NavLink href="/ai-usage" label="AI usage" shortLabel="AI" collapsed={isCollapsed} icon={<Gauge size={18} className="text-violet-600" />} onClick={handleNavigate} />
               {/* Low in the group on purpose: you only look at it when
                   something upstream has stopped feeding the rest. */}
               <NavLink href="/sync" label="Sync health" shortLabel="SY" collapsed={isCollapsed} icon={<Activity size={18} className="text-slate-500" />} onClick={handleNavigate} />

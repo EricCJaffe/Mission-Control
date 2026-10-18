@@ -10,6 +10,19 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-10-18 14:00 ET — AI usage page, P2 (`/ai-usage`)
+
+### What changed
+- `src/lib/ai-usage/`: reset windows (vendor reset, anchor, or calendar), forecast and red/yellow/green, percent-of-plan shares with `unattributed` always its own row, suggestions, monthly CSV, manual-reading validation. Tests in `aiUsage.test.ts` (synthetic fixtures), wired into `test:brief`.
+- `/ai-usage` page: plan cards (used vs limit, burn, projected run-out vs reset, 30-day chart), suggestions, project/client and bot/host/session tables, month picker, manual reading form. Sidebar entry under Operate.
+- `GET /api/ai-usage/export?month=YYYY-MM` (CSV, no dollar columns) and `POST /api/ai-usage/manual` (upsert a `manual-form` row). Both RLS-scoped.
+
+### Why
+- Eric, 2026-10-18: know whether each AI plan lasts until it resets, and which projects use it, as percent of the plan.
+
+### Follow-ups
+- Empty until P1's migration is applied and the collector posts rows; the page shows "No usage data yet" until then.
+
 ## 2026-10-11 09:00 ET — Calendar domains follow Outlook, hours follow the week
 
 ### What changed
