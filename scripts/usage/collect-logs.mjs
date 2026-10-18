@@ -18,7 +18,9 @@
  *       ~/.claude-reserve  -> claude-4lot  (same 4lot login; herdr-fleet --reserve)
  *     Verified 2026-10-18 with `claude auth status` per dir (account names
  *     only). Override with --claude-dir DIR=PLAN (repeatable) or
- *     AI_USAGE_CLAUDE_DIRS="DIR=PLAN,DIR=PLAN". Only the `projects` folder is
+ *     AI_USAGE_CLAUDE_DIRS="DIR=PLAN,DIR=PLAN". A message copied into two
+ *     accounts' dirs (a resumed session) is still counted once, under the
+ *     copy the dedupe keeps. Only the `projects` folder is
  *     walked; credential files in those dirs are never opened.
  *   - Codex CLI:    ~/.codex/sessions/**\/rollout-*.jsonl (session_meta /
  *     turn_context cwd, event_msg token_count usage and rate_limits).

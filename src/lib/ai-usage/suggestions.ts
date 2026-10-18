@@ -57,6 +57,10 @@ export function suggestions(statuses: PlanStatus[], shares: Record<string, Share
     const name = shortName(s);
     const resets = formatReset(s.window.resetAt, now);
 
+    // A plan with no published cap and no % reading yet: its card already says
+    // "no cap known"; that is not a collector fault, so no nag here.
+    if (s.rag === 'none' && s.note === 'no-cap-known') continue;
+
     if (s.rag === 'none') {
       const days = s.hoursSinceReading === null ? null : Math.floor(s.hoursSinceReading / 24);
       const since =
@@ -73,7 +77,9 @@ export function suggestions(statuses: PlanStatus[], shares: Record<string, Share
     if (s.rag === 'red' || s.rag === 'yellow') {
       const move = MOVE[s.slug];
       const target = move ? bySlug.get(move.to) : undefined;
-      const targetOk = target && target.rag === 'green';
+      // A green target, or a no-cap plan with no reading yet (e.g. Claude 4lot
+      // before its first manual %): it is not known to be strained.
+      const targetOk = target && (target.rag === 'green' || (target.rag === 'none' && target.note === 'no-cap-known'));
       const action = move && targetOk
         ? `move ${move.what} to ${shortName(target)} until then`
         : 'pause low-value sessions until then';

@@ -564,3 +564,10 @@ test('suggestions: strained Claude main moves builds to a green Claude 4lot, nev
   assert.ok(out[0].text.startsWith('Claude main weekly at 92%'));
   assert.ok(out[0].text.endsWith('move builds and parallel work to Claude 4lot until then'));
 });
+
+test('suggestions: a no-cap 4lot plan with no reading takes Claude main overflow and is not nagged', () => {
+  const lot = status({ slug: 'claude-4lot', name: 'Claude Team (4lot)', usedPct: null, rag: 'none', note: 'no-cap-known', lastReadingAt: null, hoursSinceReading: null });
+  const out = suggestions([status({ usedPct: 92, rag: 'red' }), lot], {}, NOW);
+  assert.ok(out[0].text.endsWith('move builds and parallel work to Claude 4lot until then'));
+  assert.ok(!out.some((x) => x.plan === 'claude-4lot'));
+});
