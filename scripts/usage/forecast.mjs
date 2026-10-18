@@ -83,7 +83,7 @@ export function planStatus(plan, rows, now = new Date()) {
     reading = { pct: (100 * used) / Number(plan.limit_value), resetsAt, windowMin, basis: plan.reset_anchor ? 'tokens vs budget' : 'rolling 7-day tokens vs budget', estimate: !!plan.limit_is_estimate, rolling: !plan.reset_anchor };
   }
   if (!reading && plan.limit_kind === 'tokens' && !plan.limit_value) {
-    const since7 = etDay(new Date(t - 7 * 24 * H).toISOString());
+    const since7 = etDay(new Date(t - 6 * 24 * H).toISOString());
     const tok = rows.filter((r) => r.source === 'log' && r.day >= since7).reduce((n, r) => n + Number(r.tokens_total || 0), 0);
     const fmtTok = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : String(n));
     return { slug: plan.slug, name: plan.name, status: 'grey', line: `NO CAP KNOWN · ${plan.name}: ${fmtTok(tok)} tokens in the last 7 days (${fmtTok(Math.round(tok / 7))}/day); add a % reading from its usage page to forecast` };
