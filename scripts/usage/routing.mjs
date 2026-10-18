@@ -98,7 +98,8 @@ export function stallLine(jsonl, now = new Date()) {
     if (!r || typeof r !== 'object' || !r.note) continue;
     const at = Date.parse(r.at);
     if (!Number.isFinite(at) || at < since || at > now.getTime() + H) continue;
-    if (r.action !== 'give-up' && r.action !== 'dispatch') continue;
+    // Only a successful dispatch clears a stall; a failed launch leaves it.
+    if (r.action !== 'give-up' && !(r.action === 'dispatch' && r.ok !== false)) continue;
     recs.push({ ...r, _t: at });
   }
   recs.sort((a, b) => a._t - b._t);

@@ -58,6 +58,9 @@ export function planStatus(plan, rows, now = new Date()) {
     const useSec = r.secondary_used_pct != null;
     if (!useSec && (weeklyOnly || r.primary_used_pct == null)) continue;
     if (!freshMeter(r) || expired(useSec ? r.secondary_resets_at : r.primary_resets_at)) continue;
+    // The Claude /usage meter is recorded hourly: older than 12h means the
+    // recorder is failing; fall back (token estimate / no cap) instead.
+    if (r.bot === 'claude-usage' && t - new Date(meterAt(r)).getTime() > 12 * H) continue;
     candidates.push({ at: meterAt(r), captured: r.captured_at, reading: {
       pct: Number(useSec ? r.secondary_used_pct : r.primary_used_pct),
       resetsAt: useSec ? r.secondary_resets_at : r.primary_resets_at,

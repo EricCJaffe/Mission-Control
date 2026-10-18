@@ -52,6 +52,12 @@ import { DAY_MS, etMidnight, resetWindow, type ResetWindow } from './window.ts';
 export type Rag = 'red' | 'yellow' | 'green' | 'none';
 
 export const STALE_AFTER_HOURS = 48;
+/**
+ * The Claude /usage meter (bot `claude-usage`) is recorded hourly; one older
+ * than this means the recorder is failing, so a token plan falls back to its
+ * estimate instead of trusting a reading from half a day ago.
+ */
+export const METER_STALE_HOURS = 12;
 export const THRESHOLDS = T;
 export const RED_AT = T.redAtPct;
 export const YELLOW_AT = T.yellowAtPct;
@@ -82,6 +88,7 @@ type Row = Pick<
   AiUsageSnapshot,
   | 'plan_slug'
   | 'source'
+  | 'bot'
   | 'day'
   | 'tokens_total'
   | 'primary_used_pct'
@@ -104,6 +111,8 @@ type Reading = {
   /** Tie-break for readings observed at the same instant. */
   capturedMs: number;
   source: Row['source'];
+  /** The hourly Claude /usage meter (stale after METER_STALE_HOURS). */
+  meter: boolean;
 };
 
 const toNum = (v: unknown): number | null => {
@@ -165,7 +174,7 @@ export function rowReading(r: Row, cadence: AiPlan['reset_cadence'] = 'weekly'):
     if (used !== null && limit) pct = (used / limit) * 100;
   }
   if (pct === null) return null;
-  return { pct, resetsAt, resetFrom, at, capturedMs: ms(r.captured_at) ?? 0, source: r.source };
+  return { pct, resetsAt, resetFrom, at, capturedMs: ms(r.captured_at) ?? 0, source: r.source, meter: r.bot === 'claude-usage' };
 }
 
 const newer = (a: Reading, b: Reading) =>
@@ -276,7 +285,7 @@ export function planStatus(
     }
   } else {
     const current = readingInWindow(reading);
-    const fresh = current && (now.getTime() - current.at.getTime()) / 3_600_000 <= STALE_AFTER_HOURS;
+    const fresh = current && (now.getTime() - current.at.getTime()) / 3_600_000 <= (current.meter ? METER_STALE_HOURS : STALE_AFTER_HOURS);
     if (current && fresh) {
       basis = 'percent';
       usedPct = current.pct;

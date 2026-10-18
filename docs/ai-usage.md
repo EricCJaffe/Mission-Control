@@ -51,11 +51,19 @@ manual Claude readings:
 secondary = the week, with the resets `/usage` printed (ET wall clock, converted
 to UTC). The forecast (brief, `open/ai-usage.json`, the page) uses the weekly
 number as the plan's reading, labeled `Claude /usage meter`; it overrides the
-token estimate while under 48h old and inside its window. A **manual reading
+token estimate while under 12h old (it is hourly; older means the recorder is
+failing, so the plan falls back to its estimate or "no cap") and inside its
+window. A **manual reading
 still wins when it was observed later** (newest observation wins, as with
 Codex). The recorder never opens a file in the config dir (credentials
 included) and never changes which account a session uses; it keeps only the
-percentages and resets. Only `upload.mjs` on ubuntu-dev reads these logs; the
+percentages and resets. It removes auth-override env vars by name
+(`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, provider switches) from the
+child so the reading is that config dir's login, sets `TZ=America/New_York`
+(resets print in local time; ubuntu-dev's clock is ET, which `claude-usage`
+relies on), passes `--no-session-persistence` (no transcript), treats a
+non-zero exit or timeout as a failed reading, and retries 15 min after a
+failure (hourly after a good one). Only `upload.mjs` on ubuntu-dev reads these logs; the
 box and Mac mini collectors do not (`--meter FILE=PLAN` to read one by hand).
 
 ## Claude accounts: two plans (2026-10-18)

@@ -174,6 +174,11 @@ test('token plan: the Claude /usage meter (claude-usage log row) overrides the e
   assert.equal(planStatus(plan({ limit_value: null }), [meter, manual], NOW).usedPct, 60);
   const older = row({ source: 'manual', host: 'manual', bot: 'manual-form', session_id: '', primary_used_pct: 40, meter_at: '2026-10-14T13:00:00Z' });
   assert.equal(planStatus(plan({ limit_value: null }), [meter, older], NOW).usedPct, 51);
+  // A meter older than METER_STALE_HOURS (recorder failing) falls back to the estimate.
+  const staleMeter = { ...meter, id: ++seq, meter_at: '2026-10-14T02:00:00Z' };
+  const fb = planStatus(plan({}), [row({ tokens_total: 200 }), staleMeter], NOW);
+  assert.equal(fb.basis, 'tokens');
+  assert.equal(fb.usedPct, 20);
   // A 5h-only meter row says nothing about the week: the token estimate stands.
   const fiveH = row({ bot: 'claude-usage', session_id: 'meter', primary_used_pct: 80, primary_window_minutes: 300, meter_at: '2026-10-14T15:07:00Z' });
   assert.equal(planStatus(plan({}), [row({ tokens_total: 200 }), fiveH], NOW).basis, 'tokens');

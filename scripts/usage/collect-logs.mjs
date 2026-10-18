@@ -266,22 +266,37 @@ export function etWallMs(y, mo, d, h, mi) {
   return t;
 }
 
-/** "Oct 20, 6:59pm" (ET) near the reading time atMs -> ISO, or null. */
+/**
+ * "Oct 20, 6:59pm" (ET) near the reading time atMs -> ISO, or null. A
+ * time-only reset ("6pm", same day) is the next one at or after the reading.
+ * A trailing "(Zone)" other than America/New_York gives null (never guessed).
+ */
 export function parseEtReset(text, atMs) {
-  const m = /^\s*([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?/i.exec(String(text ?? ''));
-  if (!m || !Number.isFinite(atMs)) return null;
-  const mo = MON[m[1].toLowerCase()];
-  if (mo === undefined) return null;
-  let h = Number(m[3]) % 12;
-  if (m[5].toLowerCase() === 'p') h += 12;
-  const y0 = Number(dayFmt.format(new Date(atMs)).slice(0, 4));
+  const str = String(text ?? '');
+  const zone = /\(([^)]+)\)/.exec(str);
+  if ((zone && zone[1].trim() !== TZ) || !Number.isFinite(atMs)) return null;
+  const hm = (h12, mi, ap) => [Number(h12) % 12 + (ap.toLowerCase() === 'p' ? 12 : 0), Number(mi ?? 0)];
+  const m = /^\s*([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?/i.exec(str);
   let best = null;
-  for (const y of [y0 - 1, y0, y0 + 1]) {
-    const t = etWallMs(y, mo, Number(m[2]), h, Number(m[4] ?? 0));
-    if (best === null || Math.abs(t - atMs) < Math.abs(best - atMs)) best = t;
+  if (m) {
+    const mo = MON[m[1].toLowerCase()];
+    if (mo === undefined) return null;
+    const [h, mi] = hm(m[3], m[4], m[5]);
+    const y0 = Number(dayFmt.format(new Date(atMs)).slice(0, 4));
+    for (const y of [y0 - 1, y0, y0 + 1]) {
+      const t = etWallMs(y, mo, Number(m[2]), h, mi);
+      if (best === null || Math.abs(t - atMs) < Math.abs(best - atMs)) best = t;
+    }
+  } else {
+    const t = /^\s*(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?/i.exec(str);
+    if (!t) return null;
+    const [h, mi] = hm(t[1], t[2], t[3]);
+    const [y, mo, d] = dayFmt.format(new Date(atMs)).split('-').map(Number);
+    best = etWallMs(y, mo - 1, d, h, mi);
+    if (best < atMs - 3600000) best = etWallMs(y, mo - 1, d + 1, h, mi);
   }
   // A reset is after its reading (an hour of slack for rounding to the hour).
-  if (best < atMs - 3600000) return null;
+  if (best === null || best < atMs - 3600000) return null;
   return new Date(best).toISOString();
 }
 
@@ -308,15 +323,20 @@ export function collectClaudeMeters({ text, plan, host, sinceDay }) {
     if (typeof r.session_pct === 'number' && Number.isFinite(r.session_pct)) {
       row.primary_used_pct = r.session_pct;
       row.primary_window_minutes = 300;
-      row.primary_resets_at = parseEtReset(r.session_resets, atMs);
+      row.primary_resets_at = parseEtReset(zoned(r.session_resets, r.tz), atMs);
     }
     row.secondary_used_pct = r.week_pct;
     row.secondary_window_minutes = 10080;
-    row.secondary_resets_at = parseEtReset(r.week_resets, atMs);
+    row.secondary_resets_at = parseEtReset(zoned(r.week_resets, r.tz), atMs);
     row.meter_at = at;
     byDay.set(day, row);
   }
   return [...byDay.values()];
+}
+
+/** A record's zone label (claude-meter keeps it as `tz`) back on its reset text. */
+function zoned(text, tz) {
+  return tz && text ? `${text} (${tz})` : text;
 }
 
 /** "FILE=PLAN" -> { file, plan }. */

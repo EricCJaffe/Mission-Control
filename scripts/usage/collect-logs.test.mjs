@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 
 import { collectAll, collectClaudeMeters, defaultClaudeDirs, defaultClaudeMeters, parseClaudeDir, parseEtReset } from './collect-logs.mjs';
-import { lastAt, parseUsage } from './claude-meter.mjs';
+import { AUTH_OVERRIDES, lastTimes, meterEnv, parseUsage, recordOf, shouldSkip } from './claude-meter.mjs';
 
 const NOW = Date.parse('2026-10-18T18:00:00Z');
 const line = (id, req, ts, out = 10, cwd = '/home/u/dev/fsaos') =>
@@ -106,17 +106,56 @@ test('meters: read only when passed, default files under BRAIN_ROOT', async () =
 test('claude-meter parseUsage: the /usage text for the 4lot login', () => {
   const out = 'You are currently using your subscription to power your Claude Code usage\n\nCurrent session: 5% used · resets Oct 18, 6pm (America/New_York)\nCurrent week (all models): 1% used · resets Oct 24, 12pm (America/New_York)\nCurrent week (Fable): 0% used · resets Oct 24, 12pm (America/New_York)\n';
   const r = parseUsage(out, new Date('2026-10-18T18:53:00Z'));
-  assert.deepEqual(r, { at: '2026-10-18T18:53:00.000Z', ok: true, session_pct: 5, session_resets: 'Oct 18, 6pm', week_pct: 1, week_resets: 'Oct 24, 12pm' });
+  assert.deepEqual(r, { at: '2026-10-18T18:53:00.000Z', ok: true, session_pct: 5, session_resets: 'Oct 18, 6pm', tz: 'America/New_York', week_pct: 1, week_resets: 'Oct 24, 12pm' });
   assert.equal(parseUsage('Please run /login', new Date()).ok, false);
   assert.equal(parseUsage('Please run /login', new Date()).error, 'not logged in');
   const rows = collectClaudeMeters({ text: JSON.stringify(r), plan: 'claude-4lot', host: 'h', sinceDay: '2026-10-18' });
   assert.equal(rows[0].secondary_resets_at, '2026-10-24T16:00:00.000Z');
 });
 
-test('claude-meter lastAt: last parseable line of its own log', () => {
+test('claude-meter throttle: hourly after a good reading, 15 min after a failure', () => {
   const h = mkdtempSync(join(tmpdir(), 'aiu-m-'));
   const f = join(h, 'm.jsonl');
-  assert.equal(lastAt(f), 0);
-  writeFileSync(f, JSON.stringify({ at: '2026-10-18T14:00:00-04:00' }) + '\nbroken\n');
-  assert.equal(lastAt(f), Date.parse('2026-10-18T18:00:00Z'));
+  assert.deepEqual(lastTimes(f), { any: 0, ok: 0 });
+  const T0 = Date.parse('2026-10-18T18:00:00Z');
+  writeFileSync(f, JSON.stringify({ at: '2026-10-18T14:00:00-04:00', ok: true, week_pct: 1 }) + '\nbroken\n' + JSON.stringify({ at: '2026-10-18T14:50:00-04:00', ok: false, error: 'x' }) + '\n');
+  const t = lastTimes(f);
+  assert.deepEqual(t, { any: T0 + 50 * 60000, ok: T0 });
+  assert.match(shouldSkip(t, T0 + 52 * 60000), /last reading 52 min ago/);
+  assert.match(shouldSkip(t, T0 + 60 * 60000), /failed 10 min ago/);
+  assert.equal(shouldSkip(t, T0 + 66 * 60000), null);
+  assert.equal(shouldSkip({ any: 0, ok: 0 }, T0), null);
+});
+
+test('claude-meter env: the config dir login only (auth overrides removed by name), ET clock', () => {
+  const env = meterEnv({ PATH: '/bin', HOME: '/h', CLAUDE_CODE_OAUTH_TOKEN: 'x', ANTHROPIC_API_KEY: 'y', CLAUDE_CODE_USE_BEDROCK: '1', CLAUDE_CONFIG_DIR: '/h/.claude', TZ: 'UTC' }, '/h/.claude-4lot');
+  assert.deepEqual(env, { PATH: '/bin', HOME: '/h', CLAUDE_CONFIG_DIR: '/h/.claude-4lot', TZ: 'America/New_York' });
+  assert.ok(AUTH_OVERRIDES.includes('ANTHROPIC_AUTH_TOKEN'));
+});
+
+test('claude-meter recordOf: a failed child is a failure even with parseable stdout', () => {
+  const out = 'Current week (all models): 7% used · resets Oct 24, 12pm (America/New_York)\n';
+  const at = new Date('2026-10-18T19:00:00Z');
+  assert.equal(recordOf({ status: 0, stdout: out }, at).ok, true);
+  assert.deepEqual(recordOf({ status: 1, stdout: out }, at), { at: at.toISOString(), ok: false, error: 'claude exited 1' });
+  assert.equal(recordOf({ status: null, signal: 'SIGTERM', stdout: out }, at).error, 'claude killed (SIGTERM)');
+  assert.equal(recordOf({ status: null, error: Object.assign(new Error('x'), { code: 'ENOENT' }), stdout: '' }, at).error, 'claude: ENOENT');
+});
+
+test('real claude-usage --record line (ubuntu-dev, 2026-10-18 14:07) -> claude-max meter row', () => {
+  const real = '{"at": "2026-10-18T14:07:05-04:00", "ok": true, "session_pct": 3, "session_resets": "Oct 18, 5:59pm", "week_pct": 51, "week_resets": "Oct 20, 6:59pm", "fable_pct": 2, "fable_resets": "Oct 20, 6:59pm", "drivers_24h": ["74% of your usage came from subagent-heavy sessions"], "week_elapsed_pct": 69, "pace": "under pace"}';
+  const [r] = collectClaudeMeters({ text: real, plan: 'claude-max', host: 'ubuntu-dev', sinceDay: '2026-10-18' });
+  assert.deepEqual([r.secondary_used_pct, r.secondary_resets_at, r.primary_used_pct, r.primary_resets_at, r.meter_at],
+    [51, '2026-10-20T22:59:00.000Z', 3, '2026-10-18T21:59:00.000Z', '2026-10-18T18:07:05.000Z']);
+});
+
+test('parseEtReset: time-only session reset; a non-ET zone is never guessed', () => {
+  const at = Date.parse('2026-10-18T18:07:05Z'); // 2:07 PM ET
+  assert.equal(parseEtReset('6pm', at), '2026-10-18T22:00:00.000Z');
+  assert.equal(parseEtReset('1:30am', at), '2026-10-19T05:30:00.000Z'); // next day
+  assert.equal(parseEtReset('Oct 20, 6:59pm (UTC)', at), null);
+  assert.equal(parseEtReset('Oct 20, 6:59pm (America/New_York)', at), '2026-10-20T22:59:00.000Z');
+  const rows = collectClaudeMeters({ text: JSON.stringify({ at: '2026-10-18T14:07:05-04:00', ok: true, week_pct: 5, week_resets: 'Oct 20, 6:59pm', tz: 'Europe/London' }), plan: 'claude-4lot', host: 'h', sinceDay: '2026-10-18' });
+  assert.equal(rows[0].secondary_resets_at, null);
+  assert.equal(rows[0].secondary_used_pct, 5);
 });
