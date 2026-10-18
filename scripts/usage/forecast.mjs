@@ -90,8 +90,17 @@ export function planStatus(plan, rows, now = new Date()) {
     if (!inWin.some(fresh)) {
       // Idle 48h: keep what was already used in this window (an exhausted
       // plan must not look empty); 0% only when nothing was logged at all.
-      const idlePct = Math.round((1000 * used) / Number(plan.limit_value)) / 10;
-      return { slug: plan.slug, name: plan.name, status: 'grey', pct: idlePct, idle: true, noCap: false, readingAt: lastMs ? new Date(Math.min(t, lastMs)).toISOString() : null, resetsAt: resetsAt ?? null, line: `${plan.name}: no usage logged in 48h (${idlePct}% of the ${plan.limit_is_estimate ? 'estimated ' : ''}budget used this window)` };
+      let idlePct = Math.round((1000 * used) / Number(plan.limit_value)) / 10;
+      let idleAt = lastMs ? new Date(Math.min(t, lastMs)).toISOString() : null;
+      // An older manual reading still holds until its own reset: a plan read
+      // at 100% must not turn "empty" just because 48h passed without logs.
+      const stale = rows.filter((m) => m.source === 'manual' && m.primary_used_pct != null && m.primary_resets_at && !expired(m.primary_resets_at)
+        && (m.primary_window_minutes == null || m.primary_window_minutes === planWin)).sort(byLatest)[0];
+      if (stale && Number(stale.primary_used_pct) > idlePct) { idlePct = Number(stale.primary_used_pct); idleAt = stale.meter_at ?? etNoon(stale.day); }
+      const exhausted = idlePct >= 100;
+      return { slug: plan.slug, name: plan.name, status: exhausted ? 'red' : 'grey', pct: idlePct, idle: true, exhausted, noCap: false,
+        readingAt: idleAt, resetsAt: resetsAt ?? stale?.primary_resets_at ?? null, projectedAtResetPct: idlePct, beforeReset: exhausted,
+        line: `${plan.name}: no usage logged in 48h (${idlePct}% of the ${plan.limit_is_estimate ? 'estimated ' : ''}budget used this window${exhausted ? '; EXHAUSTED until reset' : ''})` };
     }
     reading = { at: lastMs ? new Date(lastMs).toISOString() : undefined, pct: (100 * used) / Number(plan.limit_value), resetsAt, windowMin, basis: plan.reset_anchor ? 'tokens vs budget' : 'rolling 7-day tokens vs budget', estimate: !!plan.limit_is_estimate, rolling: !plan.reset_anchor, tokens: true };
   }

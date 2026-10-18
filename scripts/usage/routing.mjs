@@ -91,8 +91,8 @@ export function routingLine(jsonl, now = new Date()) {
 export function routeScoreLine(jsonl, now = new Date(), { floor = 0.8, minN = 5 } = {}) {
   const since = now.getTime() - 7 * 24 * H;
   const score = {};
-  let esc = 0;
-  let eric = 0;
+  const esc = new Set();
+  const eric = new Set();
   for (const line of String(jsonl || '').split('\n')) {
     if (!line.trim()) continue;
     let r;
@@ -100,9 +100,10 @@ export function routeScoreLine(jsonl, now = new Date(), { floor = 0.8, minN = 5 
     if (!r || typeof r !== 'object') continue;
     const at = Date.parse(r.at);
     if (!Number.isFinite(at) || at < since || at > now.getTime() + H) continue;
-    if (r.action === 'escalate') esc += 1;
-    if (r.action === 'needs-eric') eric += 1;
-    if (r.action !== 'outcome' || r.backfill) continue;
+    if (r.backfill) continue;
+    if (r.action === 'escalate') esc.add(r.note ?? line);
+    if (r.action === 'needs-eric') eric.add(r.note ?? line);
+    if (r.action !== 'outcome' || r.first_try == null) continue;
     const k = `${PLAN_SHORT[r.plan] ?? r.plan}/${r.tier ?? 'default'}`;
     score[k] ??= { n: 0, ok: 0 };
     score[k].n += 1;
@@ -114,7 +115,7 @@ export function routeScoreLine(jsonl, now = new Date(), { floor = 0.8, minN = 5 
     const low = n >= minN && ok / n < floor;
     return `${k} ${ok}/${n} (${pct}%${low ? `, below ${Math.round(floor * 100)}%: ${k.endsWith('/economy') ? 'moves up a tier' : 'review this route'}` : ''})`;
   });
-  if (esc) parts.push(`${esc} escalated`);
-  if (eric) parts.push(`${eric} needs Eric`);
+  if (esc.size) parts.push(`${esc.size} escalated`);
+  if (eric.size) parts.push(`${eric.size} needs Eric`);
   return parts.length ? `routes (7d, first-try): ${parts.join(' · ')}` : '';
 }

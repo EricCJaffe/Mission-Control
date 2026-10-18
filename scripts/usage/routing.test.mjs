@@ -86,3 +86,16 @@ test('weekly route score: first-try per plan/tier, economy under 80% flagged to 
   assert.equal(routeScoreLine(log, now), 'routes (7d, first-try): 4lot/economy 3/5 (60%, below 80%: moves up a tier) · main/strong 2/3 (67%) · 1 escalated · 1 needs Eric');
   assert.equal(routeScoreLine('', now), '');
 });
+
+test('an exhausted plan stays exhausted after 48h without logs (stale manual reading until its reset)', () => {
+  const lot = { slug: 'claude-4lot', name: 'Claude Team (4lot)', limit_kind: 'tokens', limit_value: 325000000, limit_is_estimate: true, reset_cadence: 'weekly', reset_anchor: null };
+  const s = planStatus(lot, [{ source: 'manual', day: iso(-60).slice(0, 10), primary_used_pct: 100, primary_window_minutes: 10080, primary_resets_at: iso(40), meter_at: iso(-60), captured_at: iso(-60) }], now);
+  assert.deepEqual([s.pct, s.exhausted, s.status], [100, true, 'red']);
+  const j = usageJson([s], now).plans['claude-4lot'];
+  assert.deepEqual([j.used_pct, j.runout_before_reset, j.projected_at_reset_pct], [100, true, 100]);
+});
+
+test('route score counts each escalated note once', () => {
+  const e = JSON.stringify({ at: iso(-1), action: 'escalate', note: 'x' });
+  assert.equal(routeScoreLine([e, e].join('\n'), now), 'routes (7d, first-try): 1 escalated');
+});
