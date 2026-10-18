@@ -9,6 +9,11 @@
  * --write:
  *   $BRAIN_ROOT/open/ai-usage.txt  one line per plan, rewritten every run;
  *     the daily brief reads it ("read the file, do not run the tool").
+ *   $BRAIN_ROOT/open/ai-usage.json  the same per plan, machine-readable, for
+ *     dispatch-autostart's meter-driven routing (dev-harness). Dispatch treats
+ *     a file older than 24h, or missing, as "no meter": today's behavior.
+ *   A "routing:" line in ai-usage.txt summarizes the last 24h of
+ *     $BRAIN_ROOT/runs/dispatch-routing.jsonl (written by dispatch-autostart).
  *   $BRAIN_ROOT/channel/to-grokbot/<YYYY-MM-DD>-ai-usage-alert-<plan>.md
  *     when a plan is projected to run out before its reset. The file name is
  *     the dedupe: at most one per plan per ET day. for: cos, kind: fyi.
@@ -18,11 +23,12 @@
  * (same env as upload.mjs). Writes nothing to the database.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { planStatus } from './forecast.mjs';
+import { usageJson, routingLine, routeScoreLine } from './routing.mjs';
 import { etDay } from './collect-logs.mjs';
 
 const write = process.argv.includes('--write');
@@ -56,9 +62,34 @@ if (!write) process.exit(0);
 
 const written = [];
 mkdirSync(join(brain, 'open'), { recursive: true });
+let routingLog = '';
+try { routingLog = readFileSync(join(brain, 'runs', 'dispatch-routing.jsonl'), 'utf8'); } catch { routingLog = ''; }
+const route = routingLine(routingLog, now);
+const scoreLine = routeScoreLine(routingLog, now);
 const txt = join('open', 'ai-usage.txt');
-writeFileSync(join(brain, txt), `# AI usage meter, ${now.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET. One line per plan. Page: https://missioncontrol.bibleos.app/ai-usage\n${lines.join('\n')}\n`);
+writeFileSync(join(brain, txt), `# AI usage meter, ${now.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET. One line per plan. Page: https://missioncontrol.bibleos.app/ai-usage\n${lines.join('\n')}\n${route ? `${route}\n` : ''}${scoreLine ? `${scoreLine}\n` : ''}`);
 written.push(txt);
+const js = join('open', 'ai-usage.json');
+let capacity = null;
+try { capacity = JSON.parse(readFileSync(new URL('../../config/ai-usage-capacity.json', import.meta.url), 'utf8')); } catch (e) { console.warn(`[usage-report] capacity config unreadable (${e.message}); writing the routing file without weights`); }
+// Atomic: dispatch-autostart may read this at any moment; a half-written file
+// would drop it into the meter-off fallback.
+// Never publish a fresh file without Claude main in it: dispatch would treat
+// it as "meter on" with no data instead of falling back (the old file ages
+// out after 24h and dispatch goes back to today's behavior).
+if (statuses.some((x) => x.slug === 'claude-max')) {
+  const tmp = join(brain, `${js}.${process.pid}.${Date.now()}.tmp`);   // unique: overlapping runs never share a temp file
+  try {
+    writeFileSync(tmp, JSON.stringify(usageJson(statuses, now, { plans, capacity }), null, 1) + '\n');
+    renameSync(tmp, join(brain, js));
+    written.push(js);
+  } catch (e) {
+    try { unlinkSync(tmp); } catch { /* already gone */ }
+    console.warn(`[usage-report] routing file not written: ${e.message}`);
+  }
+} else {
+  console.warn('[usage-report] no claude-max status; routing file left as is (dispatch falls back once it is 24h old)');
+}
 
 // Dedupe: the note's file name AND a local state file, so an alert that
 // Chief of Staff already moved or archived is not re-raised the same day.
@@ -83,7 +114,7 @@ try {
   execFileSync('git', ['-C', brain, 'add', '--', ...written], { stdio: 'ignore' });
   const staged = execFileSync('git', ['-C', brain, 'diff', '--cached', '--name-only', '--', ...written], { encoding: 'utf8' }).trim();
   if (staged) {
-    execFileSync('git', ['-C', brain, 'commit', '-q', '-m', `ai-usage: brief lines${written.length > 1 ? ' + run-out alert' : ''} (${today})`, '--', ...written], { stdio: 'ignore' });
+    execFileSync('git', ['-C', brain, 'commit', '-q', '-m', `ai-usage: brief lines${written.some((w) => w.includes('ai-usage-alert')) ? ' + run-out alert' : ''} (${today})`, '--', ...written], { stdio: 'ignore' });
     try { execFileSync(join(homedir(), '.local', 'bin', 'brain-sync'), ['push'], { stdio: 'ignore', timeout: 120000 }); } catch { console.warn('[usage-report] brain-sync push failed; the commit is local and the next sync carries it'); }
   }
   console.log(`[usage-report] wrote ${written.join(', ')}`);

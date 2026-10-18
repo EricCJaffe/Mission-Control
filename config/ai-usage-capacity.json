@@ -1,0 +1,13 @@
+{
+  "_doc": "Relative capacity of each AI plan (Claude main = 1.0), for dispatch routing (open/ai-usage.json) and the page suggestions. Eric, 2026-10-18 2:09 PM ET: Codex and Claude 4lot are basic Team plans at about $40/mo, roughly 1/10 of Claude Max ($200) and Grok Bot Ultra ($200). Vendors publish session multipliers but not weekly sizes, so these weights are estimates; replace them with measured ratios once there are % readings for both Claude accounts.",
+  "max_weekly_tokens_baseline": 5200000000,
+  "max_weekly_tokens_baseline_basis": "Claude main at 51% (Eric screenshot, 1:41 PM ET 10/18) after ~2.64B logged tokens since the Tue 10/13 7 PM reset, so 100% is about 5.2B logged tokens/week (cache reads included). One reading; re-derive as readings accumulate.",
+  "job_size_tokens": { "S": 50000000, "M": 300000000, "L": 1000000000 },
+  "job_size_basis": "28-day Claude main sessions: 1,449 under 5M, 351 from 5-50M, 48 from 50-500M, 6 over 500M (Honey Lake and ReverbOS builds at 2.1B each). S = up to 50M (~1% of main's week), M = 50-500M, L = over 500M.",
+  "plans": {
+    "claude-max": { "weight": 1.0, "overflow_target": true, "basis": "Claude Max 20x ($200/mo) = 20x Pro per session (support.claude.com 'What is the Max plan?')." },
+    "claude-4lot": { "weight": 0.0625, "overflow_target": true, "small_jobs_only": true, "basis": "Claude Team Standard seat = 1.25x Pro per session vs Max 20x = 20x Pro, so 1.25/20 = 0.0625 (support.claude.com/en/articles/9266767). Weekly limit size unpublished. Nonprofit Team: Standard $8, Premium $40/seat/mo (support.claude.com/it/articles/12893767). If 4lot is a Premium seat (6.25x Pro), set 0.3125." },
+    "chatgpt-codex": { "weight": 0.1, "overflow_target": false, "basis": "ChatGPT Business Standard seat ($25/mo monthly): Codex included with 5-hour windows; OpenAI publishes per-5h message ranges only (help.openai.com/en/articles/12003714, chatgpt.com/codex/pricing). No weekly size published, so Eric's 1/10 default. Strategic only: cross-model reviews and hard bugs, never overflow." },
+    "grok-ultra": { "weight": 1.0, "overflow_target": false, "basis": "Grok Bot Ultra ($200/mo), Eric's estimate: about the same as Claude Max. Takes follow-ups, nudges and smoke checks through its own routines, not dispatch sessions." }
+  }
+}

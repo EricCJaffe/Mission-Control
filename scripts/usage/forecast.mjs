@@ -83,15 +83,33 @@ export function planStatus(plan, rows, now = new Date()) {
     }
     const startDay = etDay(new Date(start).toISOString());
     const inWin = rows.filter((r) => r.source === 'log' && r.day >= startDay);
-    if (!inWin.some(fresh)) return { slug: plan.slug, name: plan.name, status: 'grey', line: `${plan.name}: no usage logged in 48h` };
     const used = inWin.reduce((s, r) => s + Number(r.tokens_total || 0), 0);
-    reading = { pct: (100 * used) / Number(plan.limit_value), resetsAt, windowMin, basis: plan.reset_anchor ? 'tokens vs budget' : 'rolling 7-day tokens vs budget', estimate: !!plan.limit_is_estimate, rolling: !plan.reset_anchor, tokens: true };
+    // Newest log activity = when this log-derived reading was true (so a stale
+    // collector shows a stale reading_at instead of looking brand new).
+    const lastMs = inWin.reduce((m, r) => Math.max(m, new Date(r.last_at ?? r.captured_at ?? 0).getTime() || 0), 0);
+    if (!inWin.some(fresh)) {
+      // Idle 48h: keep what was already used in this window (an exhausted
+      // plan must not look empty); 0% only when nothing was logged at all.
+      let idlePct = Math.round((1000 * used) / Number(plan.limit_value)) / 10;
+      let idleAt = lastMs ? new Date(Math.min(t, lastMs)).toISOString() : null;
+      // An older manual reading still holds until its own reset: a plan read
+      // at 100% must not turn "empty" just because 48h passed without logs.
+      const stale = rows.filter((m) => m.source === 'manual' && m.primary_used_pct != null && m.primary_resets_at && !expired(m.primary_resets_at)
+        && (m.primary_window_minutes == null || Number(m.primary_window_minutes) === planWin)).sort(byLatest)[0];
+      const useStale = stale && Number(stale.primary_used_pct) > idlePct;
+      if (useStale) { idlePct = Number(stale.primary_used_pct); idleAt = stale.meter_at ?? etNoon(stale.day); }
+      const exhausted = idlePct >= 100;
+      return { slug: plan.slug, name: plan.name, status: exhausted ? 'red' : 'grey', pct: idlePct, idle: true, exhausted, noCap: false,
+        readingAt: idleAt, resetsAt: resetsAt ?? (useStale ? stale.primary_resets_at : null) ?? null, projectedAtResetPct: idlePct, beforeReset: exhausted,
+        line: `${plan.name}: no usage logged in 48h (${idlePct}% of the ${plan.limit_is_estimate ? 'estimated ' : ''}budget used this window${exhausted ? '; EXHAUSTED until reset' : ''})` };
+    }
+    reading = { at: lastMs ? new Date(lastMs).toISOString() : undefined, pct: (100 * used) / Number(plan.limit_value), resetsAt, windowMin, basis: plan.reset_anchor ? 'tokens vs budget' : 'rolling 7-day tokens vs budget', estimate: !!plan.limit_is_estimate, rolling: !plan.reset_anchor, tokens: true };
   }
   if (!reading && plan.limit_kind === 'tokens' && !plan.limit_value) {
     const since7 = etDay(new Date(t - 6 * 24 * H).toISOString());
     const tok = rows.filter((r) => r.source === 'log' && r.day >= since7).reduce((n, r) => n + Number(r.tokens_total || 0), 0);
     const fmtTok = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : String(n));
-    return { slug: plan.slug, name: plan.name, status: 'grey', line: `NO CAP KNOWN · ${plan.name}: ${fmtTok(tok)} tokens in the last 7 days (${fmtTok(Math.round(tok / 7))}/day); add a % reading from its usage page to forecast` };
+    return { slug: plan.slug, name: plan.name, status: 'grey', pct: null, noCap: true, line: `NO CAP KNOWN · ${plan.name}: ${fmtTok(tok)} tokens in the last 7 days (${fmtTok(Math.round(tok / 7))}/day); add a % reading from its usage page to forecast` };
   }
   if (!reading) return { slug: plan.slug, name: plan.name, status: 'grey', line: `${plan.name}: no current reading (none in 48h, or it reset since)${plan.slug === 'grok-ultra' ? ' (manual entry owed by Chief of Staff)' : ''}` };
 
@@ -137,5 +155,11 @@ export function planStatus(plan, rows, now = new Date()) {
   else if (beforeReset && resets) parts.push(`projected to run out ${fmt(runOut)} ET, before reset`);
   else if (beforeReset) parts.push('at or over the estimated weekly budget');
   const line = `${status.toUpperCase()} · ${parts.join(' · ')} [${reading.basis}]`;
-  return { slug: plan.slug, name: plan.name, status, pct, burnPerDay, resetsAt: resets?.toISOString() ?? null, runOutAt: runOut?.toISOString() ?? null, runsOutBeforeReset: alarm, early, line };
+  // For dispatch routing (open/ai-usage.json): where this pace lands at the
+  // reset, projected from when the reading was taken (same basis as runOut).
+  const readingAt = reading.at ? new Date(Math.min(t, new Date(reading.at).getTime())) : now;
+  const projectedAtResetPct = burnPerDay != null && resets
+    ? Math.round((reading.pct + burnPerDay * Math.max(0, resets.getTime() - readingAt.getTime()) / (24 * H)) * 10) / 10
+    : null;
+  return { slug: plan.slug, name: plan.name, status, pct, burnPerDay, resetsAt: resets?.toISOString() ?? null, runOutAt: runOut?.toISOString() ?? null, runsOutBeforeReset: alarm, beforeReset: !!beforeReset && !early, early, readingAt: readingAt.toISOString(), projectedAtResetPct, noCap: false, line };
 }

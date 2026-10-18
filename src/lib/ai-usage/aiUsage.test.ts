@@ -551,7 +551,7 @@ test('a token plan with no cap and no reading is gray with no-cap-known, never r
   assert.notEqual(s.rag, 'red');
 });
 
-test('suggestions: strained Claude main moves builds to a green Claude 4lot, never to Codex', () => {
+test('suggestions: strained Claude main moves only small jobs to a green Claude 4lot, never to Codex', () => {
   const out = suggestions(
     [
       status({ usedPct: 92, rag: 'red' }),
@@ -562,13 +562,13 @@ test('suggestions: strained Claude main moves builds to a green Claude 4lot, nev
     NOW,
   );
   assert.ok(out[0].text.startsWith('Claude main weekly at 92%'));
-  assert.ok(out[0].text.endsWith('move builds and parallel work to Claude 4lot until then'));
+  assert.ok(out[0].text.endsWith('move small jobs and short follow-ups (big builds wait for main) to Claude 4lot until then'));
 });
 
 test('suggestions: a no-cap 4lot plan with no reading takes Claude main overflow and is not nagged', () => {
   const lot = status({ slug: 'claude-4lot', name: 'Claude Team (4lot)', usedPct: null, rag: 'none', note: 'no-cap-known', lastReadingAt: null, hoursSinceReading: null });
   const out = suggestions([status({ usedPct: 92, rag: 'red' }), lot], {}, NOW);
-  assert.ok(out[0].text.endsWith('move builds and parallel work to Claude 4lot until then'));
+  assert.ok(out[0].text.endsWith('move small jobs and short follow-ups (big builds wait for main) to Claude 4lot until then'));
   assert.ok(!out.some((x) => x.plan === 'claude-4lot'));
 });
 
