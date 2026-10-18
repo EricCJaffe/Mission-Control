@@ -25,7 +25,7 @@
 -- explicitly, same as scripts/sync). Readers: the app, through the owner
 -- policy below. Every statement is schema-qualified mission.
 --
--- Rollback: supabase/rollbacks/20261018163500_ai_usage.down.sql
+-- Rollback: supabase/rollbacks/20261018172543_ai_usage.down.sql
 -- ===========================================================================
 
 create table if not exists mission.ai_plans (

@@ -68,7 +68,7 @@ export type PlanStatus = {
   hoursSinceReading: number | null;
   lastSource: 'log' | 'manual' | null;
   /** Why a plan with readings is still gray. */
-  note: 'reset-since-reading' | null;
+  note: 'reset-since-reading' | 'no-cap-known' | null;
 };
 
 type Row = Pick<
@@ -260,6 +260,9 @@ export function planStatus(
       usedPct = (tokensInWindow / limitTokens) * 100;
       isEstimate = !!plan.limit_is_estimate;
       burnPctPerDay = (tokensPerDay7 / limitTokens) * 100;
+    } else if (!limitTokens) {
+      // No published cap and no % reading: neutral gray, never red.
+      note = 'no-cap-known';
     }
   }
 

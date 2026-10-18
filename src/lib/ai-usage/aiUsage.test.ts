@@ -525,3 +525,14 @@ test('a weekly percent plan with only token and 5h rows has no last reading and 
   assert.equal(s.lastSource, null);
   assert.equal(s.rag, 'none');
 });
+
+test('a token plan with no cap and no reading is gray with no-cap-known, never red', () => {
+  const s = planStatus(
+    { slug: 'claude-max', name: 'Claude Max', limit_kind: 'tokens', limit_value: null, limit_is_estimate: true, reset_cadence: 'weekly', reset_anchor: null },
+    [{ plan_slug: 'claude-max', source: 'log', day: '2026-10-18', tokens_total: 9e9, primary_used_pct: null, primary_resets_at: null, secondary_used_pct: null, secondary_resets_at: null, used_value: null, limit_value: null, meter_at: null, last_at: '2026-10-18T15:00:00Z', captured_at: '2026-10-18T15:05:00Z' }],
+    new Date('2026-10-18T16:00:00Z'),
+  );
+  assert.equal(s.usedPct, null);
+  assert.equal(s.note, 'no-cap-known');
+  assert.notEqual(s.rag, 'red');
+});

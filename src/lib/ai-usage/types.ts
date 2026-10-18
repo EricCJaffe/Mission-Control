@@ -1,7 +1,7 @@
 /*
  * AI usage meter: the row shapes shared by the collector (scripts/usage, P1)
  * and the page (src/app/ai-usage, P2). Mirrors
- * supabase/migrations/20261018163500_ai_usage.sql. Change both together.
+ * supabase/migrations/20261018172543_ai_usage.sql. Change both together.
  */
 
 export type PlanSlug = 'claude-max' | 'chatgpt-codex' | 'grok-ultra' | (string & {});

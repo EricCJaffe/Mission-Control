@@ -688,6 +688,6 @@ Blocked on Eric: the Microsoft Graph app registration, `ANTHROPIC_API_KEY`, and
 `MC_USER_ID` + `CRON_SECRET` in Vercel Production. See `docs/TASKS.md`.
 
 ## 2026-10-18 — AI usage meter P1 (grokbot box)
-- What: `mission.ai_plans`, `mission.ai_usage_snapshots`, `mission.ai_usage_daily` (migration 20261018163500 + rollback); read-only Claude Code / Codex log collector with cwd → project attribution (`unattributed` explicit); Grok Bot Ultra manual-entry file; uploader, brief lines and run-out alert (P3); ubuntu-dev timer and box/Mac mini push. See `docs/ai-usage.md`.
+- What: `mission.ai_plans`, `mission.ai_usage_snapshots`, `mission.ai_usage_daily` (migration 20261018172543 + rollback); read-only Claude Code / Codex log collector with cwd → project attribution (`unattributed` explicit); Grok Bot Ultra manual-entry file; uploader, brief lines and run-out alert (P3); ubuntu-dev timer and box/Mac mini push. See `docs/ai-usage.md`.
 - Why: Eric 2026-10-18 12:21–12:31 PM ET.
 - Follow-ups: P2 page/CSV on `feat/ai-usage-p2` (ubuntu-dev session); Claude Max budget is an estimate until a manual reading is entered.

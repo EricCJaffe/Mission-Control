@@ -85,5 +85,5 @@ Alerts: `channel/to-grokbot/<date>-ai-usage-alert-<plan>.md` (`for: cos`,
   systemd, so it runs from a Grok Bot routine or by hand; the Mac mini is
   collected over ssh from the box (nothing installed on the Mac).
 
-Rollback: `supabase/rollbacks/20261018163500_ai_usage.down.sql`, then disable
+Rollback: `supabase/rollbacks/20261018172543_ai_usage.down.sql`, then disable
 the timer.
