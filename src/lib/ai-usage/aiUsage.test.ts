@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { buildUsageCsv, csvCell, isMonth, monthRange } from './csv.ts';
-import { observedAt, planLabel, planStatus, rag, type PlanStatus } from './forecast.ts';
+import { observedAt, planLabel, planStatus, rag, isEarly, type PlanStatus } from './forecast.ts';
 import { parseManual } from './manual.ts';
 import { projectShares, shareBy } from './shares.ts';
 import { suggestions } from './suggestions.ts';
@@ -103,6 +103,15 @@ test('vendor reset wins while in the future, anchor steps forward otherwise', ()
 
 // ---------------------------------------------------------------- rag
 
+test('isEarly: first day or 15% of a weekly window', () => {
+  const H = 3_600_000, W = 7 * 24 * H;
+  assert.equal(isEarly(5 * H, W), true);
+  assert.equal(isEarly(24 * H, W), true); // 24h < 15% of a week (25.2h)
+  assert.equal(isEarly(30 * H, W), false);
+  assert.equal(isEarly(1 * H, 5 * H), true);
+  assert.equal(isEarly(3 * H, 5 * H), false);
+});
+
 test('rag thresholds', () => {
   const reset = new Date('2026-10-19T04:00:00Z');
   const later = new Date('2026-10-25T00:00:00Z');
@@ -110,7 +119,12 @@ test('rag thresholds', () => {
   assert.equal(rag({ usedPct: 50, runOutAt: null, resetAt: reset, stale: false }), 'green');
   assert.equal(rag({ usedPct: 70, runOutAt: later, resetAt: reset, stale: false }), 'yellow');
   assert.equal(rag({ usedPct: 90, runOutAt: later, resetAt: reset, stale: false }), 'red');
-  assert.equal(rag({ usedPct: 10, runOutAt: new Date('2026-10-18T00:00:00Z'), resetAt: reset, stale: false }), 'red');
+  // Run-out before reset is red only from the 25% floor; under it, yellow.
+  assert.equal(rag({ usedPct: 30, runOutAt: new Date('2026-10-18T00:00:00Z'), resetAt: reset, stale: false }), 'red');
+  assert.equal(rag({ usedPct: 10, runOutAt: new Date('2026-10-18T00:00:00Z'), resetAt: reset, stale: false }), 'yellow');
+  // Early in a window: never red below 80%, whatever the projection says.
+  assert.equal(rag({ usedPct: 4, runOutAt: new Date('2026-10-18T00:00:00Z'), resetAt: reset, stale: false, early: true }), 'green');
+  assert.equal(rag({ usedPct: 85, runOutAt: null, resetAt: reset, stale: false, early: true }), 'red');
   assert.equal(rag({ usedPct: 10, runOutAt: new Date('2026-10-19T20:00:00Z'), resetAt: reset, stale: false }), 'yellow');
   assert.equal(rag({ usedPct: 95, runOutAt: null, resetAt: reset, stale: true }), 'none');
   assert.equal(rag({ usedPct: null, runOutAt: null, resetAt: reset, stale: false }), 'none');

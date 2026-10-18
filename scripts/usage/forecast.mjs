@@ -3,14 +3,19 @@
  * alert (P3). Pure; tested in forecast.test.mjs. The page (src/lib/ai-usage)
  * renders the same idea for humans; this is the headless twin the timer uses.
  *
- * Status rules:
+ * Status rules (thresholds in config/ai-usage-thresholds.json, same as the page):
  *   grey   no reading in the last 48 hours
- *   red    projected to run out before the reset, or >= 90% used
- *   yellow >= 70% used, or projected run-out within 24h after the reset
+ *   early  first ~day / 15% of the window: green "too early to forecast",
+ *          red only at >= 80% used
+ *   red    >= 90% used, or run-out before the reset AND >= 25% used
+ *   yellow >= 70% used, run-out before reset under 25%, or within 24h after
  *   green  otherwise
  */
 import { etDay } from './collect-logs.mjs';
 import { etNoon } from './rows.mjs';
+import { createRequire } from 'node:module';
+
+const T = createRequire(import.meta.url)('../../config/ai-usage-thresholds.json');
 
 const H = 3600000;
 const WINDOW_MIN = { '5h': 300, daily: 1440, weekly: 10080, monthly: 43200 };
@@ -94,6 +99,7 @@ export function planStatus(plan, rows, now = new Date()) {
   let burnPerDay = null;
   let runOut = null;
   let resets = reading.resetsAt ? new Date(reading.resetsAt) : null;
+  let early = false;
   if (reading.windowMin) {
     const w = reading.windowMin * 60000;
     // Burn is measured up to when the reading was taken, and the run-out is
@@ -101,7 +107,9 @@ export function planStatus(plan, rows, now = new Date()) {
     // not given extra time.
     const at = reading.at ? Math.min(t, new Date(reading.at).getTime()) : t;
     const start = resets ? resets.getTime() - w : at - w;
-    const elapsed = Math.max(H, at - start);
+    early = !reading.rolling && (at - start < w * T.earlyWindowFraction || at - start < Math.min(T.earlyMinHours * H, w / 2));
+    // At least burnMinHours of window, so a first-hours spike is not the pace.
+    const elapsed = Math.min(w, Math.max(T.burnMinHours * H, at - start));
     burnPerDay = (reading.pct / elapsed) * 24 * H;
     if (reading.rolling) {
       // Rolling window: burn is the window average, run-out is "at this pace".
@@ -113,15 +121,20 @@ export function planStatus(plan, rows, now = new Date()) {
   let status = 'green';
   // A rolling window (no reset instant) alerts once it is at or over budget.
   const beforeReset = (runOut && resets && runOut < resets) || (reading.rolling && reading.pct >= 100);
-  if (pct >= 90 || beforeReset) status = 'red';
-  else if (pct >= 70 || (runOut && resets && runOut.getTime() - resets.getTime() < 24 * H)) status = 'yellow';
+  const afterSoon = runOut && resets && runOut.getTime() - resets.getTime() < T.yellowAfterResetHours * H;
+  if (pct >= T.redAtPct) status = 'red';
+  else if (early) status = pct >= T.earlyRedAtPct ? 'red' : pct >= T.yellowAtPct ? 'yellow' : 'green';
+  else if (beforeReset && (reading.rolling || pct >= T.runOutRedFloorPct)) status = 'red';
+  else if (pct >= T.yellowAtPct || beforeReset || afterSoon) status = 'yellow';
+  const alarm = status === 'red' && !!beforeReset;
 
   const fmt = (d) => d.toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   const parts = [`${plan.name}: ${pct}% used${reading.estimate ? ' (estimate)' : ''}`];
   if (burnPerDay != null) parts.push(`${Math.round(burnPerDay * 10) / 10}%/day`);
   if (resets) parts.push(`resets ${fmt(resets)} ET`);
-  if (beforeReset && resets) parts.push(`projected to run out ${fmt(runOut)} ET, before reset`);
+  if (early) parts.push('too early in the window to forecast');
+  else if (beforeReset && resets) parts.push(`projected to run out ${fmt(runOut)} ET, before reset`);
   else if (beforeReset) parts.push('at or over the estimated weekly budget');
   const line = `${status.toUpperCase()} · ${parts.join(' · ')} [${reading.basis}]`;
-  return { slug: plan.slug, name: plan.name, status, pct, burnPerDay, resetsAt: resets?.toISOString() ?? null, runOutAt: runOut?.toISOString() ?? null, runsOutBeforeReset: !!beforeReset, line };
+  return { slug: plan.slug, name: plan.name, status, pct, burnPerDay, resetsAt: resets?.toISOString() ?? null, runOutAt: runOut?.toISOString() ?? null, runsOutBeforeReset: alarm, early, line };
 }
