@@ -81,6 +81,11 @@ create table if not exists mission.ai_usage_snapshots (
   secondary_used_pct     numeric,
   secondary_window_minutes integer,
   secondary_resets_at    timestamptz,
+  -- When the percentages above were observed (log rows). Token activity can
+  -- be later than the last meter reading; ordering by last_at would let an
+  -- old percentage pose as current. Null for manual rows (their day is the
+  -- observation).
+  meter_at               timestamptz,
   -- Manual readings that are not a percent (credits, messages, etc.).
   used_value             numeric,
   limit_value            numeric,
@@ -110,20 +115,79 @@ drop policy if exists ai_usage_snapshots_owner on mission.ai_usage_snapshots;
 create policy ai_usage_snapshots_owner on mission.ai_usage_snapshots
   for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
--- Daily totals per plan, for the history chart and the forecast.
+-- Daily totals per plan, for the history chart and the forecast. Tokens are
+-- summed; the vendor percentages are the LATEST reading of the day (a meter
+-- that resets mid-day must show the post-reset value, not the max).
 create or replace view mission.ai_usage_daily
   with (security_invoker = true) as
-select
-  user_id,
-  plan_slug,
-  day,
-  sum(tokens_total)::bigint       as tokens_total,
-  sum(messages)::bigint           as messages,
-  count(distinct nullif(session_id, '')) as sessions,
-  max(primary_used_pct)           as primary_used_pct,
-  max(secondary_used_pct)         as secondary_used_pct,
-  max(captured_at)                as captured_at
-from mission.ai_usage_snapshots
-group by user_id, plan_slug, day;
+with totals as (
+  select user_id, plan_slug, day,
+         sum(tokens_total)::bigint              as tokens_total,
+         sum(messages)::bigint                  as messages,
+         count(distinct nullif(session_id, '')) as sessions,
+         max(captured_at)                       as captured_at
+  from mission.ai_usage_snapshots
+  group by user_id, plan_slug, day
+), latest as (
+  select distinct on (user_id, plan_slug, day)
+         user_id, plan_slug, day, primary_used_pct, secondary_used_pct
+  from mission.ai_usage_snapshots
+  where primary_used_pct is not null or secondary_used_pct is not null
+  order by user_id, plan_slug, day, coalesce(meter_at, last_at, captured_at) desc, id desc
+)
+select t.user_id, t.plan_slug, t.day, t.tokens_total, t.messages, t.sessions,
+       l.primary_used_pct, l.secondary_used_pct, t.captured_at
+from totals t
+left join latest l using (user_id, plan_slug, day);
+
+-- Each collector payload is a complete recount of one host's window, so the
+-- uploader REPLACES that host's log rows from p_since on, in one transaction,
+-- instead of upserting. That keeps a re-attribution (config edit) or a
+-- re-keyed session from leaving the old row behind and double counting.
+-- Only source = 'log' rows of one host are touched; manual rows never are.
+-- Service role only (the nightly uploader); not callable from the app.
+create or replace function mission.ai_usage_replace_log_window(
+  p_user_id uuid, p_host text, p_since date, p_rows jsonb
+) returns integer
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  n integer;
+begin
+  if p_host is null or p_host in ('', 'manual') then
+    raise exception 'ai_usage_replace_log_window: bad host %', p_host;
+  end if;
+  delete from mission.ai_usage_snapshots
+   where user_id = p_user_id and source = 'log' and host = p_host and day >= p_since;
+  insert into mission.ai_usage_snapshots (
+    user_id, plan_slug, source, day, host, bot, session_id, project, client, model,
+    messages, tokens_in, tokens_out, tokens_cache_read, tokens_cache_write, tokens_total,
+    primary_used_pct, primary_window_minutes, primary_resets_at,
+    secondary_used_pct, secondary_window_minutes, secondary_resets_at,
+    meter_at, first_at, last_at, captured_at)
+  select p_user_id, r.plan_slug, 'log', r.day, p_host, r.bot, coalesce(r.session_id, ''),
+         coalesce(nullif(r.project, ''), 'unattributed'), r.client, r.model,
+         coalesce(r.messages, 0), coalesce(r.tokens_in, 0), coalesce(r.tokens_out, 0),
+         coalesce(r.tokens_cache_read, 0), coalesce(r.tokens_cache_write, 0), coalesce(r.tokens_total, 0),
+         r.primary_used_pct, r.primary_window_minutes, r.primary_resets_at,
+         r.secondary_used_pct, r.secondary_window_minutes, r.secondary_resets_at,
+         r.meter_at, r.first_at, r.last_at, now()
+    from jsonb_to_recordset(p_rows) as r(
+      plan_slug text, day date, bot text, session_id text, project text, client text, model text,
+      messages integer, tokens_in bigint, tokens_out bigint, tokens_cache_read bigint,
+      tokens_cache_write bigint, tokens_total bigint,
+      primary_used_pct numeric, primary_window_minutes integer, primary_resets_at timestamptz,
+      secondary_used_pct numeric, secondary_window_minutes integer, secondary_resets_at timestamptz,
+      meter_at timestamptz, first_at timestamptz, last_at timestamptz)
+   where r.day >= p_since;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+revoke all on function mission.ai_usage_replace_log_window(uuid, text, date, jsonb) from public, anon, authenticated;
+grant execute on function mission.ai_usage_replace_log_window(uuid, text, date, jsonb) to service_role;
 
 notify pgrst, 'reload schema';

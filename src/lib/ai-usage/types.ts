@@ -48,6 +48,8 @@ export type AiUsageSnapshot = {
   secondary_used_pct: number | null;
   secondary_window_minutes: number | null;
   secondary_resets_at: string | null;
+  /** When the percentages were observed (log rows); prefer it over last_at for meter freshness/order. Null on manual rows. */
+  meter_at: string | null;
   used_value: number | null;
   limit_value: number | null;
   unit: string | null;
