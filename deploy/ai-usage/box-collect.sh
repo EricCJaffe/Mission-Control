@@ -20,7 +20,7 @@ node "$COLLECT" --host box > "$TMP/box-$STAMP.json"
 if ssh -o ConnectTimeout=10 mac-mini 'export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH; node --input-type=module - --host mac-mini' < "$COLLECT" > "$TMP/mac-mini-$STAMP.json" 2>"$TMP/mac.err"; then :; else
   echo "[usage] mac-mini collect failed: $(tail -1 "$TMP/mac.err")" >&2; rm -f "$TMP/mac-mini-$STAMP.json"
 fi
-ssh -o ConnectTimeout=15 ubuntu-dev "mkdir -p $INBOX"
+ssh -o ConnectTimeout=15 ubuntu-dev "mkdir -p $INBOX && chmod 700 $INBOX"
 for f in "$TMP"/*.json; do
   [ -s "$f" ] || continue
   scp -q "$f" "ubuntu-dev:.local/share/ai-usage/inbox/$(basename "$f")"

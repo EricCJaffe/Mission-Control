@@ -18,7 +18,7 @@
  * (same env as upload.mjs). Writes nothing to the database.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
@@ -31,6 +31,7 @@ const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const uid = process.env.MC_USER_ID;
 if (!url || !key || !uid) { console.error('[usage-report] SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, MC_USER_ID required'); process.exit(1); }
+if (!url.includes('uivawtdmxqutqelwibra')) { console.error('[usage-report] SUPABASE_URL is not the shared project uivawtdmxqutqelwibra; refusing.'); process.exit(1); }
 
 const db = createClient(url, key, { db: { schema: 'mission' }, auth: { persistSession: false, autoRefreshToken: false } });
 const now = new Date();
@@ -59,12 +60,24 @@ const txt = join('open', 'ai-usage.txt');
 writeFileSync(join(brain, txt), `# AI usage meter, ${now.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET. One line per plan. Page: https://missioncontrol.bibleos.app/ai-usage\n${lines.join('\n')}\n`);
 written.push(txt);
 
+// Dedupe: the note's file name AND a local state file, so an alert that
+// Chief of Staff already moved or archived is not re-raised the same day.
+const stateDir = join(homedir(), '.local', 'state', 'ai-usage');
+const stateFile = join(stateDir, 'alerted.json');
+let alerted = {};
+try { alerted = JSON.parse(readFileSync(stateFile, 'utf8')); } catch { alerted = {}; }
 for (const s of statuses.filter((x) => x.runsOutBeforeReset)) {
-  const rel = join('channel', 'to-grokbot', `${today}-ai-usage-alert-${s.slug}.md`);
-  if (existsSync(join(brain, rel))) continue;
+  const slug = String(s.slug).replace(/[^a-z0-9-]/gi, '').slice(0, 40);
+  const rel = join('channel', 'to-grokbot', `${today}-ai-usage-alert-${slug}.md`);
+  if (alerted[`${today}:${slug}`] || existsSync(join(brain, rel))) continue;
+  alerted[`${today}:${slug}`] = new Date().toISOString();
   writeFileSync(join(brain, rel), `---\nstatus: open\nfor: cos\nfrom: mission-control-ai-usage\nkind: fyi\nproject: mission-control\n---\n# ${s.name} is projected to run out before it resets\n\n${s.line}\n\nPage: https://missioncontrol.bibleos.app/ai-usage (suggestions panel lists what to pause or move). One alert per plan per day; this file is the dedupe.\n`);
   written.push(rel);
 }
+
+mkdirSync(stateDir, { recursive: true });
+for (const k of Object.keys(alerted)) if (k.slice(0, 10) < etDay(new Date(Date.now() - 14 * 86400000).toISOString())) delete alerted[k];
+writeFileSync(stateFile, JSON.stringify(alerted));
 
 try {
   execFileSync('git', ['-C', brain, 'add', '--', ...written], { stdio: 'ignore' });

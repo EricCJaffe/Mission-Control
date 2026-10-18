@@ -41,3 +41,14 @@ test('Claude token budget is an estimate over a rolling week', () => {
   assert.match(s.line, /estimate/);
   assert.equal(s.status, 'green');
 });
+
+test('a reading whose reset has passed is not current', () => {
+  const s = planStatus(codex, [{ source: 'log', day: '2026-10-18', last_at: iso(-2), captured_at: iso(-2), secondary_used_pct: 95, secondary_window_minutes: 10080, secondary_resets_at: iso(-1) }], now);
+  assert.equal(s.status, 'grey');
+});
+
+test('rolling Claude budget at 100% alerts', () => {
+  const s = planStatus(claude, [{ source: 'log', day: '2026-10-17', last_at: iso(-10), captured_at: iso(0), tokens_total: 1200 }], now);
+  assert.equal(s.status, 'red');
+  assert.equal(s.runsOutBeforeReset, true);
+});

@@ -99,3 +99,7 @@
 `.env.local` for hand runs and for Vercel (via the dashboard), and
 `~/.config/mission-control/sync.env` (mode 600) for the systemd timer — a user
 service does not read `.env.local`. `.env.example` lists every variable.
+
+## AI usage meter (scripts/usage, ubuntu-dev timer only; not Vercel)
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `MC_USER_ID`: same as the task sync, from `~/.config/mission-control/sync.env`.
+- `AI_USAGE_HOST` (default `ubuntu-dev`), `AI_USAGE_INBOX` (default `~/.local/share/ai-usage/inbox`), `AI_USAGE_MANUAL` (default `$BRAIN_ROOT/ai-usage/manual.jsonl`), `BRAIN_ROOT` (default `~/dev/brain`). See `docs/ai-usage.md`.

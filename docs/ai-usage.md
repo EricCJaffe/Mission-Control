@@ -21,8 +21,11 @@ app         /ai-usage reads mission.ai_plans / ai_usage_snapshots / ai_usage_dai
   `~/.codex/auth.json`, never anything under `~/.claude` but the session logs),
   and emits counts and metadata only, never prompt or response text. No
   cookies, tokens or private APIs; Codex rate limits are the CLI's own log lines.
-- **Window:** 28 days per run (Claude Code prunes its logs at 30). Upserts are
-  idempotent on (plan, source, host, bot, session, project, day ET).
+- **Window:** 28 days per run (Claude Code prunes its logs at 30). Each run
+  REPLACES one host's log rows from the window start, in one transaction
+  (`mission.ai_usage_replace_log_window`, service role only), so re-runs and
+  re-attribution never double count. Only the newest inbox file per host is
+  used. Manual rows are upserted and never touched by the replace.
 - **Attribution:** `scripts/usage/attribution.mjs` maps each session's `cwd`
   with `config/ai-usage-projects.json` (repo dir → project + client). Anything
   it cannot map is stored as `unattributed`, never guessed. Edit the config and

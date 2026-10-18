@@ -9,6 +9,8 @@
  *   yellow >= 70% used, or projected run-out within 24h after the reset
  *   green  otherwise
  */
+import { etDay } from './collect-logs.mjs';
+
 const H = 3600000;
 const WINDOW_MIN = { '5h': 300, daily: 1440, weekly: 10080, monthly: 43200 };
 
@@ -26,10 +28,14 @@ export function planStatus(plan, rows, now = new Date()) {
   const manual = rows.filter((r) => r.source === 'manual' && r.primary_used_pct != null).sort((a, b) => b.day.localeCompare(a.day) || String(b.captured_at).localeCompare(String(a.captured_at)));
   const logPct = rows.filter((r) => r.source === 'log' && (r.secondary_used_pct != null || r.primary_used_pct != null)).sort(byLatest);
   let reading = null;
-  if (manual[0] && t - new Date(`${manual[0].day}T23:59:59-04:00`).getTime() <= 48 * H) {
+  // A reading belongs to the allowance window it was taken in: once its
+  // reset has passed it says nothing about the new window.
+  const expired = (resetsAt) => resetsAt && new Date(resetsAt).getTime() <= t;
+  const manualFreshDay = etDay(new Date(t - 48 * H).toISOString());
+  if (manual[0] && manual[0].day >= manualFreshDay && !expired(manual[0].primary_resets_at)) {
     const m = manual[0];
     reading = { pct: Number(m.primary_used_pct), resetsAt: m.primary_resets_at, windowMin: m.primary_window_minutes ?? WINDOW_MIN[plan.reset_cadence], basis: 'manual reading', estimate: false };
-  } else if (logPct[0] && fresh(logPct[0])) {
+  } else if (logPct[0] && fresh(logPct[0]) && !expired(logPct[0].secondary_used_pct != null ? logPct[0].secondary_resets_at : logPct[0].primary_resets_at)) {
     const r = logPct[0];
     const useSec = r.secondary_used_pct != null;
     reading = {
@@ -56,13 +62,13 @@ export function planStatus(plan, rows, now = new Date()) {
       start = t - windowMin * 60000; // rolling window
       resetsAt = null;
     }
-    const startDay = new Date(start).toISOString().slice(0, 10);
+    const startDay = etDay(new Date(start).toISOString());
     const inWin = rows.filter((r) => r.source === 'log' && r.day >= startDay);
     if (!inWin.some(fresh)) return { slug: plan.slug, name: plan.name, status: 'grey', line: `${plan.name}: no usage logged in 48h` };
     const used = inWin.reduce((s, r) => s + Number(r.tokens_total || 0), 0);
     reading = { pct: (100 * used) / Number(plan.limit_value), resetsAt, windowMin, basis: plan.reset_anchor ? 'tokens vs budget' : 'rolling 7-day tokens vs budget', estimate: !!plan.limit_is_estimate, rolling: !plan.reset_anchor };
   }
-  if (!reading) return { slug: plan.slug, name: plan.name, status: 'grey', line: `${plan.name}: no reading in 48h${plan.slug === 'grok-ultra' ? ' (manual entry owed by Chief of Staff)' : ''}` };
+  if (!reading) return { slug: plan.slug, name: plan.name, status: 'grey', line: `${plan.name}: no current reading (none in 48h, or it reset since)${plan.slug === 'grok-ultra' ? ' (manual entry owed by Chief of Staff)' : ''}` };
 
   const pct = Math.round(reading.pct * 10) / 10;
   let burnPerDay = null;
@@ -81,7 +87,8 @@ export function planStatus(plan, rows, now = new Date()) {
     else if (burnPerDay > 0) runOut = new Date(t + ((100 - reading.pct) / burnPerDay) * 24 * H);
   }
   let status = 'green';
-  const beforeReset = runOut && resets && runOut < resets;
+  // A rolling window (no reset instant) alerts once it is at or over budget.
+  const beforeReset = (runOut && resets && runOut < resets) || (reading.rolling && reading.pct >= 100);
   if (pct >= 90 || beforeReset) status = 'red';
   else if (pct >= 70 || (runOut && resets && runOut.getTime() - resets.getTime() < 24 * H)) status = 'yellow';
 
@@ -89,7 +96,8 @@ export function planStatus(plan, rows, now = new Date()) {
   const parts = [`${plan.name}: ${pct}% used${reading.estimate ? ' (estimate)' : ''}`];
   if (burnPerDay != null) parts.push(`${Math.round(burnPerDay * 10) / 10}%/day`);
   if (resets) parts.push(`resets ${fmt(resets)} ET`);
-  if (beforeReset) parts.push(`projected to run out ${fmt(runOut)} ET, before reset`);
+  if (beforeReset && resets) parts.push(`projected to run out ${fmt(runOut)} ET, before reset`);
+  else if (beforeReset) parts.push('at or over the estimated weekly budget');
   const line = `${status.toUpperCase()} · ${parts.join(' · ')} [${reading.basis}]`;
   return { slug: plan.slug, name: plan.name, status, pct, burnPerDay, resetsAt: resets?.toISOString() ?? null, runOutAt: runOut?.toISOString() ?? null, runsOutBeforeReset: !!beforeReset, line };
 }

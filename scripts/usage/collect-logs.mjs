@@ -82,7 +82,8 @@ async function* lines(file) {
  * Claude Code. A streamed reply is logged more than once under the same
  * message id and request id, and a resumed session copies history into a new
  * file, so usage is de-duplicated globally on `${message.id}:${requestId}`
- * (the last record wins: it carries the final counts).
+ * (the latest record wins, ties to the larger output count, so the result
+ * does not depend on file order).
  */
 export async function collectClaude({ files, host, sinceDay }) {
   const byKey = new Map();
@@ -104,7 +105,11 @@ export async function collectClaude({ files, host, sinceDay }) {
         tin: num(u.input_tokens), tout: num(u.output_tokens),
         cr: num(u.cache_read_input_tokens), cw: num(u.cache_creation_input_tokens),
       };
-      if (key === ':') byKey.set(Symbol('anon'), entry); else byKey.set(key, entry);
+      if (key === ':') { byKey.set(Symbol('anon'), entry); continue; }
+      // Deterministic across files: the latest record wins; on a tie, the
+      // one with more output (the final streamed count).
+      const prev = byKey.get(key);
+      if (!prev || entry.ts > prev.ts || (entry.ts === prev.ts && entry.tout > prev.tout)) byKey.set(key, entry);
     }
   }
   const rows = new Map();

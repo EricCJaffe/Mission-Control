@@ -57,8 +57,11 @@ function fromWorktreeName(map, name) {
       rest = rest.split(needle).join('-');
     }
   }
-  return found.size === 1 ? [...found.values()][0] : null;
+  if (found.size === 1) return [...found.values()][0];
+  return found.size > 1 ? AMBIGUOUS : null;
 }
+
+const AMBIGUOUS = Object.freeze({ ambiguous: true });
 
 /**
  * @param cwd   the session's working directory
@@ -68,8 +71,11 @@ function fromWorktreeName(map, name) {
  */
 export function attribute(cwd, map, repo = null) {
   const none = { project: UNATTRIBUTED, client: null };
-  const byPath = attributePath(cwd, map, none);
-  if (byPath.project !== UNATTRIBUTED || !repo) return byPath;
+  const byPath = attributePath(cwd, map);
+  if (byPath && byPath !== AMBIGUOUS) return byPath;
+  // The git remote is used only when the path said nothing at all; a path
+  // that names two projects stays unattributed.
+  if (byPath === AMBIGUOUS || !repo) return none;
   return lookup(map, String(repo)) ?? none;
 }
 
@@ -80,7 +86,9 @@ export function repoFromUrl(url) {
   return m ? m[1] : null;
 }
 
-function attributePath(cwd, map, none) {
+/** @returns a mapping, AMBIGUOUS, or null (no match). */
+function attributePath(cwd, map) {
+  const none = null;
   if (!cwd || typeof cwd !== 'string') return none;
   const rel = cwd.replace(HOME_RE, '~').replace(/\/+$/, '');
   const segs = rel.split('/').filter(Boolean);
@@ -88,7 +96,7 @@ function attributePath(cwd, map, none) {
 
   // 0. Explicit path prefixes from the config.
   for (const [prefix, key] of map.paths ?? []) {
-    if (rel === prefix || rel.startsWith(`${prefix}/`)) return lookup(map, key) ?? none;
+    if (rel === prefix || rel.startsWith(`${prefix}/`)) return lookup(map, key);
   }
 
   const isWt = (s) => s === '.worktrees' || s === 'worktrees';
@@ -98,7 +106,7 @@ function attributePath(cwd, map, none) {
   //    worktrees (~/dev/honeylakeos/.claude/worktrees/agent-x) stay with it.
   for (let i = 0; i < segs.length - 1; i++) {
     if (roots.has(segs[i]) && (i === 0 || segs[i - 1] === '~') && !isWt(segs[i + 1])) {
-      return lookup(map, segs[i + 1]) ?? none;
+      return lookup(map, segs[i + 1]);
     }
   }
 
@@ -108,17 +116,15 @@ function attributePath(cwd, map, none) {
     if (isWt(s)) {
       // ~/dev/worktrees/grok-review/fsaos-172: a grouping folder may sit
       // between "worktrees" and the worktree; look at up to two segments.
-      for (const name of segs.slice(i + 1, i + 3)) {
-        const hit = fromWorktreeName(map, name);
-        if (hit) return hit;
-      }
-      return none;
+      const first = segs[i + 1] ? fromWorktreeName(map, segs[i + 1]) : null;
+      if (first) return first; // a mapping, or AMBIGUOUS: never look deeper
+      return segs[i + 2] ? fromWorktreeName(map, segs[i + 2]) : none;
     }
-    if (i <= 1 && /^wt-/.test(s)) return fromWorktreeName(map, s.slice(3)) ?? none;
+    if (i <= 1 && /^wt-/.test(s)) return fromWorktreeName(map, s.slice(3));
   }
 
   // 3. A home-level directory named exactly like a known repo (~/honeylakeos
   //    on the Mac mini). Exact name only.
-  if (segs[0] === '~' && segs.length >= 2) return lookup(map, segs[1]) ?? none;
+  if (segs[0] === '~' && segs.length >= 2) return lookup(map, segs[1]);
   return none;
 }

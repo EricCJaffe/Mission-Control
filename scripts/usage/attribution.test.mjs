@@ -60,3 +60,9 @@ test('grouped worktrees and the git-remote fallback', () => {
   assert.equal(repoFromUrl('git@github.com:Foundation-Stone-Advisors/fsaos.git'), 'fsaos');
   assert.equal(repoFromUrl('https://github.com/EricCJaffe/fsa-site'), 'fsa-site');
 });
+
+test('ambiguity is final: no deeper look, no git fallback', () => {
+  assert.equal(p('/home/u/.worktrees/port-fsaos-to-reverbos/brain'), UNATTRIBUTED);
+  assert.equal(attribute('/home/u/.worktrees/port-fsaos-to-reverbos', map, 'fsaos').project, UNATTRIBUTED);
+  assert.equal(attribute('/home/u/.worktrees/mystery', map, 'fsaos').project, 'fsaos');
+});

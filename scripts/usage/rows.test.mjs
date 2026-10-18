@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { attributeRows, parseManual } from './rows.mjs';
+import { attributeRows, parseManual, newestPerHost, cleanLogRow } from './rows.mjs';
 import { loadMapping } from './attribution.mjs';
 import { collectClaude, collectCodex, etDay } from './collect-logs.mjs';
 
@@ -67,15 +67,19 @@ test('attributeRows maps, merges same-key rows and keeps unattributed explicit',
     { ...base, cwd: '/home/u/dev/fsaos' },
     { ...base, cwd: '/home/u/dev/fsaos/src', last_at: '2026-10-18T11:00:00Z' },
     { ...base, cwd: '/home/u' },
+    { ...base, plan_slug: 'evil', cwd: '/home/u' },
+    { ...base, id: 7, user_id: 'x', tokens_total: 'NaN', cwd: '/tmp/zz' },
   ], map, U);
-  assert.equal(rows.length, 2);
+  assert.equal(rows.length, 2); // bad plan dropped; NaN row merged into unattributed with 0 tokens
+  assert.ok(rows.every((r) => !('id' in r) && r.user_id === U && r.source === 'log'));
+  assert.equal(rows.find((r) => r.project === 'unattributed').tokens_total, 2);
   const f = rows.find((r) => r.project === 'fsaos');
   assert.equal(f.tokens_total, 4);
   assert.equal(f.client, 'FSA');
   assert.equal(f.user_id, U);
   assert.equal(f.last_at, '2026-10-18T11:00:00Z');
   assert.ok(!('cwd' in f));
-  assert.equal(rows.find((r) => r.project === 'unattributed').client, null);
+  assert.equal(rows.filter((r) => r.project === 'unattributed').every((r) => r.client === null), true);
 });
 
 test('parseManual validates, dedupes and maps fields', () => {
@@ -96,4 +100,22 @@ test('parseManual validates, dedupes and maps fields', () => {
   assert.equal(rows[0].bot, 'cos');
   assert.equal(rows[0].note, 'after lunch');
   assert.equal(errors.length, 4);
+});
+
+test('manual count readings become a percent; used without limit is rejected', () => {
+  const { rows, errors } = parseManual('{"date":"2026-10-18","plan":"grok-ultra","used":80,"limit":200,"unit":"credits"}\n{"date":"2026-10-18","plan":"grok-ultra","used":5,"by":"x"}', { userId: U, planSlugs: ['grok-ultra'] });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].primary_used_pct, 40);
+  assert.equal(errors.length, 1);
+});
+
+test('newestPerHost supersedes older payloads instead of summing them', () => {
+  const { keep, superseded } = newestPerHost([
+    { host: 'box', generated_at: '2026-10-18T01:00:00Z', path: 'a' },
+    { host: 'box', generated_at: '2026-10-18T02:00:00Z', path: 'b' },
+    { host: 'mac-mini', generated_at: '2026-10-18T01:00:00Z', path: 'c' },
+  ]);
+  assert.deepEqual(keep.map((k) => k.path).sort(), ['b', 'c']);
+  assert.deepEqual(superseded, ['a']);
+  assert.equal(cleanLogRow({ plan_slug: 'claude-max', day: 'x' }), null);
 });

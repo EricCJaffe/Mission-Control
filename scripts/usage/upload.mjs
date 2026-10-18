@@ -16,18 +16,19 @@
  *      daily by Chief of Staff. Format in rows.mjs parseManual.
  *
  * Writes: mission.ai_plans (from config/ai-usage-plans.json) and
- * mission.ai_usage_snapshots, upserted on the unique key, so a re-run is
- * idempotent. Every row carries user_id = MC_USER_ID explicitly (service role
+ * mission.ai_usage_snapshots. Log rows: each host's window is REPLACED in
+ * one transaction (mission.ai_usage_replace_log_window), so re-runs and
+ * re-attribution are idempotent. Manual rows: upserted on the unique key. Every row carries user_id = MC_USER_ID explicitly (service role
  * bypasses RLS). Schema is always `mission`.
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import { collectAll } from './collect-logs.mjs';
 import { loadMapping } from './attribution.mjs';
-import { attributeRows, parseManual, UNIQUE_COLS } from './rows.mjs';
+import { attributeRows, newestPerHost, parseManual, UNIQUE_COLS } from './rows.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const expand = (p) => (p.startsWith('~/') ? join(homedir(), p.slice(2)) : p);
@@ -67,12 +68,13 @@ async function main() {
   const plans = JSON.parse(readFileSync(join(ROOT, 'config', 'ai-usage-plans.json'), 'utf8')).plans;
   const map = loadMapping(JSON.parse(readFileSync(join(ROOT, 'config', 'ai-usage-projects.json'), 'utf8')));
 
-  const collected = [];
+  let collected = [];
   if (a.local) collected.push(await collectAll({ host: a.host, days: a.days, claudeDir: join(homedir(), '.claude', 'projects'), codexDir: join(homedir(), '.codex', 'sessions') }));
 
   const inbox = expand(process.env.AI_USAGE_INBOX ?? '~/.local/share/ai-usage/inbox');
   const inboxFiles = [];
   if (existsSync(inbox)) {
+    try { chmodSync(inbox, 0o700); } catch { /* not ours */ }
     for (const n of readdirSync(inbox)) {
       const p = join(inbox, n);
       if (!n.endsWith('.json') || !statSync(p).isFile()) continue;
@@ -80,8 +82,9 @@ async function main() {
         const d = JSON.parse(readFileSync(p, 'utf8'));
         if (!Array.isArray(d.rows) || typeof d.host !== 'string') throw new Error('bad shape');
         // The host label comes from the file, but never let a pushed file claim to be this host.
-        if (d.host === a.host) throw new Error(`claims host ${a.host}`);
-        collected.push(d);
+        if (d.host === a.host || d.host === 'manual' || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(d.host)) throw new Error(`bad host ${d.host}`);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.since_day ?? ''))) throw new Error('missing since_day');
+        collected.push({ ...d, path: p });
         inboxFiles.push(p);
       } catch (e) {
         console.warn(`[usage] skipping inbox file ${n}: ${e.message}`);
@@ -89,14 +92,19 @@ async function main() {
     }
   }
 
-  const logRows = attributeRows(collected.flatMap((c) => c.rows.map((r) => ({ ...r, host: c.host, source: 'log' }))), map, uid);
+  // One payload per host: the newest. Older inbox files are superseded
+  // (each is a full recount of its window), never added together.
+  const { keep, superseded } = newestPerHost(collected);
+  collected = keep;
+  const perHost = collected.map((c) => ({ host: c.host, since: c.since_day, rows: attributeRows(c.rows.map((r) => ({ ...r, host: c.host })), map, uid) }));
+  const logRows = perHost.flatMap((h) => h.rows);
 
   const manualPath = expand(process.env.AI_USAGE_MANUAL ?? join(process.env.BRAIN_ROOT ?? '~/dev/brain', 'ai-usage', 'manual.jsonl'));
   let manual = { rows: [], errors: [] };
   if (existsSync(manualPath)) manual = parseManual(readFileSync(manualPath, 'utf8'), { userId: uid, planSlugs: plans.map((p) => p.slug) });
   for (const e of manual.errors) console.warn(`[usage] manual ${manualPath} ${e}`);
 
-  const rows = [...logRows, ...manual.rows].map((r) => ({ ...r, captured_at: new Date().toISOString() }));
+  const rows = [...logRows, ...manual.rows];
 
   // Summary: per host and plan, tokens and share unattributed.
   const sum = {};
@@ -118,15 +126,23 @@ async function main() {
   const planRows = plans.map((p) => ({ user_id: uid, ...p, updated_at: new Date().toISOString() }));
   const { error: pe } = await db.from('ai_plans').upsert(planRows, { onConflict: 'user_id,slug' });
   if (pe) throw new Error(`ai_plans upsert: ${pe.message}`);
-  for (let i = 0; i < rows.length; i += 500) {
-    const { error } = await db.from('ai_usage_snapshots').upsert(rows.slice(i, i + 500), { onConflict: UNIQUE_COLS.join(',') });
-    if (error) throw new Error(`ai_usage_snapshots upsert (batch ${i / 500}): ${error.message}`);
+  for (const h of perHost) {
+    const payload = h.rows.map(({ user_id: _u, source: _s, host: _h, ...r }) => r);
+    const { data, error } = await db.rpc('ai_usage_replace_log_window', { p_user_id: uid, p_host: h.host, p_since: h.since, p_rows: payload });
+    if (error) throw new Error(`replace window for ${h.host}: ${error.message}`);
+    console.log(`[usage] ${h.host}: replaced log rows since ${h.since} with ${data}`);
+  }
+  if (manual.rows.length) {
+    const stamped = manual.rows.map((r) => ({ ...r, captured_at: new Date().toISOString() }));
+    const { error } = await db.from('ai_usage_snapshots').upsert(stamped, { onConflict: UNIQUE_COLS.join(',') });
+    if (error) throw new Error(`manual upsert: ${error.message}`);
   }
   if (inboxFiles.length) {
     const done = join(inbox, 'done');
-    mkdirSync(done, { recursive: true });
+    mkdirSync(done, { recursive: true, mode: 0o700 });
     for (const p of inboxFiles) renameSync(p, join(done, `${Date.now()}-${p.split('/').pop()}`));
   }
+  void superseded;
   console.log(`[usage] uploaded ${rows.length} rows`);
 }
 
