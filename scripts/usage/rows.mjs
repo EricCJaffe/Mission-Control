@@ -59,6 +59,15 @@ export function attributeRows(rows, map, userId) {
 }
 
 const hourFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' });
+/** 00:00 America/New_York on YYYY-MM-DD, as ISO (EDT = 04:00Z, EST = 05:00Z). */
+export function etMidnight(day) {
+  for (const h of ['04', '05']) {
+    const d = new Date(`${day}T${h}:00:00Z`);
+    if (Number(hourFmt.format(d)) === 0) return d.toISOString();
+  }
+  return new Date(`${day}T04:00:00Z`).toISOString();
+}
+
 /** 12:00 America/New_York on YYYY-MM-DD, as ISO (EDT = 16:00Z, EST = 17:00Z). */
 export function etNoon(day) {
   for (const h of ['16', '17']) {
@@ -110,6 +119,8 @@ export function parseManual(text, { userId, planSlugs }) {
     if (used_pct === null && used !== null && !(limit > 0)) errs.push('used needs a positive limit');
     const resets = (v, name) => {
       if (!v) return null;
+      // A bare date means midnight ET at the start of that day, not UTC.
+      if (DAY_RE.test(String(v))) return etMidnight(String(v));
       const d = new Date(String(v));
       if (Number.isNaN(d.getTime())) { errs.push(`${name} is not a date`); return null; }
       return d.toISOString();
