@@ -508,3 +508,20 @@ test('manual form stamps meter_at for today, leaves it null for a backdated day'
   if (t.ok) assert.equal(t.row.meter_at, NOW.toISOString());
   if (b.ok) assert.equal(b.row.meter_at, null);
 });
+
+// ---------------------------------------------------------------- grokbot re-review (fixes 3)
+
+test('a weekly percent plan with only token and 5h rows has no last reading and is gray', () => {
+  const codex = plan({ slug: 'chatgpt-codex', limit_kind: 'percent', limit_value: 100, reset_cadence: 'weekly' });
+  const rows = [
+    row({ plan_slug: 'chatgpt-codex', tokens_total: 5000, meter_at: '2026-10-14T15:30:00Z' }),
+    row({ plan_slug: 'chatgpt-codex', primary_used_pct: 40, primary_resets_at: '2026-10-14T19:00:00Z', meter_at: '2026-10-14T15:45:00Z' }),
+  ];
+  const s = planStatus(codex, rows, NOW);
+  assert.equal(s.basis, 'none');
+  assert.equal(s.usedPct, null);
+  assert.equal(s.lastReadingAt, null);
+  assert.equal(s.hoursSinceReading, null);
+  assert.equal(s.lastSource, null);
+  assert.equal(s.rag, 'none');
+});

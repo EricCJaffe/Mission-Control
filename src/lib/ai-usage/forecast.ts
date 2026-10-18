@@ -264,10 +264,12 @@ export function planStatus(
   }
 
   // Percent basis: the selected reading is the only evidence about the meter.
-  const percentReading =
-    basis === 'percent' ? (plan.limit_kind === 'percent' ? reading : readingInWindow(reading)) : null;
-  const lastReadingAt = basis === 'percent' ? (percentReading?.at ?? null) : rowsLastAt;
-  const lastSource = basis === 'percent' ? (percentReading?.source ?? null) : rowsLastSource;
+  // A percent plan is only ever observed through its meter: with no reading,
+  // there is no last reading, however recent its token or 5h rows are.
+  const meterOnly = plan.limit_kind === 'percent' || basis === 'percent';
+  const percentReading = plan.limit_kind === 'percent' ? reading : basis === 'percent' ? readingInWindow(reading) : null;
+  const lastReadingAt = meterOnly ? (percentReading?.at ?? null) : rowsLastAt;
+  const lastSource = meterOnly ? (percentReading?.source ?? null) : rowsLastSource;
   const hoursSinceReading = lastReadingAt ? (now.getTime() - lastReadingAt.getTime()) / 3_600_000 : null;
   const stale = hoursSinceReading === null || hoursSinceReading > STALE_AFTER_HOURS;
 
