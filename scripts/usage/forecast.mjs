@@ -121,7 +121,7 @@ export function planStatus(plan, rows, now = new Date()) {
   let status = 'green';
   // A rolling window (no reset instant) alerts once it is at or over budget.
   const beforeReset = (runOut && resets && runOut < resets) || (reading.rolling && reading.pct >= 100);
-  const afterSoon = runOut && resets && runOut.getTime() - resets.getTime() < T.yellowAfterResetHours * H;
+  const afterSoon = runOut && resets && runOut.getTime() - resets.getTime() <= T.yellowAfterResetHours * H;
   if (pct >= T.redAtPct) status = 'red';
   else if (early) status = pct >= T.earlyRedAtPct ? 'red' : pct >= T.yellowAtPct ? 'yellow' : 'green';
   else if (beforeReset && (reading.rolling || pct >= T.runOutRedFloorPct)) status = 'red';
@@ -132,7 +132,7 @@ export function planStatus(plan, rows, now = new Date()) {
   const parts = [`${plan.name}: ${pct}% used${reading.estimate ? ' (estimate)' : ''}`];
   if (burnPerDay != null) parts.push(`${Math.round(burnPerDay * 10) / 10}%/day`);
   if (resets) parts.push(`resets ${fmt(resets)} ET`);
-  if (early) parts.push('too early in the window to forecast');
+  if (early && status !== 'red') parts.push('too early in the window to forecast');
   else if (beforeReset && resets) parts.push(`projected to run out ${fmt(runOut)} ET, before reset`);
   else if (beforeReset) parts.push('at or over the estimated weekly budget');
   const line = `${status.toUpperCase()} · ${parts.join(' · ')} [${reading.basis}]`;

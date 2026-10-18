@@ -252,7 +252,11 @@ export function planStatus(
   // reading a day old divided by a day more would understate it.
   const burnOf = (r: Reading, pctUsed: number) =>
     // At least burnMinHours of window, so a first-hours spike is not the pace.
-    pctUsed / Math.max((r.at.getTime() - window.startAt.getTime()) / DAY_MS, T.burnMinHours / 24);
+    pctUsed /
+    Math.min(
+      (window.resetAt.getTime() - window.startAt.getTime()) / DAY_MS,
+      Math.max((r.at.getTime() - window.startAt.getTime()) / DAY_MS, T.burnMinHours / 24),
+    );
 
   if (plan.limit_kind === 'percent') {
     if (reading) {
@@ -306,7 +310,7 @@ export function planStatus(
   const windowMs = window.resetAt.getTime() - window.startAt.getTime();
   const early = basis === 'percent' && usedPct !== null && isEarly(measuredAt.getTime() - window.startAt.getTime(), windowMs);
   const status = rag({ usedPct, runOutAt, resetAt: window.resetAt, stale, early });
-  if (early && note === null) note = 'too-early';
+  if (early && note === null && status !== 'red') note = 'too-early';
 
   return {
     slug: plan.slug,
