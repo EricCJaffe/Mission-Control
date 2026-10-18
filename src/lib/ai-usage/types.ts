@@ -4,7 +4,7 @@
  * supabase/migrations/20261018172543_ai_usage.sql. Change both together.
  */
 
-export type PlanSlug = 'claude-max' | 'chatgpt-codex' | 'grok-ultra' | (string & {});
+export type PlanSlug = 'claude-max' | 'claude-4lot' | 'chatgpt-codex' | 'grok-ultra' | (string & {});
 
 export type AiPlan = {
   id: string;

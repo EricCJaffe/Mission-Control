@@ -58,10 +58,9 @@ export function suggestions(statuses: PlanStatus[], shares: Record<string, Share
     const resets = formatReset(s.window.resetAt, now);
 
     // A plan with no published cap and no % reading yet: its card already says
-    // "no cap known"; that is not a collector fault, so no nag here.
-    if (s.rag === 'none' && s.note === 'no-cap-known') continue;
-
-    if (s.rag === 'none') {
+    // "no cap known"; that is not a collector fault, so no nag (its
+    // unattributed check below still runs).
+    if (s.rag === 'none' && s.note !== 'no-cap-known') {
       const days = s.hoursSinceReading === null ? null : Math.floor(s.hoursSinceReading / 24);
       const since =
         s.note === 'reset-since-reading' && (s.hoursSinceReading ?? Infinity) <= 48
