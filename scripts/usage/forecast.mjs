@@ -85,7 +85,7 @@ export function planStatus(plan, rows, now = new Date()) {
     const inWin = rows.filter((r) => r.source === 'log' && r.day >= startDay);
     if (!inWin.some(fresh)) return { slug: plan.slug, name: plan.name, status: 'grey', line: `${plan.name}: no usage logged in 48h` };
     const used = inWin.reduce((s, r) => s + Number(r.tokens_total || 0), 0);
-    reading = { pct: (100 * used) / Number(plan.limit_value), resetsAt, windowMin, basis: plan.reset_anchor ? 'tokens vs budget' : 'rolling 7-day tokens vs budget', estimate: !!plan.limit_is_estimate, rolling: !plan.reset_anchor };
+    reading = { pct: (100 * used) / Number(plan.limit_value), resetsAt, windowMin, basis: plan.reset_anchor ? 'tokens vs budget' : 'rolling 7-day tokens vs budget', estimate: !!plan.limit_is_estimate, rolling: !plan.reset_anchor, tokens: true };
   }
   if (!reading && plan.limit_kind === 'tokens' && !plan.limit_value) {
     const since7 = etDay(new Date(t - 6 * 24 * H).toISOString());
@@ -107,7 +107,8 @@ export function planStatus(plan, rows, now = new Date()) {
     // not given extra time.
     const at = reading.at ? Math.min(t, new Date(reading.at).getTime()) : t;
     const start = resets ? resets.getTime() - w : at - w;
-    early = !reading.rolling && (at - start < w * T.earlyWindowFraction || at - start < Math.min(T.earlyMinHours * H, w / 2));
+    // Same eligibility as the page: only a percent (meter/manual) reading.
+    early = !reading.tokens && (at - start < w * T.earlyWindowFraction || at - start < Math.min(T.earlyMinHours * H, w / 2));
     // At least burnMinHours of window, so a first-hours spike is not the pace.
     const elapsed = Math.min(w, Math.max(T.burnMinHours * H, at - start));
     burnPerDay = (reading.pct / elapsed) * 24 * H;

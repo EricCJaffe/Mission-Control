@@ -125,3 +125,10 @@ test('run-out before reset under the 25% floor is yellow, not an alert', () => {
   assert.equal(s.status, 'yellow');
   assert.equal(s.runsOutBeforeReset, false);
 });
+
+test('early guard applies only to percent readings (parity with the page)', () => {
+  const anchored = { ...claude, reset_anchor: iso(-5) };
+  const s = planStatus(anchored, [{ source: 'log', day: '2026-10-18', last_at: iso(0), captured_at: iso(0), tokens_total: 600 }], now);
+  assert.equal(s.early, false);
+  assert.notEqual(s.status, 'green');
+});
