@@ -12,6 +12,8 @@ import { formatReset } from '@/lib/ai-usage/window';
 import { StatusPill } from '@/components/ui/DataTable';
 import HistoryChart, { type HistoryPoint } from '@/components/ai-usage/HistoryChart';
 import { ProjectSharesTable, SessionTable, type ProjectShareRow, type SessionRow } from '@/components/ai-usage/BreakdownTables';
+import GlanceTable from '@/components/ai-usage/GlanceTable';
+import { glanceAnchor } from '@/lib/ai-usage/glance';
 import ManualEntryForm from '@/components/ai-usage/ManualEntryForm';
 import { RAG_BAR, RAG_CARD, RAG_LABEL, RAG_PILL, pct, tokens, when } from '@/components/ai-usage/format';
 
@@ -175,6 +177,8 @@ export default async function AiUsagePage({ searchParams }: { searchParams?: Pro
         </div>
       )}
 
+      <GlanceTable statuses={statuses} now={now} />
+
       <section className="grid gap-4 lg:grid-cols-3">
         {statuses.map((s) => (
           <PlanCard key={s.slug} s={s} now={now} points={histories[s.slug] ?? []} />
@@ -248,7 +252,7 @@ function PlanCard({ s, now, points }: { s: PlanStatus; now: Date; points: Histor
         ? `Runs out ${when(s.runOutAt)}, before the reset`
         : `Would run out ${when(s.runOutAt)}, after the reset`;
   return (
-    <div className={`rounded-2xl border-2 ${RAG_CARD[s.rag]} bg-white p-5 shadow-sm`}>
+    <div id={glanceAnchor(s.slug)} className={`scroll-mt-20 rounded-2xl border-2 ${RAG_CARD[s.rag]} bg-white p-5 shadow-sm`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="flex items-center gap-2 text-base font-semibold">
