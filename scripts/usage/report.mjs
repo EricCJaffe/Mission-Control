@@ -23,7 +23,7 @@
  * (same env as upload.mjs). Writes nothing to the database.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
@@ -69,8 +69,12 @@ const txt = join('open', 'ai-usage.txt');
 writeFileSync(join(brain, txt), `# AI usage meter, ${now.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET. One line per plan. Page: https://missioncontrol.bibleos.app/ai-usage\n${lines.join('\n')}\n${route ? `${route}\n` : ''}`);
 written.push(txt);
 const js = join('open', 'ai-usage.json');
-const capacity = JSON.parse(readFileSync(new URL('../../config/ai-usage-capacity.json', import.meta.url), 'utf8'));
-writeFileSync(join(brain, js), JSON.stringify(usageJson(statuses, now, { plans, capacity }), null, 1) + '\n');
+let capacity = null;
+try { capacity = JSON.parse(readFileSync(new URL('../../config/ai-usage-capacity.json', import.meta.url), 'utf8')); } catch (e) { console.warn(`[usage-report] capacity config unreadable (${e.message}); writing the routing file without weights`); }
+// Atomic: dispatch-autostart may read this at any moment; a half-written file
+// would drop it into the meter-off fallback.
+writeFileSync(join(brain, `${js}.tmp`), JSON.stringify(usageJson(statuses, now, { plans, capacity }), null, 1) + '\n');
+renameSync(join(brain, `${js}.tmp`), join(brain, js));
 written.push(js);
 
 // Dedupe: the note's file name AND a local state file, so an alert that

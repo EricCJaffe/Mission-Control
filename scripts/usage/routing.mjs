@@ -55,12 +55,14 @@ export function routingLine(jsonl, now = new Date()) {
     if (!line.trim()) continue;
     let r;
     try { r = JSON.parse(line); } catch { continue; }
+    if (!r || typeof r !== 'object') continue;
     const at = Date.parse(r.at);
     if (!Number.isFinite(at) || at < since || at > now.getTime() + H) continue;
     if (r.action !== 'dispatch' && r.action !== 'hold') continue;
     recs.push(r);
   }
   if (!recs.length) return '';
+  recs.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
   // One count per note: its latest decision in the window.
   const byNote = new Map();
   for (const r of recs) byNote.set(r.note ?? Math.random(), r);

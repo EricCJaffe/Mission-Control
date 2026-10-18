@@ -83,9 +83,17 @@ export function planStatus(plan, rows, now = new Date()) {
     }
     const startDay = etDay(new Date(start).toISOString());
     const inWin = rows.filter((r) => r.source === 'log' && r.day >= startDay);
-    if (!inWin.some(fresh)) return { slug: plan.slug, name: plan.name, status: 'grey', pct: inWin.length ? null : 0, idle: true, noCap: false, line: `${plan.name}: no usage logged in 48h` };
     const used = inWin.reduce((s, r) => s + Number(r.tokens_total || 0), 0);
-    reading = { pct: (100 * used) / Number(plan.limit_value), resetsAt, windowMin, basis: plan.reset_anchor ? 'tokens vs budget' : 'rolling 7-day tokens vs budget', estimate: !!plan.limit_is_estimate, rolling: !plan.reset_anchor, tokens: true };
+    // Newest log activity = when this log-derived reading was true (so a stale
+    // collector shows a stale reading_at instead of looking brand new).
+    const lastMs = inWin.reduce((m, r) => Math.max(m, new Date(r.last_at ?? r.captured_at ?? 0).getTime() || 0), 0);
+    if (!inWin.some(fresh)) {
+      // Idle 48h: keep what was already used in this window (an exhausted
+      // plan must not look empty); 0% only when nothing was logged at all.
+      const idlePct = Math.round((1000 * used) / Number(plan.limit_value)) / 10;
+      return { slug: plan.slug, name: plan.name, status: 'grey', pct: idlePct, idle: true, noCap: false, readingAt: lastMs ? new Date(Math.min(t, lastMs)).toISOString() : null, resetsAt: resetsAt ?? null, line: `${plan.name}: no usage logged in 48h (${idlePct}% of the ${plan.limit_is_estimate ? 'estimated ' : ''}budget used this window)` };
+    }
+    reading = { at: lastMs ? new Date(lastMs).toISOString() : undefined, pct: (100 * used) / Number(plan.limit_value), resetsAt, windowMin, basis: plan.reset_anchor ? 'tokens vs budget' : 'rolling 7-day tokens vs budget', estimate: !!plan.limit_is_estimate, rolling: !plan.reset_anchor, tokens: true };
   }
   if (!reading && plan.limit_kind === 'tokens' && !plan.limit_value) {
     const since7 = etDay(new Date(t - 6 * 24 * H).toISOString());
