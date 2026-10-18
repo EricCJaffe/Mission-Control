@@ -59,6 +59,7 @@ test('Codex: cumulative totals become deltas; rate limits kept; counter reset ha
   assert.equal(r.primary_used_pct, 4);
   assert.equal(r.secondary_used_pct, 8);
   assert.equal(r.secondary_window_minutes, 10080);
+  assert.equal(r.meter_at, '2026-10-18T14:02:00Z');
 });
 
 test('attributeRows maps, merges same-key rows and keeps unattributed explicit', () => {

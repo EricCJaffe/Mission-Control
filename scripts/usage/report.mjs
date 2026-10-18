@@ -41,7 +41,7 @@ if (pe) { console.error(`[usage-report] ai_plans: ${pe.message}`); process.exit(
 const rows = [];
 for (let from = 0; ; from += 1000) {
   const { data, error } = await db.from('ai_usage_snapshots')
-    .select('plan_slug,source,day,tokens_total,primary_used_pct,primary_window_minutes,primary_resets_at,secondary_used_pct,secondary_window_minutes,secondary_resets_at,last_at,captured_at')
+    .select('plan_slug,source,day,tokens_total,primary_used_pct,primary_window_minutes,primary_resets_at,secondary_used_pct,secondary_window_minutes,secondary_resets_at,meter_at,last_at,captured_at')
     .eq('user_id', uid).gte('day', since).order('id').range(from, from + 999);
   if (error) { console.error(`[usage-report] snapshots: ${error.message}`); process.exit(1); }
   rows.push(...data);

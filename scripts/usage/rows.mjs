@@ -13,7 +13,7 @@ const SUM = ['messages', 'tokens_in', 'tokens_out', 'tokens_cache_read', 'tokens
 const PCT = ['primary_used_pct', 'primary_window_minutes', 'primary_resets_at', 'secondary_used_pct', 'secondary_window_minutes', 'secondary_resets_at'];
 
 const NUM = [...SUM, 'primary_used_pct', 'primary_window_minutes', 'secondary_used_pct', 'secondary_window_minutes'];
-const STR = ['plan_slug', 'day', 'host', 'bot', 'session_id', 'model', 'primary_resets_at', 'secondary_resets_at', 'first_at', 'last_at'];
+const STR = ['plan_slug', 'day', 'host', 'bot', 'session_id', 'model', 'primary_resets_at', 'secondary_resets_at', 'meter_at', 'first_at', 'last_at'];
 const PLAN_SLUGS = new Set(['claude-max', 'chatgpt-codex']);
 
 /** Keep only known columns with the right types; null if the row is unusable. */
@@ -45,8 +45,11 @@ export function attributeRows(rows, map, userId) {
     const prev = out.get(key);
     if (!prev) { out.set(key, row); continue; }
     for (const c of SUM) prev[c] = (prev[c] ?? 0) + (row[c] ?? 0);
+    if (row.meter_at && (!prev.meter_at || row.meter_at > prev.meter_at)) {
+      for (const c of PCT) prev[c] = row[c] ?? null;
+      prev.meter_at = row.meter_at;
+    }
     if (row.last_at && (!prev.last_at || row.last_at > prev.last_at)) {
-      for (const c of PCT) if (row[c] !== null && row[c] !== undefined) prev[c] = row[c];
       if (row.model) prev.model = row.model;
       prev.last_at = row.last_at;
     }
@@ -112,7 +115,7 @@ export function parseManual(text, { userId, planSlugs }) {
       // A count reading becomes a percent so the forecast can use it.
       primary_used_pct: used_pct ?? (used !== null && limit > 0 ? Math.round((10000 * used) / limit) / 100 : null), primary_window_minutes: o.window ? winMin[o.window] : null, primary_resets_at: resets_at,
       secondary_used_pct: sec, secondary_window_minutes: null, secondary_resets_at: sec_resets,
-      used_value: used, limit_value: limit, unit: typeof o.unit === 'string' ? o.unit.slice(0, 40) : null,
+      meter_at: null, used_value: used, limit_value: limit, unit: typeof o.unit === 'string' ? o.unit.slice(0, 40) : null,
       note: typeof o.note === 'string' ? o.note.slice(0, 500) : null,
       first_at: null, last_at: null,
     };

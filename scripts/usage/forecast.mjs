@@ -22,20 +22,30 @@ const WINDOW_MIN = { '5h': 300, daily: 1440, weekly: 10080, monthly: 43200 };
 export function planStatus(plan, rows, now = new Date()) {
   const t = now.getTime();
   const fresh = (r) => r.captured_at && t - new Date(r.last_at ?? r.captured_at).getTime() <= 48 * H;
-  const byLatest = (a, b) => String(b.last_at ?? b.day).localeCompare(String(a.last_at ?? a.day)) || String(b.captured_at).localeCompare(String(a.captured_at));
+  const meterAt = (r) => r.meter_at ?? r.last_at ?? r.day;
+  const freshMeter = (r) => t - new Date(meterAt(r)).getTime() <= 48 * H;
+  const byLatest = (a, b) => String(meterAt(b)).localeCompare(String(meterAt(a))) || String(b.captured_at).localeCompare(String(a.captured_at));
 
-  // 1. A vendor percent: manual reading (newest), else Codex's weekly meter.
-  const manual = rows.filter((r) => r.source === 'manual' && r.primary_used_pct != null).sort((a, b) => b.day.localeCompare(a.day) || String(b.captured_at).localeCompare(String(a.captured_at)));
-  const logPct = rows.filter((r) => r.source === 'log' && (r.secondary_used_pct != null || r.primary_used_pct != null)).sort(byLatest);
-  let reading = null;
   // A reading belongs to the allowance window it was taken in: once its
   // reset has passed it says nothing about the new window.
   const expired = (resetsAt) => resetsAt && new Date(resetsAt).getTime() <= t;
+
+  // 1. A vendor percent: manual reading (newest), else Codex's weekly meter.
+  const manual = rows.filter((r) => r.source === 'manual' && r.primary_used_pct != null).sort((a, b) => b.day.localeCompare(a.day) || String(b.captured_at).localeCompare(String(a.captured_at)));
+  // Newest reading whose window has not reset yet. Only the weekly
+  // (secondary) meter stands for a weekly plan; a lone 5h meter is used only
+  // when the plan itself resets every 5h.
+  const weeklyOnly = plan.reset_cadence !== '5h';
+  const logPct = rows
+    .filter((r) => r.source === 'log' && (weeklyOnly ? r.secondary_used_pct != null : (r.secondary_used_pct != null || r.primary_used_pct != null)))
+    .filter((r) => freshMeter(r) && !expired(weeklyOnly || r.secondary_used_pct != null ? r.secondary_resets_at : r.primary_resets_at))
+    .sort(byLatest);
+  let reading = null;
   const manualFreshDay = etDay(new Date(t - 48 * H).toISOString());
   if (manual[0] && manual[0].day >= manualFreshDay && !expired(manual[0].primary_resets_at)) {
     const m = manual[0];
-    reading = { pct: Number(m.primary_used_pct), resetsAt: m.primary_resets_at, windowMin: m.primary_window_minutes ?? WINDOW_MIN[plan.reset_cadence], basis: 'manual reading', estimate: false };
-  } else if (logPct[0] && fresh(logPct[0]) && !expired(logPct[0].secondary_used_pct != null ? logPct[0].secondary_resets_at : logPct[0].primary_resets_at)) {
+    reading = { pct: Number(m.primary_used_pct), resetsAt: m.primary_resets_at, windowMin: m.primary_window_minutes ?? WINDOW_MIN[plan.reset_cadence], basis: 'manual reading', estimate: false, at: m.captured_at };
+  } else if (logPct[0]) {
     const r = logPct[0];
     const useSec = r.secondary_used_pct != null;
     reading = {
@@ -44,6 +54,7 @@ export function planStatus(plan, rows, now = new Date()) {
       windowMin: (useSec ? r.secondary_window_minutes : r.primary_window_minutes) ?? WINDOW_MIN[plan.reset_cadence],
       basis: useSec ? 'CLI weekly meter' : 'CLI meter',
       estimate: false,
+      at: meterAt(r),
     };
   }
 
@@ -76,15 +87,19 @@ export function planStatus(plan, rows, now = new Date()) {
   let resets = reading.resetsAt ? new Date(reading.resetsAt) : null;
   if (reading.windowMin) {
     const w = reading.windowMin * 60000;
-    const start = resets ? resets.getTime() - w : t - w;
-    const elapsed = Math.max(H, t - start);
+    // Burn is measured up to when the reading was taken, and the run-out is
+    // projected from that moment too (not from now), so an older reading is
+    // not given extra time.
+    const at = reading.at ? Math.min(t, new Date(reading.at).getTime()) : t;
+    const start = resets ? resets.getTime() - w : at - w;
+    const elapsed = Math.max(H, at - start);
     burnPerDay = (reading.pct / elapsed) * 24 * H;
     if (reading.rolling) {
       // Rolling window: burn is the window average, run-out is "at this pace".
       burnPerDay = reading.pct / (reading.windowMin / 1440);
     }
     if (reading.pct >= 100) runOut = now;
-    else if (burnPerDay > 0) runOut = new Date(t + ((100 - reading.pct) / burnPerDay) * 24 * H);
+    else if (burnPerDay > 0) runOut = new Date((reading.rolling ? t : at) + ((100 - reading.pct) / burnPerDay) * 24 * H);
   }
   let status = 'green';
   // A rolling window (no reset instant) alerts once it is at or over budget.

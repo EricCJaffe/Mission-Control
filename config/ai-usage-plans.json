@@ -3,7 +3,7 @@
   "plans": [
     {
       "slug": "claude-max",
-      "name": "Claude Max ($200)",
+      "name": "Claude Max",
       "vendor": "Anthropic",
       "price_usd_month": 200,
       "limit_kind": "tokens",

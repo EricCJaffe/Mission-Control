@@ -81,6 +81,11 @@ create table if not exists mission.ai_usage_snapshots (
   secondary_used_pct     numeric,
   secondary_window_minutes integer,
   secondary_resets_at    timestamptz,
+  -- When the percentages above were observed (log rows). Token activity can
+  -- be later than the last meter reading; ordering by last_at would let an
+  -- old percentage pose as current. Null for manual rows (their day is the
+  -- observation).
+  meter_at               timestamptz,
   -- Manual readings that are not a percent (credits, messages, etc.).
   used_value             numeric,
   limit_value            numeric,
@@ -128,7 +133,7 @@ with totals as (
          user_id, plan_slug, day, primary_used_pct, secondary_used_pct
   from mission.ai_usage_snapshots
   where primary_used_pct is not null or secondary_used_pct is not null
-  order by user_id, plan_slug, day, coalesce(last_at, captured_at) desc, id desc
+  order by user_id, plan_slug, day, coalesce(meter_at, last_at, captured_at) desc, id desc
 )
 select t.user_id, t.plan_slug, t.day, t.tokens_total, t.messages, t.sessions,
        l.primary_used_pct, l.secondary_used_pct, t.captured_at
@@ -161,21 +166,21 @@ begin
     messages, tokens_in, tokens_out, tokens_cache_read, tokens_cache_write, tokens_total,
     primary_used_pct, primary_window_minutes, primary_resets_at,
     secondary_used_pct, secondary_window_minutes, secondary_resets_at,
-    first_at, last_at, captured_at)
+    meter_at, first_at, last_at, captured_at)
   select p_user_id, r.plan_slug, 'log', r.day, p_host, r.bot, coalesce(r.session_id, ''),
          coalesce(nullif(r.project, ''), 'unattributed'), r.client, r.model,
          coalesce(r.messages, 0), coalesce(r.tokens_in, 0), coalesce(r.tokens_out, 0),
          coalesce(r.tokens_cache_read, 0), coalesce(r.tokens_cache_write, 0), coalesce(r.tokens_total, 0),
          r.primary_used_pct, r.primary_window_minutes, r.primary_resets_at,
          r.secondary_used_pct, r.secondary_window_minutes, r.secondary_resets_at,
-         r.first_at, r.last_at, now()
+         r.meter_at, r.first_at, r.last_at, now()
     from jsonb_to_recordset(p_rows) as r(
       plan_slug text, day date, bot text, session_id text, project text, client text, model text,
       messages integer, tokens_in bigint, tokens_out bigint, tokens_cache_read bigint,
       tokens_cache_write bigint, tokens_total bigint,
       primary_used_pct numeric, primary_window_minutes integer, primary_resets_at timestamptz,
       secondary_used_pct numeric, secondary_window_minutes integer, secondary_resets_at timestamptz,
-      first_at timestamptz, last_at timestamptz)
+      meter_at timestamptz, first_at timestamptz, last_at timestamptz)
    where r.day >= p_since;
   get diagnostics n = row_count;
   return n;

@@ -52,3 +52,24 @@ test('rolling Claude budget at 100% alerts', () => {
   assert.equal(s.status, 'red');
   assert.equal(s.runsOutBeforeReset, true);
 });
+
+test('meter_at, not later token activity, decides which reading is current', () => {
+  const rows = [
+    { source: 'log', day: '2026-10-18', meter_at: iso(-30), last_at: iso(-1), captured_at: iso(0), secondary_used_pct: 95, secondary_window_minutes: 10080, secondary_resets_at: iso(-2) },
+    { source: 'log', day: '2026-10-18', meter_at: iso(-1.5), last_at: iso(-1.5), captured_at: iso(0), secondary_used_pct: 2, secondary_window_minutes: 10080, secondary_resets_at: iso(160) },
+  ];
+  const s = planStatus(codex, rows, now);
+  assert.equal(s.pct, 2);
+  assert.equal(s.status, 'green');
+});
+
+test('a lone 5h meter does not stand for a weekly plan', () => {
+  const s = planStatus(codex, [{ source: 'log', day: '2026-10-18', meter_at: iso(-1), last_at: iso(-1), captured_at: iso(0), primary_used_pct: 99, primary_window_minutes: 300, primary_resets_at: iso(2) }], now);
+  assert.equal(s.status, 'grey');
+});
+
+test('run-out is projected from the reading time, not now', () => {
+  // 40% at 2.5 days into the week, viewed 1.5 days later: pace says run-out at day 6.25 → before reset (day 7).
+  const s = planStatus(codex, [{ source: 'log', day: '2026-10-18', meter_at: iso(-36), last_at: iso(-36), captured_at: iso(0), secondary_used_pct: 40, secondary_window_minutes: 10080, secondary_resets_at: iso(72) }], now);
+  assert.equal(s.runsOutBeforeReset, true);
+});

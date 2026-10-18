@@ -49,7 +49,7 @@ function emptyRow(base) {
     messages: 0, tokens_in: 0, tokens_out: 0, tokens_cache_read: 0, tokens_cache_write: 0, tokens_total: 0,
     primary_used_pct: null, primary_window_minutes: null, primary_resets_at: null,
     secondary_used_pct: null, secondary_window_minutes: null, secondary_resets_at: null,
-    first_at: null, last_at: null,
+    meter_at: null, first_at: null, last_at: null,
   };
 }
 
@@ -209,10 +209,13 @@ export async function collectCodex({ files, host, sinceDay }) {
         row.tokens_total += delta.all;
       }
       if (model) row.model = model;
+      // The meter reading carries its own observation time (meter_at); token
+      // activity without a reading must not make an old percentage look new.
       const rl = p.rate_limits;
-      if (rl && (!row.last_at || ts >= row.last_at)) {
+      if (rl && (rl.primary || rl.secondary) && (!row.meter_at || ts >= row.meter_at)) {
         [row.primary_used_pct, row.primary_window_minutes, row.primary_resets_at] = rateWindow(rl.primary);
         [row.secondary_used_pct, row.secondary_window_minutes, row.secondary_resets_at] = rateWindow(rl.secondary);
+        row.meter_at = ts;
       }
       touch(row, ts);
     }
@@ -237,8 +240,11 @@ function parseArgs(argv) {
 }
 
 export async function collectAll({ host, days, claudeDir, codexDir, now = Date.now() }) {
-  const sinceMs = now - days * 86400000;
-  const sinceDay = etDay(new Date(sinceMs).toISOString());
+  const sinceDay = etDay(new Date(now - days * 86400000).toISOString());
+  // Files are picked by mtime from a day BEFORE the window's first ET day, so
+  // every event on since_day is seen (the uploader replaces whole days from
+  // since_day on; a file skipped on an exact-timestamp cut would erase usage).
+  const sinceMs = Date.parse(`${sinceDay}T00:00:00Z`) - 86400000;
   const claudeFiles = existsSync(claudeDir) ? walk(claudeDir, (n) => n.endsWith('.jsonl'), sinceMs) : [];
   const codexFiles = existsSync(codexDir) ? walk(codexDir, (n) => n.startsWith('rollout-') && n.endsWith('.jsonl'), sinceMs) : [];
   const rows = [
