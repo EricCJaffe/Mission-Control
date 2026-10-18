@@ -36,7 +36,9 @@ export function planStatus(plan, rows, now = new Date()) {
   // reset has passed it says nothing about the new window.
   const expired = (resetsAt) => resetsAt && new Date(resetsAt).getTime() <= t;
 
-  // 1. A vendor percent: manual reading (newest), else Codex's weekly meter.
+  // 1. A vendor percent: manual reading (newest), else a CLI's own weekly
+  // meter (Codex rate_limits; Claude's /usage, recorded hourly as bot
+  // `claude-usage` rows for claude-max and claude-4lot).
   // Manual readings count only when they measure the plan's own window (or
   // say nothing about the window); a 5h reading never stands for a week.
   // Between a manual reading and a CLI meter, the newer OBSERVATION wins, and
@@ -56,11 +58,14 @@ export function planStatus(plan, rows, now = new Date()) {
     const useSec = r.secondary_used_pct != null;
     if (!useSec && (weeklyOnly || r.primary_used_pct == null)) continue;
     if (!freshMeter(r) || expired(useSec ? r.secondary_resets_at : r.primary_resets_at)) continue;
+    // The Claude /usage meter is recorded hourly: older than 12h means the
+    // recorder is failing; fall back (token estimate / no cap) instead.
+    if (r.bot === 'claude-usage' && t - new Date(meterAt(r)).getTime() > 12 * H) continue;
     candidates.push({ at: meterAt(r), captured: r.captured_at, reading: {
       pct: Number(useSec ? r.secondary_used_pct : r.primary_used_pct),
       resetsAt: useSec ? r.secondary_resets_at : r.primary_resets_at,
       windowMin: (useSec ? r.secondary_window_minutes : r.primary_window_minutes) ?? planWin,
-      basis: useSec ? 'CLI weekly meter' : 'CLI meter', estimate: false, at: meterAt(r),
+      basis: r.bot === 'claude-usage' ? 'Claude /usage meter' : useSec ? 'CLI weekly meter' : 'CLI meter', estimate: false, at: meterAt(r),
     } });
   }
   candidates.sort((x, y) => String(y.at).localeCompare(String(x.at)) || String(y.captured).localeCompare(String(x.captured)));
@@ -82,7 +87,9 @@ export function planStatus(plan, rows, now = new Date()) {
       resetsAt = null;
     }
     const startDay = etDay(new Date(start).toISOString());
-    const inWin = rows.filter((r) => r.source === 'log' && r.day >= startDay);
+    // Token rows only: a Claude /usage meter row carries no tokens and no
+    // activity time, so it must not make an idle plan look active.
+    const inWin = rows.filter((r) => r.source === 'log' && r.bot !== 'claude-usage' && r.day >= startDay);
     const used = inWin.reduce((s, r) => s + Number(r.tokens_total || 0), 0);
     // Newest log activity = when this log-derived reading was true (so a stale
     // collector shows a stale reading_at instead of looking brand new).
@@ -94,20 +101,31 @@ export function planStatus(plan, rows, now = new Date()) {
       let idleAt = lastMs ? new Date(Math.min(t, lastMs)).toISOString() : null;
       // An older manual reading still holds until its own reset: a plan read
       // at 100% must not turn "empty" just because 48h passed without logs.
-      const stale = rows.filter((m) => m.source === 'manual' && m.primary_used_pct != null && m.primary_resets_at && !expired(m.primary_resets_at)
-        && (m.primary_window_minutes == null || Number(m.primary_window_minutes) === planWin)).sort(byLatest)[0];
-      const useStale = stale && Number(stale.primary_used_pct) > idlePct;
-      if (useStale) { idlePct = Number(stale.primary_used_pct); idleAt = stale.meter_at ?? etNoon(stale.day); }
+      // So does an older Claude /usage meter reading (its weekly number).
+      const held = [
+        ...rows.filter((m) => m.source === 'manual' && m.primary_used_pct != null && m.primary_resets_at && !expired(m.primary_resets_at)
+          && (m.primary_window_minutes == null || Number(m.primary_window_minutes) === planWin))
+          .map((m) => ({ r: m, pct: Number(m.primary_used_pct), resetsAt: m.primary_resets_at, at: m.meter_at ?? etNoon(m.day) })),
+        ...rows.filter((m) => m.source === 'log' && m.bot === 'claude-usage' && m.secondary_used_pct != null && m.secondary_resets_at && !expired(m.secondary_resets_at)
+          && (m.secondary_window_minutes == null || Number(m.secondary_window_minutes) === planWin))
+          .map((m) => ({ r: m, pct: Number(m.secondary_used_pct), resetsAt: m.secondary_resets_at, at: m.meter_at })),
+      // Usage only grows inside a window, so of the readings whose window has
+      // not reset, the highest is the safe one (a stale meter at 10% must not
+      // hide a manual 100%).
+      ].sort((x, y) => y.pct - x.pct || String(y.at).localeCompare(String(x.at)));
+      const stale = held[0];
+      const useStale = stale && stale.pct > idlePct;
+      if (useStale) { idlePct = stale.pct; idleAt = stale.at; }
       const exhausted = idlePct >= 100;
       return { slug: plan.slug, name: plan.name, status: exhausted ? 'red' : 'grey', pct: idlePct, idle: true, exhausted, noCap: false,
-        readingAt: idleAt, resetsAt: resetsAt ?? (useStale ? stale.primary_resets_at : null) ?? null, projectedAtResetPct: idlePct, beforeReset: exhausted,
+        readingAt: idleAt, resetsAt: resetsAt ?? (useStale ? stale.resetsAt : null) ?? null, projectedAtResetPct: idlePct, beforeReset: exhausted,
         line: `${plan.name}: no usage logged in 48h (${idlePct}% of the ${plan.limit_is_estimate ? 'estimated ' : ''}budget used this window${exhausted ? '; EXHAUSTED until reset' : ''})` };
     }
     reading = { at: lastMs ? new Date(lastMs).toISOString() : undefined, pct: (100 * used) / Number(plan.limit_value), resetsAt, windowMin, basis: plan.reset_anchor ? 'tokens vs budget' : 'rolling 7-day tokens vs budget', estimate: !!plan.limit_is_estimate, rolling: !plan.reset_anchor, tokens: true };
   }
   if (!reading && plan.limit_kind === 'tokens' && !plan.limit_value) {
     const since7 = etDay(new Date(t - 6 * 24 * H).toISOString());
-    const tok = rows.filter((r) => r.source === 'log' && r.day >= since7).reduce((n, r) => n + Number(r.tokens_total || 0), 0);
+    const tok = rows.filter((r) => r.source === 'log' && r.bot !== 'claude-usage' && r.day >= since7).reduce((n, r) => n + Number(r.tokens_total || 0), 0);
     const fmtTok = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : String(n));
     return { slug: plan.slug, name: plan.name, status: 'grey', pct: null, noCap: true, line: `NO CAP KNOWN · ${plan.name}: ${fmtTok(tok)} tokens in the last 7 days (${fmtTok(Math.round(tok / 7))}/day); add a % reading from its usage page to forecast` };
   }

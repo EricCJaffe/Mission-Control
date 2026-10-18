@@ -25,6 +25,16 @@
  *   - Codex CLI:    ~/.codex/sessions/**\/rollout-*.jsonl (session_meta /
  *     turn_context cwd, event_msg token_count usage and rate_limits).
  *     Never opens ~/.codex/auth.json or any other file in ~/.codex.
+ *   - Claude plan meters: $BRAIN_ROOT/runs/claude-usage.jsonl (claude-max,
+ *     written hourly by `claude-usage --record`) and
+ *     $BRAIN_ROOT/runs/claude-usage-4lot.jsonl (claude-4lot, written by
+ *     scripts/usage/claude-meter.mjs). Each line is Claude Code's own
+ *     `/usage` reading (session % and week %, with resets); it becomes one
+ *     meter row per plan and ET day (bot `claude-usage`, no tokens).
+ *     Override with --meter FILE=PLAN (repeatable) or
+ *     AI_USAGE_CLAUDE_METERS="FILE=PLAN,FILE=PLAN". upload.mjs (ubuntu-dev)
+ *     reads them; the bare CLI only with --meter (the box and Mac mini runs
+ *     must not re-send a stale brain clone's copy).
  *
  * Window: the last 28 days by default (Claude Code prunes its own logs after
  * 30), so a re-run never overwrites a complete day with a pruned one.
@@ -34,7 +44,7 @@
  * it to a project; it is not stored in the database.
  */
 
-import { createReadStream, existsSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { homedir, hostname } from 'node:os';
@@ -235,6 +245,119 @@ export async function collectCodex({ files, host, sinceDay }) {
   return [...rows.values()].filter((r) => r.tokens_total > 0 || r.primary_used_pct !== null || r.secondary_used_pct !== null);
 }
 
+/*
+ * Claude plan meters. `/usage` prints resets as ET wall clock ("Oct 20,
+ * 6:59pm", optionally "(America/New_York)"), with no year: the year is the
+ * one that puts the reset nearest the reading.
+ */
+const MON = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+const partsFmt = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+function etOffsetMs(utcMs) {
+  const p = Object.fromEntries(partsFmt.formatToParts(new Date(utcMs)).map((x) => [x.type, x.value]));
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) - utcMs;
+}
+
+/** ET wall clock -> epoch ms (DST-correct). */
+export function etWallMs(y, mo, d, h, mi) {
+  const guess = Date.UTC(y, mo, d, h, mi);
+  let t = guess - etOffsetMs(guess);
+  t = guess - etOffsetMs(t);
+  return t;
+}
+
+/**
+ * "Oct 20, 6:59pm" (ET) near the reading time atMs -> ISO, or null. A
+ * time-only reset ("6pm", same day) is the next one at or after the reading.
+ * A trailing "(Zone)" other than America/New_York gives null (never guessed).
+ */
+export function parseEtReset(text, atMs) {
+  const str = String(text ?? '');
+  const zone = /\(([^)]+)\)/.exec(str);
+  if ((zone && zone[1].trim() !== TZ) || !Number.isFinite(atMs)) return null;
+  const hm = (h12, mi, ap) => [Number(h12) % 12 + (ap.toLowerCase() === 'p' ? 12 : 0), Number(mi ?? 0)];
+  const m = /^\s*([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?/i.exec(str);
+  let best = null;
+  if (m) {
+    const mo = MON[m[1].toLowerCase()];
+    if (mo === undefined) return null;
+    const [h, mi] = hm(m[3], m[4], m[5]);
+    const y0 = Number(dayFmt.format(new Date(atMs)).slice(0, 4));
+    for (const y of [y0 - 1, y0, y0 + 1]) {
+      const t = etWallMs(y, mo, Number(m[2]), h, mi);
+      if (best === null || Math.abs(t - atMs) < Math.abs(best - atMs)) best = t;
+    }
+  } else {
+    const t = /^\s*(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?/i.exec(str);
+    if (!t) return null;
+    const [h, mi] = hm(t[1], t[2], t[3]);
+    const [y, mo, d] = dayFmt.format(new Date(atMs)).split('-').map(Number);
+    best = etWallMs(y, mo - 1, d, h, mi);
+    if (best < atMs - 3600000) best = etWallMs(y, mo - 1, d + 1, h, mi);
+  }
+  // A reset is after its reading (an hour of slack for rounding to the hour).
+  if (best === null || best < atMs - 3600000) return null;
+  return new Date(best).toISOString();
+}
+
+/**
+ * One meter row per (plan, ET day): the day's newest ok `/usage` reading.
+ * primary = the 5-hour session meter, secondary = the weekly (all models)
+ * meter, both Claude's own percentages. No tokens: the logs count those.
+ */
+export function collectClaudeMeters({ text, plan, host, sinceDay }) {
+  const byDay = new Map();
+  for (const line of String(text ?? '').split('\n')) {
+    if (!line.includes('"week_pct"')) continue;
+    let r;
+    try { r = JSON.parse(line); } catch { continue; }
+    if (!r || r.ok !== true || typeof r.week_pct !== 'number' || !Number.isFinite(r.week_pct)) continue;
+    const atMs = Date.parse(r.at);
+    if (!Number.isFinite(atMs)) continue;
+    const day = etDay(r.at);
+    if (!day || (sinceDay && day < sinceDay)) continue;
+    const at = new Date(atMs).toISOString();
+    const prev = byDay.get(day);
+    if (prev && prev.meter_at >= at) continue;
+    const row = emptyRow({ plan_slug: plan, day, host, bot: 'claude-usage', session_id: 'meter', cwd: null, model: null });
+    if (typeof r.session_pct === 'number' && Number.isFinite(r.session_pct)) {
+      row.primary_used_pct = r.session_pct;
+      row.primary_window_minutes = 300;
+      row.primary_resets_at = parseEtReset(zoned(r.session_resets, r.tz), atMs);
+    }
+    row.secondary_used_pct = r.week_pct;
+    row.secondary_window_minutes = 10080;
+    row.secondary_resets_at = parseEtReset(zoned(r.week_resets, r.tz), atMs);
+    row.meter_at = at;
+    byDay.set(day, row);
+  }
+  return [...byDay.values()];
+}
+
+/** A record's zone label (claude-meter keeps it as `tz`) back on its reset text. */
+function zoned(text, tz) {
+  return tz && text ? `${text} (${tz})` : text;
+}
+
+/** "FILE=PLAN" -> { file, plan }. */
+export function parseMeter(spec, home = homedir()) {
+  const i = spec.lastIndexOf('=');
+  let file = i > 0 ? spec.slice(0, i) : spec;
+  const plan = i > 0 ? spec.slice(i + 1) : 'claude-max';
+  if (file.startsWith('~/')) file = join(home, file.slice(2));
+  return { file, plan };
+}
+
+export function defaultClaudeMeters(env = process.env, home = homedir()) {
+  if (env.AI_USAGE_CLAUDE_METERS != null) return env.AI_USAGE_CLAUDE_METERS.split(',').map((x) => x.trim()).filter(Boolean).map((x) => parseMeter(x, home));
+  let brain = env.BRAIN_ROOT || join(home, 'dev', 'brain');
+  if (brain.startsWith('~/')) brain = join(home, brain.slice(2));
+  return [
+    { file: join(brain, 'runs', 'claude-usage.jsonl'), plan: 'claude-max' },
+    { file: join(brain, 'runs', 'claude-usage-4lot.jsonl'), plan: 'claude-4lot' },
+  ];
+}
+
 /** Claude config dir (its `projects` folder) -> plan slug, per account. */
 export const DEFAULT_CLAUDE_ACCOUNTS = [
   ['.claude', 'claude-max'],
@@ -258,23 +381,27 @@ export function defaultClaudeDirs(env = process.env, home = homedir()) {
 }
 
 function parseArgs(argv) {
-  const a = { host: hostname(), days: 28, claudeDirs: null, codexDir: join(homedir(), '.codex', 'sessions') };
+  const a = { host: hostname(), days: 28, claudeDirs: null, meters: null, codexDir: join(homedir(), '.codex', 'sessions') };
   for (let i = 0; i < argv.length; i++) {
     const v = argv[i];
     if (v === '--host') a.host = argv[++i];
     else if (v === '--days') a.days = Number(argv[++i]);
     else if (v === '--claude-dir') (a.claudeDirs ??= []).push(parseClaudeDir(argv[++i]));
     else if (v === '--codex-dir') a.codexDir = argv[++i];
+    else if (v === '--meter') (a.meters ??= []).push(parseMeter(argv[++i]));
     else if (v === '--help' || v === '-h') {
-      console.log('Usage: collect-logs.mjs [--host NAME] [--days N] [--claude-dir DIR[=PLAN]]... [--codex-dir DIR]\nPrints aggregated usage JSON to stdout. Read only.');
+      console.log('Usage: collect-logs.mjs [--host NAME] [--days N] [--claude-dir DIR[=PLAN]]... [--codex-dir DIR] [--meter FILE[=PLAN]]...\nPrints aggregated usage JSON to stdout. Read only.');
       process.exit(0);
     }
   }
   a.claudeDirs ??= defaultClaudeDirs();
+  // Meters only when asked: upload.mjs on ubuntu-dev passes them; a box or
+  // Mac mini run piped over ssh must not re-send a stale brain clone's copy.
+  a.meters ??= [];
   return a;
 }
 
-export async function collectAll({ host, days, claudeDirs, claudeDir, codexDir, now = Date.now() }) {
+export async function collectAll({ host, days, claudeDirs, claudeDir, codexDir, meters = [], now = Date.now() }) {
   const sinceDay = etDay(new Date(now - days * 86400000).toISOString());
   // Files are picked by mtime from a day BEFORE the window's first ET day, so
   // every event on since_day is seen (the uploader replaces whole days from
@@ -303,7 +430,15 @@ export async function collectAll({ host, days, claudeDirs, claudeDir, codexDir, 
     ...(await collectClaude({ files: claudeFiles, host, sinceDay, planOf: (f) => planByFile.get(f) })),
     ...(await collectCodex({ files: codexFiles, host, sinceDay })),
   ];
-  return { host, generated_at: new Date(now).toISOString(), since_day: sinceDay, files: { claude: claudeFiles.length, claude_by_plan: byPlan, codex: codexFiles.length }, rows };
+  let meterRows = 0;
+  for (const { file, plan } of meters) {
+    let text;
+    try { text = readFileSync(file, 'utf8'); } catch { continue; }
+    const got = collectClaudeMeters({ text, plan, host, sinceDay });
+    meterRows += got.length;
+    rows.push(...got);
+  }
+  return { host, generated_at: new Date(now).toISOString(), since_day: sinceDay, files: { claude: claudeFiles.length, claude_by_plan: byPlan, codex: codexFiles.length, meter_rows: meterRows }, rows };
 }
 
 const isMain = (() => {

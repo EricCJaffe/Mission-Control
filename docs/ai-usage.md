@@ -32,7 +32,39 @@ app         /ai-usage reads mission.ai_plans / ai_usage_snapshots / ai_usage_dai
   the next run re-attributes the last 28 days.
 - **Plans:** `config/ai-usage-plans.json`, upserted into `mission.ai_plans` on
   every run. Claude Max has no published token cap, so its weekly budget is an
-  **estimate** (labeled so); a manual percent reading overrides it.
+  **estimate** (labeled so); a percent reading overrides it (see below).
+
+## Claude readings: automatic, hourly (2026-10-18)
+
+Claude Code's own `/usage` command prints each plan's meters (current 5-hour
+session %, current week %, with resets). It is local and makes no model call.
+Two recorders feed it to the meter, so Eric and Chief of Staff no longer owe
+manual Claude readings:
+
+| Plan | Recorded by | Log (`$BRAIN_ROOT/runs/`) | How often |
+| --- | --- | --- | --- |
+| `claude-max` | `claude-usage --record` (its own `claude-usage.timer`, ubuntu-dev) | `claude-usage.jsonl` | hourly at :07 |
+| `claude-4lot` | `scripts/usage/claude-meter.mjs` from `deploy/ai-usage/ubuntu-collect.sh` (`CLAUDE_CONFIG_DIR=~/.claude-4lot claude -p /usage`, the claude-4lot wrapper's login) | `claude-usage-4lot.jsonl` | about hourly (skips when its last reading is under 55 min old) |
+
+`upload.mjs` turns each plan's newest reading per ET day into one log row
+(bot `claude-usage`, session `meter`, no tokens): primary = the 5-hour session,
+secondary = the week, with the resets `/usage` printed (ET wall clock, converted
+to UTC). The forecast (brief, `open/ai-usage.json`, the page) uses the weekly
+number as the plan's reading, labeled `Claude /usage meter`; it overrides the
+token estimate while under 12h old (it is hourly; older means the recorder is
+failing, so the plan falls back to its estimate or "no cap") and inside its
+window. A **manual reading
+still wins when it was observed later** (newest observation wins, as with
+Codex). The recorder never opens a file in the config dir (credentials
+included) and never changes which account a session uses; it keeps only the
+percentages and resets. It removes auth-override env vars by name
+(`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, provider switches) from the
+child so the reading is that config dir's login, sets `TZ=America/New_York`
+(resets print in local time; ubuntu-dev's clock is ET, which `claude-usage`
+relies on), passes `--no-session-persistence` (no transcript), treats a
+non-zero exit or timeout as a failed reading, and retries 15 min after a
+failure (hourly after a good one). Only `upload.mjs` on ubuntu-dev reads these logs; the
+box and Mac mini collectors do not (`--meter FILE=PLAN` to read one by hand).
 
 ## Claude accounts: two plans (2026-10-18)
 
@@ -56,7 +88,7 @@ only account names and no secrets:
 
 ## Routing file for dispatch (2026-10-18)
 
-`report.mjs --write` also writes `$BRAIN_ROOT/open/ai-usage.json`, the machine-readable twin of the brief lines. It has one record per plan: `used_pct`, `projected_at_reset_pct`, `runout_before_reset`, `reset_at`, `reading_at`, `reading_age_h`, `status`, `no_cap`, `early`, `idle`. For a token-budget plan (4lot), `used_pct` comes from the logs against its estimated cap; `reading_at` is the newest log activity, and `idle: true` means nothing logged in 48h (the window's earlier usage still counts; 0% only when nothing was logged this window, which dispatch treats as available at lower priority). The file is written atomically (temp file + rename). It also carries `limit_tokens`, `capacity_weight`, `overflow_target` and `small_jobs_only` per plan, plus `max_weekly_tokens_baseline` and `job_size_tokens` (S/M/L). `dispatch-autostart` (dev-harness) reads it to route queued notes between Claude main and Claude 4lot. Eric turned meter-driven routing on at 2:06 PM ET on 10/18. A file that is missing, or older than 24h, means dispatch behaves as before. The brief gets one `routing (24h): ...` line built from `runs/dispatch-routing.jsonl`, the decision log dispatch writes. A second line, `routes (7d, first-try): ...`, scores each route (plan/model tier) from the `outcome` records dispatch appends when a job finishes (first-try success, review findings, rework, tokens); an economy route under 80% first-try (5+ jobs) is moved up a tier by dispatch, and escalations and needs-Eric flags are counted.
+`report.mjs --write` also writes `$BRAIN_ROOT/open/ai-usage.json`, the machine-readable twin of the brief lines. It has one record per plan: `used_pct`, `projected_at_reset_pct`, `runout_before_reset`, `reset_at`, `reading_at`, `reading_age_h`, `status`, `no_cap`, `early`, `idle`. For a token-budget plan (4lot), `used_pct` comes from the logs against its estimated cap; `reading_at` is the newest log activity, and `idle: true` means nothing logged in 48h (the window's earlier usage still counts; 0% only when nothing was logged this window, which dispatch treats as available at lower priority). The file is written atomically (temp file + rename). It also carries `limit_tokens`, `capacity_weight`, `overflow_target` and `small_jobs_only` per plan, plus `max_weekly_tokens_baseline` and `job_size_tokens` (S/M/L). `dispatch-autostart` (dev-harness) reads it to route queued notes between Claude main and Claude 4lot. Eric turned meter-driven routing on at 2:06 PM ET on 10/18. A file that is missing, or older than 24h, means dispatch behaves as before. The brief gets one `routing (24h): ...` line built from `runs/dispatch-routing.jsonl`, the decision log dispatch writes. A second line, `routes (7d, first-try): ...`, scores each route (plan/model tier) from the `outcome` records dispatch appends when a job finishes (first-try success, review findings, rework, tokens); an economy route under 80% first-try (5+ jobs) is moved up a tier by dispatch, and escalations and needs-Eric flags are counted. A third line, `auto-start stalled (24h): ...`, names each queued note dispatch gave up on after its prompts-per-day limit (a `give-up` record with the reason); a later dispatch of the note clears it.
 
 ## Grok Bot Ultra (manual, Chief of Staff daily)
 

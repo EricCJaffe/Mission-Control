@@ -1,5 +1,5 @@
 {
-  "//": "Plan budgets for the AI usage meter. The collector upserts these into mission.ai_plans for MC_USER_ID on every run. Edit here, not in the DB. Claude plans are split by ACCOUNT (the Claude config dir a log sits in; see scripts/usage/collect-logs.mjs and docs/ai-usage.md): claude-max = main (ejaffejax@gmail.com, ~/.claude), claude-4lot = ejaffe@4lot.org (~/.claude-4lot and ~/.claude-reserve). Claude 4lot carries an estimated weekly cap (0.0625 x main, config/ai-usage-capacity.json). For Claude main Anthropic publishes no token cap, so limit_value is null ('no cap known', shown neutral grey with burn in tokens); a manual percent reading from Claude's usage page (CoS, manual.jsonl) drives its % and forecast when present. Set limit_value (tokens/week, estimate) only if Eric picks a budget.",
+  "//": "Plan budgets for the AI usage meter. The collector upserts these into mission.ai_plans for MC_USER_ID on every run. Edit here, not in the DB. Claude plans are split by ACCOUNT (the Claude config dir a log sits in; see scripts/usage/collect-logs.mjs and docs/ai-usage.md): claude-max = main (ejaffejax@gmail.com, ~/.claude), claude-4lot = ejaffe@4lot.org (~/.claude-4lot and ~/.claude-reserve). Claude 4lot carries an estimated weekly cap (0.0625 x main, config/ai-usage-capacity.json). For Claude main Anthropic publishes no token cap, so limit_value is null ('no cap known', shown neutral grey with burn in tokens); its % and forecast come from Claude Code's own /usage meter, recorded hourly (claude-usage --record on ubuntu-dev; docs/ai-usage.md), or a newer manual reading. Set limit_value (tokens/week, estimate) only if Eric picks a budget.",
   "plans": [
     {
       "slug": "claude-max",
@@ -11,7 +11,7 @@
       "limit_is_estimate": true,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "Main account: Claude Code logs under ~/.claude on ubuntu-dev (herdr fleet + tmux sessions), box, mac-mini. No published cap: neutral until a manual % reading arrives."
+      "notes": "Main account: Claude Code logs under ~/.claude on ubuntu-dev (herdr fleet + tmux sessions), box, mac-mini. No published cap: its % comes from the hourly /usage meter (runs/claude-usage.jsonl) or a newer manual reading."
     },
     {
       "slug": "claude-4lot",
@@ -23,7 +23,7 @@
       "limit_is_estimate": true,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "ejaffe@4lot.org (Team Standard seat): logs under ~/.claude-4lot (claude-4lot wrapper, herdr pane 'fourlot') and ~/.claude-reserve. Weekly cap ESTIMATE 325M logged tokens = 0.0625 x Claude main's ~5.2B/week (config/ai-usage-capacity.json); a manual % reading (plan claude-4lot) overrides it."
+      "notes": "ejaffe@4lot.org (Team Standard seat): logs under ~/.claude-4lot (claude-4lot wrapper, herdr pane 'fourlot') and ~/.claude-reserve. Weekly cap ESTIMATE 325M logged tokens = 0.0625 x Claude main's ~5.2B/week (config/ai-usage-capacity.json); the hourly /usage meter for the 4lot login (runs/claude-usage-4lot.jsonl) or a newer manual reading overrides it."
     },
     {
       "slug": "chatgpt-codex",

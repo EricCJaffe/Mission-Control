@@ -7,7 +7,9 @@
  *   npm run usage:collect -- --dry-run  # same, print a summary, write nothing
  *
  * Inputs:
- *   1. This host's Claude Code / Codex logs (collect-logs.mjs, read only).
+ *   1. This host's Claude Code / Codex logs (collect-logs.mjs, read only),
+ *      plus the Claude plan meters ($BRAIN_ROOT/runs/claude-usage*.jsonl:
+ *      Claude Code's own /usage %, recorded hourly) as automatic readings.
  *   2. $AI_USAGE_INBOX/*.json (default ~/.local/share/ai-usage/inbox):
  *      collector output pushed here from other hosts (the box, the Mac mini;
  *      see deploy/ai-usage/box-collect.sh). Moved to inbox/done/ after upload.
@@ -26,7 +28,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
-import { collectAll, defaultClaudeDirs } from './collect-logs.mjs';
+import { collectAll, defaultClaudeDirs, defaultClaudeMeters } from './collect-logs.mjs';
 import { loadMapping } from './attribution.mjs';
 import { attributeRows, newestPerHost, parseManual, UNIQUE_COLS } from './rows.mjs';
 
@@ -69,7 +71,7 @@ async function main() {
   const map = loadMapping(JSON.parse(readFileSync(join(ROOT, 'config', 'ai-usage-projects.json'), 'utf8')));
 
   let collected = [];
-  if (a.local) collected.push(await collectAll({ host: a.host, days: a.days, claudeDirs: defaultClaudeDirs(), codexDir: join(homedir(), '.codex', 'sessions') }));
+  if (a.local) collected.push(await collectAll({ host: a.host, days: a.days, claudeDirs: defaultClaudeDirs(), meters: defaultClaudeMeters(), codexDir: join(homedir(), '.codex', 'sessions') }));
 
   const inbox = expand(process.env.AI_USAGE_INBOX ?? '~/.local/share/ai-usage/inbox');
   const inboxFiles = [];

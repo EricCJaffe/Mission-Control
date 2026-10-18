@@ -12,9 +12,11 @@
  *                  taken before this window began, is not current: the plan
  *                  shows gray ("reset since last reading"), never red.
  *   token plans    tokens since the window started ÷ `limit_value`, labeled an
- *                  estimate when `limit_is_estimate`. A manual percent reading
- *                  inside the window and under 48h old overrides it (it is
- *                  the number off the vendor's own usage page).
+ *                  estimate when `limit_is_estimate`. A percent reading
+ *                  inside the window and under 48h old overrides it: a manual
+ *                  one (the number off the vendor's own usage page) or the
+ *                  Claude /usage meter (`claude-usage` log rows, recorded
+ *                  hourly on ubuntu-dev), whichever was observed last.
  *
  * Burn, per day:
  *   token basis    tokens over the last 7 ET days ÷ 7, as percent of limit.
@@ -50,6 +52,12 @@ import { DAY_MS, etMidnight, resetWindow, type ResetWindow } from './window.ts';
 export type Rag = 'red' | 'yellow' | 'green' | 'none';
 
 export const STALE_AFTER_HOURS = 48;
+/**
+ * The Claude /usage meter (bot `claude-usage`) is recorded hourly; one older
+ * than this means the recorder is failing, so a token plan falls back to its
+ * estimate instead of trusting a reading from half a day ago.
+ */
+export const METER_STALE_HOURS = 12;
 export const THRESHOLDS = T;
 export const RED_AT = T.redAtPct;
 export const YELLOW_AT = T.yellowAtPct;
@@ -91,7 +99,9 @@ type Row = Pick<
   | 'meter_at'
   | 'last_at'
   | 'captured_at'
->;
+> &
+  // Optional: only the Claude /usage meter rows (bot `claude-usage`) need it.
+  Partial<Pick<AiUsageSnapshot, 'bot'>>;
 
 type Reading = {
   pct: number;
@@ -102,6 +112,8 @@ type Reading = {
   /** Tie-break for readings observed at the same instant. */
   capturedMs: number;
   source: Row['source'];
+  /** The hourly Claude /usage meter (stale after METER_STALE_HOURS). */
+  meter: boolean;
 };
 
 const toNum = (v: unknown): number | null => {
@@ -163,17 +175,20 @@ export function rowReading(r: Row, cadence: AiPlan['reset_cadence'] = 'weekly'):
     if (used !== null && limit) pct = (used / limit) * 100;
   }
   if (pct === null) return null;
-  return { pct, resetsAt, resetFrom, at, capturedMs: ms(r.captured_at) ?? 0, source: r.source };
+  return { pct, resetsAt, resetFrom, at, capturedMs: ms(r.captured_at) ?? 0, source: r.source, meter: r.bot === 'claude-usage' };
 }
 
 const newer = (a: Reading, b: Reading) =>
   a.at.getTime() !== b.at.getTime() ? a.at.getTime() > b.at.getTime() : a.capturedMs > b.capturedMs;
 
-function latestReading(rows: Row[], cadence: AiPlan['reset_cadence'], source?: Row['source']): Reading | null {
+function latestReading(rows: Row[], cadence: AiPlan['reset_cadence'], now: Date, source?: Row['source']): Reading | null {
   let best: Reading | null = null;
   for (const r of rows) {
     if (source && r.source !== source) continue;
     const reading = rowReading(r, cadence);
+    // A stale Claude /usage meter (recorder failing) is not a candidate, so an
+    // older manual reading can still stand (same rule as scripts/usage/forecast.mjs).
+    if (reading?.meter && (now.getTime() - reading.at.getTime()) / 3_600_000 > METER_STALE_HOURS) continue;
     if (reading && (!best || newer(reading, best))) best = reading;
   }
   return best;
@@ -221,8 +236,10 @@ export function planStatus(
   }
 
   const cadence = plan.reset_cadence;
-  const reading =
-    plan.limit_kind === 'percent' ? latestReading(rows, cadence) : latestReading(rows, cadence, 'manual');
+  // Any plan takes its newest percent reading: a manual one, or a CLI's own
+  // meter (Codex's rate limits; Claude's /usage, recorded hourly as bot
+  // `claude-usage` rows). For a token plan it overrides the token estimate.
+  const reading = latestReading(rows, cadence, now);
   const window = resetWindow(plan, now, reading?.resetsAt);
 
   const tokensInWindow = rows
@@ -271,13 +288,13 @@ export function planStatus(
       }
     }
   } else {
-    const manual = readingInWindow(reading);
-    const fresh = manual && (now.getTime() - manual.at.getTime()) / 3_600_000 <= STALE_AFTER_HOURS;
-    if (manual && fresh) {
+    const current = readingInWindow(reading);
+    const fresh = current && (now.getTime() - current.at.getTime()) / 3_600_000 <= (current.meter ? METER_STALE_HOURS : STALE_AFTER_HOURS);
+    if (current && fresh) {
       basis = 'percent';
-      usedPct = manual.pct;
-      burnPctPerDay = burnOf(manual, usedPct);
-      measuredAt = manual.at;
+      usedPct = current.pct;
+      burnPctPerDay = burnOf(current, usedPct);
+      measuredAt = current.at;
     } else if (limitTokens && limitTokens > 0 && rows.length) {
       basis = 'tokens';
       usedPct = (tokensInWindow / limitTokens) * 100;

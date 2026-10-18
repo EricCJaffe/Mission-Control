@@ -132,3 +132,13 @@ test('impossible dates are per-line errors, never a crash', () => {
   assert.equal(rows.length, 1);
   assert.equal(errors.length, 2);
 });
+
+test('meter rows: one per plan on the same host/day under the unique key, percentages kept', () => {
+  const m = (plan, pct, at) => ({ plan_slug: plan, source: 'log', day: '2026-10-18', host: 'ubuntu-dev', bot: 'claude-usage', session_id: 'meter', cwd: null,
+    messages: 0, tokens_in: 0, tokens_out: 0, tokens_cache_read: 0, tokens_cache_write: 0, tokens_total: 0,
+    primary_used_pct: 3, primary_window_minutes: 300, primary_resets_at: null,
+    secondary_used_pct: pct, secondary_window_minutes: 10080, secondary_resets_at: '2026-10-20T22:59:00.000Z', meter_at: at, first_at: null, last_at: null });
+  const out = attributeRows([m('claude-max', 51, '2026-10-18T18:07:05.000Z'), m('claude-4lot', 1, '2026-10-18T18:59:00.000Z')], loadMapping({ projects: [] }), 'u');
+  assert.equal(out.length, 2);
+  assert.deepEqual(out.map((r) => [r.plan_slug, r.project, r.secondary_used_pct, r.tokens_total]).sort(), [['claude-4lot', 'unattributed', 1, 0], ['claude-max', 'unattributed', 51, 0]]);
+});

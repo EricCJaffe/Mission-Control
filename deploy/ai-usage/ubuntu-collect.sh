@@ -8,6 +8,12 @@
 #     mtime; the uploader replaces this host's rows from since_day on, so older
 #     days are untouched). One full 28-day pass every 20 h catches anything a
 #     short pass could miss (late-written files, pruned logs, plan remaps).
+#   - Claude meters: claude-usage (its own hourly timer) records the main
+#     account's /usage % into $BRAIN/runs/claude-usage.jsonl; this run records
+#     the 4lot login's (CLAUDE_CONFIG_DIR=~/.claude-4lot, about hourly; see
+#     scripts/usage/claude-meter.mjs). upload.mjs turns both into automatic
+#     readings; a newer manual reading still wins. A failed 4lot reading only
+#     warns: the log-based estimate keeps working.
 #   - report.mjs --write always refreshes open/ai-usage.{txt,json} locally (the
 #     dispatch router reads the freshest file); it commits/pushes the brain
 #     at most every 2 h unless a run-out alert note was written.
@@ -28,6 +34,10 @@ if [ "${AI_USAGE_FULL:-0}" = 1 ] || [ $(( $(date +%s) - last_full )) -ge 72000 ]
   date +%s > "$STATE/last-full.tmp" && mv -f "$STATE/last-full.tmp" "$STATE/last-full"
 fi
 t0=$(date +%s%N)
+BRAIN="${BRAIN_ROOT:-$HOME/dev/brain}"
+CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || echo "$HOME/.local/bin/claude")}"
+"$NODE" scripts/usage/claude-meter.mjs --claude "$CLAUDE_BIN" --config-dir "$HOME/.claude-4lot" \
+  --log "$BRAIN/runs/claude-usage-4lot.jsonl" || echo "[usage] 4lot meter reading failed; continuing"
 "$NODE" scripts/usage/upload.mjs --days "$days"
 "$NODE" scripts/usage/report.mjs --write
 echo "[usage] run done: --days $days in $(( ($(date +%s%N) - t0) / 1000000 )) ms"
