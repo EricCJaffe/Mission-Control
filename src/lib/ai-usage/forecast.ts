@@ -181,11 +181,14 @@ export function rowReading(r: Row, cadence: AiPlan['reset_cadence'] = 'weekly'):
 const newer = (a: Reading, b: Reading) =>
   a.at.getTime() !== b.at.getTime() ? a.at.getTime() > b.at.getTime() : a.capturedMs > b.capturedMs;
 
-function latestReading(rows: Row[], cadence: AiPlan['reset_cadence'], source?: Row['source']): Reading | null {
+function latestReading(rows: Row[], cadence: AiPlan['reset_cadence'], now: Date, source?: Row['source']): Reading | null {
   let best: Reading | null = null;
   for (const r of rows) {
     if (source && r.source !== source) continue;
     const reading = rowReading(r, cadence);
+    // A stale Claude /usage meter (recorder failing) is not a candidate, so an
+    // older manual reading can still stand (same rule as scripts/usage/forecast.mjs).
+    if (reading?.meter && (now.getTime() - reading.at.getTime()) / 3_600_000 > METER_STALE_HOURS) continue;
     if (reading && (!best || newer(reading, best))) best = reading;
   }
   return best;
@@ -236,7 +239,7 @@ export function planStatus(
   // Any plan takes its newest percent reading: a manual one, or a CLI's own
   // meter (Codex's rate limits; Claude's /usage, recorded hourly as bot
   // `claude-usage` rows). For a token plan it overrides the token estimate.
-  const reading = latestReading(rows, cadence);
+  const reading = latestReading(rows, cadence, now);
   const window = resetWindow(plan, now, reading?.resetsAt);
 
   const tokensInWindow = rows

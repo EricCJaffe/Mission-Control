@@ -107,6 +107,9 @@ test('claude-meter parseUsage: the /usage text for the 4lot login', () => {
   const out = 'You are currently using your subscription to power your Claude Code usage\n\nCurrent session: 5% used · resets Oct 18, 6pm (America/New_York)\nCurrent week (all models): 1% used · resets Oct 24, 12pm (America/New_York)\nCurrent week (Fable): 0% used · resets Oct 24, 12pm (America/New_York)\n';
   const r = parseUsage(out, new Date('2026-10-18T18:53:00Z'));
   assert.deepEqual(r, { at: '2026-10-18T18:53:00.000Z', ok: true, session_pct: 5, session_resets: 'Oct 18, 6pm', tz: 'America/New_York', week_pct: 1, week_resets: 'Oct 24, 12pm' });
+  const fresh = parseUsage('Current session: 0% used\nCurrent week (all models): 0% used\n', new Date('2026-10-18T18:53:00Z'));
+  assert.deepEqual([fresh.ok, fresh.week_pct, fresh.week_resets], [true, 0, undefined]); // bare "0% used" at a fresh window
+  assert.equal(recordOf({ status: 0, stdout: 'something else' }, new Date()).ok, false);
   assert.equal(parseUsage('Please run /login', new Date()).ok, false);
   assert.equal(parseUsage('Please run /login', new Date()).error, 'not logged in');
   const rows = collectClaudeMeters({ text: JSON.stringify(r), plan: 'claude-4lot', host: 'h', sinceDay: '2026-10-18' });

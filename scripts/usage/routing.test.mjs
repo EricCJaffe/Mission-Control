@@ -137,3 +137,19 @@ test('forecast: 4lot meter beats its token estimate; a 13h-old meter falls back 
   assert.notEqual(old.pct, 2);
   assert.match(old.line, /estimate/);
 });
+
+test('forecast: a stale meter never hides an exhausted manual reading on an idle plan; an old meter also holds', () => {
+  const lot = { slug: 'claude-4lot', name: 'Claude Team (4lot)', limit_kind: 'tokens', limit_value: 1000, limit_is_estimate: true, reset_cadence: 'weekly' };
+  const tok = { source: 'log', bot: 'claude-code', day: '2026-10-15', tokens_total: 100, last_at: iso(-72), captured_at: iso(0) };
+  const manual = { source: 'manual', day: '2026-10-17', primary_used_pct: 100, primary_window_minutes: 10080, primary_resets_at: iso(60), meter_at: iso(-60), captured_at: iso(0) };
+  const meter = { source: 'log', bot: 'claude-usage', day: '2026-10-18', secondary_used_pct: 10, secondary_window_minutes: 10080, secondary_resets_at: iso(60), meter_at: iso(-13), captured_at: iso(0) };
+  const base = planStatus(lot, [tok, manual], now);
+  assert.equal(base.pct, 100);
+  const s = planStatus(lot, [tok, manual, meter], now);
+  assert.equal(s.pct, 100);
+  assert.equal(s.status, 'red');
+  assert.equal(s.exhausted, true);
+  const held = planStatus(lot, [tok, { ...meter, secondary_used_pct: 95, meter_at: iso(-50) }], now);
+  assert.equal(held.idle, true);
+  assert.equal(held.pct, 95);
+});

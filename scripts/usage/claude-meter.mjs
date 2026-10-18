@@ -56,10 +56,11 @@ export function parseUsage(text, at = new Date()) {
   const t = String(text ?? '');
   const out = { at: at.toISOString(), ok: false };
   for (const [key, label] of [['session', 'Current session'], ['week', 'Current week \\(all models\\)']]) {
-    const m = new RegExp(`${label}:\\s*(\\d+)% used\\s*·\\s*resets\\s*([^\\n(]+)(?:\\(([^)\\n]+)\\))?`).exec(t);
+    // The reset part is optional (a fresh window may print a bare "0% used").
+    const m = new RegExp(`${label}:\\s*(\\d+)% used(?:\\s*·\\s*resets\\s*([^\\n(]+)(?:\\(([^)\\n]+)\\))?)?`).exec(t);
     if (m) {
       out[`${key}_pct`] = Number(m[1]);
-      out[`${key}_resets`] = m[2].trim();
+      if (m[2]) out[`${key}_resets`] = m[2].trim();
       if (m[3]) out.tz = m[3].trim();
     }
   }

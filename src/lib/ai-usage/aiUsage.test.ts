@@ -179,6 +179,11 @@ test('token plan: the Claude /usage meter (claude-usage log row) overrides the e
   const fb = planStatus(plan({}), [row({ tokens_total: 200 }), staleMeter], NOW);
   assert.equal(fb.basis, 'tokens');
   assert.equal(fb.usedPct, 20);
+  // ...and a stale meter never hides an older manual reading that is still valid.
+  const manual20h = row({ source: 'manual', host: 'manual', bot: 'manual-form', session_id: '', primary_used_pct: 45, meter_at: '2026-10-13T20:00:00Z' });
+  const kept = planStatus(plan({ limit_value: null }), [manual20h, staleMeter], NOW);
+  assert.equal(kept.basis, 'percent');
+  assert.equal(kept.usedPct, 45);
   // A 5h-only meter row says nothing about the week: the token estimate stands.
   const fiveH = row({ bot: 'claude-usage', session_id: 'meter', primary_used_pct: 80, primary_window_minutes: 300, meter_at: '2026-10-14T15:07:00Z' });
   assert.equal(planStatus(plan({}), [row({ tokens_total: 200 }), fiveH], NOW).basis, 'tokens');
