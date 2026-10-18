@@ -34,6 +34,25 @@ app         /ai-usage reads mission.ai_plans / ai_usage_snapshots / ai_usage_dai
   every run. Claude Max has no published token cap, so its weekly budget is an
   **estimate** (labeled so); a manual percent reading overrides it.
 
+## Claude accounts: two plans (2026-10-18)
+
+Claude Code keeps each login in its own config dir (`CLAUDE_CONFIG_DIR`), and
+its logs sit under that dir's `projects/`. So the folder a log is in says which
+account (and plan) it bills. The logs carry no account field, so the mapping is
+by config dir. It was verified with `claude auth status` per dir, which shows
+only account names and no secrets:
+
+| Config dir (on ubuntu-dev) | Account | Plan slug | Who uses it |
+|---|---|---|---|
+| `~/.claude` | ejaffejax@gmail.com (Max) | `claude-max` (Claude Max (main)) | the herdr fleet (fsaos, honeylakeos, ...), every tmux session (e.g. `mc-ai-usage-p2`, `4lot-rebuild`, where 4lot is the project, not the account) |
+| `~/.claude-4lot` | ejaffe@4lot.org (Team) | `claude-4lot` (Claude Team (4lot)) | the `claude-4lot` wrapper; herdr pane `w8P:p5` |
+| `~/.claude-reserve` | ejaffe@4lot.org (Team) | `claude-4lot` | `herdr-fleet --reserve` (the whole fleet ran here 9/28 to 10/7) |
+
+- **box:** the box's `claude` CLI signs in with an OAuth token env (`authMethod: oauth_token`), which reports no account. Its logs (`~/.claude` on the box) bill `claude-max` by default. This is **unverified**, and the volume is small. If it is the 4lot account, set `AI_USAGE_CLAUDE_DIRS="~/.claude=claude-4lot"` in `box-collect.sh`.
+- **mac-mini:** Claude Code is logged out there now (`authMethod: none`). Old logs bill `claude-max`.
+- Override per host: `AI_USAGE_CLAUDE_DIRS="DIR=PLAN,DIR=PLAN"`, or `--claude-dir DIR=PLAN` (repeatable). Only `projects/` is walked; credential files in those dirs are never opened.
+- Manual readings stay per plan: use `"plan": "claude-4lot"` for a reading from the 4lot account's usage page.
+
 ## Grok Bot Ultra (manual, Chief of Staff daily)
 
 There is no sanctioned usage API, so Chief of Staff appends one line a day to

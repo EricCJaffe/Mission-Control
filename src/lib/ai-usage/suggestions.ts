@@ -23,7 +23,8 @@ export const HEAVY_PROJECT_PCT = 40;
 export const UNATTRIBUTED_PCT = 25;
 
 const SHORT: Record<string, string> = {
-  'claude-max': 'Claude',
+  'claude-max': 'Claude main',
+  'claude-4lot': 'Claude 4lot',
   'chatgpt-codex': 'Codex',
   'grok-ultra': 'Grok',
 };
@@ -31,7 +32,10 @@ const SHORT: Record<string, string> = {
 /** Where a strained plan's work can go, and what that work is. */
 const MOVE: Record<string, { to: string; what: string }> = {
   'chatgpt-codex': { to: 'claude-max', what: 'reviews' },
-  'claude-max': { to: 'chatgpt-codex', what: 'reviews and heavy builds' },
+  // Claude main overflows to the 4lot account, not to Codex: Eric keeps Codex's
+  // small allowance for cross-model reviews (2026-10-18).
+  'claude-max': { to: 'claude-4lot', what: 'builds and parallel work' },
+  'claude-4lot': { to: 'claude-max', what: 'builds and parallel work' },
 };
 
 export const shortName = (s: Pick<PlanStatus, 'slug' | 'name'>): string => SHORT[s.slug] ?? s.name;

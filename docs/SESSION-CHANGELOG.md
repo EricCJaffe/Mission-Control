@@ -10,6 +10,18 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+## 2026-10-18 14:10 ET — AI usage: Claude split into two plans by account
+
+### What changed
+- `collect-logs.mjs` walks each Claude config dir: `~/.claude` → `claude-max`, `~/.claude-4lot` and `~/.claude-reserve` → `claude-4lot`. Override with `AI_USAGE_CLAUDE_DIRS` / `--claude-dir DIR=PLAN`.
+- New plan `claude-4lot` (Claude Team (4lot)) in `config/ai-usage-plans.json`. Suggestions send Claude main overflow to 4lot, not to Codex.
+### Why
+- Eric (1:53 PM ET): load-balance across the two Claude accounts, Codex and Grok Bot.
+### Follow-ups
+- The box CLI's account is unverified (token auth). It defaults to `claude-max`; see `docs/ai-usage.md`.
+
+---
+
 ## 2026-10-18 14:00 ET — AI usage page, P2 (`/ai-usage`)
 
 ### What changed

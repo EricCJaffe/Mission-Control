@@ -259,7 +259,7 @@ test('suggestions: strained Codex moves reviews to a green Claude', () => {
     NOW,
   );
   assert.equal(out[0].tone, 'red');
-  assert.equal(out[0].text, 'Codex weekly at 92%, resets Thu: move reviews to Claude until then');
+  assert.equal(out[0].text, 'Codex weekly at 92%, resets Thu: move reviews to Claude main until then');
 });
 
 test('suggestions: heavy project on a strained plan, missing Grok reading, high unattributed', () => {
@@ -278,11 +278,11 @@ test('suggestions: heavy project on a strained plan, missing Grok reading, high 
     NOW,
   );
   const texts = out.map((s) => s.text);
-  assert.ok(texts.includes('fsaos is 48% of Claude this window: pause low-value fsaos sessions'));
+  assert.ok(texts.includes('fsaos is 48% of Claude main this window: pause low-value fsaos sessions'));
   assert.ok(texts.includes('Grok reading missing for 2 days: ask CoS'));
-  assert.ok(texts.some((t) => t.startsWith('30% of Claude is unattributed')));
-  // Codex is strained too, so Claude does not get told to move work there.
-  assert.ok(texts.some((t) => t.startsWith('Claude weekly at 75%') && t.endsWith('pause low-value sessions until then')));
+  assert.ok(texts.some((t) => t.startsWith('30% of Claude main is unattributed')));
+  // No 4lot plan in this set, so Claude main is told to pause, not to move.
+  assert.ok(texts.some((t) => t.startsWith('Claude main weekly at 75%') && t.endsWith('pause low-value sessions until then')));
   assert.ok(!texts.some((t) => t.includes('unattributed is')));
 });
 
@@ -549,4 +549,18 @@ test('a token plan with no cap and no reading is gray with no-cap-known, never r
   assert.equal(s.usedPct, null);
   assert.equal(s.note, 'no-cap-known');
   assert.notEqual(s.rag, 'red');
+});
+
+test('suggestions: strained Claude main moves builds to a green Claude 4lot, never to Codex', () => {
+  const out = suggestions(
+    [
+      status({ usedPct: 92, rag: 'red' }),
+      status({ slug: 'claude-4lot', name: 'Claude Team (4lot)', usedPct: 10, rag: 'green' }),
+      status({ slug: 'chatgpt-codex', name: 'Codex', usedPct: 5, rag: 'green' }),
+    ],
+    {},
+    NOW,
+  );
+  assert.ok(out[0].text.startsWith('Claude main weekly at 92%'));
+  assert.ok(out[0].text.endsWith('move builds and parallel work to Claude 4lot until then'));
 });
