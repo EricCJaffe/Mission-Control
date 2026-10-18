@@ -77,6 +77,13 @@ export function etNoon(day) {
   return new Date(`${day}T16:00:00Z`).toISOString();
 }
 
+/** True for a real calendar day in YYYY-MM-DD form (rejects 2026-02-31, 2026-13-01). */
+export function realDay(v) {
+  if (!DAY_RE.test(String(v ?? ''))) return false;
+  const d = new Date(`${v}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === String(v);
+}
+
 function optNum(v, name, errs, lo = -Infinity, hi = Infinity) {
   if (v === undefined || v === null || v === '') return null;
   const n = typeof v === 'number' ? v : Number(v);
@@ -109,7 +116,8 @@ export function parseManual(text, { userId, planSlugs }) {
     let o;
     try { o = JSON.parse(line); } catch { errors.push(`line ${i + 1}: not JSON`); return; }
     if (!o || typeof o !== 'object') { errors.push(`line ${i + 1}: not an object`); return; }
-    if (!DAY_RE.test(String(o.date ?? ''))) errs.push('date must be YYYY-MM-DD');
+    const dateOk = realDay(o.date);
+    if (!dateOk) { errors.push(`line ${i + 1}: date must be a real YYYY-MM-DD`); return; }
     if (!planSlugs.includes(o.plan)) errs.push(`plan must be one of ${planSlugs.join(', ')}`);
     const used_pct = optNum(o.used_pct, 'used_pct', errs, 0, 1000);
     const used = optNum(o.used, 'used', errs, 0);
@@ -120,7 +128,10 @@ export function parseManual(text, { userId, planSlugs }) {
     const resets = (v, name) => {
       if (!v) return null;
       // A bare date means midnight ET at the start of that day, not UTC.
-      if (DAY_RE.test(String(v))) return etMidnight(String(v));
+      if (DAY_RE.test(String(v))) {
+        if (!realDay(v)) { errs.push(`${name} is not a real date`); return null; }
+        return etMidnight(String(v));
+      }
       const d = new Date(String(v));
       if (Number.isNaN(d.getTime())) { errs.push(`${name} is not a date`); return null; }
       return d.toISOString();

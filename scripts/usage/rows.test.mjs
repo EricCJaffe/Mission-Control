@@ -126,3 +126,9 @@ test('a date-only resets_at is midnight ET', () => {
   assert.equal(rows[0].primary_resets_at, '2026-10-25T04:00:00.000Z');
   assert.equal(rows[1].primary_resets_at, '2026-12-07T05:00:00.000Z');
 });
+
+test('impossible dates are per-line errors, never a crash', () => {
+  const { rows, errors } = parseManual('{"date":"2026-10-18","plan":"grok-ultra","used_pct":1,"resets_at":"2026-13-01"}\n{"date":"2026-02-31","plan":"grok-ultra","used_pct":1}\n{"date":"2026-10-18","plan":"grok-ultra","used_pct":3,"by":"ok"}', { userId: U, planSlugs: ['grok-ultra'] });
+  assert.equal(rows.length, 1);
+  assert.equal(errors.length, 2);
+});
