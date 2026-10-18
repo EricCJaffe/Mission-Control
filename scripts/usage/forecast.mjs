@@ -91,7 +91,7 @@ export function planStatus(plan, rows, now = new Date()) {
     const since7 = etDay(new Date(t - 6 * 24 * H).toISOString());
     const tok = rows.filter((r) => r.source === 'log' && r.day >= since7).reduce((n, r) => n + Number(r.tokens_total || 0), 0);
     const fmtTok = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : String(n));
-    return { slug: plan.slug, name: plan.name, status: 'grey', line: `NO CAP KNOWN · ${plan.name}: ${fmtTok(tok)} tokens in the last 7 days (${fmtTok(Math.round(tok / 7))}/day); add a % reading from its usage page to forecast` };
+    return { slug: plan.slug, name: plan.name, status: 'grey', pct: null, noCap: true, line: `NO CAP KNOWN · ${plan.name}: ${fmtTok(tok)} tokens in the last 7 days (${fmtTok(Math.round(tok / 7))}/day); add a % reading from its usage page to forecast` };
   }
   if (!reading) return { slug: plan.slug, name: plan.name, status: 'grey', line: `${plan.name}: no current reading (none in 48h, or it reset since)${plan.slug === 'grok-ultra' ? ' (manual entry owed by Chief of Staff)' : ''}` };
 
@@ -137,5 +137,11 @@ export function planStatus(plan, rows, now = new Date()) {
   else if (beforeReset && resets) parts.push(`projected to run out ${fmt(runOut)} ET, before reset`);
   else if (beforeReset) parts.push('at or over the estimated weekly budget');
   const line = `${status.toUpperCase()} · ${parts.join(' · ')} [${reading.basis}]`;
-  return { slug: plan.slug, name: plan.name, status, pct, burnPerDay, resetsAt: resets?.toISOString() ?? null, runOutAt: runOut?.toISOString() ?? null, runsOutBeforeReset: alarm, early, line };
+  // For dispatch routing (open/ai-usage.json): where this pace lands at the
+  // reset, projected from when the reading was taken (same basis as runOut).
+  const readingAt = reading.at ? new Date(Math.min(t, new Date(reading.at).getTime())) : now;
+  const projectedAtResetPct = burnPerDay != null && resets
+    ? Math.round((reading.pct + burnPerDay * Math.max(0, resets.getTime() - readingAt.getTime()) / (24 * H)) * 10) / 10
+    : null;
+  return { slug: plan.slug, name: plan.name, status, pct, burnPerDay, resetsAt: resets?.toISOString() ?? null, runOutAt: runOut?.toISOString() ?? null, runsOutBeforeReset: alarm, beforeReset: !!beforeReset && !early, early, readingAt: readingAt.toISOString(), projectedAtResetPct, noCap: false, line };
 }

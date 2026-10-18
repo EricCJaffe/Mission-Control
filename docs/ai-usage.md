@@ -53,6 +53,10 @@ only account names and no secrets:
 - Override per host: `AI_USAGE_CLAUDE_DIRS="DIR=PLAN,DIR=PLAN"`, or `--claude-dir DIR=PLAN` (repeatable). Only `projects/` is walked; credential files in those dirs are never opened.
 - Manual readings stay per plan: use `"plan": "claude-4lot"` for a reading from the 4lot account's usage page.
 
+## Routing file for dispatch (2026-10-18)
+
+`report.mjs --write` also writes `$BRAIN_ROOT/open/ai-usage.json`, the machine-readable twin of the brief lines. It has one record per plan: `used_pct`, `projected_at_reset_pct`, `runout_before_reset`, `reset_at`, `reading_at`, `reading_age_h`, `status`, `no_cap`, `early`. `dispatch-autostart` (dev-harness) reads it to route queued notes between Claude main and Claude 4lot. Eric turned meter-driven routing on at 2:06 PM ET on 10/18. A file that is missing, or older than 24h, means dispatch behaves as before. The brief gets one `routing (24h): ...` line built from `runs/dispatch-routing.jsonl`, the decision log dispatch writes.
+
 ## Grok Bot Ultra (manual, Chief of Staff daily)
 
 There is no sanctioned usage API, so Chief of Staff appends one line a day to
