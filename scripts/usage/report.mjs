@@ -123,8 +123,8 @@ try {
   const due = alerting || now.getTime() - lastCommit >= 2 * 3600000 || process.env.AI_USAGE_COMMIT === '1';
   if (staged && !due) execFileSync('git', ['-C', brain, 'reset', '-q', '--', ...written], { stdio: 'ignore' });
   if (staged && due) {
-    writeFileSync(stampFile, String(now.getTime()));
     execFileSync('git', ['-C', brain, 'commit', '-q', '-m', `ai-usage: brief lines${alerting ? ' + run-out alert' : ''} (${today})`, '--', ...written], { stdio: 'ignore' });
+    writeFileSync(stampFile, String(now.getTime()));   // only after the commit succeeded
     try { execFileSync(join(homedir(), '.local', 'bin', 'brain-sync'), ['push'], { stdio: 'ignore', timeout: 120000 }); } catch { console.warn('[usage-report] brain-sync push failed; the commit is local and the next sync carries it'); }
   }
   console.log(`[usage-report] wrote ${written.join(', ')}`);

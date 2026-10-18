@@ -17,11 +17,17 @@ STATE="$HOME/.local/state/ai-usage"; mkdir -p "$STATE"
 exec 9>"$STATE/collect.lock"
 if ! flock -n 9; then echo "[usage] previous run still going; skipped"; exit 0; fi
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
-last_full=$(cat "$STATE/last-full" 2>/dev/null || echo 0)
+# The stamp records the last full ATTEMPT (written before it runs, tmp + mv),
+# so a full pass that fails or times out falls back to 2-day passes for 20 h
+# instead of retrying (and failing) every 30 minutes.
+last_full=$(cat "$STATE/last-full" 2>/dev/null || true)
+case "$last_full" in ''|*[!0-9]*) last_full=0 ;; esac
 days=2
-if [ "${AI_USAGE_FULL:-0}" = 1 ] || [ $(( $(date +%s) - last_full )) -ge 72000 ]; then days=28; fi
+if [ "${AI_USAGE_FULL:-0}" = 1 ] || [ $(( $(date +%s) - last_full )) -ge 72000 ]; then
+  days=28
+  date +%s > "$STATE/last-full.tmp" && mv -f "$STATE/last-full.tmp" "$STATE/last-full"
+fi
 t0=$(date +%s%N)
 "$NODE" scripts/usage/upload.mjs --days "$days"
-[ "$days" = 28 ] && date +%s > "$STATE/last-full"
 "$NODE" scripts/usage/report.mjs --write
 echo "[usage] run done: --days $days in $(( ($(date +%s%N) - t0) / 1000000 )) ms"
