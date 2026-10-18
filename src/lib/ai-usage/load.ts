@@ -56,11 +56,10 @@ type PgError = { code?: string; message?: string } | null;
 
 export function isMissingRelation(err: PgError): boolean {
   if (!err) return false;
-  return (
-    err.code === '42P01' ||
-    err.code === 'PGRST205' ||
-    /does not exist|schema cache/i.test(err.message ?? '')
-  );
+  // Codes first. The message fallback names a relation or the schema cache
+  // only: "column ... does not exist" is schema drift and must surface.
+  if (err.code === '42P01' || err.code === 'PGRST205') return true;
+  return /relation "[^"]+" does not exist|could not find the table .* in the schema cache/i.test(err.message ?? '');
 }
 
 /** The repo's plan config, used only until the collector has upserted ai_plans. */

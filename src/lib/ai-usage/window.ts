@@ -63,16 +63,36 @@ export function etMidnight(day: string): Date {
   return new Date(Date.UTC(y, m - 1, d) + off * 60_000);
 }
 
+/** n months on, with the day capped at the target month's last day (Jan 31 + 1 = Feb 28). */
 function addMonths(at: Date, n: number): Date {
-  const d = new Date(at.getTime());
-  d.setUTCMonth(d.getUTCMonth() + n);
-  return d;
+  const total = at.getUTCFullYear() * 12 + at.getUTCMonth() + n;
+  const y = Math.floor(total / 12);
+  const m = total - y * 12;
+  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(
+    Date.UTC(y, m, Math.min(at.getUTCDate(), last), at.getUTCHours(), at.getUTCMinutes(), at.getUTCSeconds(), at.getUTCMilliseconds()),
+  );
 }
 
-function windowBefore(resetAt: Date, cadence: AiPlan['reset_cadence']): Date {
-  if (cadence === 'monthly') return addMonths(resetAt, -1);
-  return new Date(resetAt.getTime() - (FIXED_MS[cadence] ?? DAY_MS));
+const STEP_DAYS: Record<string, number> = { daily: 1, weekly: 7 };
+
+/**
+ * The k-th reset counted from `base` (k may be negative). Daily and weekly
+ * step on the ET wall clock, so a Monday-midnight reset stays Monday midnight
+ * across DST instead of drifting an hour into Sunday. Monthly is always
+ * counted from `base`, never from the previous result, so a 31st anchor
+ * comes back to the 31st after a short month.
+ */
+function step(base: Date, k: number, cadence: AiPlan['reset_cadence']): Date {
+  if (cadence === 'monthly') return addMonths(base, k);
+  const days = STEP_DAYS[cadence];
+  if (!days) return new Date(base.getTime() + k * (FIXED_MS[cadence] ?? DAY_MS));
+  const baseDay = dayOf(base);
+  const timeOfDay = base.getTime() - etMidnight(baseDay).getTime();
+  return new Date(etMidnight(addDays(baseDay, k * days)).getTime() + timeOfDay);
 }
+
+const APPROX_MS: Record<string, number> = { ...FIXED_MS, monthly: 30 * DAY_MS };
 
 function build(startAt: Date, resetAt: Date, source: ResetWindow['source']): ResetWindow {
   return { startAt, resetAt, startDay: dayOf(startAt), source };
@@ -88,24 +108,18 @@ export function resetWindow(
   if (vendorResetsAt) {
     const reset = new Date(vendorResetsAt);
     if (!Number.isNaN(reset.getTime()) && reset.getTime() > now.getTime()) {
-      return build(windowBefore(reset, cadence), reset, 'vendor');
+      return build(step(reset, -1, cadence), reset, 'vendor');
     }
   }
 
   if (plan.reset_anchor) {
     const anchor = new Date(plan.reset_anchor);
     if (!Number.isNaN(anchor.getTime())) {
-      if (cadence === 'monthly') {
-        const months =
-          (now.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + (now.getUTCMonth() - anchor.getUTCMonth());
-        let reset = addMonths(anchor, Math.max(months - 1, 0));
-        while (reset.getTime() <= now.getTime()) reset = addMonths(reset, 1);
-        return build(addMonths(reset, -1), reset, 'anchor');
-      }
-      const ms = FIXED_MS[cadence] ?? DAY_MS;
-      const n = Math.floor((now.getTime() - anchor.getTime()) / ms) + 1;
-      const reset = new Date(anchor.getTime() + n * ms);
-      return build(new Date(reset.getTime() - ms), reset, 'anchor');
+      let k = Math.floor((now.getTime() - anchor.getTime()) / (APPROX_MS[cadence] ?? DAY_MS)) - 1;
+      while (step(anchor, k, cadence).getTime() <= now.getTime()) k++;
+      // Overshoot guard for an anchor in the future: walk back to the first reset after now.
+      while (step(anchor, k - 1, cadence).getTime() > now.getTime()) k--;
+      return build(step(anchor, k - 1, cadence), step(anchor, k, cadence), 'anchor');
     }
   }
 

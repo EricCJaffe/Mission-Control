@@ -324,3 +324,46 @@ test('manual: rejects unknown plans, bad days, negative numbers and empty readin
   assert.equal(parseManual({ plan: 'grok-ultra', day: '2026-10-14', used_value: 3, limit_value: 10 }, plans, NOW).ok, true);
   assert.equal(parseManual(null, plans, NOW).ok, false);
 });
+
+// ---------------------------------------------------------------- review fixes
+
+test('monthly windows cap the day at month end and count from the anchor', () => {
+  const v = resetWindow({ reset_cadence: 'monthly', reset_anchor: null }, new Date('2026-03-10T00:00:00Z'), '2026-03-31T12:00:00Z');
+  assert.equal(v.startAt.toISOString(), '2026-02-28T12:00:00.000Z');
+  const a = resetWindow({ reset_cadence: 'monthly', reset_anchor: '2026-01-31T12:00:00Z' }, new Date('2026-03-15T00:00:00Z'));
+  assert.equal(a.resetAt.toISOString(), '2026-03-31T12:00:00.000Z');
+  assert.equal(a.startAt.toISOString(), '2026-02-28T12:00:00.000Z');
+});
+
+test('weekly anchors stay on ET midnight across DST', () => {
+  // Anchor: Monday 2026-09-07 00:00 EDT. In December the reset is Monday 00:00 EST.
+  const w = resetWindow({ reset_cadence: 'weekly', reset_anchor: '2026-09-07T04:00:00Z' }, new Date('2026-12-02T17:00:00Z'));
+  assert.equal(w.startAt.toISOString(), '2026-11-30T05:00:00.000Z');
+  assert.equal(w.startDay, '2026-11-30');
+  assert.equal(w.resetAt.toISOString(), '2026-12-07T05:00:00.000Z');
+});
+
+test('a 5h primary reset does not become a weekly plan reset', () => {
+  const codex = plan({ slug: 'chatgpt-codex', limit_kind: 'percent', limit_value: 100 });
+  const rows = [row({ plan_slug: 'chatgpt-codex', primary_used_pct: 30, primary_resets_at: '2026-10-14T19:00:00Z', last_at: '2026-10-14T15:00:00Z' })];
+  const s = planStatus(codex, rows, NOW);
+  assert.equal(s.usedPct, 30);
+  assert.equal(s.window.source, 'calendar');
+  assert.equal(s.window.resetAt.toISOString(), '2026-10-19T04:00:00.000Z');
+});
+
+test('burn is measured to the reading, not to now', () => {
+  const grok = plan({ slug: 'grok-ultra', limit_kind: 'percent', limit_value: 100 });
+  // Window starts Mon Oct 12 04:00Z; reading 1.5 days in at 30%; now is 2.5 days in.
+  const rows = [row({ plan_slug: 'grok-ultra', source: 'manual', day: '2026-10-13', primary_used_pct: 30, captured_at: '2026-10-13T16:00:00Z' })];
+  const s = planStatus(grok, rows, NOW);
+  assert.ok(Math.abs(s.burnPctPerDay! - 20) < 1e-9);
+});
+
+test('a backdated manual reading is dated to its own day', () => {
+  const grok = plan({ slug: 'grok-ultra', limit_kind: 'percent', limit_value: 100 });
+  const rows = [row({ plan_slug: 'grok-ultra', source: 'manual', day: '2026-10-09', primary_used_pct: 80, captured_at: '2026-10-14T15:00:00Z' })];
+  const s = planStatus(grok, rows, NOW);
+  assert.equal(s.usedPct, 0); // last week's number, not this window's
+  assert.equal(s.rag, 'none'); // and no reading in 48h
+});

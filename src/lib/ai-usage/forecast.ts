@@ -27,7 +27,7 @@
 
 import { addDays, today } from '../day.ts';
 import type { AiPlan, AiUsageSnapshot } from './types.ts';
-import { DAY_MS, resetWindow, type ResetWindow } from './window.ts';
+import { DAY_MS, etMidnight, resetWindow, type ResetWindow } from './window.ts';
 
 export type Rag = 'red' | 'yellow' | 'green' | 'none';
 
@@ -71,7 +71,14 @@ type Row = Pick<
   | 'captured_at'
 >;
 
-type Reading = { pct: number; resetsAt: string | null; at: Date; source: Row['source'] };
+type Reading = {
+  pct: number;
+  resetsAt: string | null;
+  /** Which window the percent came from; a log row's primary is Codex's 5h window. */
+  resetFrom: 'secondary' | 'primary' | null;
+  at: Date;
+  source: Row['source'];
+};
 
 const toNum = (v: unknown): number | null => {
   if (v === null || v === undefined || v === '') return null;
@@ -79,10 +86,17 @@ const toNum = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+/**
+ * When a row's reading was true. A manual entry is saved "now" but may be for
+ * an earlier day, so it is capped at the end of the ET day it was entered for:
+ * last Friday's number must not count as a fresh reading in this window.
+ */
 function readingAt(r: Row): Date {
   const a = r.last_at ? new Date(r.last_at).getTime() : 0;
   const b = r.captured_at ? new Date(r.captured_at).getTime() : 0;
-  return new Date(Math.max(a || 0, b || 0));
+  const at = Math.max(a || 0, b || 0);
+  if (r.source === 'manual' && r.day) return new Date(Math.min(at, etMidnight(addDays(r.day, 1)).getTime() - 1));
+  return new Date(at);
 }
 
 /** The percent a row carries, if any, and the reset that goes with it. */
@@ -91,19 +105,22 @@ export function rowReading(r: Row): Reading | null {
   const primary = toNum(r.primary_used_pct);
   let pct: number | null = null;
   let resetsAt: string | null = null;
+  let resetFrom: Reading['resetFrom'] = null;
   if (secondary !== null) {
     pct = secondary;
     resetsAt = r.secondary_resets_at;
+    resetFrom = 'secondary';
   } else if (primary !== null) {
     pct = primary;
     resetsAt = r.primary_resets_at;
+    resetFrom = 'primary';
   } else {
     const used = toNum(r.used_value);
     const limit = toNum(r.limit_value);
     if (used !== null && limit) pct = (used / limit) * 100;
   }
   if (pct === null) return null;
-  return { pct, resetsAt, at: readingAt(r), source: r.source };
+  return { pct, resetsAt, resetFrom, at: readingAt(r), source: r.source };
 }
 
 function latestReading(rows: Row[], source?: Row['source']): Reading | null {
@@ -146,7 +163,13 @@ export function planStatus(
   const hoursSinceReading = lastReadingAt ? (now.getTime() - lastReadingAt.getTime()) / 3_600_000 : null;
   const stale = hoursSinceReading === null || hoursSinceReading > STALE_AFTER_HOURS;
 
-  const reading = plan.limit_kind === 'percent' ? latestReading(rows) : latestReading(rows, 'manual');
+  const latest = plan.limit_kind === 'percent' ? latestReading(rows) : latestReading(rows, 'manual');
+  // A log row's primary reset is the vendor's short (5h) window. It only
+  // describes this plan's window when the plan itself is 5h; otherwise the
+  // percent is still used, but the reset comes from the anchor or calendar.
+  const trustReset =
+    latest && (latest.resetFrom === 'secondary' || latest.source === 'manual' || plan.reset_cadence === '5h');
+  const reading = latest && !trustReset ? { ...latest, resetsAt: null } : latest;
   const window = resetWindow(plan, now, reading?.resetsAt);
 
   const tokensInWindow = rows
@@ -169,14 +192,17 @@ export function planStatus(
   let isEstimate = false;
   let burnPctPerDay: number | null = null;
 
-  const elapsedDays = Math.max((now.getTime() - window.startAt.getTime()) / DAY_MS, 0.25);
+  // Burn is the pace up to when the reading was taken, not up to now: a
+  // reading a day old divided by a day more would understate it.
+  const burnOf = (r: Reading, pctUsed: number) =>
+    pctUsed / Math.max((r.at.getTime() - window.startAt.getTime()) / DAY_MS, 0.25);
 
   if (plan.limit_kind === 'percent') {
     if (reading) {
       basis = 'percent';
       const current = readingInWindow(reading);
       usedPct = current ? current.pct : 0;
-      burnPctPerDay = usedPct / elapsedDays;
+      burnPctPerDay = current ? burnOf(current, usedPct) : 0;
     }
   } else {
     const manual = readingInWindow(reading);
@@ -184,7 +210,7 @@ export function planStatus(
     if (manual && fresh) {
       basis = 'percent';
       usedPct = manual.pct;
-      burnPctPerDay = usedPct / elapsedDays;
+      burnPctPerDay = burnOf(manual, usedPct);
     } else if (limitTokens && limitTokens > 0 && rows.length) {
       basis = 'tokens';
       usedPct = (tokensInWindow / limitTokens) * 100;
