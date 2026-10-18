@@ -6,8 +6,8 @@
  * session '' and project 'unattributed' (a reading off a vendor usage page
  * belongs to the plan, not to any project, and carries no tokens). The
  * percent goes in `primary_used_pct` with its reset in `primary_resets_at`;
- * forecast.ts reads `secondary ?? primary`, so it is picked up as the plan's
- * reading. One row per plan per day: a second entry the same day replaces it.
+ * forecast.ts reads a manual row's primary as the plan's reading (only a LOG
+ * row's primary is the 5h meter). One row per plan per day: a second entry the same day replaces it.
  */
 
 import { UNATTRIBUTED } from './types.ts';
@@ -31,11 +31,28 @@ export type ManualRow = {
   captured_at: string;
 };
 
+/**
+ * A number, or a string that is plainly one. Anything else (true, [], {},
+ * "1e3x", whitespace) is refused: `Number(true)` is 1 and `Number([])` is 0,
+ * and neither is a reading anybody typed.
+ */
 const optNum = (v: unknown): number | null | 'bad' => {
   if (v === null || v === undefined || v === '') return null;
-  const n = Number(v);
+  let n: number;
+  if (typeof v === 'number') n = v;
+  else if (typeof v === 'string' && /^\s*\d+(\.\d+)?\s*$/.test(v)) n = Number(v);
+  else return 'bad';
   return Number.isFinite(n) && n >= 0 ? n : 'bad';
 };
+
+/** A real calendar day: 2026-02-31 parses in JS (as Mar 3), so round-trip it. */
+function isCalendarDay(day: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
 
 const optText = (v: unknown, max: number): string | null => {
   if (typeof v !== 'string') return null;
@@ -48,14 +65,14 @@ export function parseManual(
   knownPlans: string[],
   now: Date,
 ): { ok: true; row: ManualRow } | { ok: false; error: string } {
-  if (!body || typeof body !== 'object') return { ok: false, error: 'Expected a JSON object' };
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { ok: false, error: 'Expected a JSON object' };
   const b = body as Record<string, unknown>;
 
   const plan = typeof b.plan === 'string' ? b.plan.trim() : '';
   if (!knownPlans.includes(plan)) return { ok: false, error: 'Unknown plan' };
 
   const day = typeof b.day === 'string' ? b.day : '';
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(Date.parse(`${day}T00:00:00Z`))) {
+  if (!isCalendarDay(day)) {
     return { ok: false, error: 'day must be YYYY-MM-DD' };
   }
 
@@ -70,7 +87,8 @@ export function parseManual(
 
   let resetsAt: string | null = null;
   if (b.resets_at !== undefined && b.resets_at !== null && b.resets_at !== '') {
-    const t = Date.parse(String(b.resets_at));
+    if (typeof b.resets_at !== 'string') return { ok: false, error: 'resets at is not a date' };
+    const t = Date.parse(b.resets_at);
     if (Number.isNaN(t)) return { ok: false, error: 'resets at is not a date' };
     resetsAt = new Date(t).toISOString();
   }

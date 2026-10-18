@@ -3,7 +3,7 @@ import { Download, Gauge, Lightbulb } from 'lucide-react';
 import { supabaseServer } from '@/lib/supabase/server';
 import { addDays, today } from '@/lib/day';
 import { isMonth, monthRange } from '@/lib/ai-usage/csv';
-import { planStatus, rowReading, type PlanStatus } from '@/lib/ai-usage/forecast';
+import { planLabel, planStatus, rowReading, type PlanStatus } from '@/lib/ai-usage/forecast';
 import { loadUsage } from '@/lib/ai-usage/load';
 import { inDays, projectShares, shareBy, type Share } from '@/lib/ai-usage/shares';
 import { suggestions } from '@/lib/ai-usage/suggestions';
@@ -55,7 +55,8 @@ export default async function AiUsagePage({ searchParams }: { searchParams?: Pro
   const shareRows: ProjectShareRow[] = [];
   const histories: Record<string, HistoryPoint[]> = {};
 
-  for (const s of statuses) {
+  for (const [i, s] of statuses.entries()) {
+    const cadence = load.plans[i].reset_cadence;
     const planRows = load.rows.filter((r) => r.plan_slug === s.slug);
     const windowRows = inDays(planRows, s.window.startDay, todayEt);
     windowShares[s.slug] = projectShares(windowRows);
@@ -102,7 +103,7 @@ export default async function AiUsagePage({ searchParams }: { searchParams?: Pro
       const point = byDay.get(r.day);
       if (!point) continue;
       point.tokens += Number(r.tokens_total || 0);
-      const reading = rowReading(r);
+      const reading = rowReading(r, cadence);
       if (reading && (point.pct === null || reading.pct > point.pct)) point.pct = reading.pct;
     }
     histories[s.slug] = [...byDay.values()];
@@ -229,7 +230,7 @@ export default async function AiUsagePage({ searchParams }: { searchParams?: Pro
           A number off a plan&apos;s own usage page. One per plan per day; saving again replaces it.
         </p>
         <div className="mt-4">
-          <ManualEntryForm plans={load.plans.map((p) => ({ slug: p.slug, name: p.name }))} today={todayEt} />
+          <ManualEntryForm plans={load.plans.map((p) => ({ slug: p.slug, name: planLabel(p.name) }))} today={todayEt} />
         </div>
       </section>
     </main>
@@ -284,7 +285,9 @@ function PlanCard({ s, now, points }: { s: PlanStatus; now: Date; points: Histor
         <dt className="text-slate-500">Last reading</dt>
         <dd className="text-right">{s.lastReadingAt ? when(s.lastReadingAt) : 'never'}</dd>
       </dl>
-      <p className="mt-2 text-sm text-slate-600">{s.usedPct === null ? 'No reading in this window' : runsOut}</p>
+      <p className="mt-2 text-sm text-slate-600">
+        {s.usedPct !== null ? runsOut : s.note === 'reset-since-reading' ? 'Reset since last reading' : 'No reading in this window'}
+      </p>
 
       <div className="mt-4">
         <HistoryChart points={points} />

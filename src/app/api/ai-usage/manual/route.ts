@@ -31,6 +31,8 @@ export async function POST(req: Request) {
     .from('ai_usage_snapshots')
     .upsert({ ...parsed.row, user_id: user.id }, { onConflict: MANUAL_CONFLICT });
   if (error) {
+    // A Postgres data exception (22xxx: out of range, bad format) is bad input, not a server fault.
+    if (error.code?.startsWith('22')) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
     const status = isMissingRelation(error) ? 503 : 500;
     const message = isMissingRelation(error) ? 'Usage tables are not set up yet' : error.message;
     return NextResponse.json({ ok: false, error: message }, { status });

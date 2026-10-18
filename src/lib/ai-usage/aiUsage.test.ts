@@ -6,10 +6,11 @@
  */
 
 import { strict as assert } from 'node:assert';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { buildUsageCsv, csvCell, isMonth, monthRange } from './csv.ts';
-import { planStatus, rag, type PlanStatus } from './forecast.ts';
+import { observedAt, planLabel, planStatus, rag, type PlanStatus } from './forecast.ts';
 import { parseManual } from './manual.ts';
 import { projectShares, shareBy } from './shares.ts';
 import { suggestions } from './suggestions.ts';
@@ -66,7 +67,8 @@ const row = (over: Partial<AiUsageSnapshot>): AiUsageSnapshot => ({
   unit: null,
   note: null,
   first_at: null,
-  last_at: null,
+  meter_at: null,
+  last_at: '2026-10-14T15:00:00Z',
   captured_at: '2026-10-14T15:00:00Z',
   ...over,
 });
@@ -157,16 +159,26 @@ test('percent plan (Codex): uses the weekly secondary reading and its reset', ()
   assert.equal(s.rag, 'red');
 });
 
-test('percent plan: a reading from before its own reset counts as a new, empty window', () => {
+test('percent plan: a reading whose own reset has passed is gray, not current', () => {
   const grok = plan({ slug: 'grok-ultra', name: 'Grok', limit_kind: 'percent', limit_value: 100 });
   const rows = [row({ plan_slug: 'grok-ultra', source: 'manual', primary_used_pct: 80, primary_resets_at: '2026-10-13T00:00:00Z', captured_at: '2026-10-13T12:00:00Z' })];
   const s = planStatus(grok, rows, NOW);
-  assert.equal(s.usedPct, 0);
-  assert.equal(s.rag, 'green');
+  assert.equal(s.usedPct, null);
+  assert.equal(s.note, 'reset-since-reading');
+  assert.equal(s.rag, 'none');
+});
+
+test('an expired 95% reading is gray, never red', () => {
+  const codex = plan({ slug: 'chatgpt-codex', limit_kind: 'percent', limit_value: 100 });
+  const rows = [row({ plan_slug: 'chatgpt-codex', secondary_used_pct: 95, secondary_resets_at: '2026-10-14T12:00:00Z', meter_at: '2026-10-14T11:00:00Z' })];
+  const s = planStatus(codex, rows, NOW);
+  assert.equal(s.rag, 'none');
+  assert.equal(s.note, 'reset-since-reading');
+  assert.ok(suggestions([s], {}, NOW)[0].text.includes('reset since last reading'));
 });
 
 test('no reading in 48h is "none", not green', () => {
-  const rows = [row({ tokens_total: 1, captured_at: '2026-10-11T00:00:00Z', day: '2026-10-10' })];
+  const rows = [row({ tokens_total: 1, last_at: '2026-10-11T00:00:00Z', captured_at: '2026-10-11T00:00:00Z', day: '2026-10-10' })];
   const s = planStatus(plan({}), rows, NOW);
   assert.equal(s.rag, 'none');
   assert.ok(s.hoursSinceReading! > 48);
@@ -222,6 +234,7 @@ const status = (over: Partial<PlanStatus>): PlanStatus => ({
   lastReadingAt: NOW,
   hoursSinceReading: 1,
   lastSource: 'log',
+  note: null,
   ...over,
 });
 
@@ -343,11 +356,12 @@ test('weekly anchors stay on ET midnight across DST', () => {
   assert.equal(w.resetAt.toISOString(), '2026-12-07T05:00:00.000Z');
 });
 
-test('a 5h primary reset does not become a weekly plan reset', () => {
+test('a lone 5h primary never stands in for a weekly plan', () => {
   const codex = plan({ slug: 'chatgpt-codex', limit_kind: 'percent', limit_value: 100 });
   const rows = [row({ plan_slug: 'chatgpt-codex', primary_used_pct: 30, primary_resets_at: '2026-10-14T19:00:00Z', last_at: '2026-10-14T15:00:00Z' })];
   const s = planStatus(codex, rows, NOW);
-  assert.equal(s.usedPct, 30);
+  assert.equal(s.usedPct, null);
+  assert.equal(s.rag, 'none');
   assert.equal(s.window.source, 'calendar');
   assert.equal(s.window.resetAt.toISOString(), '2026-10-19T04:00:00.000Z');
 });
@@ -364,6 +378,85 @@ test('a backdated manual reading is dated to its own day', () => {
   const grok = plan({ slug: 'grok-ultra', limit_kind: 'percent', limit_value: 100 });
   const rows = [row({ plan_slug: 'grok-ultra', source: 'manual', day: '2026-10-09', primary_used_pct: 80, captured_at: '2026-10-14T15:00:00Z' })];
   const s = planStatus(grok, rows, NOW);
-  assert.equal(s.usedPct, 0); // last week's number, not this window's
+  assert.equal(s.usedPct, null); // last week's number, not this window's
   assert.equal(s.rag, 'none'); // and no reading in 48h
+});
+
+// ---------------------------------------------------------------- grokbot / Codex review fixes
+
+test('log readings are ordered and aged by meter_at, never captured_at', () => {
+  const codex = plan({ slug: 'chatgpt-codex', limit_kind: 'percent', limit_value: 100 });
+  const reset = '2026-10-15T20:00:00Z';
+  const rows = [
+    // Re-imported old history: captured just now, observed four days ago.
+    row({ plan_slug: 'chatgpt-codex', secondary_used_pct: 88, secondary_resets_at: reset, meter_at: '2026-10-10T12:00:00Z', last_at: '2026-10-14T15:59:00Z', captured_at: '2026-10-14T15:59:00Z' }),
+    row({ plan_slug: 'chatgpt-codex', secondary_used_pct: 20, secondary_resets_at: reset, meter_at: '2026-10-14T09:00:00Z', captured_at: '2026-10-14T09:05:00Z' }),
+  ];
+  const s = planStatus(codex, rows, NOW);
+  assert.equal(s.usedPct, 20);
+  // Only re-imported history, observed 4 days ago: stale, whatever captured_at says.
+  const old = planStatus(codex, [{ ...rows[0], meter_at: '2026-10-10T12:00:00Z', last_at: '2026-10-10T12:00:00Z' }], NOW);
+  assert.equal(old.rag, 'none');
+  // captured_at alone is not an observation time.
+  assert.equal(observedAt({ source: 'log', day: '2026-10-14', meter_at: null, last_at: null, captured_at: '2026-10-14T15:00:00Z' }), null);
+});
+
+test('manual readings order by day, then captured_at', () => {
+  const grok = plan({ slug: 'grok-ultra', limit_kind: 'percent', limit_value: 100 });
+  const m = (day: string, pct: number, captured: string) =>
+    row({ plan_slug: 'grok-ultra', source: 'manual', day, primary_used_pct: pct, last_at: null, captured_at: captured });
+  // Yesterday's entry typed in after today's: today's still wins.
+  const s = planStatus(grok, [m('2026-10-14', 30, '2026-10-14T13:00:00Z'), m('2026-10-13', 25, '2026-10-14T15:00:00Z')], NOW);
+  assert.equal(s.usedPct, 30);
+  // Same day: the later save wins.
+  const t = planStatus(grok, [m('2026-10-14', 30, '2026-10-14T13:00:00Z'), m('2026-10-14', 35, '2026-10-14T14:00:00Z')], NOW);
+  assert.equal(t.usedPct, 35);
+});
+
+test('run-out is projected from the reading, not from now', () => {
+  const codex = plan({ slug: 'chatgpt-codex', limit_kind: 'percent', limit_value: 100, reset_cadence: 'weekly' });
+  const start = new Date('2026-10-12T04:00:00Z'); // Monday ET, calendar window
+  const at = new Date(start.getTime() + 2.5 * 86_400_000);
+  const viewed = new Date(at.getTime() + 1.5 * 86_400_000);
+  const rows = [row({ plan_slug: 'chatgpt-codex', day: '2026-10-14', secondary_used_pct: 40, meter_at: at.toISOString() })];
+  const s = planStatus(codex, rows, viewed);
+  assert.equal(s.window.startAt.toISOString(), start.toISOString());
+  assert.equal(s.runOutAt!.toISOString(), new Date(start.getTime() + 6.25 * 86_400_000).toISOString());
+  assert.equal(s.rag, 'red'); // day 6.25 is before the day-7 reset
+});
+
+test('manual: impossible dates and non-numeric types are rejected', () => {
+  const plans = ['grok-ultra'];
+  const base = { plan: 'grok-ultra', day: '2026-10-14' };
+  assert.equal(parseManual({ ...base, day: '2026-02-31', used_pct: 1 }, plans, NOW).ok, false);
+  assert.equal(parseManual({ ...base, day: '2026-13-01', used_pct: 1 }, plans, NOW).ok, false);
+  for (const bad of [true, [], {}, [5], 'abc', '1e3x', ' ']) {
+    assert.equal(parseManual({ ...base, used_pct: bad }, plans, NOW).ok, false, JSON.stringify(bad));
+  }
+  assert.equal(parseManual({ ...base, used_pct: '42.5' }, plans, NOW).ok, true);
+  assert.equal(parseManual({ ...base, used_pct: 42 }, plans, NOW).ok, true);
+  assert.equal(parseManual({ ...base, used_pct: 1, limit_value: false }, plans, NOW).ok, false);
+  assert.equal(parseManual([], plans, NOW).ok, false);
+});
+
+test('no dollars by default: plan labels drop a price, the page never reads price_usd_month', () => {
+  assert.equal(planLabel('Claude Max ($200)'), 'Claude Max');
+  assert.equal(planLabel('Claude Max $200'), 'Claude Max');
+  assert.equal(planLabel('Grok Bot Ultra'), 'Grok Bot Ultra');
+  assert.equal(planStatus(plan({ name: 'Claude Max ($200)' }), [], NOW).name, 'Claude Max');
+  const cfg = JSON.parse(readFileSync(new URL('../../../config/ai-usage-plans.json', import.meta.url), 'utf8'));
+  for (const p of cfg.plans) assert.ok(!planLabel(p.name).includes('$'), p.name);
+  const files = [
+    '../../app/ai-usage/page.tsx',
+    '../../components/ai-usage/BreakdownTables.tsx',
+    '../../components/ai-usage/ManualEntryForm.tsx',
+    '../../components/ai-usage/HistoryChart.tsx',
+    '../../components/ai-usage/format.ts',
+    './load.ts',
+    './csv.ts',
+  ];
+  for (const f of files) {
+    const src = readFileSync(new URL(f, import.meta.url), 'utf8');
+    assert.ok(!/price_usd_month|\bUSD\b|['"`>]\s*\$\s*\d|['"`]\$['"`]/.test(src), f);
+  }
 });

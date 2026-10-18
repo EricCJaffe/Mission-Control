@@ -55,7 +55,12 @@ export function suggestions(statuses: PlanStatus[], shares: Record<string, Share
 
     if (s.rag === 'none') {
       const days = s.hoursSinceReading === null ? null : Math.floor(s.hoursSinceReading / 24);
-      const since = days === null ? 'no reading yet' : `reading missing for ${days} day${days === 1 ? '' : 's'}`;
+      const since =
+        s.note === 'reset-since-reading' && (s.hoursSinceReading ?? Infinity) <= 48
+          ? 'reset since last reading'
+          : days === null
+            ? 'no reading yet'
+            : `reading missing for ${days} day${days === 1 ? '' : 's'}`;
       const who = s.lastSource === 'manual' || s.slug === 'grok-ultra' ? 'ask CoS' : 'check the usage collector';
       out.push({ tone: 'yellow', plan: s.slug, text: `${name} ${since}: ${who}` });
       continue;

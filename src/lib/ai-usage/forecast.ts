@@ -3,11 +3,14 @@
  * and whether it runs out before it resets.
  *
  * Used:
- *   percent plans  the latest vendor reading. `secondary_used_pct ?? primary`:
- *                  Codex logs primary = 5h and secondary = weekly, and the plan
- *                  budget is the weekly one; a manual reading carries only
- *                  primary. A reading whose own `resets_at` has passed belongs
- *                  to the previous window, so used is 0 until the next one.
+ *   percent plans  the latest vendor reading. Codex logs primary = 5h and
+ *                  secondary = weekly. A log row's primary counts only for a
+ *                  5h plan; every longer plan uses the secondary (weekly)
+ *                  meter alone, and a row with only a 5h number leaves it
+ *                  unknown. A manual reading carries its percent in primary.
+ *                  A reading whose own `resets_at` has passed, or that was
+ *                  taken before this window began, is not current: the plan
+ *                  shows gray ("reset since last reading"), never red.
  *   token plans    tokens since the window started ÷ `limit_value`, labeled an
  *                  estimate when `limit_is_estimate`. A manual percent reading
  *                  inside the window and under 48h old overrides it (it is
@@ -15,8 +18,14 @@
  *
  * Burn, per day:
  *   token basis    tokens over the last 7 ET days ÷ 7, as percent of limit.
- *   percent basis  used ÷ days elapsed in the window (a floor of 6 hours, so
- *                  one early reading does not project a run-out by lunch).
+ *   percent basis  used ÷ days from the window start to the READING (a floor
+ *                  of 6 hours, so one early reading does not project a run-out
+ *                  by lunch). Run-out is projected from the reading too.
+ *
+ * Observation time: a log reading is `meter_at ?? last_at`, never
+ * `captured_at` (re-importing old history must not make it look fresh). A
+ * manual reading is its ET day, then `captured_at`, capped at the end of that
+ * day so a backdated entry is not a fresh one.
  *
  * Red / yellow / green (the framework's words, never "amber"):
  *   none    no reading in 48 hours. Shown gray: no reading is not a green.
@@ -53,6 +62,8 @@ export type PlanStatus = {
   lastReadingAt: Date | null;
   hoursSinceReading: number | null;
   lastSource: 'log' | 'manual' | null;
+  /** Why a plan with readings is still gray. */
+  note: 'reset-since-reading' | null;
 };
 
 type Row = Pick<
@@ -67,6 +78,7 @@ type Row = Pick<
   | 'secondary_resets_at'
   | 'used_value'
   | 'limit_value'
+  | 'meter_at'
   | 'last_at'
   | 'captured_at'
 >;
@@ -77,6 +89,8 @@ type Reading = {
   /** Which window the percent came from; a log row's primary is Codex's 5h window. */
   resetFrom: 'secondary' | 'primary' | null;
   at: Date;
+  /** Tie-break for readings observed at the same instant. */
+  capturedMs: number;
   source: Row['source'];
 };
 
@@ -86,49 +100,68 @@ const toNum = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-/**
- * When a row's reading was true. A manual entry is saved "now" but may be for
- * an earlier day, so it is capped at the end of the ET day it was entered for:
- * last Friday's number must not count as a fresh reading in this window.
- */
-function readingAt(r: Row): Date {
-  const a = r.last_at ? new Date(r.last_at).getTime() : 0;
-  const b = r.captured_at ? new Date(r.captured_at).getTime() : 0;
-  const at = Math.max(a || 0, b || 0);
-  if (r.source === 'manual' && r.day) return new Date(Math.min(at, etMidnight(addDays(r.day, 1)).getTime() - 1));
-  return new Date(at);
+const ms = (v: string | null | undefined): number | null => {
+  if (!v) return null;
+  const t = new Date(v).getTime();
+  return Number.isNaN(t) ? null : t;
+};
+
+/** When a row's numbers were observed; null when a log row says nothing about it. */
+export function observedAt(r: Pick<Row, 'source' | 'day' | 'meter_at' | 'last_at' | 'captured_at'>): Date | null {
+  if (r.source === 'manual') {
+    if (!r.day) return null;
+    const endOfDay = etMidnight(addDays(r.day, 1)).getTime() - 1;
+    const captured = ms(r.captured_at);
+    return new Date(captured === null ? endOfDay : Math.min(captured, endOfDay));
+  }
+  const t = ms(r.meter_at) ?? ms(r.last_at);
+  return t === null ? null : new Date(t);
 }
 
-/** The percent a row carries, if any, and the reset that goes with it. */
-export function rowReading(r: Row): Reading | null {
-  const secondary = toNum(r.secondary_used_pct);
-  const primary = toNum(r.primary_used_pct);
+/** Display name without a price: flat plans are not billed per token, so no "$" by default. */
+export function planLabel(name: string): string {
+  return name.replace(/\s*\(?\$\s?[\d,.]+\)?/g, '').trim() || name;
+}
+
+/**
+ * The percent a row carries for a plan of this cadence, and the reset that
+ * goes with it. A log row's primary is the 5h meter; it counts only for a 5h
+ * plan.
+ */
+export function rowReading(r: Row, cadence: AiPlan['reset_cadence'] = 'weekly'): Reading | null {
+  const at = observedAt(r);
+  if (!at) return null;
   let pct: number | null = null;
   let resetsAt: string | null = null;
   let resetFrom: Reading['resetFrom'] = null;
-  if (secondary !== null) {
-    pct = secondary;
-    resetsAt = r.secondary_resets_at;
-    resetFrom = 'secondary';
-  } else if (primary !== null) {
-    pct = primary;
-    resetsAt = r.primary_resets_at;
-    resetFrom = 'primary';
-  } else {
+  const secondary = toNum(r.secondary_used_pct);
+  const primary = toNum(r.primary_used_pct);
+  if (r.source === 'manual') {
+    if (primary !== null) [pct, resetsAt, resetFrom] = [primary, r.primary_resets_at, 'primary'];
+    else if (secondary !== null) [pct, resetsAt, resetFrom] = [secondary, r.secondary_resets_at, 'secondary'];
+  } else if (cadence === '5h') {
+    if (primary !== null) [pct, resetsAt, resetFrom] = [primary, r.primary_resets_at, 'primary'];
+  } else if (secondary !== null) {
+    [pct, resetsAt, resetFrom] = [secondary, r.secondary_resets_at, 'secondary'];
+  }
+  if (pct === null) {
     const used = toNum(r.used_value);
     const limit = toNum(r.limit_value);
     if (used !== null && limit) pct = (used / limit) * 100;
   }
   if (pct === null) return null;
-  return { pct, resetsAt, resetFrom, at: readingAt(r), source: r.source };
+  return { pct, resetsAt, resetFrom, at, capturedMs: ms(r.captured_at) ?? 0, source: r.source };
 }
 
-function latestReading(rows: Row[], source?: Row['source']): Reading | null {
+const newer = (a: Reading, b: Reading) =>
+  a.at.getTime() !== b.at.getTime() ? a.at.getTime() > b.at.getTime() : a.capturedMs > b.capturedMs;
+
+function latestReading(rows: Row[], cadence: AiPlan['reset_cadence'], source?: Row['source']): Reading | null {
   let best: Reading | null = null;
   for (const r of rows) {
     if (source && r.source !== source) continue;
-    const reading = rowReading(r);
-    if (reading && (!best || reading.at.getTime() > best.at.getTime())) best = reading;
+    const reading = rowReading(r, cadence);
+    if (reading && (!best || newer(reading, best))) best = reading;
   }
   return best;
 }
@@ -154,8 +187,8 @@ export function planStatus(
   let lastReadingAt: Date | null = null;
   let lastSource: PlanStatus['lastSource'] = null;
   for (const r of rows) {
-    const at = readingAt(r);
-    if (at.getTime() > 0 && (!lastReadingAt || at.getTime() > lastReadingAt.getTime())) {
+    const at = observedAt(r);
+    if (at && (!lastReadingAt || at.getTime() > lastReadingAt.getTime())) {
       lastReadingAt = at;
       lastSource = r.source;
     }
@@ -163,13 +196,9 @@ export function planStatus(
   const hoursSinceReading = lastReadingAt ? (now.getTime() - lastReadingAt.getTime()) / 3_600_000 : null;
   const stale = hoursSinceReading === null || hoursSinceReading > STALE_AFTER_HOURS;
 
-  const latest = plan.limit_kind === 'percent' ? latestReading(rows) : latestReading(rows, 'manual');
-  // A log row's primary reset is the vendor's short (5h) window. It only
-  // describes this plan's window when the plan itself is 5h; otherwise the
-  // percent is still used, but the reset comes from the anchor or calendar.
-  const trustReset =
-    latest && (latest.resetFrom === 'secondary' || latest.source === 'manual' || plan.reset_cadence === '5h');
-  const reading = latest && !trustReset ? { ...latest, resetsAt: null } : latest;
+  const cadence = plan.reset_cadence;
+  const reading =
+    plan.limit_kind === 'percent' ? latestReading(rows, cadence) : latestReading(rows, cadence, 'manual');
   const window = resetWindow(plan, now, reading?.resetsAt);
 
   const tokensInWindow = rows
@@ -191,6 +220,9 @@ export function planStatus(
   let usedPct: number | null = null;
   let isEstimate = false;
   let burnPctPerDay: number | null = null;
+  let note: PlanStatus['note'] = null;
+  // Where the projection starts: the reading for a percent basis, now for tokens.
+  let measuredAt = now;
 
   // Burn is the pace up to when the reading was taken, not up to now: a
   // reading a day old divided by a day more would understate it.
@@ -201,8 +233,13 @@ export function planStatus(
     if (reading) {
       basis = 'percent';
       const current = readingInWindow(reading);
-      usedPct = current ? current.pct : 0;
-      burnPctPerDay = current ? burnOf(current, usedPct) : 0;
+      if (current) {
+        usedPct = current.pct;
+        burnPctPerDay = burnOf(current, usedPct);
+        measuredAt = current.at;
+      } else {
+        note = 'reset-since-reading';
+      }
     }
   } else {
     const manual = readingInWindow(reading);
@@ -211,6 +248,7 @@ export function planStatus(
       basis = 'percent';
       usedPct = manual.pct;
       burnPctPerDay = burnOf(manual, usedPct);
+      measuredAt = manual.at;
     } else if (limitTokens && limitTokens > 0 && rows.length) {
       basis = 'tokens';
       usedPct = (tokensInWindow / limitTokens) * 100;
@@ -221,15 +259,15 @@ export function planStatus(
 
   let runOutAt: Date | null = null;
   if (usedPct !== null) {
-    if (usedPct >= 100) runOutAt = now;
+    if (usedPct >= 100) runOutAt = measuredAt;
     else if (burnPctPerDay && burnPctPerDay > 0) {
-      runOutAt = new Date(now.getTime() + ((100 - usedPct) / burnPctPerDay) * DAY_MS);
+      runOutAt = new Date(measuredAt.getTime() + ((100 - usedPct) / burnPctPerDay) * DAY_MS);
     }
   }
 
   return {
     slug: plan.slug,
-    name: plan.name,
+    name: planLabel(plan.name),
     basis,
     usedPct,
     isEstimate,
@@ -243,5 +281,6 @@ export function planStatus(
     lastReadingAt,
     hoursSinceReading,
     lastSource,
+    note,
   };
 }
