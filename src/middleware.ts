@@ -100,6 +100,10 @@ export const config = {
     '/checklists/:path*',
     '/ideas/:path*',
     '/brain/:path*',
+    // Added 2026-10-18: /ai-usage shipped outside the list and a signed-out
+    // visitor (e.g. an in-app browser with no session) got a blank page.
+    '/ai-usage/:path*',
+    '/ai/:path*',
     '/login',
   ],
 }
