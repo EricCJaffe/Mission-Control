@@ -53,6 +53,7 @@ the Grok Bot **Usage** settings page:
 | `window` | no | `5h` · `daily` · `weekly` · `monthly` |
 | `used`, `limit`, `unit` | yes* | when the page shows a count instead of a % (*one of `used_pct`/`used`) |
 | `secondary_used_pct`, `secondary_resets_at` | no | a second meter, if the page shows one |
+| `at` | no | when the reading was taken (ISO); default midday ET of `date` |
 | `note`, `by` | no | free text; who entered it (default `cos`) |
 
 A later line for the same plan, day and `by` replaces the earlier one. Bad

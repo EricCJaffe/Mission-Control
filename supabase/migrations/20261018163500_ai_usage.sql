@@ -83,8 +83,8 @@ create table if not exists mission.ai_usage_snapshots (
   secondary_resets_at    timestamptz,
   -- When the percentages above were observed (log rows). Token activity can
   -- be later than the last meter reading; ordering by last_at would let an
-  -- old percentage pose as current. Null for manual rows (their day is the
-  -- observation).
+  -- old percentage pose as current. Manual rows carry the time the reading
+  -- was taken (or midday ET of its day), never the upload time.
   meter_at               timestamptz,
   -- Manual readings that are not a percent (credits, messages, etc.).
   used_value             numeric,

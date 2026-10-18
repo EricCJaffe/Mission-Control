@@ -58,6 +58,32 @@ export function attributeRows(rows, map, userId) {
   return [...out.values()];
 }
 
+const hourFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' });
+/** 00:00 America/New_York on YYYY-MM-DD, as ISO (EDT = 04:00Z, EST = 05:00Z). */
+export function etMidnight(day) {
+  for (const h of ['04', '05']) {
+    const d = new Date(`${day}T${h}:00:00Z`);
+    if (Number(hourFmt.format(d)) === 0) return d.toISOString();
+  }
+  return new Date(`${day}T04:00:00Z`).toISOString();
+}
+
+/** 12:00 America/New_York on YYYY-MM-DD, as ISO (EDT = 16:00Z, EST = 17:00Z). */
+export function etNoon(day) {
+  for (const h of ['16', '17']) {
+    const d = new Date(`${day}T${h}:00:00Z`);
+    if (Number(hourFmt.format(d)) === 12) return d.toISOString();
+  }
+  return new Date(`${day}T16:00:00Z`).toISOString();
+}
+
+/** True for a real calendar day in YYYY-MM-DD form (rejects 2026-02-31, 2026-13-01). */
+export function realDay(v) {
+  if (!DAY_RE.test(String(v ?? ''))) return false;
+  const d = new Date(`${v}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === String(v);
+}
+
 function optNum(v, name, errs, lo = -Infinity, hi = Infinity) {
   if (v === undefined || v === null || v === '') return null;
   const n = typeof v === 'number' ? v : Number(v);
@@ -73,6 +99,7 @@ function optNum(v, name, errs, lo = -Infinity, hi = Infinity) {
  *   datetime), window ('5h'|'daily'|'weekly'|'monthly'),
  *   used, limit, unit (when the page shows a count instead of a %),
  *   secondary_used_pct, secondary_resets_at (a second meter, if shown),
+ *   at (ISO time the reading was taken; default midday ET of date),
  *   note, by (who entered it; default 'cos').
  * At least one of used_pct or used (with limit) is required; used/limit is
  * stored as a percent too. A later line for the same
@@ -89,7 +116,8 @@ export function parseManual(text, { userId, planSlugs }) {
     let o;
     try { o = JSON.parse(line); } catch { errors.push(`line ${i + 1}: not JSON`); return; }
     if (!o || typeof o !== 'object') { errors.push(`line ${i + 1}: not an object`); return; }
-    if (!DAY_RE.test(String(o.date ?? ''))) errs.push('date must be YYYY-MM-DD');
+    const dateOk = realDay(o.date);
+    if (!dateOk) { errors.push(`line ${i + 1}: date must be a real YYYY-MM-DD`); return; }
     if (!planSlugs.includes(o.plan)) errs.push(`plan must be one of ${planSlugs.join(', ')}`);
     const used_pct = optNum(o.used_pct, 'used_pct', errs, 0, 1000);
     const used = optNum(o.used, 'used', errs, 0);
@@ -99,12 +127,18 @@ export function parseManual(text, { userId, planSlugs }) {
     if (used_pct === null && used !== null && !(limit > 0)) errs.push('used needs a positive limit');
     const resets = (v, name) => {
       if (!v) return null;
+      // A bare date means midnight ET at the start of that day, not UTC.
+      if (DAY_RE.test(String(v))) {
+        if (!realDay(v)) { errs.push(`${name} is not a real date`); return null; }
+        return etMidnight(String(v));
+      }
       const d = new Date(String(v));
       if (Number.isNaN(d.getTime())) { errs.push(`${name} is not a date`); return null; }
       return d.toISOString();
     };
     const resets_at = resets(o.resets_at, 'resets_at');
     const sec_resets = resets(o.secondary_resets_at, 'secondary_resets_at');
+    const observedAt = o.at ? resets(o.at, 'at') : (DAY_RE.test(String(o.date ?? '')) ? etNoon(o.date) : null);
     if (o.window !== undefined && !(o.window in winMin)) errs.push('window must be 5h|daily|weekly|monthly');
     if (errs.length) { errors.push(`line ${i + 1}: ${errs.join('; ')}`); return; }
     const by = typeof o.by === 'string' && o.by.trim() ? o.by.trim().slice(0, 40) : 'cos';
@@ -115,7 +149,9 @@ export function parseManual(text, { userId, planSlugs }) {
       // A count reading becomes a percent so the forecast can use it.
       primary_used_pct: used_pct ?? (used !== null && limit > 0 ? Math.round((10000 * used) / limit) / 100 : null), primary_window_minutes: o.window ? winMin[o.window] : null, primary_resets_at: resets_at,
       secondary_used_pct: sec, secondary_window_minutes: null, secondary_resets_at: sec_resets,
-      meter_at: null, used_value: used, limit_value: limit, unit: typeof o.unit === 'string' ? o.unit.slice(0, 40) : null,
+      // Observation time: `at` if given, else midday ET of `date`. Kept stable
+      // across uploads so a re-upload never makes an old reading look new.
+      meter_at: observedAt, used_value: used, limit_value: limit, unit: typeof o.unit === 'string' ? o.unit.slice(0, 40) : null,
       note: typeof o.note === 'string' ? o.note.slice(0, 500) : null,
       first_at: null, last_at: null,
     };
