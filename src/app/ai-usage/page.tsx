@@ -83,7 +83,8 @@ export default async function AiUsagePage({ searchParams }: { searchParams?: Pro
     const total = shownRows.reduce((sum, r) => sum + Number(r.tokens_total || 0), 0);
     const bySession = new Map<string, SessionRow>();
     for (const r of shownRows) {
-      if (r.source === 'manual') continue;
+      // Readings carry no tokens: manual rows and the Claude /usage meter rows.
+      if (r.source === 'manual' || r.bot === 'claude-usage') continue;
       const id = `${s.slug}:${r.host}:${r.bot}:${r.session_id}:${r.project}`;
       let row = bySession.get(id);
       if (!row) {
@@ -115,7 +116,7 @@ export default async function AiUsagePage({ searchParams }: { searchParams?: Pro
   sessionRows.sort((a, b) => a.plan.localeCompare(b.plan) || b.tokens - a.tokens);
   const advice = suggestions(statuses, windowShares, now);
   const bots = shareBy(
-    load.rows.filter((r) => r.source !== 'manual' && r.day >= addDays(todayEt, -6)),
+    load.rows.filter((r) => r.source !== 'manual' && r.bot !== 'claude-usage' && r.day >= addDays(todayEt, -6)),
     'bot',
   );
   const exportMonth = month ?? todayEt.slice(0, 7);

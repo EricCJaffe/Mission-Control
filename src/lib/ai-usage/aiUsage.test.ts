@@ -161,6 +161,24 @@ test('token plan: a fresh manual percent reading overrides the estimate', () => 
   assert.equal(s.isEstimate, false);
 });
 
+test('token plan: the Claude /usage meter (claude-usage log row) overrides the estimate; a newer manual wins', () => {
+  const meter = row({ bot: 'claude-usage', session_id: 'meter', project: 'unattributed', messages: 0, last_at: null,
+    primary_used_pct: 3, primary_window_minutes: 300, secondary_used_pct: 51, secondary_window_minutes: 10080,
+    secondary_resets_at: '2026-10-20T22:59:00Z', meter_at: '2026-10-14T15:07:00Z' });
+  const s = planStatus(plan({ limit_value: null }), [row({ tokens_total: 900 }), meter], NOW);
+  assert.equal(s.basis, 'percent');
+  assert.equal(s.usedPct, 51);
+  assert.equal(s.window.source, 'vendor');
+  assert.equal(s.lastSource, 'log');
+  const manual = row({ source: 'manual', host: 'manual', bot: 'manual-form', session_id: '', primary_used_pct: 60, meter_at: '2026-10-14T15:30:00Z' });
+  assert.equal(planStatus(plan({ limit_value: null }), [meter, manual], NOW).usedPct, 60);
+  const older = row({ source: 'manual', host: 'manual', bot: 'manual-form', session_id: '', primary_used_pct: 40, meter_at: '2026-10-14T13:00:00Z' });
+  assert.equal(planStatus(plan({ limit_value: null }), [meter, older], NOW).usedPct, 51);
+  // A 5h-only meter row says nothing about the week: the token estimate stands.
+  const fiveH = row({ bot: 'claude-usage', session_id: 'meter', primary_used_pct: 80, primary_window_minutes: 300, meter_at: '2026-10-14T15:07:00Z' });
+  assert.equal(planStatus(plan({}), [row({ tokens_total: 200 }), fiveH], NOW).basis, 'tokens');
+});
+
 test('percent plan (Codex): uses the weekly secondary reading and its reset', () => {
   const codex = plan({ slug: 'chatgpt-codex', name: 'Codex', limit_kind: 'percent', limit_value: 100, limit_is_estimate: false });
   const rows = [

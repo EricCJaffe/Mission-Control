@@ -9,6 +9,12 @@
  * routingLine(jsonl, now): one brief line from the last 24h of
  *   $BRAIN_ROOT/runs/dispatch-routing.jsonl, e.g.
  *   "routing (24h): 2 jobs to 4lot (main at 72%); 1 held (main >= 90%)".
+ *
+ * stallLine(jsonl, now): one brief line naming the queued notes auto-start
+ *   gave up on in the last 24h (the prompts-per-day limit: a note prompted
+ *   twice without being picked up), e.g.
+ *   "auto-start stalled (24h): fsaos 2026-10-18-fsaos-brain-replan.md (prompted 2x today) · ..."
+ *   A note dispatched again after its give-up drops off.
  */
 const H = 3600000;
 
@@ -80,6 +86,28 @@ export function routingLine(jsonl, now = new Date()) {
     return reasons[k] ? `${what} (${reasons[k]})` : what;
   });
   return `routing (24h): ${parts.join('; ')}. Log: runs/dispatch-routing.jsonl`;
+}
+
+export function stallLine(jsonl, now = new Date()) {
+  const since = now.getTime() - 24 * H;
+  const recs = [];
+  for (const line of String(jsonl || '').split('\n')) {
+    if (!line.trim()) continue;
+    let r;
+    try { r = JSON.parse(line); } catch { continue; }
+    if (!r || typeof r !== 'object' || !r.note) continue;
+    const at = Date.parse(r.at);
+    if (!Number.isFinite(at) || at < since || at > now.getTime() + H) continue;
+    if (r.action !== 'give-up' && r.action !== 'dispatch') continue;
+    recs.push({ ...r, _t: at });
+  }
+  recs.sort((a, b) => a._t - b._t);
+  const latest = new Map();
+  for (const r of recs) latest.set(r.note, r);
+  const stalled = [...latest.values()].filter((r) => r.action === 'give-up');
+  if (!stalled.length) return '';
+  const parts = stalled.map((r) => `${r.label ? `${r.label} ` : ''}${String(r.note).split('/').pop()}${r.reason_short ? ` (${r.reason_short})` : ''}`);
+  return `auto-start stalled (24h): ${parts.join(' · ')}; grok-inbox escalates. Log: runs/dispatch-routing.jsonl`;
 }
 
 /*

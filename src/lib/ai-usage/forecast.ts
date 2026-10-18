@@ -12,9 +12,11 @@
  *                  taken before this window began, is not current: the plan
  *                  shows gray ("reset since last reading"), never red.
  *   token plans    tokens since the window started ÷ `limit_value`, labeled an
- *                  estimate when `limit_is_estimate`. A manual percent reading
- *                  inside the window and under 48h old overrides it (it is
- *                  the number off the vendor's own usage page).
+ *                  estimate when `limit_is_estimate`. A percent reading
+ *                  inside the window and under 48h old overrides it: a manual
+ *                  one (the number off the vendor's own usage page) or the
+ *                  Claude /usage meter (`claude-usage` log rows, recorded
+ *                  hourly on ubuntu-dev), whichever was observed last.
  *
  * Burn, per day:
  *   token basis    tokens over the last 7 ET days ÷ 7, as percent of limit.
@@ -221,8 +223,10 @@ export function planStatus(
   }
 
   const cadence = plan.reset_cadence;
-  const reading =
-    plan.limit_kind === 'percent' ? latestReading(rows, cadence) : latestReading(rows, cadence, 'manual');
+  // Any plan takes its newest percent reading: a manual one, or a CLI's own
+  // meter (Codex's rate limits; Claude's /usage, recorded hourly as bot
+  // `claude-usage` rows). For a token plan it overrides the token estimate.
+  const reading = latestReading(rows, cadence);
   const window = resetWindow(plan, now, reading?.resetsAt);
 
   const tokensInWindow = rows
@@ -271,13 +275,13 @@ export function planStatus(
       }
     }
   } else {
-    const manual = readingInWindow(reading);
-    const fresh = manual && (now.getTime() - manual.at.getTime()) / 3_600_000 <= STALE_AFTER_HOURS;
-    if (manual && fresh) {
+    const current = readingInWindow(reading);
+    const fresh = current && (now.getTime() - current.at.getTime()) / 3_600_000 <= STALE_AFTER_HOURS;
+    if (current && fresh) {
       basis = 'percent';
-      usedPct = manual.pct;
-      burnPctPerDay = burnOf(manual, usedPct);
-      measuredAt = manual.at;
+      usedPct = current.pct;
+      burnPctPerDay = burnOf(current, usedPct);
+      measuredAt = current.at;
     } else if (limitTokens && limitTokens > 0 && rows.length) {
       basis = 'tokens';
       usedPct = (tokensInWindow / limitTokens) * 100;

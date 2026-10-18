@@ -36,7 +36,9 @@ export function planStatus(plan, rows, now = new Date()) {
   // reset has passed it says nothing about the new window.
   const expired = (resetsAt) => resetsAt && new Date(resetsAt).getTime() <= t;
 
-  // 1. A vendor percent: manual reading (newest), else Codex's weekly meter.
+  // 1. A vendor percent: manual reading (newest), else a CLI's own weekly
+  // meter (Codex rate_limits; Claude's /usage, recorded hourly as bot
+  // `claude-usage` rows for claude-max and claude-4lot).
   // Manual readings count only when they measure the plan's own window (or
   // say nothing about the window); a 5h reading never stands for a week.
   // Between a manual reading and a CLI meter, the newer OBSERVATION wins, and
@@ -60,7 +62,7 @@ export function planStatus(plan, rows, now = new Date()) {
       pct: Number(useSec ? r.secondary_used_pct : r.primary_used_pct),
       resetsAt: useSec ? r.secondary_resets_at : r.primary_resets_at,
       windowMin: (useSec ? r.secondary_window_minutes : r.primary_window_minutes) ?? planWin,
-      basis: useSec ? 'CLI weekly meter' : 'CLI meter', estimate: false, at: meterAt(r),
+      basis: r.bot === 'claude-usage' ? 'Claude /usage meter' : useSec ? 'CLI weekly meter' : 'CLI meter', estimate: false, at: meterAt(r),
     } });
   }
   candidates.sort((x, y) => String(y.at).localeCompare(String(x.at)) || String(y.captured).localeCompare(String(x.captured)));

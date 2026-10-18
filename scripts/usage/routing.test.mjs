@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { usageJson, routingLine, routeScoreLine } from './routing.mjs';
+import { usageJson, routingLine, routeScoreLine, stallLine } from './routing.mjs';
 import { planStatus } from './forecast.mjs';
 
 const now = new Date('2026-10-18T18:00:00Z');
@@ -98,4 +98,28 @@ test('an exhausted plan stays exhausted after 48h without logs (stale manual rea
 test('route score counts each escalated note once', () => {
   const e = JSON.stringify({ at: iso(-1), action: 'escalate', note: 'x' });
   assert.equal(routeScoreLine([e, e].join('\n'), now), 'routes (7d, first-try): 1 escalated');
+});
+
+test('stall line: notes auto-start gave up on in 24h; a later dispatch clears it', () => {
+  const log = [
+    { at: iso(-30), action: 'give-up', label: 'old', note: 'channel/to-old/a.md', reason_short: 'prompted 2x today' },
+    { at: iso(-5), action: 'give-up', label: 'fsaos', note: 'channel/to-fsaos/2026-10-18-fsaos-brain-replan.md', reason_short: 'prompted 2x today' },
+    { at: iso(-4), action: 'give-up', label: 'honeylakeos', note: 'channel/to-honeylakeos/b.md', reason_short: 'prompted 2x today' },
+    { at: iso(-1), action: 'dispatch', ok: true, label: 'honeylakeos', note: 'channel/to-honeylakeos/b.md', plan: 'claude-max' },
+  ].map((r) => JSON.stringify(r)).join('\n') + '\nnot json\n';
+  assert.equal(stallLine(log, now), 'auto-start stalled (24h): fsaos 2026-10-18-fsaos-brain-replan.md (prompted 2x today); grok-inbox escalates. Log: runs/dispatch-routing.jsonl');
+  assert.equal(stallLine('', now), '');
+  // The routing line ignores give-ups.
+  assert.equal(routingLine(log, now), 'routing (24h): 1 job to main. Log: runs/dispatch-routing.jsonl');
+});
+
+test('forecast: the Claude /usage meter row is the reading for a token plan, labeled', () => {
+  const claude = { slug: 'claude-max', name: 'Claude Max (main)', limit_kind: 'tokens', limit_value: null, reset_cadence: 'weekly' };
+  const meter = { source: 'log', bot: 'claude-usage', day: '2026-10-18', primary_used_pct: 3, primary_window_minutes: 300, secondary_used_pct: 51, secondary_window_minutes: 10080, secondary_resets_at: iso(52), meter_at: iso(-1), captured_at: iso(0) };
+  const s = planStatus(claude, [meter], now);
+  assert.equal(s.pct, 51);
+  assert.match(s.line, /Claude \/usage meter/);
+  const manual = { source: 'manual', day: '2026-10-18', primary_used_pct: 60, primary_window_minutes: 10080, primary_resets_at: iso(52), meter_at: iso(-0.5), captured_at: iso(0) };
+  assert.equal(planStatus(claude, [meter, manual], now).pct, 60);
+  assert.equal(planStatus(claude, [meter, { ...manual, meter_at: iso(-3) }], now).pct, 51);
 });

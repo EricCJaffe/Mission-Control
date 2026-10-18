@@ -13,7 +13,8 @@
  *     dispatch-autostart's meter-driven routing (dev-harness). Dispatch treats
  *     a file older than 24h, or missing, as "no meter": today's behavior.
  *   A "routing:" line in ai-usage.txt summarizes the last 24h of
- *     $BRAIN_ROOT/runs/dispatch-routing.jsonl (written by dispatch-autostart).
+ *     $BRAIN_ROOT/runs/dispatch-routing.jsonl (written by dispatch-autostart),
+ *     and an "auto-start stalled" line names notes it gave up on (24h).
  *   $BRAIN_ROOT/channel/to-grokbot/<YYYY-MM-DD>-ai-usage-alert-<plan>.md
  *     when a plan is projected to run out before its reset. The file name is
  *     the dedupe: at most one per plan per ET day. for: cos, kind: fyi.
@@ -28,7 +29,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { planStatus } from './forecast.mjs';
-import { usageJson, routingLine, routeScoreLine } from './routing.mjs';
+import { usageJson, routingLine, routeScoreLine, stallLine } from './routing.mjs';
 import { etDay } from './collect-logs.mjs';
 
 const write = process.argv.includes('--write');
@@ -66,8 +67,9 @@ let routingLog = '';
 try { routingLog = readFileSync(join(brain, 'runs', 'dispatch-routing.jsonl'), 'utf8'); } catch { routingLog = ''; }
 const route = routingLine(routingLog, now);
 const scoreLine = routeScoreLine(routingLog, now);
+const stall = stallLine(routingLog, now);
 const txt = join('open', 'ai-usage.txt');
-writeFileSync(join(brain, txt), `# AI usage meter, ${now.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET. One line per plan. Page: https://missioncontrol.bibleos.app/ai-usage\n${lines.join('\n')}\n${route ? `${route}\n` : ''}${scoreLine ? `${scoreLine}\n` : ''}`);
+writeFileSync(join(brain, txt), `# AI usage meter, ${now.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET. One line per plan. Page: https://missioncontrol.bibleos.app/ai-usage\n${lines.join('\n')}\n${route ? `${route}\n` : ''}${stall ? `${stall}\n` : ''}${scoreLine ? `${scoreLine}\n` : ''}`);
 written.push(txt);
 const js = join('open', 'ai-usage.json');
 let capacity = null;
