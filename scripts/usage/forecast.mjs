@@ -106,7 +106,8 @@ export function planStatus(plan, rows, now = new Date()) {
         ...rows.filter((m) => m.source === 'manual' && m.primary_used_pct != null && m.primary_resets_at && !expired(m.primary_resets_at)
           && (m.primary_window_minutes == null || Number(m.primary_window_minutes) === planWin))
           .map((m) => ({ r: m, pct: Number(m.primary_used_pct), resetsAt: m.primary_resets_at, at: m.meter_at ?? etNoon(m.day) })),
-        ...rows.filter((m) => m.source === 'log' && m.bot === 'claude-usage' && m.secondary_used_pct != null && m.secondary_resets_at && !expired(m.secondary_resets_at))
+        ...rows.filter((m) => m.source === 'log' && m.bot === 'claude-usage' && m.secondary_used_pct != null && m.secondary_resets_at && !expired(m.secondary_resets_at)
+          && (m.secondary_window_minutes == null || Number(m.secondary_window_minutes) === planWin))
           .map((m) => ({ r: m, pct: Number(m.secondary_used_pct), resetsAt: m.secondary_resets_at, at: m.meter_at })),
       // Usage only grows inside a window, so of the readings whose window has
       // not reset, the highest is the safe one (a stale meter at 10% must not
