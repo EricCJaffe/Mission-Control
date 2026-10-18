@@ -1,0 +1,130 @@
+{
+  "//": "AI usage meter attribution: which working directory belongs to which project and client. Built from ~/PROJECTS.md \u00a73 plus the other repos under ~/dev on ubuntu-dev. Keys are repo directory names (case-insensitive) as they appear under ~/dev, in worktree names (verify-<repo>-prNNN, grok-review-<...>-<repo>, ~/dev/.worktrees/<repo>/...) or under /workspace on the box. A directory that matches nothing is 'unattributed'; nothing is guessed. 'client' is who the work is for, for billing; null means internal / not billable. Edit here and the next collector run re-attributes.",
+  "projects": {
+    "fsaos": {
+      "project": "fsaos",
+      "client": "FSA (internal)"
+    },
+    "fsa-site": {
+      "project": "fsa-site",
+      "client": "FSA (internal)"
+    },
+    "fsa-brain": {
+      "project": "fsa-brain",
+      "client": "FSA (internal)"
+    },
+    "honeylakeos": {
+      "project": "honeylakeos",
+      "client": "Honey Lake"
+    },
+    "trellisv2": {
+      "project": "trellis",
+      "client": "Trellis"
+    },
+    "trellisv2-tasks": {
+      "project": "trellis",
+      "client": "Trellis"
+    },
+    "trellis": {
+      "project": "trellis",
+      "client": "Trellis"
+    },
+    "businessos": {
+      "project": "businessos",
+      "client": "BusinessOS (template)"
+    },
+    "reverbos": {
+      "project": "reverbos",
+      "client": "Reverb"
+    },
+    "eden": {
+      "project": "eden",
+      "client": "Eden"
+    },
+    "sjcos": {
+      "project": "sjcos",
+      "client": "SJC"
+    },
+    "tkos": {
+      "project": "tkos",
+      "client": "TKSE"
+    },
+    "csnos": {
+      "project": "csnos",
+      "client": "CSN"
+    },
+    "icsgos": {
+      "project": "icsgos",
+      "client": "ICSG"
+    },
+    "impactworksos": {
+      "project": "impactworksos",
+      "client": "ImpactWorks"
+    },
+    "integrityitos": {
+      "project": "integrityitos",
+      "client": "IntegrityIT"
+    },
+    "fortworth": {
+      "project": "fortworth",
+      "client": "Flourish Fund"
+    },
+    "churchsearch": {
+      "project": "churchsearch",
+      "client": null
+    },
+    "4lot-site": {
+      "project": "4lot-site",
+      "client": "4LOT"
+    },
+    "emafinance": {
+      "project": "emafinance",
+      "client": "EMA"
+    },
+    "millerinvestments": {
+      "project": "millerinvestments",
+      "client": "Miller Investments"
+    },
+    "mission-control": {
+      "project": "mission-control",
+      "client": null
+    },
+    "financeos": {
+      "project": "financeos",
+      "client": null
+    },
+    "bibleos": {
+      "project": "bibleos",
+      "client": null
+    },
+    "brain": {
+      "project": "brain",
+      "client": null
+    },
+    "dev-harness": {
+      "project": "dev-harness",
+      "client": null
+    },
+    "linksy": {
+      "project": "linksy",
+      "client": null
+    },
+    "gospelandai": {
+      "project": "gospelandai",
+      "client": null
+    },
+    "shooting": {
+      "project": "shooting",
+      "client": null
+    },
+    "msgraph": {
+      "project": "msgraph",
+      "client": null
+    }
+  },
+  "paths": {
+    "//": "Exact path prefixes (with ~ for any home) that are not repos but belong to a project. Longest prefix wins.",
+    "~/.local/share/dev-harness": "dev-harness",
+    "~/agents/harness": "dev-harness"
+  }
+}

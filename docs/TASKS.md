@@ -11,6 +11,10 @@ re-raising them. Source of truth: `~/dev/brain/open/resolved.md`.
 
 **Last Updated:** October 11, 2026
 
+## In progress — AI usage meter (not deployed)
+
+- P2 (`feat/ai-usage-p2`, PR into `feat/ai-usage-p1`): `/ai-usage` page, CSV export, manual reading form. Waits on P1's migration and collector for data.
+
 ## In progress — calendar domains (not deployed)
 
 - Outlook categories now map to spirit / body / soul / family / work. Hours for all-day and multi-day events are 12 per day of overlap.

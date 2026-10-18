@@ -1,0 +1,21 @@
+[Unit]
+# AI usage meter: parse this host's Claude Code / Codex logs (read only),
+# take in pushed files from the box and the Mac mini and Chief of Staff's
+# manual readings, upload to mission.ai_usage_snapshots, then write the
+# morning-brief lines and any run-out alert note (scripts/usage/report.mjs).
+Description=Mission Control — AI usage meter collect
+Documentation=file:///home/admxn/dev/mission-control/docs/ai-usage.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Same secrets file as the task sync (mode 600, outside the repo).
+EnvironmentFile=%h/.config/mission-control/sync.env
+Environment=AI_USAGE_HOST=ubuntu-dev
+WorkingDirectory=%h/dev/mission-control
+# Absolute node path: user units do not get the fnm shims.
+ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/usage/upload.mjs
+ExecStartPost=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/usage/report.mjs --write
+Nice=10
+IOSchedulingClass=idle

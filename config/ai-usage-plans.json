@@ -1,0 +1,41 @@
+{
+  "//": "Plan budgets for the AI usage meter. The collector upserts these into mission.ai_plans for MC_USER_ID on every run. Edit here, not in the DB. Claude Max: Anthropic publishes no token cap, so limit_value is null ('no cap known', shown neutral grey with burn in tokens); a manual percent reading from Claude's usage page (CoS, manual.jsonl) drives its % and forecast when present. Set limit_value (tokens/week, estimate) only if Eric picks a budget.",
+  "plans": [
+    {
+      "slug": "claude-max",
+      "name": "Claude Max",
+      "vendor": "Anthropic",
+      "price_usd_month": 200,
+      "limit_kind": "tokens",
+      "limit_value": null,
+      "limit_is_estimate": true,
+      "reset_cadence": "weekly",
+      "reset_anchor": null,
+      "notes": "Claude Code logs on ubuntu-dev, box, mac-mini. No published cap: neutral until a manual % reading arrives."
+    },
+    {
+      "slug": "chatgpt-codex",
+      "name": "ChatGPT / Codex",
+      "vendor": "OpenAI",
+      "price_usd_month": null,
+      "limit_kind": "percent",
+      "limit_value": 100,
+      "limit_is_estimate": false,
+      "reset_cadence": "weekly",
+      "reset_anchor": null,
+      "notes": "Codex CLI logs its own rate limits (5h primary, weekly secondary); the page uses the weekly one."
+    },
+    {
+      "slug": "grok-ultra",
+      "name": "Grok Bot Ultra",
+      "vendor": "xAI",
+      "price_usd_month": null,
+      "limit_kind": "percent",
+      "limit_value": 100,
+      "limit_is_estimate": false,
+      "reset_cadence": "weekly",
+      "reset_anchor": null,
+      "notes": "No sanctioned usage API. Chief of Staff enters a daily reading from the Usage settings page (manual rows)."
+    }
+  ]
+}
