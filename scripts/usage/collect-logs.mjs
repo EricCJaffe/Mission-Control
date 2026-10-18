@@ -149,6 +149,7 @@ export async function collectCodex({ files, host, sinceDay }) {
     let cwd = null;
     let model = null;
     let bot = 'codex';
+    let repo = null;
     let prev = null;
     for await (const line of lines(file)) {
       if (!line.includes('"session_meta"') && !line.includes('"turn_context"') && !line.includes('"token_count"')) continue;
@@ -159,6 +160,8 @@ export async function collectCodex({ files, host, sinceDay }) {
         sessionId = String(p.id ?? sessionId);
         cwd = p.cwd ?? cwd;
         if (p.originator === 'codex_exec' || p.source === 'exec') bot = 'codex-exec';
+        const url = p.git?.repository_url;
+        if (typeof url === 'string') repo = url.replace(/\.git$/, '').split(/[/:]/).pop() || null;
         continue;
       }
       if (rec.type === 'turn_context') {
@@ -189,6 +192,7 @@ export async function collectCodex({ files, host, sinceDay }) {
       let row = rows.get(k);
       if (!row) {
         row = emptyRow({ plan_slug: 'chatgpt-codex', day, host, bot, session_id: sessionId, cwd, model });
+        row.repo = repo;
         rows.set(k, row);
       }
       if (delta && delta.all > 0) {

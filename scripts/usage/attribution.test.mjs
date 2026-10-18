@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { attribute, loadMapping, UNATTRIBUTED } from './attribution.mjs';
+import { attribute, loadMapping, repoFromUrl, UNATTRIBUTED } from './attribution.mjs';
 
 const map = loadMapping(JSON.parse(readFileSync(new URL('../../config/ai-usage-projects.json', import.meta.url), 'utf8')));
 const p = (cwd) => attribute(cwd, map).project;
@@ -49,4 +49,14 @@ test('unknown, home, dev root and ambiguous paths are unattributed', () => {
   assert.equal(p('/home/admxn/.worktrees/port-fsaos-to-reverbos'), UNATTRIBUTED);
   assert.equal(p('/home/admxn/.worktrees/mc-pr51'), UNATTRIBUTED);
   assert.equal(attribute('/home/admxn/dev/nope', map).client, null);
+});
+
+test('grouped worktrees and the git-remote fallback', () => {
+  assert.equal(p('/home/admxn/dev/worktrees/grok-review/fsaos-172'), 'fsaos');
+  assert.equal(p('/home/admxn/dev/worktrees/grok-review/roll-honeylakeos'), 'honeylakeos');
+  assert.equal(attribute('/home/admxn', map, 'businessos').project, 'businessos');
+  assert.equal(attribute('/home/admxn', map, 'unknown-repo').project, UNATTRIBUTED);
+  assert.equal(attribute('/home/admxn/dev/fsaos', map, 'businessos').project, 'fsaos');
+  assert.equal(repoFromUrl('git@github.com:Foundation-Stone-Advisors/fsaos.git'), 'fsaos');
+  assert.equal(repoFromUrl('https://github.com/EricCJaffe/fsa-site'), 'fsa-site');
 });

@@ -60,9 +60,27 @@ function fromWorktreeName(map, name) {
   return found.size === 1 ? [...found.values()][0] : null;
 }
 
-/** @returns {{project: string, client: string | null}} */
-export function attribute(cwd, map) {
+/**
+ * @param cwd   the session's working directory
+ * @param repo  optional repo name from the session's own git metadata (Codex
+ *              logs the origin URL); used only when the path says nothing.
+ * @returns {{project: string, client: string | null}}
+ */
+export function attribute(cwd, map, repo = null) {
   const none = { project: UNATTRIBUTED, client: null };
+  const byPath = attributePath(cwd, map, none);
+  if (byPath.project !== UNATTRIBUTED || !repo) return byPath;
+  return lookup(map, String(repo)) ?? none;
+}
+
+/** Repo name from a git remote URL (git@github.com:Org/fsaos.git → fsaos). */
+export function repoFromUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  const m = url.match(/([^/:]+?)(?:\.git)?\/?$/);
+  return m ? m[1] : null;
+}
+
+function attributePath(cwd, map, none) {
   if (!cwd || typeof cwd !== 'string') return none;
   const rel = cwd.replace(HOME_RE, '~').replace(/\/+$/, '');
   const segs = rel.split('/').filter(Boolean);
@@ -88,9 +106,13 @@ export function attribute(cwd, map) {
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i];
     if (isWt(s)) {
-      const name = segs[i + 1];
-      if (!name) return none;
-      return fromWorktreeName(map, name) ?? none;
+      // ~/dev/worktrees/grok-review/fsaos-172: a grouping folder may sit
+      // between "worktrees" and the worktree; look at up to two segments.
+      for (const name of segs.slice(i + 1, i + 3)) {
+        const hit = fromWorktreeName(map, name);
+        if (hit) return hit;
+      }
+      return none;
     }
     if (i <= 1 && /^wt-/.test(s)) return fromWorktreeName(map, s.slice(3)) ?? none;
   }

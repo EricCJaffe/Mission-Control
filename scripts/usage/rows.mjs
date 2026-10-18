@@ -14,8 +14,8 @@ const PCT = ['primary_used_pct', 'primary_window_minutes', 'primary_resets_at', 
 export function attributeRows(rows, map, userId) {
   const out = new Map();
   for (const r of rows) {
-    const { project, client } = attribute(r.cwd, map);
-    const { cwd: _cwd, ...rest } = r;
+    const { project, client } = attribute(r.cwd, map, r.repo ?? null);
+    const { cwd: _cwd, repo: _repo, ...rest } = r;
     const row = { ...rest, user_id: userId, project, client, session_id: r.session_id ?? '' };
     const key = UNIQUE_COLS.map((c) => String(row[c] ?? '')).join('\u0000');
     const prev = out.get(key);
