@@ -15,7 +15,9 @@ EnvironmentFile=%h/.config/mission-control/sync.env
 Environment=AI_USAGE_HOST=ubuntu-dev
 WorkingDirectory=%h/dev/mission-control
 # Absolute node path: user units do not get the fnm shims.
-ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/usage/upload.mjs
-ExecStartPost=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/usage/report.mjs --write
+# flock + incremental window + throttled brain commit: deploy/ai-usage/ubuntu-collect.sh
+ExecStart=%h/dev/mission-control/deploy/ai-usage/ubuntu-collect.sh
+# A full 28-day pass takes ~15 s (13 s CPU) today; 30 min leaves a wide margin.
+TimeoutStartSec=1800
 Nice=10
 IOSchedulingClass=idle

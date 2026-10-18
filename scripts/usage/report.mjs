@@ -113,8 +113,18 @@ writeFileSync(stateFile, JSON.stringify(alerted));
 try {
   execFileSync('git', ['-C', brain, 'add', '--', ...written], { stdio: 'ignore' });
   const staged = execFileSync('git', ['-C', brain, 'diff', '--cached', '--name-only', '--', ...written], { encoding: 'utf8' }).trim();
-  if (staged) {
-    execFileSync('git', ['-C', brain, 'commit', '-q', '-m', `ai-usage: brief lines${written.some((w) => w.includes('ai-usage-alert')) ? ' + run-out alert' : ''} (${today})`, '--', ...written], { stdio: 'ignore' });
+  // Runs every 30 min (Eric 2:13 PM ET 10/18); the files above are always
+  // fresh on disk, but the brain commit + push happens at most every 2 h
+  // unless this run wrote a run-out alert note.
+  const alerting = written.some((w) => w.includes('ai-usage-alert'));
+  const stampFile = join(stateDir, 'last-commit');
+  let lastCommit = 0;
+  try { lastCommit = Number(readFileSync(stampFile, 'utf8')) || 0; } catch { lastCommit = 0; }
+  const due = alerting || now.getTime() - lastCommit >= 2 * 3600000 || process.env.AI_USAGE_COMMIT === '1';
+  if (staged && !due) execFileSync('git', ['-C', brain, 'reset', '-q', '--', ...written], { stdio: 'ignore' });
+  if (staged && due) {
+    execFileSync('git', ['-C', brain, 'commit', '-q', '-m', `ai-usage: brief lines${alerting ? ' + run-out alert' : ''} (${today})`, '--', ...written], { stdio: 'ignore' });
+    writeFileSync(stampFile, String(now.getTime()));   // only after the commit succeeded
     try { execFileSync(join(homedir(), '.local', 'bin', 'brain-sync'), ['push'], { stdio: 'ignore', timeout: 120000 }); } catch { console.warn('[usage-report] brain-sync push failed; the commit is local and the next sync carries it'); }
   }
   console.log(`[usage-report] wrote ${written.join(', ')}`);

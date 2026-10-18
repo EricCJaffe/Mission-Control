@@ -10,7 +10,7 @@ to pause or move, and a monthly per-client CSV for billing.
 ```
 box ─┐  deploy/ai-usage/box-collect.sh: collect-logs.mjs on the box + piped over
 mac ─┘  ssh to the Mac mini → JSON → ubuntu-dev:~/.local/share/ai-usage/inbox/
-ubuntu-dev  mission-control-ai-usage.timer (02:15 + 13:15 ET)
+ubuntu-dev  mission-control-ai-usage.timer (every 30 min 06:00-23:30 ET, 00/02/04 overnight; flock, 2-day incremental pass, full 28-day pass every 20 h, brain commit at most every 2 h unless an alert)
             upload.mjs: its own logs + inbox + manual.jsonl → mission.ai_usage_snapshots
             report.mjs --write: brain open/ai-usage.txt (brief) + run-out alert note
 app         /ai-usage reads mission.ai_plans / ai_usage_snapshots / ai_usage_daily (RLS)

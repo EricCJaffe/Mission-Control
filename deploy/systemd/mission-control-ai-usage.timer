@@ -1,13 +1,15 @@
 [Unit]
-Description=Mission Control — AI usage meter, nightly (and 1:15 PM refresh)
+Description=Mission Control — AI usage meter, every 30 min by day, every 2 h overnight
 
 [Timer]
-# 2:15 AM ET, after the box / Mac mini push at ~2:00; a midday refresh keeps
-# the page and the run-out alert current. Persistent catches a missed run.
-OnCalendar=*-*-* 02:15:00 America/New_York
-OnCalendar=*-*-* 13:15:00 America/New_York
+# Eric, 2026-10-18 2:13 PM ET. ET times; the service holds a flock so runs
+# never overlap, and normal runs parse only the last 2 days (see
+# deploy/ai-usage/ubuntu-collect.sh). Persistent catches a missed run.
+OnCalendar=*-*-* 06..23:00,30:00 America/New_York
+OnCalendar=*-*-* 00,02,04:00:00 America/New_York
 Persistent=true
-RandomizedDelaySec=120
+RandomizedDelaySec=60
+AccuracySec=30s
 
 [Install]
 WantedBy=timers.target
