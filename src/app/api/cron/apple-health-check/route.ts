@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { DB_SCHEMA } from '@/lib/supabase/schema';
-import { sendMail } from '@/lib/graph/sendMail';
+import { queueAlert, queueResponse } from '@/lib/brief/outbox';
+import { today } from '@/lib/day';
 import {
   summariseAppleHealth,
   describeAge,
@@ -92,20 +93,26 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, alerted: false, throttled: true, status });
   }
 
-  const admin = process.env.ADMIN_EMAIL;
-  if (!admin) {
-    return NextResponse.json({ ok: true, alerted: false, reason: 'ADMIN_EMAIL is not set', status });
-  }
-
   const age = describeAge(status.ageHours);
   const stopped = status.automations
     .filter((a) => a.stale)
     .map((a) => `<li><strong>${a.name}</strong> — last sent ${describeAge(a.ageHours)} ago</li>`)
     .join('');
 
-  const result = await sendMail({
-    to: admin,
-    subject: `Apple Health has been quiet for ${age}`,
+  /*
+   * Queued for grokbot, not mailed. Eric, 2026-10-19: mail to him comes from
+   * a Grok Bot address so a reply reaches a bot. The brain-side pull routes
+   * this row through brief-via-grokbot.py, which holds it over the Sabbath.
+   * If the row cannot be written the answer is a 500: this alert exists
+   * because silence went unnoticed for three weeks once already.
+   */
+  const subject = `Apple Health has been quiet for ${age}`;
+  const result = await queueAlert(supabase, {
+    userId,
+    subject,
+    severity: 'red',
+    day: today(),
+    stats: { age_hours: status.ageHours, last_at: status.lastAt },
     html: `
       <p>No Apple Health payload has reached Mission Control for <strong>${age}</strong>
       (last one ${new Date(status.lastAt!).toUTCString()}).</p>
@@ -128,11 +135,7 @@ export async function GET(req: Request) {
     `,
   });
 
-  return NextResponse.json({
-    ok: true,
-    alerted: result.sent,
-    mail: result,
-    stale_after_hours: STALE_AFTER_HOURS,
-    status,
-  });
+  if (!result.ok) console.error('[cron/apple-health-check] could not queue the alert:', result.error);
+  const res = queueResponse(result, { stale_after_hours: STALE_AFTER_HOURS, status });
+  return NextResponse.json(res.body, { status: res.status });
 }

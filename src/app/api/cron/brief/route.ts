@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { DB_SCHEMA } from '@/lib/supabase/schema';
 import { generateBrief } from '@/lib/brief/generate';
-import { sendMail } from '@/lib/graph/sendMail';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -13,12 +12,13 @@ export const maxDuration = 300;
  * Weekly Sunday 23:00 UTC, daily Mon–Fri 10:30 UTC; both are wired in
  * vercel.json and both land here with ?kind=.
  *
- * STORE FIRST, SEND SECOND, ALWAYS. The brief is written to mission.briefs
- * before a single call to Graph. Sending is the part most likely to fail —
- * an expired client secret, a missing Mail.Send grant, an Exchange policy that
- * does not list the mailbox — and a brief that generated but did not send is a
- * delivery problem you can fix and retry. One that was never written down is
- * simply gone, along with the week it described.
+ * STORE, NEVER SEND. The brief is written to mission.briefs and that is all
+ * this route does. Until 2026-10-19 ?send=1 mailed it through Graph as
+ * eric@ -> eric@; Eric, 2026-10-19 10:52 AM ET (via Chief of Staff): every
+ * email to him comes from a Grok Bot address so a reply reaches a bot. So
+ * ?send=1 now marks the stored row for handoff, and the brain-side pull
+ * (/api/cron/brief-outbox) routes it through brief-via-grokbot.py, which
+ * owns the Sabbath hold. See src/lib/brief/outbox.ts.
  *
  * Fail-closed on the secret, like the other crons here.
  */
@@ -62,7 +62,7 @@ export async function GET(req: Request) {
   const preview = url.searchParams.get('preview') === '1';
 
   /*
-   * ?send=1 — email this brief. Without it, generate and store only.
+   * ?send=1 — hand this brief to grokbot to mail. Without it, store only.
    *
    * Eric, 2026-09-15: "Chief of staff should be running things."
    *
@@ -82,7 +82,8 @@ export async function GET(req: Request) {
    *
    * It stays callable WITH ?send=1 as the failure backstop: if the
    * chief-of-staff brief cannot deliver, run-job.sh calls this so Eric is
-   * never left with no brief at all.
+   * never left with no brief at all. Since 2026-10-19 that queues the row
+   * for the grokbot outbox rather than mailing it as eric@.
    */
   const send = url.searchParams.get('send') === '1';
 
@@ -124,21 +125,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Could not store the brief' }, { status: 500 });
   }
 
-  const to = process.env.BRIEF_RECIPIENT || process.env.ADMIN_EMAIL || process.env.MS_MAILBOX;
-  if (!to) {
-    await supabase
-      .from('briefs')
-      .update({ send_error: 'No recipient configured (BRIEF_RECIPIENT, ADMIN_EMAIL or MS_MAILBOX).' })
-      .eq('id', stored.id);
-    return NextResponse.json({ ok: true, id: stored.id, sent: false, reason: 'no recipient configured' });
-  }
-
   const subject =
     kind === 'weekly'
       ? `Weekly brief — week of ${brief.periodStart}`
       : `Daily brief — ${brief.periodStart}`;
 
   if (!send) {
+    await supabase.from('briefs').update({ subject }).eq('id', stored.id);
     return NextResponse.json({
       ok: true,
       id: stored.id,
@@ -147,27 +140,29 @@ export async function GET(req: Request) {
     });
   }
 
-  const result = await sendMail({ to, subject, html: brief.html });
-
-  await supabase
+  const { error: queueError } = await supabase
     .from('briefs')
-    .update(
-      result.sent
-        ? { sent_at: new Date().toISOString(), sent_to: to, send_error: null }
-        : { send_error: result.reason },
-    )
+    .update({ subject, handoff_requested_at: new Date().toISOString() })
     .eq('id', stored.id);
 
-  if (!result.sent) console.warn('[cron/brief] stored but not sent:', result.reason);
+  // The backstop exists for the day the other brief failed, so a backstop
+  // that could not queue must say so: 500, and run-job.sh sees it. The row is
+  // already stored, so a retry is a second row for the period, not a lost one.
+  if (queueError) {
+    console.error('[cron/brief] stored but could not queue for grokbot:', queueError.message);
+    return NextResponse.json(
+      { ok: false, id: stored.id, sent: false, error: 'Stored, but could not queue for grokbot', detail: queueError.message },
+      { status: 500 },
+    );
+  }
 
-  // 200 either way: the brief exists and is readable at /briefs. Returning 500
-  // would make Vercel retry and generate a duplicate for the same period.
   return NextResponse.json({
     ok: true,
     id: stored.id,
     kind,
     period: [brief.periodStart, brief.periodEnd],
-    sent: result.sent,
-    ...(result.sent ? {} : { reason: result.reason }),
+    sent: false,
+    queued: true,
+    via: 'grokbot',
   });
 }

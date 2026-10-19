@@ -10,6 +10,12 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+- 2026-10-19 11:30 ET — Brief and Apple Health alert hand off to grokbot (PR #64)
+  - What changed: both crons store to `mission.briefs` with `handoff_requested_at`; new `/api/cron/brief-outbox` (GET pending, POST ack); `/briefs` shows handoff status.
+  - Why: every email to Eric comes from a Grok Bot address so a reply reaches a bot.
+  - Follow-ups: the brain-side puller (routes rows via `brief-via-grokbot.py`, acks, escalates a red row pending > 2 h) belongs to the brain session.
+
+
 ## 2026-10-18 14:10 ET — AI usage: Claude split into two plans by account
 
 ### What changed

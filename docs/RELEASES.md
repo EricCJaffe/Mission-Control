@@ -7,6 +7,13 @@
 
 ## Latest Changes (Rolling)
 
+### October 19, 2026 — Mail to Eric goes through grokbot
+
+- `/api/cron/brief?send=1` and `/api/cron/apple-health-check` no longer mail through Graph as eric@. They store a `mission.briefs` row with `handoff_requested_at`; a brain-side pull reads `/api/cron/brief-outbox` and routes it via `brief-via-grokbot.py`, so Eric gets it from erics-inbox@mail.grokbot.com (Eric, 2026-10-19 10:52 AM ET).
+- A red Apple Health alert that cannot be stored returns 500, never a silent 200.
+- `/briefs` labels alerts and shows handoff status (stored only / waiting for grokbot / handed to grokbot).
+- Migration `20261019152718_briefs_grokbot_outbox.sql` applied 2026-10-19 11:27 AM ET as ledger version `20261019152718`; rollback in `supabase/rollbacks/`.
+
 ### October 11, 2026 — Calendar domains and hours that fit the week
 
 - Outlook categories map to a domain (Spirit / God First / God, Health / Body, Soul, Family, Impact / Work). An unknown category falls through to the title rules, then to work. A domain set by hand is not overwritten.
