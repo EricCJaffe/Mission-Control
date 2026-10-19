@@ -65,3 +65,22 @@ test('an insert that returns no row is a failure', async () => {
   const { client } = fakeClient({ data: null, error: null });
   assert.equal(queueResponse(await queueAlert(client, input)).status, 500);
 });
+
+import { kindLabel, deliveryStatus } from './outbox.ts';
+
+test('alerts are labeled as alerts, not daily briefs', () => {
+  assert.equal(kindLabel('alert'), 'Alert');
+  assert.equal(kindLabel('weekly'), 'Weekly');
+  assert.equal(kindLabel('daily'), 'Daily');
+});
+
+test('delivery status reads the handoff columns', () => {
+  const base = { sent_at: null, sent_to: null };
+  assert.deepEqual(deliveryStatus(base), { text: 'stored only', warn: false });
+  assert.deepEqual(deliveryStatus({ ...base, handoff_requested_at: 'x' }), { text: 'waiting for grokbot', warn: true });
+  assert.deepEqual(
+    deliveryStatus({ ...base, handoff_requested_at: 'x', handed_off_at: 'y' }),
+    { text: 'handed to grokbot', warn: false },
+  );
+  assert.equal(deliveryStatus({ sent_at: 'z', sent_to: 'a@b' }).text, 'sent to a@b');
+});

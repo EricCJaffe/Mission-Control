@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mail, MailWarning, CalendarDays } from "lucide-react";
 import { supabaseServer } from "@/lib/supabase/server";
+import { kindLabel, deliveryStatus } from "@/lib/brief/outbox";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,8 @@ type BriefRow = {
   sent_at: string | null;
   sent_to: string | null;
   send_error: string | null;
+  handoff_requested_at: string | null;
+  handed_off_at: string | null;
 };
 
 export default async function BriefsPage() {
@@ -31,7 +34,7 @@ export default async function BriefsPage() {
 
   const { data: briefs } = await supabase
     .from("briefs")
-    .select("id,kind,period_start,period_end,generated_at,sent_at,sent_to,send_error")
+    .select("id,kind,period_start,period_end,generated_at,sent_at,sent_to,send_error,handoff_requested_at,handed_off_at")
     .order("generated_at", { ascending: false })
     .limit(60);
 
@@ -42,7 +45,7 @@ export default async function BriefsPage() {
       <div className="mb-6">
         <h1 className="text-3xl font-semibold">Briefs</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Every weekly and daily brief, delivered or not.
+          Every weekly and daily brief, and every alert, delivered or not.
         </p>
       </div>
 
@@ -67,21 +70,22 @@ export default async function BriefsPage() {
                 <div className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4 text-slate-400" />
                   <span className="font-medium text-slate-800">
-                    {brief.kind === "weekly" ? "Weekly" : "Daily"} — {brief.period_start}
+                    {kindLabel(brief.kind)} — {brief.period_start}
                     {brief.period_end !== brief.period_start && ` to ${brief.period_end}`}
                   </span>
                 </div>
-                {brief.sent_at ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                    <Mail className="h-3.5 w-3.5" />
-                    sent to {brief.sent_to}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-xs text-amber-700">
-                    <MailWarning className="h-3.5 w-3.5" />
-                    not sent
-                  </span>
-                )}
+                {(() => {
+                  const status = deliveryStatus(brief);
+                  const Icon = status.warn ? MailWarning : Mail;
+                  return (
+                    <span
+                      className={`inline-flex items-center gap-1 text-xs ${status.warn ? "text-amber-700" : "text-slate-500"}`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {status.text}
+                    </span>
+                  );
+                })()}
               </div>
               {brief.send_error && (
                 <p className="mt-2 text-xs text-amber-700">{brief.send_error}</p>

@@ -1,4 +1,4 @@
--- Rollback for 20261019180000_briefs_grokbot_outbox.sql
+-- Rollback for 20261019152718_briefs_grokbot_outbox.sql
 -- Restores mission.briefs to daily/weekly only. Alert rows must go first, or
 -- the narrowed check fails; they are copies of mail already handed to grokbot.
 drop index if exists mission.briefs_handoff_pending_idx;

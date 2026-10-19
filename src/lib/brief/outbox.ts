@@ -80,3 +80,29 @@ export function queueResponse(result: QueueResult, extra: Record<string, unknown
     body: { ok: false, alerted: false, error: 'Could not queue the alert for grokbot', detail: result.error, ...extra },
   };
 }
+
+/** What /briefs calls a row. Alerts live in the same table since 2026-10-19. */
+export function kindLabel(kind: string): string {
+  if (kind === 'weekly') return 'Weekly';
+  if (kind === 'alert') return 'Alert';
+  return 'Daily';
+}
+
+export interface DeliveryFields {
+  sent_at: string | null;
+  sent_to: string | null;
+  handoff_requested_at?: string | null;
+  handed_off_at?: string | null;
+}
+
+/**
+ * Where a row's mail stands. `warn` only for a handoff still waiting: a
+ * stored-only brief is the normal case now (the chief-of-staff brief is the
+ * sender), so painting it as a failure would teach everyone to ignore it.
+ */
+export function deliveryStatus(row: DeliveryFields): { text: string; warn: boolean } {
+  if (row.sent_at) return { text: `sent to ${row.sent_to ?? 'unknown'}`, warn: false };
+  if (row.handed_off_at) return { text: 'handed to grokbot', warn: false };
+  if (row.handoff_requested_at) return { text: 'waiting for grokbot', warn: true };
+  return { text: 'stored only', warn: false };
+}
