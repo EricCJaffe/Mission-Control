@@ -1,3 +1,4 @@
+import type { MissionClient } from "@/lib/supabase/schema";
 export type Chunk = {
   chunk_index: number;
   heading_path: string | null;
@@ -89,7 +90,7 @@ export function chunkMarkdown(markdown: string, maxChars = 2000): Chunk[] {
 }
 
 export async function upsertChapterChunks(
-  supabase: any,
+  supabase: MissionClient,
   chapterId: string,
   orgId: string,
   chunks: Chunk[]

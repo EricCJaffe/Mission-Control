@@ -189,7 +189,7 @@ export default function MedicationAIInsights({
       {!review && !loading && (
         <div className="text-center py-8 text-slate-500 text-sm">
           <Info className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          <p>Click "Analyze My Stack" to get AI-powered insights about your</p>
+          <p>Click &ldquo;Analyze My Stack&rdquo; to get AI-powered insights about your</p>
           <p>medication and supplement regimen.</p>
         </div>
       )}

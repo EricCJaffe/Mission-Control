@@ -4,7 +4,7 @@ import { embedTexts } from "@/lib/ai/embeddings";
 
 export async function retrieveContext(scopeType: string, scopeId: string, query?: string) {
   const supabase = await supabaseServer();
-  let semanticMatches: any[] = [];
+  let semanticMatches: Record<string, unknown>[] = [];
   if (query && process.env.OPENAI_API_KEY) {
     try {
       const [queryEmbedding] = await embedTexts([query]);
@@ -78,7 +78,14 @@ export async function applyPatch(chapterId: string, patch: string) {
     }
   }
 
-  let parsed: any = null;
+  // The model's patch, when it answers in JSON rather than plain markdown.
+  type PatchJson = {
+    markdown?: unknown;
+    replace?: { from?: unknown; to?: unknown };
+    replace_from?: unknown;
+    replace_to?: unknown;
+  };
+  let parsed: PatchJson | null = null;
   if (patch.trim().startsWith("{")) {
     parsed = tryParseJson(patch.trim());
   }

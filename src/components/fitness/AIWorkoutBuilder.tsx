@@ -195,7 +195,7 @@ export default function AIWorkoutBuilder({ isOpen, onClose, onAddExercises, mode
                     <div className="mt-2 space-y-2">
                       {parsedResult.suggestions.map((sug, idx) => (
                         <div key={idx} className="text-xs">
-                          <p className="font-medium text-yellow-800">"{sug.input}" not found</p>
+                          <p className="font-medium text-yellow-800">&ldquo;{sug.input}&rdquo; not found</p>
                           {sug.suggestions.length > 0 && (
                             <p className="text-yellow-700">
                               Did you mean:{' '}

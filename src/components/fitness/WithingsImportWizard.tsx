@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Upload, Check, AlertCircle, Loader2, Database } from 'lucide-react';
+import Link from 'next/link';
 
 type ImportResults = {
   bp: { imported: number; skipped: number; errors: number };
@@ -90,7 +91,7 @@ export default function WithingsImportWizard() {
         <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
           <li>Open Withings Health Mate app or website</li>
           <li>Go to Settings → Privacy → Export my data</li>
-          <li>Request export (you'll receive a download link via email)</li>
+          <li>Request export (you&rsquo;ll receive a download link via email)</li>
           <li>Download and extract the ZIP file to a folder</li>
           <li>Copy the folder path below (e.g., /Users/yourname/Downloads/data_ERI_1234567890)</li>
         </ol>
@@ -208,7 +209,7 @@ export default function WithingsImportWizard() {
 
           {/* Next Steps */}
           <div className="rounded-2xl border-2 border-slate-300 bg-white p-6 shadow-sm">
-            <h3 className="font-semibold text-gray-900 mb-3">What's Next?</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">What&rsquo;s Next?</h3>
             <ul className="space-y-2 text-gray-700">
               <li className="flex items-start gap-2">
                 <span className="text-blue-600 mt-1">•</span>
@@ -225,7 +226,7 @@ export default function WithingsImportWizard() {
               <li className="flex items-start gap-2">
                 <span className="text-blue-600 mt-1">•</span>
                 <span>
-                  Review <a href="/fitness/history" className="text-blue-600 hover:underline">workout history</a>
+                  Review <Link href="/fitness/history" className="text-blue-600 hover:underline">workout history</Link>
                 </span>
               </li>
               <li className="flex items-start gap-2">

@@ -84,7 +84,7 @@ export async function POST(req: Request) {
   if (!proposed && plan.insert_block) {
     proposed = insertBlockIntoMarkdown(currentMarkdown, plan.insert_block, plan.insert_after_heading || "next steps");
   }
-  let lengthWarning = "";
+  const lengthWarning = "";
 
   const requiredLines: string[] = [];
   const firstQuote = currentMarkdown.split("\n").find((line: string) => line.trim().startsWith("> "));
