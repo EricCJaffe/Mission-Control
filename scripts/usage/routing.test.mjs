@@ -158,3 +158,15 @@ test('report selects every column the forecast reads, bot included (meter rows)'
   const cols = FORECAST_COLUMNS.split(',');
   for (const c of ['bot', 'source', 'secondary_used_pct', 'secondary_window_minutes', 'secondary_resets_at', 'meter_at', 'last_at', 'captured_at', 'tokens_total']) assert.ok(cols.includes(c), c);
 });
+
+test('first-try v2: rescore records override the outcome; gated jobs are not scored', () => {
+  const now = new Date('2026-10-20T16:00:00-04:00');
+  const iso = (h) => new Date(now.getTime() - h * 3600e3).toISOString();
+  const log = [
+    { at: iso(3), action: 'outcome', plan: 'claude-max', tier: 'kept', note: 'a.md', dispatched_at: 'd1', result: 'done', first_try: false },
+    { at: iso(2), action: 'outcome', plan: 'claude-max', tier: 'kept', note: 'b.md', dispatched_at: 'd2', result: 'needs-eric', first_try: false },
+    { at: iso(1), action: 'rescore', note: 'a.md', dispatched_at: 'd1', first_try: true, gated: false },
+    { at: iso(1), action: 'rescore', note: 'b.md', dispatched_at: 'd2', first_try: null, gated: true },
+  ].map((r) => JSON.stringify(r)).join('\n');
+  assert.equal(routeScoreLine(log, now), 'routes (7d, first-try): main/kept 1/1 (100%) · 1 gated on Eric (not scored)');
+});
