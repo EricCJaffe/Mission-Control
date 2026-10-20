@@ -122,6 +122,15 @@ export function routeScoreLine(jsonl, now = new Date(), { floor = 0.8, minN = 5 
   const score = {};
   const esc = new Set();
   const eric = new Set();
+  const gated = new Set();
+  // First-try metric v2 (dispatch-autostart --rescore, 2026-10-20): a `rescore`
+  // record re-judges an earlier outcome (same note + dispatched_at). Outcome
+  // records are never rewritten, so the newest rescore wins here.
+  const fix = new Map();
+  for (const line of String(jsonl || '').split('\n')) {
+    if (!line.includes('"rescore"')) continue;
+    try { const r = JSON.parse(line); if (r?.action === 'rescore') fix.set(`${r.note}|${r.dispatched_at}`, r); } catch { /* skip */ }
+  }
   for (const line of String(jsonl || '').split('\n')) {
     if (!line.trim()) continue;
     let r;
@@ -132,7 +141,13 @@ export function routeScoreLine(jsonl, now = new Date(), { floor = 0.8, minN = 5 
     if (r.backfill) continue;
     if (r.action === 'escalate') esc.add(r.note ?? line);
     if (r.action === 'needs-eric') eric.add(r.note ?? line);
-    if (r.action !== 'outcome' || r.first_try == null) continue;
+    if (r.action !== 'outcome') continue;
+    const fx = fix.get(`${r.note}|${r.dispatched_at}`);
+    if (fx) r = { ...r, first_try: fx.first_try, gated: fx.gated };
+    if (r.first_try == null) {
+      if (r.gated || r.result === 'needs-eric' || r.result === 'waiting') gated.add(r.note ?? line);
+      continue;
+    }
     const k = `${PLAN_SHORT[r.plan] ?? r.plan}/${r.tier ?? 'default'}`;
     score[k] ??= { n: 0, ok: 0 };
     score[k].n += 1;
@@ -146,5 +161,6 @@ export function routeScoreLine(jsonl, now = new Date(), { floor = 0.8, minN = 5 
   });
   if (esc.size) parts.push(`${esc.size} escalated`);
   if (eric.size) parts.push(`${eric.size} needs Eric`);
+  if (gated.size) parts.push(`${gated.size} gated on Eric (not scored)`);
   return parts.length ? `routes (7d, first-try): ${parts.join(' · ')}` : '';
 }
