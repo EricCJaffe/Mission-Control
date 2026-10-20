@@ -144,8 +144,10 @@ export function routeScoreLine(jsonl, now = new Date(), { floor = 0.8, minN = 5 
     if (r.action !== 'outcome') continue;
     const fx = fix.get(`${r.note}|${r.dispatched_at}`);
     if (fx) r = { ...r, first_try: fx.first_try, gated: fx.gated };
-    if (r.gated || r.result === 'needs-eric' || r.result === 'waiting') gated.add(r.note ?? line);
-    if (r.first_try == null) continue;
+    if (r.first_try == null) {
+      if (r.gated || r.result === 'needs-eric' || r.result === 'waiting') gated.add(r.note ?? line);
+      continue;
+    }
     const k = `${PLAN_SHORT[r.plan] ?? r.plan}/${r.tier ?? 'default'}`;
     score[k] ??= { n: 0, ok: 0 };
     score[k].n += 1;
