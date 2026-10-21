@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { GitBranch, AlertTriangle } from 'lucide-react'
 import { supabaseServer } from '@/lib/supabase/server'
+import { sortInitiatives, ragBadge, type InitiativeRow } from '@/lib/projects/initiatives'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,7 +52,7 @@ export default async function ProjectsPage() {
   const [{ data: projects, error }, { data: taskRows }, rollup] = await Promise.all([
     supabase
       .from('projects')
-      .select('id,title,status,priority,created_at,slug,domain,client,repo_path,sync_enabled,last_synced_at')
+      .select('id,title,status,priority,created_at,slug,domain,client,repo_path,sync_enabled,last_synced_at,kind,rag,plan_pct,owner_session,plan_doc,blockers,last_activity_at,next_step')
       .order('created_at', { ascending: false }),
     supabase.from('tasks').select('project_id,status,priority').not('project_id', 'is', null),
     latestRollup(supabase),
@@ -68,7 +69,12 @@ export default async function ProjectsPage() {
     counts.set(t.project_id, c)
   }
 
-  const sorted = [...(projects ?? [])].sort(
+  // Coding initiatives get their own shortlist; the list below stays repos
+  // and hand-made projects, where "open in the repo" means something.
+  const initiatives = sortInitiatives(
+    (projects ?? []).filter((p) => p.kind === 'initiative') as InitiativeRow[],
+  )
+  const sorted = [...(projects ?? []).filter((p) => p.kind !== 'initiative')].sort(
     (a, b) => (counts.get(b.id)?.open ?? 0) - (counts.get(a.id)?.open ?? 0),
   )
 
@@ -96,6 +102,58 @@ export default async function ProjectsPage() {
             {rollup.at && ` Last read ${new Date(rollup.at).toLocaleString()}.`}
           </p>
         </div>
+      )}
+
+      {initiatives.length > 0 && (
+        <section className="mt-6">
+          <h2 className="text-lg font-semibold">Coding initiatives</h2>
+          <p className="text-xs text-slate-500">
+            Against plan, worst first. Mirrored from the brain&rsquo;s <code>docs/initiatives.yml</code>.
+          </p>
+          <div className="mt-3 grid gap-3">
+            {initiatives.map((i) => {
+              const badge = ragBadge(i.rag)
+              const open = counts.get(i.id)?.open ?? 0
+              return (
+                <div key={i.id} className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold">{i.title}</span>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={`rounded-full border px-2 py-1 font-medium ${badge.className}`}>{badge.label}</span>
+                      <Link
+                        href={`/tasks?project=${i.id}`}
+                        className="rounded-full border border-slate-200 bg-white px-2 py-1 hover:bg-slate-50"
+                      >
+                        {open} open
+                      </Link>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full bg-blue-600" style={{ width: `${i.plan_pct ?? 0}%` }} />
+                    </div>
+                    <span className="w-16 text-right text-xs tabular-nums text-slate-600">
+                      {i.plan_pct === null ? 'no plan' : `${i.plan_pct}%`}
+                    </span>
+                  </div>
+                  {i.next_step && <p className="mt-2 text-sm text-slate-700">Next: {i.next_step}</p>}
+                  {i.blockers && i.blockers.length > 0 && (
+                    <ul className="mt-2 list-disc pl-5 text-xs text-red-700">
+                      {i.blockers.map((b) => (
+                        <li key={b}>{b}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                    {i.owner_session && <span>owner {i.owner_session}</span>}
+                    {i.last_activity_at && <span>last activity {i.last_activity_at}</span>}
+                    {i.plan_doc && <span className="font-mono text-[11px]">{i.plan_doc}</span>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
       )}
 
       <form className="mt-6 flex flex-col gap-2 sm:flex-row" action="/projects/new" method="post">

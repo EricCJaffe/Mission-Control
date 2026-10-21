@@ -19,6 +19,10 @@ WorkingDirectory=%h/dev/mission-control
 # so the fnm shims that put `node` on an interactive PATH are not present here.
 # `ExecStart=node …` would fail with 203/EXEC and nothing would say why.
 ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/projects.ts
+# Coding initiatives from the brain's docs/initiatives.yml (2026-10-21). Runs
+# second and without a `-` prefix: a file that does not parse fails the unit
+# where job-health sees it. A missing file exits 0.
+ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/initiatives.ts
 
 # The harvester only ever reads other repos and writes its own database, but
 # there is no reason to leave it able to do more than that.

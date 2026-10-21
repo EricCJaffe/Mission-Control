@@ -10,6 +10,12 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+- 2026-10-21 ET — Coding initiatives on /projects (initiatives sync)
+  - What changed: `scripts/sync/initiatives.ts` + `parse/initiatives.ts`; task reconcile moved unchanged to `scripts/sync/lib/reconcile.ts`; /projects shows an initiatives shortlist; migration adds project rag/plan columns and the `initiative` task source.
+  - Why: Eric, 2026-10-21 7:51 AM ET: a daily shortlist of coding initiatives against plan.
+  - Follow-ups: apply the migration at merge and rename it to the ledger version; reinstall the sync unit from `deploy/systemd/`.
+
+
 - 2026-10-19 11:30 ET — Brief and Apple Health alert hand off to grokbot (PR #64)
   - What changed: both crons store to `mission.briefs` with `handoff_requested_at`; new `/api/cron/brief-outbox` (GET pending, POST ack); `/briefs` shows handoff status.
   - Why: every email to Eric comes from a Grok Bot address so a reply reaches a bot.
