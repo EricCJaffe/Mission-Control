@@ -6,9 +6,12 @@
 -- per initiative (kind = 'initiative'), with its phases as mission.tasks
 -- (source = 'initiative').
 --
--- APPLY WHEN THE PR MERGES, NOT BEFORE, and rename this file to the version
--- the ledger records. /projects selects the new columns, so the page errors
--- between a merge and this apply.
+-- APPLY WHEN THE PR MERGES and rename this file to the version the ledger
+-- records. The order does not break anything: the change is additive, old
+-- code ignores the columns, and /projects reads them in a separate query whose
+-- failure only hides the initiatives shortlist (the project list itself does
+-- not depend on them). Until it is applied, scripts/sync/initiatives.ts
+-- fails each initiative, exits 1, and the unit shows red.
 --
 -- Rollback (supabase/rollbacks/<version>_initiative_projects.down.sql):
 --   delete from mission.tasks where source = 'initiative';
