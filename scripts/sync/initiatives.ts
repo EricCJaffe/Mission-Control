@@ -169,7 +169,16 @@ async function main() {
 
   for (const init of initiatives) {
     const tasks = tasksFor(init, notes);
-    const project = await upsertProject(db, env.userId, init, args.dryRun);
+    // One bad initiative must not stop the rest, or the run row below.
+    let project: Awaited<ReturnType<typeof upsertProject>>;
+    try {
+      project = await upsertProject(db, env.userId, init, args.dryRun);
+    } catch (err) {
+      console.error(`[sync:initiatives] ${err instanceof Error ? err.message : String(err)}; skipped`);
+      failed += 1;
+      log.push({ id: init.id, error: err instanceof Error ? err.message : String(err) });
+      continue;
+    }
     if (args.dryRun) {
       console.log(`    ${tasks.length} tasks (${tasks.filter((t) => t.status === 'done').length} done), plan ${planPct(init) ?? '-'}%`);
       continue;
@@ -204,8 +213,8 @@ async function main() {
     });
     // /sync reads this row; one that did not land makes the mirror look stale.
     if (runError) console.error(`[sync:initiatives] could not record the run: ${runError.message}`);
-    if (failed > 0) process.exitCode = 1;
   }
+  if (failed > 0) process.exitCode = 1;
 }
 
 main().catch((err) => {

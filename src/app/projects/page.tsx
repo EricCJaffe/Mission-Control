@@ -49,13 +49,23 @@ export default async function ProjectsPage() {
   const user = userData.user
   if (!user) return null
 
-  const [{ data: projects, error }, { data: taskRows }, rollup] = await Promise.all([
+  const [{ data: projects, error }, { data: taskRows }, rollup, { data: initiativeRows }] = await Promise.all([
     supabase
       .from('projects')
-      .select('id,title,status,priority,created_at,slug,domain,client,repo_path,sync_enabled,last_synced_at,kind,rag,plan_pct,owner_session,plan_doc,blockers,last_activity_at,next_step')
+      .select('id,title,status,priority,created_at,slug,domain,client,repo_path,sync_enabled,last_synced_at')
       .order('created_at', { ascending: false }),
     supabase.from('tasks').select('project_id,status,priority').not('project_id', 'is', null),
     latestRollup(supabase),
+    /*
+     * Separate on purpose: these columns arrive with migration
+     * 20261021180000_initiative_projects. Folded into the query above, a
+     * deploy that lands before the migration errors the whole list and the
+     * page shows no projects at all. Here a failure only hides the shortlist.
+     */
+    supabase
+      .from('projects')
+      .select('id,title,status,rag,plan_pct,owner_session,plan_doc,blockers,last_activity_at,next_step')
+      .eq('kind', 'initiative'),
   ])
 
   const counts = new Map<string, { open: number; urgent: number }>()
@@ -71,10 +81,9 @@ export default async function ProjectsPage() {
 
   // Coding initiatives get their own shortlist; the list below stays repos
   // and hand-made projects, where "open in the repo" means something.
-  const initiatives = sortInitiatives(
-    (projects ?? []).filter((p) => p.kind === 'initiative') as InitiativeRow[],
-  )
-  const sorted = [...(projects ?? []).filter((p) => p.kind !== 'initiative')].sort(
+  const initiatives = sortInitiatives((initiativeRows ?? []) as InitiativeRow[])
+  const initiativeIds = new Set(initiatives.map((i) => i.id))
+  const sorted = [...(projects ?? []).filter((p) => !initiativeIds.has(p.id))].sort(
     (a, b) => (counts.get(b.id)?.open ?? 0) - (counts.get(a.id)?.open ?? 0),
   )
 
@@ -139,8 +148,8 @@ export default async function ProjectsPage() {
                   {i.next_step && <p className="mt-2 text-sm text-slate-700">Next: {i.next_step}</p>}
                   {i.blockers && i.blockers.length > 0 && (
                     <ul className="mt-2 list-disc pl-5 text-xs text-red-700">
-                      {i.blockers.map((b) => (
-                        <li key={b}>{b}</li>
+                      {i.blockers.map((b, n) => (
+                        <li key={n}>{b}</li>
                       ))}
                     </ul>
                   )}
