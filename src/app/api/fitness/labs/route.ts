@@ -38,8 +38,8 @@ export async function GET(req: Request) {
 
   // Get result counts per panel
   const panelIds = panels?.map(p => p.id) ?? [];
-  let resultCounts: Record<string, number> = {};
-  let flagCounts: Record<string, number> = {};
+  const resultCounts: Record<string, number> = {};
+  const flagCounts: Record<string, number> = {};
 
   if (panelIds.length > 0) {
     const { data: results } = await supabase
