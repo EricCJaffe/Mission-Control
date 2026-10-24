@@ -188,6 +188,23 @@ Do the reads before granting `Mail.Send`. See `docs/m365-setup.md` §3 — the
 Exchange application access policy is what stops one app registration reading
 every mailbox in the tenant.
 
+## Coding initiatives
+
+`scripts/sync/initiatives.ts` (2026-10-21) mirrors the brain's
+`docs/initiatives.yml` onto /projects: one project per initiative
+(`kind = 'initiative'`, slug `initiative-<id>`) with RAG, plan %, next step
+and blockers, and each phase as a task (`source = 'initiative'`). A
+from-grokbot note with `initiative: <id>` in its frontmatter becomes a task on
+that project too. Coding maintains the file; this only reads it.
+
+    npm run sync:initiatives -- --dry-run   # the diff, nothing written
+
+It runs as the second `ExecStart` of `mission-control-sync.service`. A missing
+file exits 0; a file that does not parse fails the unit, writes nothing, and
+names the line. The file's accepted shapes (a phase list, an inline
+`{P1: done #303}` map, or `phases_total`/`phases_done` counts) are pinned in
+`scripts/sync/parse/initiatives.test.ts`.
+
 ## The brief
 
 Runs on **Vercel cron**, not here, because it only reads Supabase — weekly
