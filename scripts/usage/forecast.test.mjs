@@ -155,3 +155,10 @@ test('early guard applies only to percent readings (parity with the page)', () =
   assert.equal(s.early, false);
   assert.notEqual(s.status, 'green');
 });
+
+test('pending automation comes from config: a plan not listed there is an ordinary missing reading', () => {
+  const other = { ...grok, slug: 'other-plan', name: 'Other' };
+  const s = planStatus(other, [], now);
+  assert.equal(s.pending, undefined);
+  assert.match(s.line, /^Other: no current reading/);
+});

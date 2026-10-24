@@ -4,7 +4,7 @@ import { Download, Gauge, Lightbulb } from 'lucide-react';
 import { supabaseServer } from '@/lib/supabase/server';
 import { addDays, today } from '@/lib/day';
 import { isMonth, monthRange } from '@/lib/ai-usage/csv';
-import { isMeterRow, planLabel, planStatus, rowReading, type PlanStatus } from '@/lib/ai-usage/forecast';
+import { isMeterRow, isPendingAutomation, planLabel, planStatus, rowReading, type PlanStatus } from '@/lib/ai-usage/forecast';
 import { loadUsage } from '@/lib/ai-usage/load';
 import { inDays, projectShares, shareBy, type Share } from '@/lib/ai-usage/shares';
 import { suggestions } from '@/lib/ai-usage/suggestions';
@@ -292,7 +292,7 @@ function PlanCard({ s, now, points }: { s: PlanStatus; now: Date; points: Histor
         <dd className="text-right">{s.lastReadingAt ? when(s.lastReadingAt) : 'never'}</dd>
       </dl>
       <p className="mt-2 text-sm text-slate-600">
-        {s.usedPct !== null ? (s.note === 'too-early' ? 'Too early in this window to forecast' : runsOut) : s.note === 'reset-since-reading' ? 'Reset since last reading' : s.note === 'no-cap-known' ? 'No cap known. Add a % reading from the plan’s usage page to forecast.' : s.slug === 'grok-ultra' ? 'No reading yet (automatic daily reader pending)' : 'No reading in this window'}
+        {s.usedPct !== null ? (s.note === 'too-early' ? 'Too early in this window to forecast' : runsOut) : s.note === 'reset-since-reading' ? 'Reset since last reading' : s.note === 'no-cap-known' ? 'No cap known. Add a % reading from the plan’s usage page to forecast.' : isPendingAutomation(s.slug) ? 'No reading yet (automatic daily reader pending)' : 'No reading in this window'}
       </p>
 
       <div className="mt-4">

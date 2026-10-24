@@ -66,6 +66,13 @@ export const METER_STALE_HOURS = 12;
  */
 export const METER_BOTS: ReadonlySet<string> = new Set(['claude-usage', 'codex-usage']);
 export const isMeterRow = (r: { bot?: string | null }) => !!r.bot && METER_BOTS.has(r.bot);
+
+/**
+ * Plans whose automatic reader is not built yet (config pendingAutomation):
+ * no reading is "pending", gray and never nagged. Removing the slug from the
+ * config is what turns the "reading missing" warning back on.
+ */
+export const isPendingAutomation = (slug: string) => ((T as { pendingAutomation?: string[] }).pendingAutomation ?? []).includes(slug);
 export const THRESHOLDS = T;
 export const RED_AT = T.redAtPct;
 export const YELLOW_AT = T.yellowAtPct;

@@ -144,10 +144,10 @@ export function planStatus(plan, rows, now = new Date()) {
     const fmtTok = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : String(n));
     return { slug: plan.slug, name: plan.name, status: 'grey', pct: null, noCap: true, line: `NO CAP KNOWN · ${plan.name}: ${fmtTok(tok)} tokens in the last 7 days (${fmtTok(Math.round(tok / 7))}/day); add a % reading from its usage page to forecast` };
   }
-  // Grok has no usage API: Chief of Staff's automatic daily reader (the Cursor
-  // dashboard -> ai-usage/manual.jsonl) is still being built, so no reading is
-  // pending automation, not something anybody owes. Grey either way.
-  if (!reading && plan.slug === 'grok-ultra') return { slug: plan.slug, name: plan.name, status: 'grey', pending: true, line: 'Grok: no reading yet (automatic daily reader pending)' };
+  // A plan whose automatic reader is not built yet (config pendingAutomation;
+  // Grok: Chief of Staff's Cursor-dashboard reader -> ai-usage/manual.jsonl):
+  // no reading is pending automation, not something anybody owes. Grey.
+  if (!reading && (T.pendingAutomation ?? []).includes(plan.slug)) return { slug: plan.slug, name: plan.name, status: 'grey', pending: true, line: `${plan.slug === 'grok-ultra' ? 'Grok' : plan.name}: no reading yet (automatic daily reader pending)` };
   if (!reading) return { slug: plan.slug, name: plan.name, status: 'grey', line: `${plan.name}: no current reading (none in 48h, or it reset since)` };
 
   const pct = Math.round(reading.pct * 10) / 10;
