@@ -22,11 +22,34 @@ test('Codex burning fast is red with a run-out before reset', () => {
   assert.match(s.line, /before reset/);
 });
 
-test('stale or missing readings are grey; Grok names the owed manual entry', () => {
+test('stale or missing readings are grey; Grok says its automatic reader is pending, not owed', () => {
   assert.equal(planStatus(codex, [{ source: 'log', day: '2026-10-10', last_at: iso(-200), captured_at: iso(-200), secondary_used_pct: 10, secondary_resets_at: iso(10) }], now).status, 'grey');
   const g = planStatus(grok, [], now);
   assert.equal(g.status, 'grey');
-  assert.match(g.line, /Chief of Staff/);
+  assert.equal(g.pending, true);
+  assert.equal(g.line, 'Grok: no reading yet (automatic daily reader pending)');
+  assert.doesNotMatch(g.line, /owed|Chief of Staff/);
+});
+
+test('Codex rate-limit meter row (codex-usage) is newest and wins over an older rollout reading', () => {
+  const rows = [
+    { source: 'log', bot: 'codex', day: '2026-10-18', meter_at: iso(-6), last_at: iso(-6), captured_at: iso(0), tokens_total: 5000, secondary_used_pct: 60, secondary_window_minutes: 10080, secondary_resets_at: iso(100) },
+    { source: 'log', bot: 'codex-usage', session_id: 'meter', day: '2026-10-18', meter_at: iso(-0.5), last_at: null, captured_at: iso(0), tokens_total: 0, primary_used_pct: 3, primary_window_minutes: 300, primary_resets_at: iso(2), secondary_used_pct: 20, secondary_window_minutes: 10080, secondary_resets_at: iso(100) },
+  ];
+  const s = planStatus(codex, rows, now);
+  assert.equal(s.pct, 20);
+  assert.match(s.line, /Codex rate-limit meter/);
+  // A manual reading observed later still wins.
+  const m = planStatus(codex, [...rows, { source: 'manual', day: '2026-10-18', meter_at: iso(-0.1), captured_at: iso(0), primary_used_pct: 25, primary_window_minutes: 10080, primary_resets_at: iso(100) }], now);
+  assert.equal(m.pct, 25);
+});
+
+test('a Codex meter row older than 12h is ignored (recorder failing); the rollout reading stands', () => {
+  const rows = [
+    { source: 'log', bot: 'codex', day: '2026-10-18', meter_at: iso(-20), last_at: iso(-20), captured_at: iso(0), secondary_used_pct: 40, secondary_window_minutes: 10080, secondary_resets_at: iso(100) },
+    { source: 'log', bot: 'codex-usage', day: '2026-10-18', meter_at: iso(-13), captured_at: iso(0), secondary_used_pct: 45, secondary_window_minutes: 10080, secondary_resets_at: iso(100) },
+  ];
+  assert.equal(planStatus(codex, rows, now).pct, 40);
 });
 
 test('Grok manual reading drives the status', () => {

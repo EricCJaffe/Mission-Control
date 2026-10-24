@@ -58,6 +58,14 @@ export const STALE_AFTER_HOURS = 48;
  * estimate instead of trusting a reading from half a day ago.
  */
 export const METER_STALE_HOURS = 12;
+
+/**
+ * Plan-meter rows: a CLI's own % on a timer, no tokens. `claude-usage` (Claude
+ * /usage, hourly) and `codex-usage` (Codex app-server rate limits, every
+ * collector run; scripts/usage/codex-meter.mjs).
+ */
+export const METER_BOTS: ReadonlySet<string> = new Set(['claude-usage', 'codex-usage']);
+export const isMeterRow = (r: { bot?: string | null }) => !!r.bot && METER_BOTS.has(r.bot);
 export const THRESHOLDS = T;
 export const RED_AT = T.redAtPct;
 export const YELLOW_AT = T.yellowAtPct;
@@ -100,7 +108,7 @@ type Row = Pick<
   | 'last_at'
   | 'captured_at'
 > &
-  // Optional: only the Claude /usage meter rows (bot `claude-usage`) need it.
+  // Optional: only the plan-meter rows (bots `claude-usage`, `codex-usage`) need it.
   Partial<Pick<AiUsageSnapshot, 'bot'>>;
 
 type Reading = {
@@ -175,7 +183,7 @@ export function rowReading(r: Row, cadence: AiPlan['reset_cadence'] = 'weekly'):
     if (used !== null && limit) pct = (used / limit) * 100;
   }
   if (pct === null) return null;
-  return { pct, resetsAt, resetFrom, at, capturedMs: ms(r.captured_at) ?? 0, source: r.source, meter: r.bot === 'claude-usage' };
+  return { pct, resetsAt, resetFrom, at, capturedMs: ms(r.captured_at) ?? 0, source: r.source, meter: isMeterRow(r) };
 }
 
 const newer = (a: Reading, b: Reading) =>
@@ -186,7 +194,7 @@ function latestReading(rows: Row[], cadence: AiPlan['reset_cadence'], now: Date,
   for (const r of rows) {
     if (source && r.source !== source) continue;
     const reading = rowReading(r, cadence);
-    // A stale Claude /usage meter (recorder failing) is not a candidate, so an
+    // A stale plan meter (recorder failing) is not a candidate, so an
     // older manual reading can still stand (same rule as scripts/usage/forecast.mjs).
     if (reading?.meter && (now.getTime() - reading.at.getTime()) / 3_600_000 > METER_STALE_HOURS) continue;
     if (reading && (!best || newer(reading, best))) best = reading;

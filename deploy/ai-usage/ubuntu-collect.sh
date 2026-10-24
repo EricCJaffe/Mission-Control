@@ -14,6 +14,11 @@
 #     scripts/usage/claude-meter.mjs). upload.mjs turns both into automatic
 #     readings; a newer manual reading still wins. A failed 4lot reading only
 #     warns: the log-based estimate keeps working.
+#   - Codex meter (Eric, 2026-10-24: the page updates itself, no manual
+#     uploads): every run asks `codex app-server` for its own rate limits
+#     (account/rateLimits/read; scripts/usage/codex-meter.mjs) into
+#     $BRAIN/runs/codex-usage.jsonl. ubuntu-dev only: one account, one reading
+#     is enough. A failed reading only warns, like the 4lot meter.
 #   - report.mjs --write always refreshes open/ai-usage.{txt,json} locally (the
 #     dispatch router reads the freshest file); it commits/pushes the brain
 #     at most every 2 h unless a run-out alert note was written.
@@ -38,6 +43,13 @@ BRAIN="${BRAIN_ROOT:-$HOME/dev/brain}"
 CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || echo "$HOME/.local/bin/claude")}"
 "$NODE" scripts/usage/claude-meter.mjs --claude "$CLAUDE_BIN" --config-dir "$HOME/.claude-4lot" \
   --log "$BRAIN/runs/claude-usage-4lot.jsonl" || echo "[usage] 4lot meter reading failed; continuing"
+CODEX_BIN="${CODEX_BIN:-$(command -v codex || echo "$HOME/.local/bin/codex")}"
+if [ -x "$CODEX_BIN" ]; then
+  "$NODE" scripts/usage/codex-meter.mjs --codex "$CODEX_BIN" --log "$BRAIN/runs/codex-usage.jsonl" \
+    || echo "[usage] codex meter reading failed; continuing"
+else
+  echo "[usage] no codex binary ($CODEX_BIN); codex meter skipped"
+fi
 "$NODE" scripts/usage/upload.mjs --days "$days"
 "$NODE" scripts/usage/report.mjs --write
 echo "[usage] run done: --days $days in $(( ($(date +%s%N) - t0) / 1000000 )) ms"

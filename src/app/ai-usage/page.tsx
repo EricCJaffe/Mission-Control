@@ -4,7 +4,7 @@ import { Download, Gauge, Lightbulb } from 'lucide-react';
 import { supabaseServer } from '@/lib/supabase/server';
 import { addDays, today } from '@/lib/day';
 import { isMonth, monthRange } from '@/lib/ai-usage/csv';
-import { planLabel, planStatus, rowReading, type PlanStatus } from '@/lib/ai-usage/forecast';
+import { isMeterRow, planLabel, planStatus, rowReading, type PlanStatus } from '@/lib/ai-usage/forecast';
 import { loadUsage } from '@/lib/ai-usage/load';
 import { inDays, projectShares, shareBy, type Share } from '@/lib/ai-usage/shares';
 import { suggestions } from '@/lib/ai-usage/suggestions';
@@ -83,8 +83,8 @@ export default async function AiUsagePage({ searchParams }: { searchParams?: Pro
     const total = shownRows.reduce((sum, r) => sum + Number(r.tokens_total || 0), 0);
     const bySession = new Map<string, SessionRow>();
     for (const r of shownRows) {
-      // Readings carry no tokens: manual rows and the Claude /usage meter rows.
-      if (r.source === 'manual' || r.bot === 'claude-usage') continue;
+      // Readings carry no tokens: manual rows and the plan-meter rows (Claude /usage, Codex rate limits).
+      if (r.source === 'manual' || isMeterRow(r)) continue;
       const id = `${s.slug}:${r.host}:${r.bot}:${r.session_id}:${r.project}`;
       let row = bySession.get(id);
       if (!row) {
@@ -116,7 +116,7 @@ export default async function AiUsagePage({ searchParams }: { searchParams?: Pro
   sessionRows.sort((a, b) => a.plan.localeCompare(b.plan) || b.tokens - a.tokens);
   const advice = suggestions(statuses, windowShares, now);
   const bots = shareBy(
-    load.rows.filter((r) => r.source !== 'manual' && r.bot !== 'claude-usage' && r.day >= addDays(todayEt, -6)),
+    load.rows.filter((r) => r.source !== 'manual' && !isMeterRow(r) && r.day >= addDays(todayEt, -6)),
     'bot',
   );
   const exportMonth = month ?? todayEt.slice(0, 7);
@@ -292,7 +292,7 @@ function PlanCard({ s, now, points }: { s: PlanStatus; now: Date; points: Histor
         <dd className="text-right">{s.lastReadingAt ? when(s.lastReadingAt) : 'never'}</dd>
       </dl>
       <p className="mt-2 text-sm text-slate-600">
-        {s.usedPct !== null ? (s.note === 'too-early' ? 'Too early in this window to forecast' : runsOut) : s.note === 'reset-since-reading' ? 'Reset since last reading' : s.note === 'no-cap-known' ? 'No cap known. Add a % reading from the plan’s usage page to forecast.' : 'No reading in this window'}
+        {s.usedPct !== null ? (s.note === 'too-early' ? 'Too early in this window to forecast' : runsOut) : s.note === 'reset-since-reading' ? 'Reset since last reading' : s.note === 'no-cap-known' ? 'No cap known. Add a % reading from the plan’s usage page to forecast.' : s.slug === 'grok-ultra' ? 'No reading yet (automatic daily reader pending)' : 'No reading in this window'}
       </p>
 
       <div className="mt-4">

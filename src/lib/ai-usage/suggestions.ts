@@ -5,7 +5,7 @@
  *
  *   "Codex weekly at 92%, resets Thu: move reviews to Claude until then"
  *   "fsaos is 48% of Claude this week: pause low-value fsaos sessions"
- *   "Grok reading missing for 2 days: ask CoS"
+ *   "Claude 4lot reading missing for 2 days: check the usage collector"
  *
  * Pure: statuses and shares in, sentences out. Ordered red first.
  */
@@ -62,6 +62,10 @@ export function suggestions(statuses: PlanStatus[], shares: Record<string, Share
     // A plan with no published cap and no % reading yet: its card already says
     // "no cap known"; that is not a collector fault, so no nag (its
     // unattributed check below still runs).
+    // Grok has no usage API; Chief of Staff's automatic daily reader is still
+    // pending, so a missing Grok reading is not overdue and nobody owes it.
+    // Its card says so (gray); no nag (Eric, 2026-10-24).
+    if (s.rag === 'none' && s.slug === 'grok-ultra') continue;
     if (s.rag === 'none' && s.note !== 'no-cap-known') {
       const days = s.hoursSinceReading === null ? null : Math.floor(s.hoursSinceReading / 24);
       const since =
@@ -70,7 +74,7 @@ export function suggestions(statuses: PlanStatus[], shares: Record<string, Share
           : days === null
             ? 'no reading yet'
             : `reading missing for ${days} day${days === 1 ? '' : 's'}`;
-      const who = s.lastSource === 'manual' || s.slug === 'grok-ultra' ? 'ask CoS' : 'check the usage collector';
+      const who = s.lastSource === 'manual' ? 'add a reading' : 'check the usage collector';
       out.push({ tone: 'yellow', plan: s.slug, text: `${name} ${since}: ${who}` });
       continue;
     }

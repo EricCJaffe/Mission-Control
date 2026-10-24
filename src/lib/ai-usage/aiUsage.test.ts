@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { buildUsageCsv, csvCell, isMonth, monthRange } from './csv.ts';
-import { observedAt, planLabel, planStatus, rag, isEarly, type PlanStatus } from './forecast.ts';
+import { isMeterRow, observedAt, planLabel, planStatus, rag, isEarly, type PlanStatus } from './forecast.ts';
 import { parseManual } from './manual.ts';
 import { projectShares, shareBy } from './shares.ts';
 import { suggestions } from './suggestions.ts';
@@ -307,7 +307,8 @@ test('suggestions: heavy project on a strained plan, missing Grok reading, high 
   );
   const texts = out.map((s) => s.text);
   assert.ok(texts.includes('fsaos is 48% of Claude main this window: pause low-value fsaos sessions'));
-  assert.ok(texts.includes('Grok reading missing for 2 days: ask CoS'));
+  // Grok's automatic reader is pending: a missing reading is not a nag (2026-10-24).
+  assert.ok(!texts.some((t) => t.startsWith('Grok')));
   assert.ok(texts.some((t) => t.startsWith('30% of Claude main is unattributed')));
   // No 4lot plan in this set, so Claude main is told to pause, not to move.
   assert.ok(texts.some((t) => t.startsWith('Claude main weekly at 75%') && t.endsWith('pause low-value sessions until then')));
@@ -612,4 +613,26 @@ test('glance note restates the card status', () => {
   assert.equal(glanceNote({ usedPct: null, note: 'no-cap-known', runOutAt: null, window: w, rag: 'none' }), 'no cap known');
   assert.equal(glanceAnchor('claude-4lot'), 'plan-claude-4lot');
   assert.equal(glanceReset(new Date('2026-10-20T23:00:00Z'), new Date('2026-10-18T18:00:00Z')), 'Tue 7:00 PM');
+});
+
+test('Codex rate-limit meter rows (codex-usage) are plan-meter rows: newest wins, stale after 12h', () => {
+  assert.ok(isMeterRow({ bot: 'codex-usage' }) && isMeterRow({ bot: 'claude-usage' }) && !isMeterRow({ bot: 'codex' }));
+  const codex = plan({ slug: 'chatgpt-codex', limit_kind: 'percent', limit_value: 100 });
+  const rollout = row({ plan_slug: 'chatgpt-codex', bot: 'codex', secondary_used_pct: 40, secondary_resets_at: '2026-10-19T12:00:00Z', meter_at: '2026-10-14T06:00:00Z' });
+  const fresh = row({ plan_slug: 'chatgpt-codex', bot: 'codex-usage', session_id: 'meter', tokens_total: 0, secondary_used_pct: 44, secondary_resets_at: '2026-10-19T12:00:00Z', meter_at: '2026-10-14T15:30:00Z' });
+  assert.equal(planStatus(codex, [rollout, fresh], NOW).usedPct, 44);
+  const stale = { ...fresh, meter_at: '2026-10-14T02:00:00Z', secondary_used_pct: 99 };
+  assert.equal(planStatus(codex, [rollout, stale], NOW).usedPct, 40);
+});
+
+test('suggestions: a manual-only plan with no reading asks for a reading; Grok is never nagged', () => {
+  const out = suggestions(
+    [
+      status({ slug: 'claude-4lot', name: 'Claude 4lot', rag: 'none', hoursSinceReading: 50, lastSource: 'manual' }),
+      status({ slug: 'grok-ultra', name: 'Grok', rag: 'none', hoursSinceReading: null, lastSource: null }),
+    ],
+    {},
+    NOW,
+  );
+  assert.deepEqual(out.map((s) => s.text), ['Claude 4lot reading missing for 2 days: add a reading']);
 });
