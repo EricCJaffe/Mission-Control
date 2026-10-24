@@ -307,8 +307,8 @@ test('suggestions: heavy project on a strained plan, missing Grok reading, high 
   );
   const texts = out.map((s) => s.text);
   assert.ok(texts.includes('fsaos is 48% of Claude main this window: pause low-value fsaos sessions'));
-  // Grok's automatic reader is pending: a missing reading is not a nag (2026-10-24).
-  assert.ok(!texts.some((t) => t.startsWith('Grok')));
+  // The Grok reader landed 2026-10-24: a missing Grok reading is flagged again.
+  assert.ok(texts.includes('Grok reading missing for 2 days: add a reading'));
   assert.ok(texts.some((t) => t.startsWith('30% of Claude main is unattributed')));
   // No 4lot plan in this set, so Claude main is told to pause, not to move.
   assert.ok(texts.some((t) => t.startsWith('Claude main weekly at 75%') && t.endsWith('pause low-value sessions until then')));
@@ -625,14 +625,12 @@ test('Codex rate-limit meter rows (codex-usage) are plan-meter rows: newest wins
   assert.equal(planStatus(codex, [rollout, stale], NOW).usedPct, 40);
 });
 
-test('suggestions: a manual-only plan with no reading asks for a reading; Grok is never nagged', () => {
-  const out = suggestions(
-    [
-      status({ slug: 'claude-4lot', name: 'Claude 4lot', rag: 'none', hoursSinceReading: 50, lastSource: 'manual' }),
-      status({ slug: 'grok-ultra', name: 'Grok', rag: 'none', hoursSinceReading: null, lastSource: null }),
-    ],
-    {},
-    NOW,
-  );
-  assert.deepEqual(out.map((s) => s.text), ['Claude 4lot reading missing for 2 days: add a reading']);
+test('suggestions: a manual-only plan with no reading asks for a reading; a pending-automation plan is never nagged', () => {
+  const statuses = [
+    status({ slug: 'claude-4lot', name: 'Claude 4lot', rag: 'none', hoursSinceReading: 50, lastSource: 'manual' }),
+    status({ slug: 'future-plan', name: 'Future', rag: 'none', hoursSinceReading: null, lastSource: null }),
+  ];
+  assert.deepEqual(suggestions(statuses, {}, NOW, ['future-plan']).map((s) => s.text), ['Claude 4lot reading missing for 2 days: add a reading']);
+  // Off the list, the same plan is nagged like any other.
+  assert.ok(suggestions(statuses, {}, NOW, []).some((s) => s.plan === 'future-plan'));
 });

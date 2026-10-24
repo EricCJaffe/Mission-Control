@@ -122,16 +122,17 @@ only account names and no secrets:
 
 `report.mjs --write` also writes `$BRAIN_ROOT/open/ai-usage.json`, the machine-readable twin of the brief lines. It has one record per plan: `used_pct`, `projected_at_reset_pct`, `runout_before_reset`, `reset_at`, `reading_at`, `reading_age_h`, `status`, `no_cap`, `early`, `idle`. For a token-budget plan (4lot), `used_pct` comes from the logs against its estimated cap; `reading_at` is the newest log activity, and `idle: true` means nothing logged in 48h (the window's earlier usage still counts; 0% only when nothing was logged this window, which dispatch treats as available at lower priority). The file is written atomically (temp file + rename). It also carries `limit_tokens`, `capacity_weight`, `overflow_target` and `small_jobs_only` per plan, plus `max_weekly_tokens_baseline` and `job_size_tokens` (S/M/L). `dispatch-autostart` (dev-harness) reads it to route queued notes between Claude main and Claude 4lot. Eric turned meter-driven routing on at 2:06 PM ET on 10/18. A file that is missing, or older than 24h, means dispatch behaves as before. The brief gets one `routing (24h): ...` line built from `runs/dispatch-routing.jsonl`, the decision log dispatch writes. A second line, `routes (7d, first-try): ...`, scores each route (plan/model tier) from the `outcome` records dispatch appends when a job finishes (first-try success, review findings, rework, tokens); an economy route under 80% first-try (5+ jobs) is moved up a tier by dispatch, and escalations and needs-Eric flags are counted. A third line, `auto-start stalled (24h): ...`, names each queued note dispatch gave up on after its prompts-per-day limit (a `give-up` record with the reason); a later dispatch of the note clears it.
 
-## Grok Bot Ultra (automatic daily reader pending)
+## Grok Bot Ultra (automatic daily reader, live 2026-10-24)
 
-There is no sanctioned usage API. Chief of Staff is building an automatic
-daily reader for the Cursor dashboard that appends one line a day to
-`~/dev/brain/ai-usage/manual.jsonl` (commit + `brain-sync push`); `parseManual`
-already reads that file, so no format change is expected. Until the reader
-lands, a missing Grok reading is **pending automation, not overdue**: the
-card is gray and says "No reading yet (automatic daily reader pending)", the
-brief line reads `Grok: no reading yet (automatic daily reader pending)`, and
-no suggestion nags anyone. The line format:
+There is no sanctioned usage API. Chief of Staff's automatic daily reader
+(the Cursor dashboard) appends one line a day to
+`~/dev/brain/ai-usage/manual.jsonl` (commit + `brain-sync push`); the first
+reading landed 2026-10-24 at 9:36 AM ET. `parseManual` reads that file.
+
+A plan whose reader is not built yet goes in `pendingAutomation`
+(`config/ai-usage-thresholds.json`): with no reading it shows gray "no reading
+yet (automatic daily reader pending)" and is never nagged. Grok left that list
+when its reader landed, so a missing Grok reading is flagged again. The line format:
 
 ```json
 {"date":"2026-10-18","plan":"grok-ultra","used_pct":42,"resets_at":"2026-10-25T00:00:00-04:00","window":"weekly","note":"","by":"cos"}

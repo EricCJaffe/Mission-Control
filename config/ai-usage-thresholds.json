@@ -8,6 +8,6 @@
   "earlyMinHours": 24,
   "burnMinHours": 24,
   "yellowAfterResetHours": 24,
-  "_pendingAutomation": "Plans whose automatic reader is not built yet: with no reading they show gray 'no reading yet (automatic daily reader pending)' and are never nagged. Remove a slug the day its reader lands, so a broken reader is flagged again (Grok: Chief of Staff's Cursor-dashboard reader, 2026-10-24).",
-  "pendingAutomation": ["grok-ultra"]
+  "_pendingAutomation": "Plans whose automatic reader is not built yet: with no reading they show gray 'no reading yet (automatic daily reader pending)' and are never nagged. Remove a slug the day its reader lands, so a broken reader is flagged again. Empty since 2026-10-24: the Grok reader landed (Chief of Staff's Cursor-dashboard reader, first reading in ai-usage/manual.jsonl 9:36 AM ET), so a missing Grok reading is flagged again.",
+  "pendingAutomation": []
 }

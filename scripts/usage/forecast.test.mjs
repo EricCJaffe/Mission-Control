@@ -22,13 +22,18 @@ test('Codex burning fast is red with a run-out before reset', () => {
   assert.match(s.line, /before reset/);
 });
 
-test('stale or missing readings are grey; Grok says its automatic reader is pending, not owed', () => {
+test('stale or missing readings are grey; a pending-automation plan says so, not owed; Grok is no longer pending', () => {
   assert.equal(planStatus(codex, [{ source: 'log', day: '2026-10-10', last_at: iso(-200), captured_at: iso(-200), secondary_used_pct: 10, secondary_resets_at: iso(10) }], now).status, 'grey');
+  const p = planStatus({ ...grok, slug: 'future-plan', name: 'Future' }, [], now, { pendingAutomation: ['future-plan'] });
+  assert.equal(p.status, 'grey');
+  assert.equal(p.pending, true);
+  assert.equal(p.line, 'Future: no reading yet (automatic daily reader pending)');
+  assert.doesNotMatch(p.line, /owed|Chief of Staff/);
+  // The Grok reader landed 2026-10-24 (config list is empty): an ordinary missing reading.
   const g = planStatus(grok, [], now);
   assert.equal(g.status, 'grey');
-  assert.equal(g.pending, true);
-  assert.equal(g.line, 'Grok: no reading yet (automatic daily reader pending)');
-  assert.doesNotMatch(g.line, /owed|Chief of Staff/);
+  assert.equal(g.pending, undefined);
+  assert.match(g.line, /^Grok: no current reading/);
 });
 
 test('Codex rate-limit meter row (codex-usage) is newest and wins over an older rollout reading', () => {

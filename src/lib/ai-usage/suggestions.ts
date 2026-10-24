@@ -10,7 +10,7 @@
  * Pure: statuses and shares in, sentences out. Ordered red first.
  */
 
-import { isPendingAutomation, type PlanStatus } from './forecast.ts';
+import { isPendingAutomation, PENDING_AUTOMATION, type PlanStatus } from './forecast.ts';
 import type { Share } from './shares.ts';
 import { UNATTRIBUTED } from './types.ts';
 import { DAY_MS, formatReset } from './window.ts';
@@ -51,7 +51,7 @@ function cadenceWord(s: PlanStatus): string {
   return '';
 }
 
-export function suggestions(statuses: PlanStatus[], shares: Record<string, Share[]>, now: Date): Suggestion[] {
+export function suggestions(statuses: PlanStatus[], shares: Record<string, Share[]>, now: Date, pending: readonly string[] = PENDING_AUTOMATION): Suggestion[] {
   const out: Suggestion[] = [];
   const bySlug = new Map(statuses.map((s) => [s.slug, s]));
 
@@ -62,10 +62,10 @@ export function suggestions(statuses: PlanStatus[], shares: Record<string, Share
     // A plan with no published cap and no % reading yet: its card already says
     // "no cap known"; that is not a collector fault, so no nag (its
     // unattributed check below still runs).
-    // A plan whose automatic reader is still pending (config pendingAutomation;
-    // Grok, 2026-10-24): a missing reading is not overdue and nobody owes it.
+    // A plan whose automatic reader is still pending (config pendingAutomation):
+    // a missing reading is not overdue and nobody owes it.
     // Its card says so (gray); no nag until the slug leaves the config.
-    if (s.rag === 'none' && isPendingAutomation(s.slug)) continue;
+    if (s.rag === 'none' && isPendingAutomation(s.slug, pending)) continue;
     if (s.rag === 'none' && s.note !== 'no-cap-known') {
       const days = s.hoursSinceReading === null ? null : Math.floor(s.hoursSinceReading / 24);
       const since =

@@ -40,7 +40,7 @@ const WINDOW_MIN = { '5h': 300, daily: 1440, weekly: 10080, monthly: 43200 };
  */
 export const FORECAST_COLUMNS = 'plan_slug,source,bot,day,tokens_total,primary_used_pct,primary_window_minutes,primary_resets_at,secondary_used_pct,secondary_window_minutes,secondary_resets_at,meter_at,last_at,captured_at';
 
-export function planStatus(plan, rows, now = new Date()) {
+export function planStatus(plan, rows, now = new Date(), { pendingAutomation = T.pendingAutomation ?? [] } = {}) {
   const t = now.getTime();
   const fresh = (r) => r.captured_at && t - new Date(r.last_at ?? r.captured_at).getTime() <= 48 * H;
   const meterAt = (r) => r.meter_at ?? r.last_at ?? r.day;
@@ -145,9 +145,9 @@ export function planStatus(plan, rows, now = new Date()) {
     return { slug: plan.slug, name: plan.name, status: 'grey', pct: null, noCap: true, line: `NO CAP KNOWN · ${plan.name}: ${fmtTok(tok)} tokens in the last 7 days (${fmtTok(Math.round(tok / 7))}/day); add a % reading from its usage page to forecast` };
   }
   // A plan whose automatic reader is not built yet (config pendingAutomation;
-  // Grok: Chief of Staff's Cursor-dashboard reader -> ai-usage/manual.jsonl):
+  // empty since the Grok reader landed 2026-10-24):
   // no reading is pending automation, not something anybody owes. Grey.
-  if (!reading && (T.pendingAutomation ?? []).includes(plan.slug)) return { slug: plan.slug, name: plan.name, status: 'grey', pending: true, line: `${plan.slug === 'grok-ultra' ? 'Grok' : plan.name}: no reading yet (automatic daily reader pending)` };
+  if (!reading && pendingAutomation.includes(plan.slug)) return { slug: plan.slug, name: plan.name, status: 'grey', pending: true, line: `${plan.name}: no reading yet (automatic daily reader pending)` };
   if (!reading) return { slug: plan.slug, name: plan.name, status: 'grey', line: `${plan.name}: no current reading (none in 48h, or it reset since)` };
 
   const pct = Math.round(reading.pct * 10) / 10;
