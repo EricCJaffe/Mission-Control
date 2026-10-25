@@ -3,6 +3,9 @@
 ## Project Overview
 Mission Control is a personal-first Next.js app for tasks, goals, reviews, calendar, notes, books, sermons, and a large fitness/health operating system. It is built with Next.js 16, React 19, TypeScript, Tailwind v4, Supabase, OpenAI, and Vercel.
 
+## Fleet Rules
+Before each job, read ~/dev/brain/rules/RULES.md and follow every active rule tagged `all` plus this session's tag (`sessions`). When Eric corrects you, append a row the same day to ~/dev/brain/rules/corrections-log.md (date | bot | his exact words | asset | rule ID | new or repeat) and commit/push it.
+
 ## Quick Start
 ```bash
 npm install
