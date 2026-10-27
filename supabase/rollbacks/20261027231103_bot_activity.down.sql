@@ -1,4 +1,4 @@
--- Undo 20261027224500_bot_activity.sql. Stop mission-control-activity.timer
+-- Undo 20261027231103_bot_activity.sql. Stop mission-control-activity.timer
 -- first, or the next run fails on the missing tables (harmless, but noisy).
 drop policy if exists bot_activity_runs_owner_read on mission.bot_activity_runs;
 drop index if exists mission.bot_activity_runs_user_started_idx;
