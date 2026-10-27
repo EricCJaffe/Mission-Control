@@ -24,7 +24,10 @@ switch under 768px, three columns above.
   (`data/activity-snapshot.json`, gitignored, real) and then to the committed
   synthetic sample under a "Sample data" banner.
 - Watched by an R1 invariant in the brain's `jobs/_data-invariants.tsv`: no ok
-  `bot_activity_runs` row in 20 minutes is a violation.
+  `bot_activity_runs` row in 20 minutes is a violation. It connects as the
+  existing `financeos_invariants_ro` role (`url-file:~/.config/financeos/
+  invariants-ro.url`), which may read `mission.bot_activity_runs` and nothing
+  else in `mission` (migration `20261027232732_bot_activity_invariant_ro`).
 - **The repo is public.** Real rows live only in the database and the
   gitignored snapshot; never under `public/`, never committed.
 - The scrub and tag rules are in `scripts/sync/parse/activity.ts` and tested in
