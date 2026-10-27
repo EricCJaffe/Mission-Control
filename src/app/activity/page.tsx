@@ -3,6 +3,7 @@ import { today, dayOf } from "@/lib/day";
 import ActivityBoard, { type ActivityRow } from "@/components/activity/ActivityBoard";
 import { loadActivity, EVENT_LIMIT, FINISHED_LIMIT } from "@/lib/activity/source";
 import { splitByAge } from "@/lib/activity/format";
+import { scrubRow } from "@/lib/activity/scrub";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,9 @@ export default async function ActivityPage() {
       .limit(50),
   ]);
 
-  const byKind = (kind: ActivityRow["kind"]) => snapshot.items.filter((i) => i.kind === kind) as ActivityRow[];
+  // Every row from every source goes through the one scrub before it renders.
+  const clean = (rows: ActivityRow[]) => rows.map(scrubRow).filter((r): r is ActivityRow => r !== null);
+  const byKind = (kind: ActivityRow["kind"]) => clean(snapshot.items.filter((i) => i.kind === kind) as ActivityRow[]);
   const newestFirst = (a: ActivityRow, b: ActivityRow) => b.occurred_at.localeCompare(a.occurred_at);
 
   // Honey Lake tasks show as an item waiting and nothing more, the same rule
@@ -72,7 +75,7 @@ export default async function ActivityPage() {
       id: `task:${t.id}`,
       bot: hl ? "Honey Lake session" : "Tasks",
       kind: "waiting",
-      title: hl ? "Honey Lake: item waiting" : t.title.length > 120 ? `${t.title.slice(0, 119)}…` : t.title,
+      title: hl ? "Honey Lake: item waiting" : t.title,
       tag: "due_today",
       project: hl ? "Honey Lake" : null,
       started_at: null,
@@ -84,7 +87,7 @@ export default async function ActivityPage() {
     };
   });
 
-  const waitingRows = [...byKind("waiting"), ...taskWaiting].sort((a, b) => {
+  const waitingRows = [...byKind("waiting"), ...clean(taskWaiting)].sort((a, b) => {
     const due = Number(b.tag === "due_today") - Number(a.tag === "due_today");
     return due || a.occurred_at.localeCompare(b.occurred_at);
   });

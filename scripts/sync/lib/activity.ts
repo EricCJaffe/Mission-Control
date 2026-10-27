@@ -242,11 +242,19 @@ export function harvest(brainRoot: string, now: Date) {
     ...runItems(logs, noteTitleLookup(notes), now),
   ]);
 
-  // The last gate. A row the scrub missed is dropped and counted, never
+  // One shared scrub over every row from every source, whatever each source
+  // already did (2026-10-27: a source that skipped it leaked an address).
+  // Then the last gate: a row the scrub missed is dropped and counted, never
   // written: the count is in the run log, the text is not.
   const items: ActivityItem[] = [];
   const blocked: Record<string, number> = {};
-  for (const item of all) {
+  for (const raw of all) {
+    const item: ActivityItem = {
+      ...raw,
+      bot: scrub(raw.bot, 60) || 'Bot',
+      title: scrub(raw.title) || 'Item',
+      project: raw.project ? scrub(raw.project, 60) || null : null,
+    };
     const leaks = leaksIn(item);
     if (leaks.length) {
       for (const l of leaks) blocked[l] = (blocked[l] ?? 0) + 1;
