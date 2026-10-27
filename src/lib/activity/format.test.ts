@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ageLabel, botInitials, botTone, etDayOf, etTime, startLabel, TAGS } from './format.ts';
+import { ageLabel, botInitials, botTone, etDayOf, etTime, splitByAge, startLabel, TAGS } from './format.ts';
 
 const now = new Date('2026-10-27T22:00:00Z'); // 6:00 PM ET
 
@@ -41,4 +41,16 @@ test('avatar tones are stable and never green', () => {
 test('Due today is the only red pill', () => {
   const red = Object.entries(TAGS).filter(([, t]) => t.className.includes('red'));
   assert.deepEqual(red.map(([k]) => k), ['due_today']);
+});
+
+test('waiting items older than 14 days fold behind Show older', () => {
+  const rows = [
+    { id: 'a', occurred_at: '2026-10-27T12:00:00Z' },
+    { id: 'b', occurred_at: '2026-10-14T00:00:00Z' }, // 13.9 days
+    { id: 'c', occurred_at: '2026-10-13T21:00:00Z' }, // just over 14
+    { id: 'd', occurred_at: '2026-09-25T12:00:00Z' },
+  ];
+  const { recent, older } = splitByAge(rows, now);
+  assert.deepEqual(recent.map((r) => r.id), ['a', 'b']);
+  assert.deepEqual(older.map((r) => r.id), ['c', 'd']);
 });

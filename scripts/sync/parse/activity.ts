@@ -282,7 +282,7 @@ const SCRUBS: Array<[RegExp, string]> = [
   [/\bpid[\s:=#]*\d+/gi, ''],
   // Git shas longer than 7: keep nothing (a 7-char sha is allowed through).
   [/\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{8,40}\b/gi, ''],
-  // Phone numbers: 904-483-6881, (904) 483 6881, +1 904.483.6881.
+  // Phone numbers: 904-555-0142, (904) 555 0142, +1 904.555.0142.
   [/(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/g, ''],
 ];
 
@@ -372,7 +372,10 @@ export type ChannelNote = {
   modifiedAt: string;
 };
 
-const DONE = new Set(['done', 'closed', 'superseded', 'failed']);
+// Not waiting on anyone any more (Eric, 6:57 PM 2026-10-27: done, acked,
+// superseded, cancelled). `failed` and `closed` are finished too.
+const DONE = new Set(['done', 'closed', 'superseded', 'failed', 'acked', 'cancelled', 'canceled', 'answered']);
+const ANSWER_SUFFIX = /-(done|reply|answer|answered|ack|acked)$/;
 // The job note's rule: running or queued is In progress. A note that is
 // held, blocked or waiting on someone is neither, and is not shown as work.
 const RUNNING = new Set(['running', 'in-progress', 'taken', 'started']);
@@ -413,6 +416,15 @@ export function channelItems(notes: ChannelNote[], now: Date): ActivityItem[] {
   const replyPr = new Map<string, string>();
   const replyAt = new Map<string, string>();
   for (const n of notes) {
+    // A `<slug>-done.md` / `-reply.md` / `-answer.md` beside a note answers it
+    // even when its `re:` is missing or points somewhere else.
+    const base = slugOf(n.path);
+    const m = base.match(ANSWER_SUFFIX);
+    if (m) {
+      const stem = base.slice(0, -m[0].length);
+      answered.add(`from-grokbot/${stem}.md`);
+      answered.add(`to-grokbot/${stem}.md`);
+    }
     const re = (n.fm.re ?? '').replace(/^channel\//, '').trim();
     if (!re) continue;
     answered.add(re);
@@ -543,6 +555,12 @@ export function channelItems(notes: ChannelNote[], now: Date): ActivityItem[] {
 // ─── The open-loops ledger → items ──────────────────────────────────────────
 
 export type LoopRow = {
+  /**
+   * hashText(first_seen|source|client|ref), computed by the reader so the ref
+   * (a message id) itself never reaches this module. Matches a row in
+   * open/triage-closed.tsv.
+   */
+  key?: string;
   first_seen?: string;
   touched?: string;
   source?: string;
@@ -571,7 +589,22 @@ function clientLabel(client: string | undefined): string {
  * timeline events. Client name and a short "what" only; `ref` (a message id)
  * is never read.
  */
-export function loopItems(needsEric: LoopRow[], closed: ClosedLoop[], now: Date): ActivityItem[] {
+/** The match key for a loop row, open or closed. */
+export function loopKey(firstSeen: string, source: string, client: string, ref: string): string {
+  return hashText([firstSeen, source, client, ref].map((v) => v.trim().toLowerCase()).join('|'));
+}
+
+/**
+ * The open-loops ledger's needs-Eric rows, minus any loop that also appears
+ * in open/triage-closed.tsv (`closedKeys`): the ledger can carry a row that
+ * was closed but not removed, and that is not waiting on anyone.
+ */
+export function loopItems(
+  needsEric: LoopRow[],
+  closed: ClosedLoop[],
+  now: Date,
+  closedKeys: Set<string> = new Set(),
+): ActivityItem[] {
   const today = etDay(now);
   const from = windowStart(now);
   const items: ActivityItem[] = [];
@@ -583,10 +616,20 @@ export function loopItems(needsEric: LoopRow[], closed: ClosedLoop[], now: Date)
   };
 
   for (const row of needsEric) {
+    if (row.key && closedKeys.has(row.key)) continue;
     const hl = isHoneyLake(row.client, row.note);
     if (isDropped(row.client, row.note)) continue;
     const label = clientLabel(row.client);
-    const what = hl ? 'Honey Lake: item waiting' : scrub(label ? `${label}: ${row.note ?? ''}` : row.note);
+    // An email subject is shown only if it passes the leak test as written.
+    // One that carries an address, link, phone or id is not scrubbed into
+    // something half-legible: it becomes a generic line.
+    const raw = label ? `${label}: ${row.note ?? ''}` : (row.note ?? '');
+    const isMail = /^(email|mail|inbox)$/i.test(row.source ?? '');
+    const what = hl
+      ? 'Honey Lake: item waiting'
+      : textLeaks(raw).length
+        ? `${label || 'Inbox'}: ${isMail ? 'an email waits on your reply' : 'an item waits on you'}`
+        : scrub(raw);
     if (!what) continue;
     const occurredAt = parseWhen(row.first_seen) ?? now.toISOString();
     items.push({
@@ -812,6 +855,32 @@ const LEAKS: Array<[string, RegExp]> = [
  * drops any item this flags rather than writing it, and says so.
  */
 export function leaksIn(item: ActivityItem): string[] {
-  const text = [item.bot, item.title, item.project ?? ''].join(' ');
+  return textLeaks([item.bot, item.title, item.project ?? ''].join(' '));
+}
+
+/** The leak test on a piece of text: which patterns it trips, or []. */
+export function textLeaks(text: string): string[] {
   return LEAKS.filter(([, re]) => re.test(text)).map(([name]) => name);
+}
+
+/**
+ * Every generic Honey Lake waiting row, as ONE line with a count. Each row
+ * already says nothing but "item waiting"; forty of them say it forty times.
+ * The collapsed row keeps the oldest date, so it sorts where the oldest would.
+ */
+export function collapseHoneyLake(items: ActivityItem[]): ActivityItem[] {
+  const hl = items.filter((i) => i.kind === 'waiting' && i.bot === 'Honey Lake session');
+  if (hl.length === 0) return items;
+  const rest = items.filter((i) => !(i.kind === 'waiting' && i.bot === 'Honey Lake session'));
+  const oldest = hl.reduce((a, b) => (a.occurredAt <= b.occurredAt ? a : b));
+  return [
+    ...rest,
+    {
+      ...oldest,
+      sourceKey: 'honeylake:waiting',
+      title: `Honey Lake: ${hl.length} item${hl.length === 1 ? '' : 's'} waiting`,
+      tag: hl.some((i) => i.tag === 'due_today') ? 'due_today' : 'action',
+      dueAt: null,
+    },
+  ];
 }

@@ -8,6 +8,9 @@ import { fileURLToPath } from 'node:url';
 import {
   botName,
   channelItems,
+  collapseHoneyLake,
+  loopKey,
+  textLeaks,
   etDay,
   isDropped,
   leaksIn,
@@ -101,7 +104,7 @@ test('bots show display names, never ids', () => {
 
 test('scrub removes every id, address and link', () => {
   const dirty =
-    'Ticket bc-4f9a2 for jane.doe@example.com (call 904-483-6881) ' +
+    'Ticket bc-4f9a2 for jane.doe@example.com (call 904-555-0142) ' +
     'id 5eed0029-0003-4000-8000-000000000002 sha 07fc67c0a1b2 short 07fc67c ' +
     'pid 41233 herdr pane %12 agent_01AbCdEf <CAF+abc@mail.gmail.com> ' +
     'see https://vercel.com/x and https://github.com/o/r/pull/5 from jgoldenberg@gmail';
@@ -323,7 +326,7 @@ test('snapshot over a fixture brain: no UUID, email, bc- id, phone or URL in the
     w('jobs/REGISTRY.md', '# Registry\n');
     w(
       `channel/from-grokbot/${today}-sjcos-fix-bc-4f9a2.md`,
-      '---\nstatus: running\nfor: sjcos\nfrom: coding\nkind: handoff\n---\n# Fix bc-4f9a2 for jane@example.com, id 5eed0029-0003-4000-8000-000000000002, call 904-483-6881, https://vercel.com/x\n\nBody with secrets jane@example.com\n',
+      '---\nstatus: running\nfor: sjcos\nfrom: coding\nkind: handoff\n---\n# Fix bc-4f9a2 for jane@example.com, id 5eed0029-0003-4000-8000-000000000002, call 904-555-0142, https://vercel.com/x\n\nBody with secrets jane@example.com\n',
     );
     w(
       `channel/to-grokbot/${today}-ask.md`,
@@ -355,11 +358,102 @@ test('snapshot over a fixture brain: no UUID, email, bc- id, phone or URL in the
     assert.doesNotMatch(text, /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i, 'UUID leaked');
     assert.doesNotMatch(text, /@/, 'email leaked');
     assert.doesNotMatch(text, /\bbc-/i, 'bc- id leaked');
-    assert.doesNotMatch(text, /904-483|https?:/, 'phone or URL leaked');
+    assert.doesNotMatch(text, /904-555|https?:/, 'phone or URL leaked');
     assert.doesNotMatch(text, /agent_|4242|Jane|Roe|secret/i, 'id, PHI or body leaked');
     assert.ok(rows.some((r) => r.kind === 'waiting' && r.tag === 'yes_no'));
     assert.ok(rows.some((r) => r.title === 'Honey Lake session: running'));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// ─── Waiting on Eric: only what is still open and unanswered (Eric, 6:57 PM) ─
+
+const ask = (path: string, fm: Record<string, string> = {}) =>
+  note(path, { status: 'open', kind: 'question', result: 'needs-eric', from: 'sjcos', ...fm }, { h1: 'Merge #45?' });
+const waitingOf = (notes: ChannelNote[]) => channelItems(notes, NOW).filter((i) => i.kind === 'waiting');
+
+test('waiting: done, acked, superseded and cancelled notes are not waiting', () => {
+  for (const status of ['done', 'acked', 'superseded', 'cancelled', 'canceled', 'closed']) {
+    assert.equal(waitingOf([ask('to-grokbot/2026-10-25-q.md', { status })]).length, 0, status);
+  }
+  assert.equal(waitingOf([ask('to-grokbot/2026-10-25-q.md')]).length, 1);
+});
+
+test('waiting: a -done, -reply or -answer note beside it answers it, re: or not', () => {
+  for (const suffix of ['done', 'reply', 'answer']) {
+    const items = waitingOf([
+      ask('to-grokbot/2026-10-25-q.md'),
+      note(`from-grokbot/2026-10-25-q-${suffix}.md`, { status: 'done' }),
+    ]);
+    assert.equal(items.length, 0, suffix);
+  }
+});
+
+test('waiting: a kind: answer note re: it means Eric already answered', () => {
+  const items = waitingOf([
+    ask('to-grokbot/2026-10-25-q.md'),
+    note('from-grokbot/2026-10-26-eric-said-yes.md', { kind: 'answer', re: 'channel/to-grokbot/2026-10-25-q.md' }),
+  ]);
+  assert.equal(items.length, 0);
+});
+
+test('waiting: loops already in open/triage-closed.tsv are dropped', () => {
+  const row = { first_seen: '2026-10-20', source: 'email', client: 'eden', note: 'Reply to the weekly', needs_eric: 'True' };
+  const key = loopKey('2026-10-20', 'email', 'eden', '<ref@x>');
+  assert.equal(loopItems([{ ...row, key }], [], NOW, new Set([key])).length, 0);
+  assert.equal(loopItems([{ ...row, key }], [], NOW, new Set()).length, 1);
+  // The key is whitespace- and case-blind, and never the ref itself.
+  assert.equal(loopKey(' 2026-10-20', 'Email', 'EDEN ', '<ref@x>'), key);
+  assert.ok(!key.includes('ref'));
+});
+
+test('waiting: dropped topics never wait, from notes or loops', () => {
+  assert.equal(waitingOf([ask('to-grokbot/2026-10-25-trellis-option-d.md')]).length, 0);
+  assert.equal(
+    loopItems([{ first_seen: '2026-10-20', source: 'ops', client: 'muse', note: 'Rotate the Muse mailbox token', needs_eric: 'True' }], [], NOW).length,
+    0,
+  );
+  assert.equal(
+    loopItems([{ first_seen: '2026-10-20', source: 'ops', client: 'impact-works', note: 'Impact Works demo slides', needs_eric: 'True' }], [], NOW).length,
+    0,
+  );
+});
+
+test('waiting: an email subject is shown only if it passes the leak test', () => {
+  const [clean, leaky, url] = loopItems(
+    [
+      { first_seen: '2026-10-20', source: 'email', client: 'eden', note: 'Weekly briefing questions', needs_eric: 'True' },
+      { first_seen: '2026-10-21', source: 'email', client: 'eden', note: '"Re: Weekly" from jgoldenberg@gmail', needs_eric: 'True' },
+      { first_seen: '2026-10-22', source: 'ticket', client: 'sjcos', note: 'See https://vercel.com/x for the log', needs_eric: 'True' },
+    ],
+    [],
+    NOW,
+  );
+  assert.equal(clean.title, 'Eden: Weekly briefing questions');
+  assert.equal(leaky.title, 'Eden: an email waits on your reply');
+  assert.equal(url.title, 'SJCOS: an item waits on you');
+  assert.deepEqual(textLeaks('call 904-555-0142'), ['phone']);
+});
+
+test('waiting: every generic Honey Lake row collapses into one line with a count', () => {
+  const items = [
+    ...loopItems(
+      [
+        { first_seen: '2026-10-01', source: 'ticket', client: 'honeylakeos', note: 'a', needs_eric: 'True' },
+        { first_seen: '2026-10-05', source: 'email', client: 'honey-lake', note: 'b', needs_eric: 'True' },
+      ],
+      [],
+      NOW,
+    ),
+    ...waitingOf([note('to-grokbot/2026-10-26-hl.md', { status: 'open', project: 'honeylakeos', result: 'needs-eric' })]),
+    ...waitingOf([ask('to-grokbot/2026-10-25-q.md')]),
+  ];
+  const out = collapseHoneyLake(items);
+  const hl = out.filter((i) => i.bot === 'Honey Lake session');
+  assert.equal(hl.length, 1);
+  assert.equal(hl[0].title, 'Honey Lake: 3 items waiting');
+  assert.equal(hl[0].occurredAt, parseWhen('2026-10-01'));
+  assert.equal(out.length, 2);
+  assert.deepEqual(collapseHoneyLake([]), []);
 });

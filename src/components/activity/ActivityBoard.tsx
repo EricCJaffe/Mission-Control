@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink } from "lucide-react";
-import { ageLabel, botInitials, botTone, etDayOf, etTime, startLabel, TAGS } from "@/lib/activity/format";
+import { ageLabel, botInitials, botTone, etDayOf, etTime, splitByAge, startLabel, TAGS, WAITING_RECENT_DAYS } from "@/lib/activity/format";
 
 export type { SnapshotRow as ActivityRow } from "@/lib/activity/snapshot-types";
 import type { SnapshotRow as ActivityRow } from "@/lib/activity/snapshot-types";
@@ -48,8 +48,13 @@ export default function ActivityBoard({ waiting, inProgress, finished, finishedT
     };
   }, [router]);
 
+  const waitingRecent = useMemo(
+    () => waiting.filter((r) => r.tag === "due_today").length + splitByAge(waiting.filter((r) => r.tag !== "due_today")).recent.length,
+    [waiting],
+  );
+
   const panes: Array<{ key: Pane; label: string; count: number }> = [
-    { key: "waiting", label: "Waiting", count: waiting.length },
+    { key: "waiting", label: "Waiting", count: waitingRecent },
     { key: "timeline", label: "Timeline", count: events.length },
     { key: "work", label: "Work", count: inProgress.length },
   ];
@@ -117,39 +122,79 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <p className="py-6 text-center text-sm text-slate-500">{children}</p>;
 }
 
+function WaitingRow({ row }: { row: ActivityRow }) {
+  const tag = row.tag ? TAGS[row.tag] : null;
+  return (
+    <li className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+      <div className="flex items-start gap-3">
+        <Avatar bot={row.bot} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="truncate text-sm font-semibold text-slate-800">{row.bot}</span>
+            <span className="shrink-0 text-xs tabular-nums text-slate-500">{ageLabel(row.occurred_at)}</span>
+          </div>
+          <p className="mt-0.5 break-words text-sm text-slate-700">{row.title}</p>
+          {tag && (
+            <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${tag.className}`}>
+              {tag.label}
+            </span>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+/*
+ * Due today first, then oldest. Anything older than 14 days folds behind
+ * "Show older": still waiting, but not what Eric should read first on a phone.
+ * A due-today item is never folded, however old.
+ */
 function WaitingColumn({ rows }: { rows: ActivityRow[] }) {
+  const [showOlder, setShowOlder] = useState(false);
+  const { recent, older } = useMemo(() => {
+    const split = splitByAge(rows.filter((r) => r.tag !== "due_today"));
+    return { recent: [...rows.filter((r) => r.tag === "due_today"), ...split.recent], older: split.older };
+  }, [rows]);
+
   return (
     <Card>
       <h2 className="text-base font-semibold text-slate-800">
-        Waiting on me <span className="font-normal text-slate-400">({rows.length})</span>
+        Waiting on me <span className="font-normal text-slate-400">({recent.length})</span>
       </h2>
-      {rows.length === 0 ? (
+      {recent.length === 0 && older.length === 0 ? (
         <Empty>Nothing waits on you.</Empty>
       ) : (
-        <ul className="mt-3 space-y-2">
-          {rows.map((row) => {
-            const tag = row.tag ? TAGS[row.tag] : null;
-            return (
-              <li key={row.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-                <div className="flex items-start gap-3">
-                  <Avatar bot={row.bot} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-sm font-semibold text-slate-800">{row.bot}</span>
-                      <span className="shrink-0 text-xs tabular-nums text-slate-500">{ageLabel(row.occurred_at)}</span>
-                    </div>
-                    <p className="mt-0.5 break-words text-sm text-slate-700">{row.title}</p>
-                    {tag && (
-                      <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${tag.className}`}>
-                        {tag.label}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          {recent.length === 0 ? (
+            <Empty>Nothing new in the last {WAITING_RECENT_DAYS} days.</Empty>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {recent.map((row) => (
+                <WaitingRow key={row.id} row={row} />
+              ))}
+            </ul>
+          )}
+          {older.length > 0 && (
+            <>
+              <button
+                type="button"
+                aria-expanded={showOlder}
+                onClick={() => setShowOlder((v) => !v)}
+                className="mt-3 min-h-[44px] w-full rounded-xl border-2 border-slate-300 bg-white text-sm font-medium text-blue-700 hover:bg-slate-50"
+              >
+                {showOlder ? "Hide older" : `Show older (${older.length})`}
+              </button>
+              {showOlder && (
+                <ul className="mt-2 space-y-2">
+                  {older.map((row) => (
+                    <WaitingRow key={row.id} row={row} />
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </>
       )}
     </Card>
   );

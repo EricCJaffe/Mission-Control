@@ -83,3 +83,19 @@ export function botTone(bot: string): string {
   for (let i = 0; i < bot.length; i++) h = (h * 31 + bot.charCodeAt(i)) >>> 0;
   return TONES[h % TONES.length];
 }
+
+/** Waiting items older than this sit behind "Show older" (Eric, 2026-10-27). */
+export const WAITING_RECENT_DAYS = 14;
+
+/** Split waiting rows into the recent ones shown and the older ones folded away. */
+export function splitByAge<T extends { occurred_at: string }>(
+  rows: T[],
+  now: Date = new Date(),
+  days = WAITING_RECENT_DAYS,
+): { recent: T[]; older: T[] } {
+  const cut = now.getTime() - days * 864e5;
+  const recent: T[] = [];
+  const older: T[] = [];
+  for (const r of rows) (new Date(r.occurred_at).getTime() >= cut ? recent : older).push(r);
+  return { recent, older };
+}
