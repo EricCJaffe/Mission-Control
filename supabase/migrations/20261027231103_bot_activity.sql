@@ -29,7 +29,7 @@
 --
 -- Additive only: two new tables, their indexes and policies. Nothing existing
 -- is altered or dropped.
--- Rollback: supabase/rollbacks/20261027224500_bot_activity.down.sql
+-- Rollback: supabase/rollbacks/20261027231103_bot_activity.down.sql
 
 create table if not exists mission.bot_activity_items (
   id           uuid primary key default gen_random_uuid(),
