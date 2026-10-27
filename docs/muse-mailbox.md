@@ -86,5 +86,5 @@ update the Mac. The old token stops working on the redeploy.
 
 ## Rollback
 
-`supabase/rollbacks/20261026235419_muse_mail.down.sql`. Check for undelivered
+`supabase/rollbacks/20261027000249_muse_mail.down.sql`. Check for undelivered
 answers first; the file says how.

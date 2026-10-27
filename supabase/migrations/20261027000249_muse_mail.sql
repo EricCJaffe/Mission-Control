@@ -16,7 +16,7 @@
 -- to tidy up.
 --
 -- Additive only: no existing table, policy or function changes.
--- Rollback: supabase/rollbacks/20261026235419_muse_mail.down.sql
+-- Rollback: supabase/rollbacks/20261027000249_muse_mail.down.sql
 
 create table if not exists mission.muse_mail (
   id             uuid primary key default gen_random_uuid(),
