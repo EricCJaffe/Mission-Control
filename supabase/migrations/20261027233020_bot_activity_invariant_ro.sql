@@ -20,7 +20,7 @@
 --                                 invariants_ro_select on qbo_sync_records.
 -- No write grant, no new role, no new credential.
 --
--- Rollback: supabase/rollbacks/20261027232732_bot_activity_invariant_ro.down.sql
+-- Rollback: supabase/rollbacks/20261027233020_bot_activity_invariant_ro.down.sql
 
 grant usage on schema mission to financeos_invariants_ro;
 grant select on mission.bot_activity_runs to financeos_invariants_ro;
