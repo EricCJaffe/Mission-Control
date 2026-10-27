@@ -80,7 +80,8 @@ export default async function ActivityPage() {
       project: hl ? "Honey Lake" : null,
       started_at: null,
       ended_at: null,
-      due_at: null,
+      // A date, not a time: noon UTC falls inside that ET day in both EST and EDT.
+      due_at: t.due_date ? `${t.due_date}T12:00:00.000Z` : null,
       pr_url: null,
       occurred_at: t.created_at,
     };

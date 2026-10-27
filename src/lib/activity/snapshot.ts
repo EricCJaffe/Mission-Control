@@ -26,6 +26,7 @@ export async function loadActivitySnapshot(): Promise<ActivitySnapshot> {
 }
 
 const KINDS = new Set(["waiting", "in_progress", "finished", "event"]);
+const TAGS = new Set(["due_today", "yes_no", "approve", "reply", "sign", "action"]);
 
 function isRow(r: unknown): r is SnapshotRow {
   const row = r as SnapshotRow;
@@ -36,6 +37,7 @@ function isRow(r: unknown): r is SnapshotRow {
     typeof row.title === "string" &&
     typeof row.occurred_at === "string" &&
     KINDS.has(row.kind) &&
+    (row.tag === null || TAGS.has(row.tag)) &&
     // Belt and braces: only a GitHub pull request is ever rendered as a link.
     (row.pr_url === null || /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/.test(row.pr_url))
   );
