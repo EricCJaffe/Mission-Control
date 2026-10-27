@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { checkBearerSha256, createLimiter } from './auth.ts';
+import { timingSafeEqual } from 'node:crypto';
+import { checkBearerSha256, createLimiter, sha256Hex } from './auth.ts';
 import * as mail from './mail.ts';
 
 /**
@@ -48,11 +49,19 @@ function museGate(req: Request, deps: Deps): { userId: string } | Response {
   return base;
 }
 
+/** Constant-time compare of two strings of any length (hash both first). */
+function sameSecret(a: string, b: string): boolean {
+  return timingSafeEqual(Buffer.from(sha256Hex(a), 'hex'), Buffer.from(sha256Hex(b), 'hex'));
+}
+
+// Postgres error text names tables and columns; keep it out of responses.
+const serverError = () => json({ error: 'Mailbox query failed' }, 500);
+
 function cronGate(req: Request, deps: Deps): { userId: string } | Response {
   const base = serverEnv(deps.env);
   const secret = deps.env.CRON_SECRET;
   if (!base || !secret) return json({ error: 'The Muse outbox is not configured on this deployment.' }, 503);
-  if (req.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!sameSecret(req.headers.get('authorization') ?? '', `Bearer ${secret}`)) {
     return json({ error: 'Unauthorized' }, 401, { 'WWW-Authenticate': 'Bearer' });
   }
   return base;
@@ -70,15 +79,15 @@ async function body(req: Request): Promise<Record<string, unknown> | null> {
 function transition(r: mail.Transition, id: string, status: string): Response {
   if (r === 'ok') return json({ ok: true, id, status });
   if (r === 'missing') return json({ error: 'No mail with that id' }, 404);
-  if (r === 'conflict') return json({ error: `Not allowed from its current status (want ${status})` }, 409);
-  return json({ error: r.error }, 500);
+  if (r === 'conflict') return json({ error: `This mail cannot be moved to ${status} from its current status` }, 409);
+  return serverError();
 }
 
 export async function museInbox(req: Request, deps: Deps): Promise<Response> {
   const g = museGate(req, deps);
   if (g instanceof Response) return g;
   const rows = await mail.listOpen(deps.db(), g.userId);
-  if ('error' in rows) return json({ error: rows.error }, 500);
+  if ('error' in rows) return serverError();
   return json({ ok: true, items: rows, count: rows.length });
 }
 
@@ -108,7 +117,7 @@ export async function outboxAsk(req: Request, deps: Deps): Promise<Response> {
     return json({ error: `Body must be JSON {from, ask}: from like "cos", ask at most ${mail.MAX_TEXT} characters` }, 400);
   }
   const r = await mail.postAsk(deps.db(), g.userId, b.from, b.ask);
-  if ('error' in r) return json({ error: r.error }, 500);
+  if ('error' in r) return serverError();
   return json({ ok: true, id: r.id }, 201);
 }
 
@@ -116,7 +125,7 @@ export async function outboxReplies(req: Request, deps: Deps): Promise<Response>
   const g = cronGate(req, deps);
   if (g instanceof Response) return g;
   const rows = await mail.listReplies(deps.db(), g.userId);
-  if ('error' in rows) return json({ error: rows.error }, 500);
+  if ('error' in rows) return serverError();
   const oldest = rows[0]?.done_at;
   const hours = oldest ? Math.round(((Date.now() - new Date(oldest).getTime()) / 3_600_000) * 10) / 10 : null;
   return json({ ok: true, pending: rows, count: rows.length, oldest_pending_hours: hours });
@@ -135,5 +144,5 @@ export async function outboxAck(req: Request, deps: Deps): Promise<Response> {
   if (r === 'ok') return json({ ok: true, id: b.id, ref: b.ref });
   // Unknown id or already acked: the caller must not think it just closed it.
   if (r === 'missing') return json({ error: 'No pending reply with that id' }, 404);
-  return json({ error: r.error }, 500);
+  return serverError();
 }

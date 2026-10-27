@@ -41,6 +41,10 @@
   - Bearer token Vercel Cron sends to `/api/cron/*`. Generate with `openssl rand -hex 32`.
   - **Required**: both cron routes are fail-closed and return 503 without it, so the
     scheduled Withings sync and daily metric check simply won't run.
+- `MUSE_MAILBOX_TOKEN_SHA256`
+  - Hex sha256 of the Muse Code mailbox token (`/api/muse/*`). The plaintext lives in
+    Bitwarden and on the Mac only, never in Vercel. Fail-closed: unset or not 64 hex
+    characters, the routes return 503. Steps in `docs/muse-mailbox.md`.
 - `BIBLE_API_KEY`
   - API.Bible key, used to render reading-plan passages inline.
   - Without it, reading plans still work — they show references and a link out.
