@@ -2,6 +2,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { today, dayOf } from "@/lib/day";
 import ActivityBoard, { type ActivityRow } from "@/components/activity/ActivityBoard";
 import { loadActivitySnapshot } from "@/lib/activity/snapshot";
+import { splitByAge } from "@/lib/activity/format";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,10 @@ export default async function ActivityPage() {
     const due = Number(b.tag === "due_today") - Number(a.tag === "due_today");
     return due || a.occurred_at.localeCompare(b.occurred_at);
   });
+  const dueToday = waitingRows.filter((r) => r.tag === "due_today");
+  const { recent, older } = splitByAge(waitingRows.filter((r) => r.tag !== "due_today"));
+  const waitingRecent = dueToday.length + recent.length;
+  const waitingOlder = older.length;
   const progressRows = byKind("in_progress").sort(newestFirst);
   const allFinished = byKind("finished").sort(newestFirst);
   const finishedRows = allFinished.slice(0, FINISHED_LIMIT);
@@ -116,7 +121,8 @@ export default async function ActivityPage() {
         <p className="mt-1 text-sm text-slate-600">
           What your bots did {range}, what is still running, and what waits on you.{" "}
           As of {asOfText} ET:{" "}
-          <strong className="font-semibold text-slate-800">{waitingRows.length} waiting on you</strong>,{" "}
+          <strong className="font-semibold text-slate-800">{waitingRecent} waiting on you</strong>
+          {waitingOlder > 0 && <> ({waitingOlder} older)</>},{" "}
           {progressRows.length} in progress, {finishedTotal} finished.
         </p>
         {snapshot.sample && (

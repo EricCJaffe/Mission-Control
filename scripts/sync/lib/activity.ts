@@ -12,10 +12,12 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { closeSync, existsSync, openSync, readdirSync, readSync, statSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   channelItems,
+  collapseHoneyLake,
+  loopKey,
   etDay,
   leaksIn,
   loopItems,
@@ -141,20 +143,40 @@ export function readChannelNotes(root: string, days: number): ChannelNote[] {
 }
 
 /** The ledger's needs-Eric rows and the loops closed in the window. */
-export function readLoops(root: string, days: number): { needsEric: LoopRow[]; closed: ClosedLoop[] } {
+export function readLoops(root: string, days: number): { needsEric: LoopRow[]; closed: ClosedLoop[]; closedKeys: Set<string> } {
   const script = join(root, 'jobs', 'lib', 'loops-report.py');
-  if (!existsSync(script)) return { needsEric: [], closed: [] };
+  if (!existsSync(script)) return { needsEric: [], closed: [], closedKeys: new Set() };
   const out = execFileSync(
     'python3',
     [script, '--json', '--since', String(days * 24), '--only', 'needs_eric,closed'],
     { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 60_000, maxBuffer: 16 * 1024 * 1024 },
   );
   const data = JSON.parse(out) as { needs_eric?: LoopRow[]; closed?: ClosedLoop[] };
-  // `ref` is a message id. Drop it here so nothing downstream can use it.
-  const needsEric = (data.needs_eric ?? []).map(({ first_seen, touched, source, client, owes, note, needs_eric }) => ({
+  // `ref` is a message id. It is hashed into the match key here and dropped,
+  // so nothing downstream can use it.
+  const rows = (data.needs_eric ?? []) as Array<LoopRow & { ref?: string }>;
+  const needsEric = rows.map(({ first_seen, touched, source, client, owes, note, needs_eric, ref }) => ({
+    key: loopKey(first_seen ?? '', source ?? '', client ?? '', ref ?? ''),
     first_seen, touched, source, client, owes, note, needs_eric,
   }));
-  return { needsEric, closed: data.closed ?? [] };
+  return { needsEric, closed: data.closed ?? [], closedKeys: readClosedKeys(root) };
+}
+
+/*
+ * Match keys of every loop in open/triage-closed.tsv (closed, first_seen,
+ * source, client, who-owed, ref, ...). Only the four identifying columns are
+ * read, and only as a hash.
+ */
+export function readClosedKeys(root: string): Set<string> {
+  const keys = new Set<string>();
+  const path = join(root, 'open', 'triage-closed.tsv');
+  if (!existsSync(path)) return keys;
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
+    if (!line.trim() || line.startsWith('#')) continue;
+    const f = line.split('\t');
+    keys.add(loopKey(f[1] ?? '', f[2] ?? '', f[3] ?? '', f[5] ?? ''));
+  }
+  return keys;
 }
 
 /**
@@ -211,14 +233,14 @@ export function noteTitleLookup(notes: ChannelNote[]) {
 /** Everything the page shows, built from the brain, scrubbed and gated. */
 export function harvest(brainRoot: string, now: Date) {
   const notes = readChannelNotes(brainRoot, WINDOW_DAYS);
-  const { needsEric, closed } = readLoops(brainRoot, WINDOW_DAYS);
+  const { needsEric, closed, closedKeys } = readLoops(brainRoot, WINDOW_DAYS);
   const logs = readRunLogs(brainRoot);
 
-  const all: ActivityItem[] = [
+  const all: ActivityItem[] = collapseHoneyLake([
     ...channelItems(notes, now),
-    ...loopItems(needsEric, closed, now),
+    ...loopItems(needsEric, closed, now, closedKeys),
     ...runItems(logs, noteTitleLookup(notes), now),
-  ];
+  ]);
 
   // The last gate. A row the scrub missed is dropped and counted, never
   // written: the count is in the run log, the text is not.

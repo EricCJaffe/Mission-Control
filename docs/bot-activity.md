@@ -27,3 +27,18 @@ switch under 768px, three columns above.
 `mission.bot_activity_items` / `bot_activity_runs`, a harvester writing them
 every 5 minutes from a user timer on ubuntu-dev, and an R1 data invariant on
 the newest run. Not in v1.
+
+## Waiting on Eric: only what is still open (Eric, 2026-10-27 6:57 PM)
+
+- A note waits only while its status is not done / acked / superseded /
+  cancelled / closed, and nothing answers it: no note with `re:` pointing at
+  it (an answer, a reply, a -done) and no `<slug>-done|-reply|-answer.md`
+  beside it.
+- A loop waits only if it is not also in `open/triage-closed.tsv` (matched on
+  a hash of first_seen, source, client and ref; the ref is never kept).
+- Dropped topics never appear.
+- An email subject is shown only if it passes the leak test as written;
+  otherwise "<Client>: an email waits on your reply".
+- Every generic Honey Lake row collapses into one "Honey Lake: N items
+  waiting" line.
+- Items older than 14 days sit behind "Show older" (due-today items never do).
