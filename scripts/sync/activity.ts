@@ -113,13 +113,15 @@ async function main() {
     result = harvest(env.brainRoot, now);
   } catch (err) {
     if (!args.dryRun) {
-      await db.from('bot_activity_runs').insert({
+      const { error: logError } = await db.from('bot_activity_runs').insert({
         user_id: env.userId,
         status: 'error',
         started_at: started,
         finished_at: new Date().toISOString(),
         log: { error: err instanceof Error ? err.message.slice(0, 200) : 'harvest failed' },
       });
+      // The unit still exits non-zero below; this only says the run row is missing too.
+      if (logError) console.error(`could not record the failed run: ${logError.message}`);
     }
     throw err;
   }

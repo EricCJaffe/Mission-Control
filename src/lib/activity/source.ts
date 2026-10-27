@@ -10,9 +10,9 @@ import { pickSource, toSnapshotRow, type ItemRow } from "./tables";
  * scripts/sync/activity.ts, is the source. "As of" is the newest ok run in
  * mission.bot_activity_runs. The v1 snapshot file, and after it the committed
  * synthetic sample (with its banner), are only a fallback: before the
- * migration is applied, before the harvester has run once, or if the read
- * fails. A real-but-empty window still reads from the tables, because "the
- * bots did nothing this week" is an answer and the sample would be a lie.
+ * migration is applied, while the tables are still empty (no ok run, or an ok
+ * run that left no rows), or if the read fails. A fleet this busy never has an
+ * empty week, so empty means "not synced yet", not "nothing happened".
  *
  * Read with the signed-in client: the tables are select-only under RLS, so
  * this page can see the rows and cannot change them.
@@ -22,7 +22,7 @@ import { pickSource, toSnapshotRow, type ItemRow } from "./tables";
 // PostgREST caps a response at 1,000 rows, so each kind is its own query.
 export const EVENT_LIMIT = 1000;
 export const FINISHED_LIMIT = 150;
-const OPEN_LIMIT = 500;
+const OPEN_LIMIT = 1000;
 
 const COLUMNS = "id,bot,kind,title,tag,project,started_at,ended_at,due_at,pr_url,occurred_at";
 
