@@ -53,3 +53,7 @@ supabase/.temp
 
 # Working files for the expense sweep (PDFs live in OneDrive, not here)
 scratch/
+
+# Real bot activity snapshot (scripts/sync/activity-snapshot.ts). The repo is
+# public: this file must never be committed or served from public/.
+/data/activity-snapshot.json
