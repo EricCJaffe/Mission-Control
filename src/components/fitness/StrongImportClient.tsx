@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Upload, CheckCircle, AlertCircle, Loader2, FileText, X, RefreshCw, Trophy } from 'lucide-react';
+import Link from 'next/link';
 
 interface ImportSummary {
   workouts_imported: number;
@@ -236,9 +237,9 @@ export default function StrongImportClient() {
 
           <p className="mt-3 text-xs text-slate-500">
             Your historical workouts are now visible in{' '}
-            <a href="/fitness/history" className="text-blue-600 hover:underline font-medium">
+            <Link href="/fitness/history" className="text-blue-600 hover:underline font-medium">
               Workout History
-            </a>
+            </Link>
             .
           </p>
         </div>

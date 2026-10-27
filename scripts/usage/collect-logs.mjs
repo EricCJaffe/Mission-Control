@@ -334,6 +334,48 @@ export function collectClaudeMeters({ text, plan, host, sinceDay }) {
   return [...byDay.values()];
 }
 
+/**
+ * The Codex plan meter ($BRAIN_ROOT/runs/codex-usage.jsonl, written by
+ * scripts/usage/codex-meter.mjs every ubuntu-dev collector run): one row per
+ * ET day, the day's newest ok reading. Codex's own windows: primary = 5 hours,
+ * secondary = weekly. Bot `codex-usage`, session `meter`, no tokens (the
+ * rollout logs count those).
+ */
+export function collectCodexMeters({ text, host, sinceDay }) {
+  const byDay = new Map();
+  const n = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
+  const ts = (v) => (typeof v === 'string' && Number.isFinite(Date.parse(v)) ? new Date(v).toISOString() : null);
+  for (const line of String(text ?? '').split('\n')) {
+    if (!line.includes('"ok":true')) continue;
+    let r;
+    try { r = JSON.parse(line); } catch { continue; }
+    if (!r || r.ok !== true || (n(r.primary_used_pct) === null && n(r.secondary_used_pct) === null)) continue;
+    const at = ts(r.at);
+    if (!at) continue;
+    const day = etDay(at);
+    if (!day || (sinceDay && day < sinceDay)) continue;
+    const prev = byDay.get(day);
+    if (prev && prev.meter_at >= at) continue;
+    const row = emptyRow({ plan_slug: 'chatgpt-codex', day, host, bot: 'codex-usage', session_id: 'meter', cwd: null, model: null });
+    row.primary_used_pct = n(r.primary_used_pct);
+    row.primary_window_minutes = n(r.primary_window_minutes);
+    row.primary_resets_at = ts(r.primary_resets_at);
+    row.secondary_used_pct = n(r.secondary_used_pct);
+    row.secondary_window_minutes = n(r.secondary_window_minutes);
+    row.secondary_resets_at = ts(r.secondary_resets_at);
+    row.meter_at = at;
+    byDay.set(day, row);
+  }
+  return [...byDay.values()];
+}
+
+export function defaultCodexMeterLog(env = process.env, home = homedir()) {
+  if (env.AI_USAGE_CODEX_METER != null) return env.AI_USAGE_CODEX_METER || null;
+  let brain = env.BRAIN_ROOT || join(home, 'dev', 'brain');
+  if (brain.startsWith('~/')) brain = join(home, brain.slice(2));
+  return join(brain, 'runs', 'codex-usage.jsonl');
+}
+
 /** A record's zone label (claude-meter keeps it as `tz`) back on its reset text. */
 function zoned(text, tz) {
   return tz && text ? `${text} (${tz})` : text;
@@ -401,7 +443,7 @@ function parseArgs(argv) {
   return a;
 }
 
-export async function collectAll({ host, days, claudeDirs, claudeDir, codexDir, meters = [], now = Date.now() }) {
+export async function collectAll({ host, days, claudeDirs, claudeDir, codexDir, meters = [], codexMeter = null, now = Date.now() }) {
   const sinceDay = etDay(new Date(now - days * 86400000).toISOString());
   // Files are picked by mtime from a day BEFORE the window's first ET day, so
   // every event on since_day is seen (the uploader replaces whole days from
@@ -437,6 +479,15 @@ export async function collectAll({ host, days, claudeDirs, claudeDir, codexDir, 
     const got = collectClaudeMeters({ text, plan, host, sinceDay });
     meterRows += got.length;
     rows.push(...got);
+  }
+  if (codexMeter) {
+    let text = null;
+    try { text = readFileSync(codexMeter, 'utf8'); } catch { /* no readings yet */ }
+    if (text) {
+      const got = collectCodexMeters({ text, host, sinceDay });
+      meterRows += got.length;
+      rows.push(...got);
+    }
   }
   return { host, generated_at: new Date(now).toISOString(), since_day: sinceDay, files: { claude: claudeFiles.length, claude_by_plan: byPlan, codex: codexFiles.length, meter_rows: meterRows }, rows };
 }

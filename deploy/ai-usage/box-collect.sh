@@ -6,6 +6,11 @@
 #   deploy/ai-usage/box-collect.sh            # collect + push
 #   deploy/ai-usage/box-collect.sh --upload   # collect + push + run the ubuntu-dev upload now
 #
+# Never runs `codex` on either host: Codex usage here is read from its
+# rollout logs only, and the Codex rate-limit meter runs on ubuntu-dev alone
+# (ubuntu-collect.sh). A missing or broken codex install on the Mac mini
+# (2026-10-24: npm 0.118.0, platform binary ENOENT) cannot fail this run.
+#
 # Needs: node on the box and the Mac mini, `ssh ubuntu-dev` and `ssh mac-mini`
 # from the box. Holds no secrets: the upload (service role) runs on ubuntu-dev.
 set -euo pipefail

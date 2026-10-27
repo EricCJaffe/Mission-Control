@@ -35,7 +35,7 @@
       "limit_is_estimate": false,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "Codex CLI logs its own rate limits (5h primary, weekly secondary); the page uses the weekly one."
+      "notes": "Codex's own rate limits (5h primary, weekly secondary): read every ubuntu-dev collector run from codex app-server (scripts/usage/codex-meter.mjs, runs/codex-usage.jsonl) and from the rollout logs; the page uses the weekly one, newest observation wins."
     },
     {
       "slug": "grok-ultra",
@@ -47,7 +47,7 @@
       "limit_is_estimate": false,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "No sanctioned usage API. Chief of Staff enters a daily reading from the Usage settings page (manual rows)."
+      "notes": "No sanctioned usage API. Chief of Staff's automatic daily reader (Cursor dashboard -> ai-usage/manual.jsonl, manual rows) is pending; until then no reading is shown as pending, not overdue."
     }
   ]
 }

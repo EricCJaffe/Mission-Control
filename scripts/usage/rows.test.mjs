@@ -142,3 +142,18 @@ test('meter rows: one per plan on the same host/day under the unique key, percen
   assert.equal(out.length, 2);
   assert.deepEqual(out.map((r) => [r.plan_slug, r.project, r.secondary_used_pct, r.tokens_total]).sort(), [['claude-4lot', 'unattributed', 1, 0], ['claude-max', 'unattributed', 51, 0]]);
 });
+
+test('Codex meter rows: kept, merged by meter_at on their own key, never added to rollout rows', () => {
+  const meter = (at, pct) => ({ plan_slug: 'chatgpt-codex', day: '2026-10-24', host: 'ubuntu-dev', bot: 'codex-usage', session_id: 'meter', cwd: null, tokens_total: 0, secondary_used_pct: pct, secondary_window_minutes: 10080, secondary_resets_at: '2026-10-30T18:18:56.000Z', meter_at: at });
+  const rollout = { plan_slug: 'chatgpt-codex', day: '2026-10-24', host: 'ubuntu-dev', bot: 'codex', session_id: 's1', cwd: '/home/x/dev/fsaos', tokens_total: 900, messages: 2, secondary_used_pct: 50, secondary_window_minutes: 10080, meter_at: '2026-10-24T10:00:00.000Z' };
+  const out = attributeRows([meter('2026-10-24T13:00:00.000Z', 30), meter('2026-10-24T12:00:00.000Z', 20), rollout], map, U);
+  assert.equal(out.length, 2);
+  const m = out.find((r) => r.bot === 'codex-usage');
+  assert.equal(m.secondary_used_pct, 30);
+  assert.equal(m.meter_at, '2026-10-24T13:00:00.000Z');
+  assert.equal(m.tokens_total, 0);
+  assert.equal(m.source, 'log');
+  const r = out.find((x) => x.bot === 'codex');
+  assert.equal(r.tokens_total, 900);
+  assert.equal(r.secondary_used_pct, 50);
+});

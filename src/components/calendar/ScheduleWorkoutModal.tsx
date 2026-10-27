@@ -287,7 +287,7 @@ export default function ScheduleWorkoutModal({
           <form onSubmit={handleAISubmit} className="space-y-4">
             <div className="rounded-lg bg-blue-50 p-4">
               <p className="text-sm text-blue-900">
-                Describe your workout in plain English. For example: "bench press 3x8 at 135lbs, then superset pull-ups 3x10 with rows 3x12 at 95lbs"
+                Describe your workout in plain English. For example: &ldquo;bench press 3x8 at 135lbs, then superset pull-ups 3x10 with rows 3x12 at 95lbs&rdquo;
               </p>
             </div>
 

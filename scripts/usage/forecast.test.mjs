@@ -22,11 +22,39 @@ test('Codex burning fast is red with a run-out before reset', () => {
   assert.match(s.line, /before reset/);
 });
 
-test('stale or missing readings are grey; Grok names the owed manual entry', () => {
+test('stale or missing readings are grey; a pending-automation plan says so, not owed; Grok is no longer pending', () => {
   assert.equal(planStatus(codex, [{ source: 'log', day: '2026-10-10', last_at: iso(-200), captured_at: iso(-200), secondary_used_pct: 10, secondary_resets_at: iso(10) }], now).status, 'grey');
+  const p = planStatus({ ...grok, slug: 'future-plan', name: 'Future' }, [], now, { pendingAutomation: ['future-plan'] });
+  assert.equal(p.status, 'grey');
+  assert.equal(p.pending, true);
+  assert.equal(p.line, 'Future: no reading yet (automatic daily reader pending)');
+  assert.doesNotMatch(p.line, /owed|Chief of Staff/);
+  // The Grok reader landed 2026-10-24 (config list is empty): an ordinary missing reading.
   const g = planStatus(grok, [], now);
   assert.equal(g.status, 'grey');
-  assert.match(g.line, /Chief of Staff/);
+  assert.equal(g.pending, undefined);
+  assert.match(g.line, /^Grok: no current reading/);
+});
+
+test('Codex rate-limit meter row (codex-usage) is newest and wins over an older rollout reading', () => {
+  const rows = [
+    { source: 'log', bot: 'codex', day: '2026-10-18', meter_at: iso(-6), last_at: iso(-6), captured_at: iso(0), tokens_total: 5000, secondary_used_pct: 60, secondary_window_minutes: 10080, secondary_resets_at: iso(100) },
+    { source: 'log', bot: 'codex-usage', session_id: 'meter', day: '2026-10-18', meter_at: iso(-0.5), last_at: null, captured_at: iso(0), tokens_total: 0, primary_used_pct: 3, primary_window_minutes: 300, primary_resets_at: iso(2), secondary_used_pct: 20, secondary_window_minutes: 10080, secondary_resets_at: iso(100) },
+  ];
+  const s = planStatus(codex, rows, now);
+  assert.equal(s.pct, 20);
+  assert.match(s.line, /Codex rate-limit meter/);
+  // A manual reading observed later still wins.
+  const m = planStatus(codex, [...rows, { source: 'manual', day: '2026-10-18', meter_at: iso(-0.1), captured_at: iso(0), primary_used_pct: 25, primary_window_minutes: 10080, primary_resets_at: iso(100) }], now);
+  assert.equal(m.pct, 25);
+});
+
+test('a Codex meter row older than 12h is ignored (recorder failing); the rollout reading stands', () => {
+  const rows = [
+    { source: 'log', bot: 'codex', day: '2026-10-18', meter_at: iso(-20), last_at: iso(-20), captured_at: iso(0), secondary_used_pct: 40, secondary_window_minutes: 10080, secondary_resets_at: iso(100) },
+    { source: 'log', bot: 'codex-usage', day: '2026-10-18', meter_at: iso(-13), captured_at: iso(0), secondary_used_pct: 45, secondary_window_minutes: 10080, secondary_resets_at: iso(100) },
+  ];
+  assert.equal(planStatus(codex, rows, now).pct, 40);
 });
 
 test('Grok manual reading drives the status', () => {
@@ -131,4 +159,11 @@ test('early guard applies only to percent readings (parity with the page)', () =
   const s = planStatus(anchored, [{ source: 'log', day: '2026-10-18', last_at: iso(0), captured_at: iso(0), tokens_total: 600 }], now);
   assert.equal(s.early, false);
   assert.notEqual(s.status, 'green');
+});
+
+test('pending automation comes from config: a plan not listed there is an ordinary missing reading', () => {
+  const other = { ...grok, slug: 'other-plan', name: 'Other' };
+  const s = planStatus(other, [], now);
+  assert.equal(s.pending, undefined);
+  assert.match(s.line, /^Other: no current reading/);
 });

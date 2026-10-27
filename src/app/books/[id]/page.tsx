@@ -386,7 +386,7 @@ export default async function BookDetailPage({
           <p className="mt-1 text-xs text-slate-500">Generated guides, devotionals, and social packs.</p>
           <ArtifactsListClient assets={assets || []} redirect={`/books/${book.id}?tab=assets`} />
           {(!assets || assets.length === 0) && (
-            <div className="mt-2 text-xs text-slate-500">Run "Generate Guides + Social" from the AI tools.</div>
+            <div className="mt-2 text-xs text-slate-500">Run &ldquo;Generate Guides + Social&rdquo; from the AI tools.</div>
           )}
         </section>
       )}

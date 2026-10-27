@@ -18,6 +18,14 @@ import { createRequire } from 'node:module';
 const T = createRequire(import.meta.url)('../../config/ai-usage-thresholds.json');
 
 const H = 3600000;
+
+/**
+ * Plan-meter rows: a CLI's own % recorded on a timer, no tokens. `claude-usage`
+ * (Claude /usage, hourly) and `codex-usage` (Codex app-server rate limits,
+ * every collector run). Older than 12h means the recorder is failing.
+ */
+export const METER_BOTS = new Set(['claude-usage', 'codex-usage']);
+const isMeter = (r) => METER_BOTS.has(r.bot);
 const WINDOW_MIN = { '5h': 300, daily: 1440, weekly: 10080, monthly: 43200 };
 
 /**
@@ -27,12 +35,12 @@ const WINDOW_MIN = { '5h': 300, daily: 1440, weekly: 10080, monthly: 43200 };
  */
 /**
  * The snapshot columns planStatus reads (report.mjs selects exactly these).
- * `bot` matters: the Claude /usage meter rows (bot `claude-usage`) carry no
- * tokens, go stale after 12h, and are labeled by it.
+ * `bot` matters: the plan-meter rows (bots `claude-usage`, `codex-usage`)
+ * carry no tokens, go stale after 12h, and are labeled by it.
  */
 export const FORECAST_COLUMNS = 'plan_slug,source,bot,day,tokens_total,primary_used_pct,primary_window_minutes,primary_resets_at,secondary_used_pct,secondary_window_minutes,secondary_resets_at,meter_at,last_at,captured_at';
 
-export function planStatus(plan, rows, now = new Date()) {
+export function planStatus(plan, rows, now = new Date(), { pendingAutomation = T.pendingAutomation ?? [] } = {}) {
   const t = now.getTime();
   const fresh = (r) => r.captured_at && t - new Date(r.last_at ?? r.captured_at).getTime() <= 48 * H;
   const meterAt = (r) => r.meter_at ?? r.last_at ?? r.day;
@@ -67,12 +75,12 @@ export function planStatus(plan, rows, now = new Date()) {
     if (!freshMeter(r) || expired(useSec ? r.secondary_resets_at : r.primary_resets_at)) continue;
     // The Claude /usage meter is recorded hourly: older than 12h means the
     // recorder is failing; fall back (token estimate / no cap) instead.
-    if (r.bot === 'claude-usage' && t - new Date(meterAt(r)).getTime() > 12 * H) continue;
+    if (isMeter(r) && t - new Date(meterAt(r)).getTime() > 12 * H) continue;
     candidates.push({ at: meterAt(r), captured: r.captured_at, reading: {
       pct: Number(useSec ? r.secondary_used_pct : r.primary_used_pct),
       resetsAt: useSec ? r.secondary_resets_at : r.primary_resets_at,
       windowMin: (useSec ? r.secondary_window_minutes : r.primary_window_minutes) ?? planWin,
-      basis: r.bot === 'claude-usage' ? 'Claude /usage meter' : useSec ? 'CLI weekly meter' : 'CLI meter', estimate: false, at: meterAt(r),
+      basis: r.bot === 'claude-usage' ? 'Claude /usage meter' : r.bot === 'codex-usage' ? 'Codex rate-limit meter' : useSec ? 'CLI weekly meter' : 'CLI meter', estimate: false, at: meterAt(r),
     } });
   }
   candidates.sort((x, y) => String(y.at).localeCompare(String(x.at)) || String(y.captured).localeCompare(String(x.captured)));
@@ -96,7 +104,7 @@ export function planStatus(plan, rows, now = new Date()) {
     const startDay = etDay(new Date(start).toISOString());
     // Token rows only: a Claude /usage meter row carries no tokens and no
     // activity time, so it must not make an idle plan look active.
-    const inWin = rows.filter((r) => r.source === 'log' && r.bot !== 'claude-usage' && r.day >= startDay);
+    const inWin = rows.filter((r) => r.source === 'log' && !isMeter(r) && r.day >= startDay);
     const used = inWin.reduce((s, r) => s + Number(r.tokens_total || 0), 0);
     // Newest log activity = when this log-derived reading was true (so a stale
     // collector shows a stale reading_at instead of looking brand new).
@@ -113,7 +121,7 @@ export function planStatus(plan, rows, now = new Date()) {
         ...rows.filter((m) => m.source === 'manual' && m.primary_used_pct != null && m.primary_resets_at && !expired(m.primary_resets_at)
           && (m.primary_window_minutes == null || Number(m.primary_window_minutes) === planWin))
           .map((m) => ({ r: m, pct: Number(m.primary_used_pct), resetsAt: m.primary_resets_at, at: m.meter_at ?? etNoon(m.day) })),
-        ...rows.filter((m) => m.source === 'log' && m.bot === 'claude-usage' && m.secondary_used_pct != null && m.secondary_resets_at && !expired(m.secondary_resets_at)
+        ...rows.filter((m) => m.source === 'log' && isMeter(m) && m.secondary_used_pct != null && m.secondary_resets_at && !expired(m.secondary_resets_at)
           && (m.secondary_window_minutes == null || Number(m.secondary_window_minutes) === planWin))
           .map((m) => ({ r: m, pct: Number(m.secondary_used_pct), resetsAt: m.secondary_resets_at, at: m.meter_at })),
       // Usage only grows inside a window, so of the readings whose window has
@@ -132,11 +140,15 @@ export function planStatus(plan, rows, now = new Date()) {
   }
   if (!reading && plan.limit_kind === 'tokens' && !plan.limit_value) {
     const since7 = etDay(new Date(t - 6 * 24 * H).toISOString());
-    const tok = rows.filter((r) => r.source === 'log' && r.bot !== 'claude-usage' && r.day >= since7).reduce((n, r) => n + Number(r.tokens_total || 0), 0);
+    const tok = rows.filter((r) => r.source === 'log' && !isMeter(r) && r.day >= since7).reduce((n, r) => n + Number(r.tokens_total || 0), 0);
     const fmtTok = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : String(n));
     return { slug: plan.slug, name: plan.name, status: 'grey', pct: null, noCap: true, line: `NO CAP KNOWN · ${plan.name}: ${fmtTok(tok)} tokens in the last 7 days (${fmtTok(Math.round(tok / 7))}/day); add a % reading from its usage page to forecast` };
   }
-  if (!reading) return { slug: plan.slug, name: plan.name, status: 'grey', line: `${plan.name}: no current reading (none in 48h, or it reset since)${plan.slug === 'grok-ultra' ? ' (manual entry owed by Chief of Staff)' : ''}` };
+  // A plan whose automatic reader is not built yet (config pendingAutomation;
+  // empty since the Grok reader landed 2026-10-24):
+  // no reading is pending automation, not something anybody owes. Grey.
+  if (!reading && pendingAutomation.includes(plan.slug)) return { slug: plan.slug, name: plan.name, status: 'grey', pending: true, line: `${plan.name}: no reading yet (automatic daily reader pending)` };
+  if (!reading) return { slug: plan.slug, name: plan.name, status: 'grey', line: `${plan.name}: no current reading (none in 48h, or it reset since)` };
 
   const pct = Math.round(reading.pct * 10) / 10;
   let burnPerDay = null;

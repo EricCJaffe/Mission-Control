@@ -258,7 +258,7 @@ export default function MedicationDetailsModal({ medication, onClose, onUpdate }
         ) : (
           <div className="text-center py-12 text-slate-500">
             <p className="mb-4">No AI analysis available for this medication.</p>
-            <p className="text-sm">Click "Re-analyze" to generate an AI safety review.</p>
+            <p className="text-sm">Click &ldquo;Re-analyze&rdquo; to generate an AI safety review.</p>
           </div>
         )}
 

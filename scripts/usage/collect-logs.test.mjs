@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { collectAll, collectClaudeMeters, defaultClaudeDirs, defaultClaudeMeters, parseClaudeDir, parseEtReset } from './collect-logs.mjs';
+import { collectAll, collectClaudeMeters, collectCodexMeters, defaultClaudeDirs, defaultClaudeMeters, defaultCodexMeterLog, parseClaudeDir, parseEtReset } from './collect-logs.mjs';
 import { AUTH_OVERRIDES, lastTimes, meterEnv, parseUsage, recordOf, shouldSkip } from './claude-meter.mjs';
 
 const NOW = Date.parse('2026-10-18T18:00:00Z');
@@ -163,4 +163,50 @@ test('parseEtReset: time-only session reset; a non-ET zone is never guessed', ()
   const rows = collectClaudeMeters({ text: JSON.stringify({ at: '2026-10-18T14:07:05-04:00', ok: true, week_pct: 5, week_resets: 'Oct 20, 6:59pm', tz: 'Europe/London' }), plan: 'claude-4lot', host: 'h', sinceDay: '2026-10-18' });
   assert.equal(rows[0].secondary_resets_at, null);
   assert.equal(rows[0].secondary_used_pct, 5);
+});
+
+// The real codex-meter.mjs line from ubuntu-dev, 2026-10-24 09:37 ET.
+const CODEX_REAL = '{"at":"2026-10-24T13:37:47.715Z","ok":true,"plan":"chatgpt-codex","primary_used_pct":1,"primary_window_minutes":300,"primary_resets_at":"2026-10-24T17:15:05.000Z","secondary_used_pct":0,"secondary_window_minutes":10080,"secondary_resets_at":"2026-10-30T18:18:56.000Z","plan_type":"team"}';
+
+test('collectCodexMeters: newest ok reading per ET day -> one chatgpt-codex meter row, no tokens', () => {
+  const text = [
+    '{"at":"2026-10-24T12:00:00.000Z","ok":true,"primary_used_pct":9,"secondary_used_pct":30,"secondary_window_minutes":10080,"secondary_resets_at":"2026-10-30T18:18:56.000Z"}',
+    CODEX_REAL,
+    '{"at":"2026-10-24T14:00:00.000Z","ok":false,"error":"codex app-server timed out after 30 s"}',
+    'not json',
+    '{"at":"2026-10-23T03:00:00.000Z","ok":true,"secondary_used_pct":50}',
+    '{"at":"2026-10-24T13:50:00.000Z","ok":true}',
+  ].join('\n');
+  const rows = collectCodexMeters({ text, host: 'ubuntu-dev', sinceDay: '2026-10-23' });
+  // 2026-10-23T03:00Z is ET 10-22, before sinceDay; 10-24 keeps the newest ok reading with a %.
+  assert.equal(rows.length, 1);
+  const r = rows[0];
+  assert.equal(r.plan_slug, 'chatgpt-codex');
+  assert.equal(r.bot, 'codex-usage');
+  assert.equal(r.session_id, 'meter');
+  assert.equal(r.day, '2026-10-24');
+  assert.equal(r.meter_at, '2026-10-24T13:37:47.715Z');
+  assert.equal(r.primary_used_pct, 1);
+  assert.equal(r.primary_window_minutes, 300);
+  assert.equal(r.secondary_used_pct, 0);
+  assert.equal(r.secondary_resets_at, '2026-10-30T18:18:56.000Z');
+  assert.equal(r.tokens_total, 0);
+  assert.equal(r.plan_type, undefined);
+});
+
+test('codex meter log: read by collectAll only when passed; default under BRAIN_ROOT; env override', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'cxm-'));
+  const log = join(home, 'codex-usage.jsonl');
+  writeFileSync(log, CODEX_REAL + '\n');
+  const now = Date.parse('2026-10-24T15:00:00Z');
+  const none = await collectAll({ host: 'ubuntu-dev', days: 2, claudeDirs: [], codexDir: join(home, 'nope'), now });
+  assert.equal(none.rows.length, 0);
+  const got = await collectAll({ host: 'ubuntu-dev', days: 2, claudeDirs: [], codexDir: join(home, 'nope'), codexMeter: log, now });
+  assert.equal(got.rows.length, 1);
+  assert.equal(got.files.meter_rows, 1);
+  const missing = await collectAll({ host: 'ubuntu-dev', days: 2, claudeDirs: [], codexDir: join(home, 'nope'), codexMeter: join(home, 'absent.jsonl'), now });
+  assert.equal(missing.rows.length, 0);
+  assert.equal(defaultCodexMeterLog({ BRAIN_ROOT: '/b' }, '/h'), '/b/runs/codex-usage.jsonl');
+  assert.equal(defaultCodexMeterLog({}, '/h'), '/h/dev/brain/runs/codex-usage.jsonl');
+  assert.equal(defaultCodexMeterLog({ AI_USAGE_CODEX_METER: '' }, '/h'), null);
 });

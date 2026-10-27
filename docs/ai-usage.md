@@ -66,6 +66,38 @@ non-zero exit or timeout as a failed reading, and retries 15 min after a
 failure (hourly after a good one). Only `upload.mjs` on ubuntu-dev reads these logs; the
 box and Mac mini collectors do not (`--meter FILE=PLAN` to read one by hand).
 
+## Codex readings: automatic, every run (2026-10-24)
+
+Eric, 10/24 9:29 AM ET: the page must update itself, no manual uploads. Every
+ubuntu-dev collector run (`deploy/ai-usage/ubuntu-collect.sh`, every 30 min by
+day) runs `scripts/usage/codex-meter.mjs` before `upload.mjs`. It spawns
+`codex app-server` (stdio JSON-RPC), sends `initialize` and then
+`account/rateLimits/read` (checked on codex-cli 0.164.0), and kills the child.
+There is no model call and no thread, so no transcript. It appends one line to
+`$BRAIN_ROOT/runs/codex-usage.jsonl`:
+
+```json
+{"at":"2026-10-24T13:37:47.715Z","ok":true,"plan":"chatgpt-codex","primary_used_pct":1,"primary_window_minutes":300,"primary_resets_at":"2026-10-24T17:15:05.000Z","secondary_used_pct":0,"secondary_window_minutes":10080,"secondary_resets_at":"2026-10-30T18:18:56.000Z","plan_type":"team"}
+```
+
+- Kept: the 5-hour (primary) and weekly (secondary) %, window lengths, resets
+  (ISO UTC) and plan type. Dropped: account id, credits, banners.
+- Codex reads its own login. The meter never opens anything in `~/.codex`, and
+  it removes `OPENAI_API_KEY`, `CODEX_API_KEY` and the other OpenAI overrides
+  from the child by name, so the reading is the ChatGPT login's.
+- A timeout (30 s), non-zero exit, error reply or missing binary logs
+  `{"ok":false,...}`. The collector only warns; the rollout-log rate limits
+  keep working.
+- `upload.mjs` turns the newest ok reading per ET day into one log row (plan
+  `chatgpt-codex`, bot `codex-usage`, session `meter`, no tokens, `meter_at`
+  set). The forecast labels it `Codex rate-limit meter`. As with Claude, the
+  newest observation wins against the rate limits in Codex's rollout logs and
+  against a manual reading, and a meter row older than 12h is ignored, because
+  that means the recorder is failing.
+- Runs on ubuntu-dev only: there is one account, so one reading is enough. The
+  box and Mac mini collectors never run `codex` (they read rollout logs only),
+  so a broken Codex install there cannot fail a run.
+
 ## Claude accounts: two plans (2026-10-18)
 
 Claude Code keeps each login in its own config dir (`CLAUDE_CONFIG_DIR`), and
@@ -90,11 +122,17 @@ only account names and no secrets:
 
 `report.mjs --write` also writes `$BRAIN_ROOT/open/ai-usage.json`, the machine-readable twin of the brief lines. It has one record per plan: `used_pct`, `projected_at_reset_pct`, `runout_before_reset`, `reset_at`, `reading_at`, `reading_age_h`, `status`, `no_cap`, `early`, `idle`. For a token-budget plan (4lot), `used_pct` comes from the logs against its estimated cap; `reading_at` is the newest log activity, and `idle: true` means nothing logged in 48h (the window's earlier usage still counts; 0% only when nothing was logged this window, which dispatch treats as available at lower priority). The file is written atomically (temp file + rename). It also carries `limit_tokens`, `capacity_weight`, `overflow_target` and `small_jobs_only` per plan, plus `max_weekly_tokens_baseline` and `job_size_tokens` (S/M/L). `dispatch-autostart` (dev-harness) reads it to route queued notes between Claude main and Claude 4lot. Eric turned meter-driven routing on at 2:06 PM ET on 10/18. A file that is missing, or older than 24h, means dispatch behaves as before. The brief gets one `routing (24h): ...` line built from `runs/dispatch-routing.jsonl`, the decision log dispatch writes. A second line, `routes (7d, first-try): ...`, scores each route (plan/model tier) from the `outcome` records dispatch appends when a job finishes (first-try success, review findings, rework, tokens); an economy route under 80% first-try (5+ jobs) is moved up a tier by dispatch, and escalations and needs-Eric flags are counted. A third line, `auto-start stalled (24h): ...`, names each queued note dispatch gave up on after its prompts-per-day limit (a `give-up` record with the reason); a later dispatch of the note clears it.
 
-## Grok Bot Ultra (manual, Chief of Staff daily)
+## Grok Bot Ultra (automatic daily reader, live 2026-10-24)
 
-There is no sanctioned usage API, so Chief of Staff appends one line a day to
-`~/dev/brain/ai-usage/manual.jsonl` (commit + `brain-sync push`), read from
-the Grok Bot **Usage** settings page:
+There is no sanctioned usage API. Chief of Staff's automatic daily reader
+(the Cursor dashboard) appends one line a day to
+`~/dev/brain/ai-usage/manual.jsonl` (commit + `brain-sync push`); the first
+reading landed 2026-10-24 at 9:36 AM ET. `parseManual` reads that file.
+
+A plan whose reader is not built yet goes in `pendingAutomation`
+(`config/ai-usage-thresholds.json`): with no reading it shows gray "no reading
+yet (automatic daily reader pending)" and is never nagged. Grok left that list
+when its reader landed, so a missing Grok reading is flagged again. The line format:
 
 ```json
 {"date":"2026-10-18","plan":"grok-ultra","used_pct":42,"resets_at":"2026-10-25T00:00:00-04:00","window":"weekly","note":"","by":"cos"}
