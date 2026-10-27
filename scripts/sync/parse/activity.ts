@@ -282,7 +282,7 @@ const SCRUBS: Array<[RegExp, string]> = [
   [/\bpid[\s:=#]*\d+/gi, ''],
   // Git shas longer than 7: keep nothing (a 7-char sha is allowed through).
   [/\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{8,40}\b/gi, ''],
-  // Phone numbers: 904-483-6881, (904) 483 6881, +1 904.483.6881.
+  // Phone numbers: 904-555-0142, (904) 555 0142, +1 904.555.0142.
   [/(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/g, ''],
 ];
 

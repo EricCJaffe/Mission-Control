@@ -1,7 +1,7 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { today, dayOf } from "@/lib/day";
 import ActivityBoard, { type ActivityRow } from "@/components/activity/ActivityBoard";
-import { loadActivitySnapshot } from "@/lib/activity/snapshot";
+import { loadActivity, EVENT_LIMIT, FINISHED_LIMIT } from "@/lib/activity/source";
 import { splitByAge } from "@/lib/activity/format";
 
 export const dynamic = "force-dynamic";
@@ -13,18 +13,14 @@ export const dynamic = "force-dynamic";
  * is on the road, so the page is built for a phone first: one column with a
  * Waiting / Timeline / Work switch, three columns from md up.
  *
- * Read-only. v1 reads ONE scrubbed snapshot of ~/dev/brain written on
- * ubuntu-dev by scripts/sync/activity-snapshot.ts (display names only, no ids,
- * no addresses, Honey Lake reduced to a status). It is gitignored, because the
- * repo is public, so a git-built deployment shows the committed synthetic
- * sample under a banner instead. v2 moves the rows into mission.* tables fed
- * by a 5-minute timer. The page adds Mission Control's own tasks due today,
- * which are already here and are not re-synced.
+ * Read-only. v2 reads mission.bot_activity_items, filled every 5 minutes on
+ * ubuntu-dev by scripts/sync/activity.ts from scrubbed brain rows (display
+ * names only, no ids, no addresses, Honey Lake reduced to a status); "as of"
+ * is its newest ok run. Until that has run once, the v1 snapshot and then the
+ * committed synthetic sample (under a banner) stand in: see
+ * src/lib/activity/source.ts. The page adds Mission Control's own tasks due
+ * today, which are already here and are not re-synced.
  */
-
-// Enough for a week of a busy fleet without shipping every row to a phone.
-const EVENT_LIMIT = 1200;
-const FINISHED_LIMIT = 150;
 
 type TaskStub = { id: string; title: string; due_date: string | null; created_at: string; project_id: string | null };
 
@@ -44,7 +40,7 @@ export default async function ActivityPage() {
 
   const todayEt = today();
   const [snapshot, tasks] = await Promise.all([
-    loadActivitySnapshot(),
+    loadActivity(supabase),
     // Mission Control's own tasks that are due today and not done, for Eric
     // or for nobody in particular. Read here, never re-synced.
     supabase
@@ -112,7 +108,7 @@ export default async function ActivityPage() {
         hour: "numeric",
         minute: "2-digit",
       });
-  const finishedTotal = allFinished.length;
+  const finishedTotal = snapshot.finishedTotal;
 
   return (
     <main className="pt-2 md:pt-6">
@@ -127,8 +123,8 @@ export default async function ActivityPage() {
         </p>
         {snapshot.sample && (
           <p className="mt-3 rounded-xl border-2 border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900">
-            <strong className="font-semibold">Sample data.</strong> No bot activity snapshot on this deployment yet, so
-            this shows invented rows. Real activity arrives with the 5-minute sync (v2).
+            <strong className="font-semibold">Sample data.</strong> The bot activity sync has not run yet, so
+            this shows invented rows until the 5-minute sync has run.
           </p>
         )}
       </div>

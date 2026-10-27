@@ -104,7 +104,7 @@ test('bots show display names, never ids', () => {
 
 test('scrub removes every id, address and link', () => {
   const dirty =
-    'Ticket bc-4f9a2 for jane.doe@example.com (call 904-483-6881) ' +
+    'Ticket bc-4f9a2 for jane.doe@example.com (call 904-555-0142) ' +
     'id 5eed0029-0003-4000-8000-000000000002 sha 07fc67c0a1b2 short 07fc67c ' +
     'pid 41233 herdr pane %12 agent_01AbCdEf <CAF+abc@mail.gmail.com> ' +
     'see https://vercel.com/x and https://github.com/o/r/pull/5 from jgoldenberg@gmail';
@@ -326,7 +326,7 @@ test('snapshot over a fixture brain: no UUID, email, bc- id, phone or URL in the
     w('jobs/REGISTRY.md', '# Registry\n');
     w(
       `channel/from-grokbot/${today}-sjcos-fix-bc-4f9a2.md`,
-      '---\nstatus: running\nfor: sjcos\nfrom: coding\nkind: handoff\n---\n# Fix bc-4f9a2 for jane@example.com, id 5eed0029-0003-4000-8000-000000000002, call 904-483-6881, https://vercel.com/x\n\nBody with secrets jane@example.com\n',
+      '---\nstatus: running\nfor: sjcos\nfrom: coding\nkind: handoff\n---\n# Fix bc-4f9a2 for jane@example.com, id 5eed0029-0003-4000-8000-000000000002, call 904-555-0142, https://vercel.com/x\n\nBody with secrets jane@example.com\n',
     );
     w(
       `channel/to-grokbot/${today}-ask.md`,
@@ -358,7 +358,7 @@ test('snapshot over a fixture brain: no UUID, email, bc- id, phone or URL in the
     assert.doesNotMatch(text, /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i, 'UUID leaked');
     assert.doesNotMatch(text, /@/, 'email leaked');
     assert.doesNotMatch(text, /\bbc-/i, 'bc- id leaked');
-    assert.doesNotMatch(text, /904-483|https?:/, 'phone or URL leaked');
+    assert.doesNotMatch(text, /904-555|https?:/, 'phone or URL leaked');
     assert.doesNotMatch(text, /agent_|4242|Jane|Roe|secret/i, 'id, PHI or body leaked');
     assert.ok(rows.some((r) => r.kind === 'waiting' && r.tag === 'yes_no'));
     assert.ok(rows.some((r) => r.title === 'Honey Lake session: running'));
@@ -433,7 +433,7 @@ test('waiting: an email subject is shown only if it passes the leak test', () =>
   assert.equal(clean.title, 'Eden: Weekly briefing questions');
   assert.equal(leaky.title, 'Eden: an email waits on your reply');
   assert.equal(url.title, 'SJCOS: an item waits on you');
-  assert.deepEqual(textLeaks('call 904-483-6881'), ['phone']);
+  assert.deepEqual(textLeaks('call 904-555-0142'), ['phone']);
 });
 
 test('waiting: every generic Honey Lake row collapses into one line with a count', () => {
