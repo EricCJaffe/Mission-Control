@@ -27,7 +27,7 @@ switch under 768px, three columns above.
   `bot_activity_runs` row in 20 minutes is a violation. It connects as the
   existing `financeos_invariants_ro` role (`url-file:~/.config/financeos/
   invariants-ro.url`), which may read `mission.bot_activity_runs` and nothing
-  else in `mission` (migration `20261027232732_bot_activity_invariant_ro`).
+  else in `mission` (migration `20261027233020_bot_activity_invariant_ro`).
 - **The repo is public.** Real rows live only in the database and the
   gitignored snapshot; never under `public/`, never committed.
 - The scrub and tag rules are in `scripts/sync/parse/activity.ts` and tested in
