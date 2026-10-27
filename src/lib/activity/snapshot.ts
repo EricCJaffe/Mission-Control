@@ -37,7 +37,7 @@ function isRow(r: unknown): r is SnapshotRow {
     typeof row.title === "string" &&
     typeof row.occurred_at === "string" &&
     KINDS.has(row.kind) &&
-    (row.tag === null || TAGS.has(row.tag)) &&
+    (row.tag == null || TAGS.has(row.tag)) &&
     // Belt and braces: only a GitHub pull request is ever rendered as a link.
     (row.pr_url === null || /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/.test(row.pr_url))
   );
