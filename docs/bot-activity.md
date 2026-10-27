@@ -4,17 +4,29 @@ What every bot did, what is running, and what waits on Eric, on one page.
 Eric, 2026-10-27. Mobile first: one column with a Waiting / Timeline / Work
 switch under 768px, three columns above.
 
-## v1 (this release): a scrubbed snapshot
+## v2 (live): tables and a 5-minute timer
 
-- `scripts/sync/activity-snapshot.ts` reads `~/dev/brain` (channel note
-  frontmatter + H1, `jobs/lib/loops-report.py --json`, allowlisted
-  `runs/*.jsonl` fields `at/ok/action/label/note`) and writes
-  `data/activity-snapshot.json`. `npm run activity:snapshot`.
-- **The repo is public.** The snapshot is real data: it is gitignored, never
-  under `public/`, and read server-side by the signed-in page only
-  (`src/lib/activity/snapshot.ts`). Without it the page shows the committed
-  synthetic sample (`src/lib/activity/sample-snapshot.ts`) under a
-  "Sample data" banner, which is what every git-built deployment shows.
+- `scripts/sync/activity.ts` (`npm`-free: `node scripts/sync/activity.ts`,
+  `--dry-run`, `--json`) reads `~/dev/brain` one way, never writing it:
+  channel note frontmatter + H1, `jobs/lib/loops-report.py --json`, and the
+  allowlisted `runs/*.jsonl` fields `at/ok/action/label/note`. It scrubs, then
+  upserts `mission.bot_activity_items` on `(user_id, source_key)`, deletes
+  what this run no longer produced (the 7-day window), and writes one
+  `mission.bot_activity_runs` row (`ok` or `error`, counts only).
+- `deploy/systemd/mission-control-activity.{service,timer}`: every 5 minutes,
+  `WorkingDirectory=~/dev/mission-control`, `EnvironmentFile=
+  ~/.config/mission-control/sync.env`, the same hardening as
+  `mission-control-sync.service`. Installed by Dispatch through a harness note,
+  not by this repo.
+- `/activity` reads the tables with the signed-in client (select-only RLS);
+  "as of" is the newest ok run (`src/lib/activity/source.ts`). Before the first
+  ok run with rows, or if the read fails, it falls back to the v1 snapshot
+  (`data/activity-snapshot.json`, gitignored, real) and then to the committed
+  synthetic sample under a "Sample data" banner.
+- Watched by an R1 invariant in the brain's `jobs/_data-invariants.tsv`: no ok
+  `bot_activity_runs` row in 20 minutes is a violation.
+- **The repo is public.** Real rows live only in the database and the
+  gitignored snapshot; never under `public/`, never committed.
 - The scrub and tag rules are in `scripts/sync/parse/activity.ts` and tested in
   `parse/activity.test.ts`, including a run over a fixture brain asserting no
   UUID, email, `bc-` id, phone or URL reaches the output. Bot display names
@@ -22,11 +34,10 @@ switch under 768px, three columns above.
   read past the frontmatter; dropped topics never appear.
 - Mission Control's own tasks due today are read live from `mission.tasks`.
 
-## v2 (next): tables and a 5-minute timer
+## v1 (2026-10-27, #72): a scrubbed snapshot
 
-`mission.bot_activity_items` / `bot_activity_runs`, a harvester writing them
-every 5 minutes from a user timer on ubuntu-dev, and an R1 data invariant on
-the newest run. Not in v1.
+`scripts/sync/activity-snapshot.ts` (`npm run activity:snapshot`) writes the
+same rows to `data/activity-snapshot.json`. Kept as the fallback above.
 
 ## Waiting on Eric: only what is still open (Eric, 2026-10-27 6:57 PM)
 
