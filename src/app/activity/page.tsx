@@ -41,7 +41,7 @@ export default async function ActivityPage() {
   if (!userData.user) return null;
 
   const todayEt = today();
-  const [snapshot, tasks, decisionsRes] = await Promise.all([
+  const [snapshot, tasks, decisionsRes, dropsRes] = await Promise.all([
     loadActivity(supabase),
     // Mission Control's own tasks that are due (today or overdue) and not
     // done, for Eric or for nobody in particular. Read here, never re-synced.
@@ -60,10 +60,13 @@ export default async function ActivityPage() {
       .select("id,item_key,item_source,item_title,item_bot,choice,reply,until_date,created_at,delivered_at")
       .order("created_at", { ascending: false })
       .limit(300),
+    // Every drop, however old: dropped stays dropped (R-163), so it cannot
+    // depend on the 300 newest decisions above.
+    supabase.from("bot_activity_decisions").select("item_key,choice,created_at").eq("choice", "drop").limit(1000),
   ]);
   const decisions = (decisionsRes.error ? [] : (decisionsRes.data ?? [])) as Decision[];
   const latest = latestByKey(decisions);
-  const dropped = droppedKeys(decisions);
+  const dropped = droppedKeys([...decisions, ...((dropsRes.error ? [] : (dropsRes.data ?? [])) as Decision[])]);
 
   // Every row from every source goes through the one scrub before it renders.
   const clean = (rows: ActivityRow[]) => rows.map(scrubRow).filter((r): r is ActivityRow => r !== null);

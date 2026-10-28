@@ -16,6 +16,9 @@ test("bot items take bot choices; tasks take task choices; anything else is refu
   assert.equal(parseDecision({ ...task, item_key: "task:../../etc", choice: "done" }, TODAY).ok, false);
   assert.equal(parseDecision({ ...base, item_source: "tasks", choice: "approve" }, TODAY).ok, false);
   assert.equal(parseDecision({ ...base, item_key: "x y", choice: "approve" }, TODAY).ok, false);
+  // Loop keys carry the client name, spaces and all.
+  assert.ok(parseDecision({ ...base, item_source: "loops", item_key: "loops:2026-10-20:Honey Lake:x1", choice: "approve" }, TODAY).ok);
+  assert.equal(parseDecision({ ...base, item_key: "channel:a\nb", choice: "approve" }, TODAY).ok, false);
 });
 
 test("not now and snooze default to +3 days and must be in the future", () => {
@@ -65,7 +68,8 @@ const d = (over: Partial<Decision>): Decision => ({
 test("what the latest decision does to a Waiting item", () => {
   assert.deepEqual(waitingState(undefined, TODAY), { hidden: false, answered: null });
   assert.equal(waitingState(d({ choice: "drop" }), TODAY).hidden, true);
-  assert.equal(waitingState(d({ choice: "done", item_source: "task" }), TODAY).hidden, true);
+  // Done never hides by key: a recurring task keeps its id at its next date.
+  assert.equal(waitingState(d({ choice: "done", item_source: "task" }), TODAY).hidden, false);
   assert.equal(waitingState(d({ choice: "not_now", until_date: "2026-10-30" }), TODAY).hidden, true);
   // Back once the day comes, with no answered badge.
   assert.deepEqual(waitingState(d({ choice: "not_now", until_date: TODAY }), TODAY), { hidden: false, answered: null });
