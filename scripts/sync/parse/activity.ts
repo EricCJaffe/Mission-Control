@@ -193,6 +193,8 @@ const PROJECTS: Record<string, string> = {
 
 const BOTS: Record<string, string> = {
   cos: 'Chief of Staff',
+  // Eric's own answers from /activity (v3), written with from: eric.
+  eric: 'Eric',
   'chief-of-staff': 'Chief of Staff',
   grokbot: 'Chief of Staff',
   'grok-ask': 'Chief of Staff',

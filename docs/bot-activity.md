@@ -4,7 +4,34 @@ What every bot did, what is running, and what waits on Eric, on one page.
 Eric, 2026-10-27. Mobile first: one column with a Waiting / Timeline / Work
 switch under 768px, three columns above.
 
-## v2 (live): tables and a 5-minute timer
+## v3: interactive Waiting (Eric, 2026-10-27 7:53 PM ET)
+
+*"if there is a task waiting on me I can update its status or something to get it moving forward"*
+
+- **Bots waiting on you:** Approve (Yes on a yes/no ask), No, Not now (date,
+  default +3 days), Drop, or a short Reply. **Your to-dos** (Mission Control
+  tasks due today or overdue): Done, Snooze (date), Drop.
+- A tap posts to `/api/activity/decide` as the signed-in user and writes a row
+  in `mission.bot_activity_decisions` (RLS: insert and read own rows only;
+  no update or delete, so the audit log cannot be edited). No service-role key
+  and no GitHub token in Vercel.
+- To-dos act at once, like `/tasks/update`: Done goes through `completionPatch`
+  (a recurring task rolls forward), Snooze moves `due_date`, both stamp
+  `edited_at`. Drop leaves the task and takes it off Waiting for good.
+- Bot answers show "answered" until `scripts/sync/activity-deliver.ts` (run
+  after every 5-minute harvest, `ExecStartPost`) writes a channel note back to
+  the asker with `re:` its note, his choice and reply quoted. The next harvest
+  sees the item answered and it leaves Waiting. Delivery goes only through a
+  brain scratch clone (`jobs/lib/brain-scratch-clone.sh`): commit,
+  `pull --rebase --no-autostash`, push, or a `brain-conflict/*` branch; it never
+  stashes, resets or cleans `~/dev/brain`.
+- **Drop is final (R-163):** hidden on the page for good, a row in
+  `open/decisions.tsv`, and a line appended to the asking note, the same day.
+- "Your decisions" under Waiting is the audit log, newest first.
+- Decision text goes through the same scrub and leak test as everything else
+  (`src/lib/activity/decisions.ts`, `scripts/sync/parse/decision-note.ts`).
+
+## v2: tables and a 5-minute timer
 
 - `scripts/sync/activity.ts` (`npm`-free: `node scripts/sync/activity.ts`,
   `--dry-run`, `--json`) reads `~/dev/brain` one way, never writing it:
