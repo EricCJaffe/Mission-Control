@@ -24,7 +24,7 @@
 -- inserted. No update or delete policy: the audit log cannot be edited from
 -- the app. delivered_at is set by the harvester's service-role client.
 --
--- Additive only. Rollback: supabase/rollbacks/20261028000259_bot_activity_decisions.down.sql
+-- Additive only. Rollback: supabase/rollbacks/20261028001545_bot_activity_decisions.down.sql
 
 create table if not exists mission.bot_activity_decisions (
   id              uuid primary key default gen_random_uuid(),
