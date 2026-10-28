@@ -1,0 +1,41 @@
+[Unit]
+# Harvests what every bot did from ~/dev/brain into Mission Control's
+# /activity page. USER unit, same as mission-control-sync: it reads the
+# user's brain checkout and writes only this app's own database.
+Description=Mission Control — bot activity harvest
+Documentation=file:///home/admxn/dev/mission-control/docs/bot-activity.md
+After=network-online.target
+Wants=network-online.target
+# Five failures in ten minutes and it stops retrying until the next timer
+# tick, rather than hammering a database that is down.
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+
+# The same secrets file as the project sync (mode 600, never committed).
+EnvironmentFile=%h/.config/mission-control/sync.env
+
+WorkingDirectory=%h/dev/mission-control
+
+# Absolute path: a user unit does not source ~/.profile, so fnm's shims are
+# absent and a bare `node` fails with 203/EXEC. See docs/runbook.md.
+ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/activity.ts
+# v3: deliver Eric's /activity decisions to the bots that asked, right after
+# the harvest. The leading '-' keeps a delivery failure from failing the
+# harvest; the row keeps delivery_error and is retried on the next run.
+ExecStartPost=-/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/activity-deliver.ts
+
+Restart=on-failure
+RestartSec=60
+
+# Reads the brain, writes Supabase. Nothing more. loops-report.py runs in its
+# read-only report mode, so a read-only home is enough.
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+# ~/scratch: the brain scratch clone delivery commits through (never ~/dev/brain).
+ReadWritePaths=%h/.npm %h/scratch
+TimeoutStartSec=120

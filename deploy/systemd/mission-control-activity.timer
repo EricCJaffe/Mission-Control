@@ -1,0 +1,13 @@
+[Unit]
+Description=Run the Mission Control bot activity harvest every 5 minutes
+Documentation=file:///home/admxn/dev/mission-control/docs/bot-activity.md
+
+[Timer]
+# Every five minutes, all day: the page is the one Eric reads on the road,
+# and the R1 invariant calls it broken after twenty minutes of silence.
+OnCalendar=*:0/5
+RandomizedDelaySec=30
+Persistent=true
+
+[Install]
+WantedBy=timers.target
