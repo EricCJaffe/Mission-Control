@@ -3,7 +3,8 @@ import { today, dayOf } from "@/lib/day";
 import ActivityBoard, { type ActivityRow } from "@/components/activity/ActivityBoard";
 import { loadActivity, EVENT_LIMIT, FINISHED_LIMIT } from "@/lib/activity/source";
 import { splitByAge } from "@/lib/activity/format";
-import { scrubRow } from "@/lib/activity/scrub";
+import { scrubRow, scrub } from "@/lib/activity/scrub";
+import { droppedKeys, latestByKey, waitingState, type Decision } from "@/lib/activity/decisions";
 
 export const dynamic = "force-dynamic";
 
@@ -40,18 +41,29 @@ export default async function ActivityPage() {
   if (!userData.user) return null;
 
   const todayEt = today();
-  const [snapshot, tasks] = await Promise.all([
+  const [snapshot, tasks, decisionsRes] = await Promise.all([
     loadActivity(supabase),
-    // Mission Control's own tasks that are due today and not done, for Eric
-    // or for nobody in particular. Read here, never re-synced.
+    // Mission Control's own tasks that are due (today or overdue) and not
+    // done, for Eric or for nobody in particular. Read here, never re-synced.
     supabase
       .from("tasks")
       .select("id,title,due_date,created_at,project_id")
-      .eq("due_date", todayEt)
+      .lte("due_date", todayEt)
       .neq("status", "done")
       .or("assignee.is.null,assignee.ilike.*eric*")
+      .order("due_date", { ascending: true })
       .limit(50),
+    // His answers (v3), newest first: the audit log, and what hides or marks
+    // a Waiting item. Before the migration this errors and is treated as none.
+    supabase
+      .from("bot_activity_decisions")
+      .select("id,item_key,item_source,item_title,item_bot,choice,reply,until_date,created_at,delivered_at")
+      .order("created_at", { ascending: false })
+      .limit(300),
   ]);
+  const decisions = (decisionsRes.error ? [] : (decisionsRes.data ?? [])) as Decision[];
+  const latest = latestByKey(decisions);
+  const dropped = droppedKeys(decisions);
 
   // Every row from every source goes through the one scrub before it renders.
   const clean = (rows: ActivityRow[]) => rows.map(scrubRow).filter((r): r is ActivityRow => r !== null);
@@ -73,10 +85,11 @@ export default async function ActivityPage() {
     const hl = t.project_id !== null && honeyLake.has(t.project_id);
     return {
       id: `task:${t.id}`,
+      key: `task:${t.id}`,
       bot: hl ? "Honey Lake session" : "Tasks",
       kind: "waiting",
       title: hl ? "Honey Lake: item waiting" : t.title,
-      tag: "due_today",
+      tag: t.due_date === todayEt ? "due_today" : "action",
       project: hl ? "Honey Lake" : null,
       started_at: null,
       ended_at: null,
@@ -87,7 +100,37 @@ export default async function ActivityPage() {
     };
   });
 
-  const waitingRows = [...byKind("waiting"), ...clean(taskWaiting)].sort((a, b) => {
+  // A drop is final (R-163); Not now / Snooze hide until their day; Done
+  // hides; Approve / No / Reply stay, marked "answered, waiting for bot".
+  const answered: Record<string, { choice: Decision["choice"]; at: string; delivered: boolean }> = {};
+  const visible = (rows: ActivityRow[]) =>
+    rows.filter((r) => {
+      const key = r.key ?? r.id;
+      if (dropped.has(key)) return false;
+      const state = waitingState(latest.get(key), todayEt);
+      if (state.answered && !state.hidden) {
+        answered[key] = { choice: state.answered.choice, at: state.answered.created_at, delivered: !!state.answered.delivered_at };
+      }
+      return !state.hidden;
+    });
+  const sortWaiting = (a: ActivityRow, b: ActivityRow) => {
+    const due = Number(b.tag === "due_today") - Number(a.tag === "due_today");
+    return due || a.occurred_at.localeCompare(b.occurred_at);
+  };
+  const botWaiting = visible(byKind("waiting")).sort(sortWaiting);
+  const todoWaiting = visible(clean(taskWaiting)).sort(sortWaiting);
+  const audit = decisions.slice(0, 100).map((d) => ({
+    id: d.id,
+    bot: scrub(d.item_bot, 60) || "Bot",
+    title: scrub(d.item_title, 200) || "Item",
+    choice: d.choice,
+    reply: d.reply ? scrub(d.reply, 1000) || null : null,
+    until_date: d.until_date,
+    created_at: d.created_at,
+    delivered: d.item_source === "task" || !!d.delivered_at,
+  }));
+
+  const waitingRows = [...botWaiting, ...todoWaiting].sort((a, b) => {
     const due = Number(b.tag === "due_today") - Number(a.tag === "due_today");
     return due || a.occurred_at.localeCompare(b.occurred_at);
   });
@@ -133,7 +176,12 @@ export default async function ActivityPage() {
       </div>
 
       <ActivityBoard
-        waiting={waitingRows}
+        botWaiting={botWaiting}
+        todos={todoWaiting}
+        answered={answered}
+        audit={audit}
+        // Taps act on real rows only: never on the sample or a snapshot.
+        interactive={snapshot.from === "tables"}
         inProgress={progressRows}
         finished={finishedRows}
         finishedTotal={finishedTotal}

@@ -28,7 +28,7 @@ test("the tables win once an ok run has left rows; otherwise fall back", () => {
 });
 
 test("a table row maps to the page shape unchanged", () => {
-  assert.deepEqual(toSnapshotRow(row), { ...row, kind: "finished", tag: null });
+  assert.deepEqual(toSnapshotRow(row), { ...row, kind: "finished", tag: null, key: "r1" });
 });
 
 test("only a GitHub pull request survives as a link", () => {

@@ -13,6 +13,7 @@ export type ItemRow = {
   due_at: string | null;
   pr_url: string | null;
   occurred_at: string;
+  source_key?: string;
 };
 
 const KINDS = new Set(["waiting", "in_progress", "finished", "event"]);
@@ -51,5 +52,6 @@ export function toSnapshotRow(r: ItemRow): SnapshotRow | null {
     due_at: r.due_at,
     pr_url: r.pr_url && PR.test(r.pr_url) ? r.pr_url : null,
     occurred_at: r.occurred_at,
+    key: r.source_key ?? r.id,
   };
 }

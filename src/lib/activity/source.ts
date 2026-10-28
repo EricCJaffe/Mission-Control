@@ -24,7 +24,7 @@ export const EVENT_LIMIT = 1000;
 export const FINISHED_LIMIT = 150;
 const OPEN_LIMIT = 1000;
 
-const COLUMNS = "id,bot,kind,title,tag,project,started_at,ended_at,due_at,pr_url,occurred_at";
+const COLUMNS = "id,source_key,bot,kind,title,tag,project,started_at,ended_at,due_at,pr_url,occurred_at";
 
 export type LoadedActivity = ActivitySnapshot & { finishedTotal: number; from: "tables" | "snapshot" | "sample" };
 

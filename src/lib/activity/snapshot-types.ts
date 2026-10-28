@@ -11,6 +11,8 @@ export type SnapshotRow = {
   due_at: string | null;
   pr_url: string | null;
   occurred_at: string;
+  /** Stable identity across harvests (bot_activity_items.source_key, or task:<uuid>); decisions key on it. */
+  key?: string;
 };
 
 export type ActivitySnapshot = {
