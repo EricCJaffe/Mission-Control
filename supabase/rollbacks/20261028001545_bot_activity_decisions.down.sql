@@ -1,4 +1,4 @@
--- Rollback for 20261028000259_bot_activity_decisions.sql
+-- Rollback for 20261028001545_bot_activity_decisions.sql
 -- Drops Eric's /activity decisions and their audit log. Undelivered rows are
 -- answers no bot has seen yet; check first:
 --   select count(*) from mission.bot_activity_decisions where delivered_at is null;
