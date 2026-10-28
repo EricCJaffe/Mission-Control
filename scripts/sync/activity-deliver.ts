@@ -105,7 +105,13 @@ async function main() {
       const note = p.note!;
       const abs = join(clone, note.path);
       mkdirSync(dirname(abs), { recursive: true });
-      if (existsSync(abs)) continue; // already written by an earlier, half-finished run
+      if (existsSync(abs)) {
+        // An earlier run pushed this note and then failed to mark the row:
+        // it is delivered, so say so instead of leaving it "sending" forever.
+        await mark(p.row.id, { delivered_at: now, delivery_ref: note.path, delivery_error: null });
+        p.note = null;
+        continue;
+      }
       writeFileSync(abs, note.text);
       touched.push(note.path);
       if (p.row.choice === 'drop') {
@@ -137,12 +143,12 @@ async function main() {
         ref = `brain-conflict/${name}`;
         git(clone, ['push', '-q', 'origin', `HEAD:refs/heads/${ref}`]);
       }
-      for (const p of notes) await mark(p.row.id, { delivered_at: now, delivery_ref: ref === 'main' ? p.note!.path : `${ref}:${p.note!.path}`, delivery_error: null });
-      console.log(`deliver: ${notes.length} note(s) pushed to ${ref}`);
+      for (const p of notes.filter((x) => x.note)) await mark(p.row.id, { delivered_at: now, delivery_ref: ref === 'main' ? p.note!.path : `${ref}:${p.note!.path}`, delivery_error: null });
+      console.log(`deliver: ${notes.filter((x) => x.note).length} note(s) pushed to ${ref}`);
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message.slice(0, 200) : 'deliver failed';
-    for (const p of notes) await mark(p.row.id, { delivery_error: msg });
+    for (const p of notes.filter((x) => x.note)) await mark(p.row.id, { delivery_error: msg });
     throw err;
   } finally {
     rmSync(clone, { recursive: true, force: true });

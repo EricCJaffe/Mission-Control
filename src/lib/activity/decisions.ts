@@ -43,7 +43,9 @@ export type DecisionInput = {
 export type Decision = DecisionInput & { id: string; created_at: string; delivered_at: string | null };
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const KEY = /^[A-Za-z0-9:._~#-]{1,200}$/;
+// A harvested source_key (channel:..., loops:<day>:<client>:<hash>, where the
+// client may have spaces) or task:<uuid>. No control characters.
+const KEY = /^(channel|loops|task|honeylake):[^\u0000-\u001f\u007f]{1,190}$/;
 
 /** Add days to an ET calendar day, 'YYYY-MM-DD'. */
 export function addDays(day: string, days: number): string {
@@ -96,15 +98,19 @@ export type WaitingState = { hidden: boolean; answered: Decision | null };
  * What the latest decision on an item means for the Waiting column.
  *   drop                     hidden for good (R-163)
  *   not_now / snooze         hidden until its day
- *   done                     hidden (the task itself is marked done)
+ *   done                     not hidden here: the task itself is done or rolled forward
  *   approve / no / reply     shown, marked "answered, waiting for bot"
  */
 export function waitingState(latest: Decision | undefined, today: string): WaitingState {
   if (!latest) return { hidden: false, answered: null };
   switch (latest.choice) {
     case "drop":
-    case "done":
       return { hidden: true, answered: latest };
+    case "done":
+      // Not hidden by the decision: Done marks the task done (or rolls a
+      // recurring one to its next date), and the due-task query drops it on
+      // its own. Hiding by key would hide every later occurrence too.
+      return { hidden: false, answered: null };
     case "not_now":
     case "snooze":
       return latest.until_date && latest.until_date > today

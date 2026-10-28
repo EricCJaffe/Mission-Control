@@ -67,7 +67,13 @@ export async function POST(req: Request) {
     .insert({ ...d, user_id: user.id })
     .select("id, created_at")
     .single();
-  if (error) return NextResponse.json({ error: "Could not record the decision" }, { status: 500 });
+  if (error) {
+    // A to-do already changed above (done, or moved to its new date) and
+    // leaves Waiting on its own; only the audit row is missing. A bot answer
+    // with no row was never recorded, so that one is an error.
+    if (d.item_source === "task" && d.choice !== "drop") return NextResponse.json({ ok: true, recorded: false, choice: d.choice });
+    return NextResponse.json({ error: "Could not record the decision" }, { status: 500 });
+  }
 
-  return NextResponse.json({ ok: true, id: data.id, created_at: data.created_at, choice: d.choice });
+  return NextResponse.json({ ok: true, recorded: true, id: data.id, created_at: data.created_at, choice: d.choice });
 }
