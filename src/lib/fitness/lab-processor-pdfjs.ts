@@ -1,3 +1,4 @@
+import { claudeChatFetch } from '@/lib/claude';
 // Lab processor using pdfjs-dist (pure JavaScript, no native deps)
 import { supabaseServer } from '@/lib/supabase/server';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -81,11 +82,10 @@ Return JSON:
 
 Return ONLY the JSON.`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await claudeChatFetch('chat.completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o',

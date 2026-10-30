@@ -42,13 +42,13 @@ export async function POST(req: Request) {
     ? `Flourishing Index: ${flourishingResult.data.display_index ?? 'N/A'}/10\nSummary: ${flourishingResult.data.overall_message ?? 'N/A'}\nStrongest: ${(flourishingResult.data.strongest_domains || []).join(', ')}\nGrowth: ${(flourishingResult.data.growth_domains || []).join(', ')}`
     : "";
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
       {
         ok: false,
-        error: "OPENAI_API_KEY not configured",
+        error: "ANTHROPIC_API_KEY not configured",
         context: { personaLength: persona.length, soulLength: soul.length, flourishingLength: flourishing.length },
-        hint: "Set OPENAI_API_KEY on the server to enable responses.",
+        hint: "Set ANTHROPIC_API_KEY on the server to enable responses.",
       },
       { status: 501 }
     );

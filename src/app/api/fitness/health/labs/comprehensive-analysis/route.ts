@@ -1,3 +1,4 @@
+import { claudeChatFetch } from '@/lib/claude';
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { buildAISystemPrompt } from '@/lib/fitness/health-context';
@@ -172,11 +173,10 @@ Return JSON:
 
 Be specific, actionable, and evidence-based. Focus on practical steps the patient can implement. Return ONLY the JSON.`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await claudeChatFetch('chat.completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o',

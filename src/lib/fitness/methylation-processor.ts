@@ -1,3 +1,4 @@
+import { claudeChatFetch } from '@/lib/claude';
 // Methylation Report Processor — Extracts SNP data from genetic/methylation test reports
 // Generates supplement and lifestyle implications
 
@@ -101,11 +102,10 @@ Be thorough. Extract EVERY SNP visible. Return ONLY the JSON.
 ${pdfText}
 ---END PDF TEXT---`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await claudeChatFetch('chat.completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o',
@@ -322,11 +322,10 @@ Return JSON:
 Be thorough, specific, and actionable. Explain things a smart non-scientist would understand. Return ONLY the JSON.`;
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await claudeChatFetch('chat.completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o',

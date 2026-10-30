@@ -1,3 +1,4 @@
+import { claudeChatFetch } from '@/lib/claude';
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { GENETIC_REPORT_TYPES, GENETIC_REPORT_LABELS, type GeneticReportType } from '@/lib/fitness/genetic-report-types';
@@ -107,11 +108,10 @@ export async function POST() {
     const systemPrompt = await buildAISystemPrompt(userId, 'genetics_analysis');
     const synthesisPrompt = buildSynthesisPrompt(reportSummaries);
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await claudeChatFetch('chat.completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o',

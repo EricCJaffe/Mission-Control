@@ -1,3 +1,4 @@
+import { claudeChatFetch } from '@/lib/claude';
 // Lab Report Processor — Extracts test results from PDF lab reports using GPT-4o
 // Generates trend analysis and health.md update proposals
 
@@ -114,11 +115,10 @@ Here is the extracted text from the lab report:
 
 ${pdfText}`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await claudeChatFetch('chat.completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o',
@@ -425,11 +425,10 @@ Provide a COMPREHENSIVE analysis. Return JSON:
 Be thorough. For flagged results, explain clinical significance, possible causes, and actionable recommendations. Return ONLY the JSON.`;
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await claudeChatFetch('chat.completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o',

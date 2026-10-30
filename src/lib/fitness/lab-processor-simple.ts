@@ -1,3 +1,4 @@
+import { claudeChatFetch } from '@/lib/claude';
 // Simplest Lab Processor - Uses OpenAI Assistants API with file upload
 // No pdf-parse, no image conversion - just upload PDF directly to OpenAI
 
@@ -67,11 +68,10 @@ Return JSON in this exact format:
 Extract EVERY test result visible. Return ONLY the JSON, no other text.`;
 
     // Call GPT-4o with the base64 data
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await claudeChatFetch('chat.completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o',
