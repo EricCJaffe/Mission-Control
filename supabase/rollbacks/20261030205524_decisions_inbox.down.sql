@@ -1,4 +1,4 @@
--- Rollback for 20261030200000_decisions_inbox.sql
+-- Rollback for 20261030205524_decisions_inbox.sql
 -- Drops the Decisions inbox. Answered-but-undelivered rows are answers no bot
 -- has seen yet; check first:
 --   select count(*) from mission.decisions where status = 'answered' and delivered_at is null;

@@ -30,7 +30,7 @@
 -- No client data: Honey Lake notes are never ingested, and every text column
 -- is scrubbed of addresses, phone numbers, ids and links before it is written.
 --
--- Additive only. Rollback: supabase/rollbacks/20261030200000_decisions_inbox.down.sql
+-- Additive only. Rollback: supabase/rollbacks/20261030205524_decisions_inbox.down.sql
 
 create table if not exists mission.decisions (
   id              uuid primary key default gen_random_uuid(),

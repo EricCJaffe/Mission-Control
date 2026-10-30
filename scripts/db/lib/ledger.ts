@@ -230,7 +230,9 @@ export function unqualifiedRelations(sql: string): string[] {
       // `after update of col_a, col_b on mission.tasks`: `of` opens a column
       // list, and the relation comes after `on`. A grant's privilege list,
       // `grant select, insert, update on mission.tasks`, puts `on` there too.
-      if (['cascade', 'restrict', 'set', 'no', 'current_timestamp', 'now', 'of', 'on'].includes(bare)) continue;
+      // A policy's `for update to authenticated` / `for update using (...)`
+      // names a role or an expression, never a relation.
+      if (['cascade', 'restrict', 'set', 'no', 'current_timestamp', 'now', 'of', 'on', 'to', 'using', 'with'].includes(bare)) continue;
       out.add(bare);
     }
   }
