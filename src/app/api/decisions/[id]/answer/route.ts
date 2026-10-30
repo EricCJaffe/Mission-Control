@@ -45,7 +45,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const parsed = parseAnswer(raw, (row.options ?? []) as DecisionOption[]);
-  if (!parsed.ok) return NextResponse.json({ error: `Bad ${parsed.error}` }, { status: 400 });
+  if (!parsed.ok) {
+    const msg = parsed.error === "health" ? "Leave health details out: this answer is written to the bots' notes" : `Bad ${parsed.error}`;
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
 
   const answeredAt = new Date().toISOString();
   const { data: updated, error } = await supabase

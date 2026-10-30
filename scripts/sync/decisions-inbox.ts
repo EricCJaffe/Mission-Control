@@ -155,9 +155,10 @@ async function main() {
     .eq('user_id', env.userId)
     .eq('status', 'answered')
     .is('delivered_at', null)
-    // Parked on a brain-conflict branch: a person merges it; re-pushing
-    // would only park a second copy.
-    .or('delivery_ref.is.null,delivery_ref.not.like.brain-conflict/*')
+    // A row parked on a brain-conflict branch or held by the leak test
+    // carries a delivery_ref and waits for a person; re-trying would only
+    // park a second copy or fail the same way.
+    .is('delivery_ref', null)
     .order('answered_at', { ascending: true })
     .limit(50);
   if (error) throw new Error(`read answers: ${error.message}`);
@@ -175,7 +176,7 @@ async function main() {
   const planned = rows.map((row) => ({ row, note: renderAnswerNote(row) }));
   for (const p of planned) console.log(`decisions: deliver ${p.row.answer.padEnd(5)} ${p.note?.path ?? 'leak test failed'}`);
   if (dryRun) return;
-  for (const p of planned.filter((x) => !x.note)) await mark(p.row.id, { delivery_error: 'held: the answer failed the leak test; needs a look' });
+  for (const p of planned.filter((x) => !x.note)) await mark(p.row.id, { delivery_ref: 'held:leak-test', delivery_error: 'held: the answer failed the leak or health test; needs a look' });
   const notes = planned.filter((x) => x.note);
   if (notes.length === 0) return;
 

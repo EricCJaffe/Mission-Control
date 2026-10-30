@@ -82,7 +82,8 @@ test('stalled jobs: waiting on Eric, or live past 48 hours; closed ones withdraw
   const old = parseStalledJob(p, `${fm(['status: queued', 'for: fsaos'])}# Thing\n`, NOW)!;
   assert.equal(old.status, 'open');
   assert.equal(old.default_option, 'o1');
-  assert.equal(parseStalledJob(p, `${fm(['status: queued', 'started: 2026-10-30T12:00-04:00'])}# Fresh\n`, NOW), null);
+  assert.equal(parseStalledJob(p, `${fm(['status: queued', 'started: 2026-10-30T12:00-04:00'])}# Fresh\n`, NOW)!.status, 'withdrawn');
+  assert.equal(parseStalledJob(p, `${fm(['status: fyi'])}# Note\n`, NOW), null);
   assert.equal(parseStalledJob(p, `${fm(['status: done'])}# Thing\n`, NOW)!.status, 'withdrawn');
   assert.equal(parseStalledJob('channel/to-grokbot/2026-10-01-x.md', `${fm(['status: queued'])}# X\n`, NOW), null);
 });
@@ -107,6 +108,7 @@ test('answer note: for cos, kind answer, re the source, his words verbatim, leak
   assert.match(note.text, /> Keep it until the cleanup lands\./);
   assert.equal(renderAnswerNote({ ...row, answer: 'o9' }), null);
   assert.equal(renderAnswerNote({ ...row, answer_text: 'mail jane.doe.test@gmail.com' }), null);
+  assert.equal(renderAnswerNote({ ...row, answer_text: 'after my MRI' }), null);
   const other = renderAnswerNote({ ...row, answer: 'other', answer_text: 'Ask me Monday.' })!;
   assert.match(other.text, /answer: Other/);
 });

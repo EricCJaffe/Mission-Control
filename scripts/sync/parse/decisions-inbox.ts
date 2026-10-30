@@ -21,40 +21,8 @@
 import { scrub, textLeaks } from '../../../src/lib/activity/scrub.ts';
 import { botName, isHoneyLake, parseFrontmatter, parseH1, parseWhen, type Frontmatter } from './activity.ts';
 
-/**
- * Health is never ingested, Eric's or anyone's (Codex review, PR #81: the
- * scrubber removes identifiers, not health information). A note that names
- * a health topic in its path, routing fields, title or opening paragraph is
- * skipped whole, the same as Honey Lake. Over-matching costs one card he can
- * still answer in the brain; under-matching puts health data in a table.
- */
-const HEALTH_RE = new RegExp(
-  '\\b(?:' +
-    [
-      // care, records, regulation
-      'health\\w*', 'medical\\w*', 'medic(?:ine|ation)s?', 'meds?', 'rx', 'phi', 'hipaa', 'patients?', 'clinic(?:al|s)?',
-      'hospital\\w*', 'er visit', 'urgent care', 'diagnos[ie]s', 'diagnosed', 'symptoms?', 'treatment', 'prognosis',
-      'doctors?', 'dr appt', 'physicians?', 'nurses?', 'specialist', 'appointment with dr', 'pharmac\\w*', 'prescri\\w*',
-      'insurance claim', 'copay', 'deductible',
-      // body and conditions
-      'heart', 'cardi\\w*', 'blood', 'bp', 'cholesterol', 'a1c', 'glucose', 'insulin', 'diabet\\w*', 'cancer', 'tumou?r',
-      'oncolog\\w*', 'biopsy', 'stroke', 'injur\\w*', 'fracture', 'pain', 'illness', 'sick', 'infection', 'covid', 'flu',
-      'vaccin\\w*', 'allerg\\w*', 'asthma', 'pregnan\\w*', 'fertility', 'dental', 'dentist', 'eye exam', 'vision test',
-      'hearing', 'sleep apnea', 'weight loss', 'bmi', 'genetic\\w*', 'dna', 'hormone\\w*', 'testosterone', 'thyroid',
-      // tests and procedures
-      'labs?', 'lab results?', 'bloodwork', 'mri', 'ct scan', 'pet scan', 'x-?ray', 'ultrasound', 'ecg', 'ekg', 'echo(?:cardiogram)?',
-      'stress test', 'colonoscopy', 'surgery', 'surgical', 'procedure', 'physical therapy', 'pt session', 'rehab\\w*',
-      // mind
-      'mental', 'therap(?:y|ist|ies)', 'counsel(?:ing|or|ling)', 'psych\\w*', 'depress\\w*', 'anxiety', 'crisis', 'suicid\\w*',
-      'self-?harm', 'addiction', 'recovery program', 'substance',
-    ].join('|') +
-    ')\\b',
-  'i',
-);
-
-export function isHealth(...values: Array<string | null | undefined>): boolean {
-  return values.some((v) => typeof v === 'string' && HEALTH_RE.test(v.replace(/[-_]/g, ' ')));
-}
+export { isHealth } from '../../../src/lib/activity/health.ts';
+import { isHealth } from '../../../src/lib/activity/health.ts';
 
 export const STALL_HOURS = 48;
 export const STALE_DAYS = 7;
@@ -267,7 +235,8 @@ export function parseStalledJob(path: string, text: string, now: Date): Decision
   const age = ageHours(fm, path, now);
   const live = JOB_LIVE.has(st);
   const stalled = live && (waitingEric || (age !== null && age > STALL_HOURS));
-  if (!stalled && !CLOSED.has(st)) return null;
+  // Moving again (or never stalled): withdrawn, so a card it once had closes.
+  if (!stalled && !CLOSED.has(st) && !live) return null;
   const body = text.slice(end);
   if (sensitive(path, fm, body)) return null;
   const title = scrub(stripMd(parseH1(body) ?? path.split('/').pop()!.replace(/\.md$/, '')), 160);
@@ -364,6 +333,6 @@ export function renderAnswerNote(row: AnsweredRow): { path: string; text: string
   const text = `${fm.join('\n')}\n\n${lines.join('\n')}\n`;
   // The path and note id are the only non-prose tokens; test the prose.
   const prose = [row.title, choice, opt?.detail ?? '', row.answer_text ?? '', row.for_agent ?? ''];
-  if (prose.some((t) => textLeaks(t).length > 0)) return null;
+  if (prose.some((t) => textLeaks(t).length > 0 || isHealth(t))) return null;
   return { path, text };
 }

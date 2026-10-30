@@ -33,3 +33,9 @@ test("red first, then nearest deadline, then oldest", () => {
   ];
   assert.deepEqual(sortOpen(rows).map((r) => r.id), ["b", "c", "a", "d"]);
 });
+
+test("free text with health details is refused before it is stored", () => {
+  const r = parseAnswer({ answer: "other", text: "Move it, my MRI is that day" }, OPTS);
+  assert.deepEqual(r, { ok: false, error: "health" });
+  assert.equal(parseAnswer({ answer: "o1", text: "after the cardiology visit" }, OPTS).ok, false);
+});

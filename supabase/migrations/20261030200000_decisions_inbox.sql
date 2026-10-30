@@ -103,3 +103,23 @@ create policy decisions_owner_answer on mission.decisions
   for update to authenticated
   using ((select auth.uid()) = user_id and status in ('open', 'stale') and answered_at is null)
   with check ((select auth.uid()) = user_id and status = 'answered' and delivered_at is null);
+
+-- The audit time is the database's, not the client's: answering stamps
+-- answered_at = now() whatever the request sent.
+create or replace function mission.decisions_stamp_answer()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.status = 'answered' and old.status is distinct from 'answered' then
+    new.answered_at := now();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists decisions_stamp_answer on mission.decisions;
+create trigger decisions_stamp_answer
+  before update on mission.decisions
+  for each row execute function mission.decisions_stamp_answer();

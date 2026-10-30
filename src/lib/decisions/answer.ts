@@ -1,4 +1,5 @@
 import { scrub } from "../activity/scrub.ts";
+import { isHealth } from "../activity/health.ts";
 
 /*
  * The Decisions inbox, app side: what a row looks like on the page, the order
@@ -55,6 +56,8 @@ export function parseAnswer(raw: unknown, options: DecisionOption[]): { ok: true
   const text = typeof b.text === "string" ? b.text.trim() : "";
   if (text.length > ANSWER_TEXT_MAX) return { ok: false, error: "text" };
   const clean = text ? scrub(text, ANSWER_TEXT_MAX) : "";
+  // His words go into the brain as a channel note: no health details, ever.
+  if (clean && isHealth(clean)) return { ok: false, error: "health" };
   if (answer === "other") {
     if (!clean) return { ok: false, error: "text" };
     return { ok: true, value: { answer, answer_text: clean } };

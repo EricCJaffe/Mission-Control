@@ -2,6 +2,8 @@
 -- Drops the Decisions inbox. Answered-but-undelivered rows are answers no bot
 -- has seen yet; check first:
 --   select count(*) from mission.decisions where status = 'answered' and delivered_at is null;
+drop trigger if exists decisions_stamp_answer on mission.decisions;
+drop function if exists mission.decisions_stamp_answer();
 drop policy if exists decisions_owner_answer on mission.decisions;
 drop policy if exists decisions_owner_read on mission.decisions;
 drop index if exists mission.decisions_undelivered_idx;
