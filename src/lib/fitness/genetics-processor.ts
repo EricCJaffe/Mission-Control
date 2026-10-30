@@ -1,3 +1,4 @@
+import { claudeChatFetch } from '@/lib/claude';
 // Unified Genetics Report Processor
 // Handles 6 genetic report types with type-specific extraction + deep AI analysis.
 // All results are saved to analysis_json on health_file_uploads via RPC.
@@ -359,11 +360,10 @@ async function callOpenAI(
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
   messages.push({ role: 'user', content: userPrompt });
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await claudeChatFetch('chat.completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
       model: 'gpt-4o',

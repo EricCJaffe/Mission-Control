@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { buildAISystemPrompt } from "@/lib/fitness/health-context";
+import { getAnthropic, CLAUDE_SMART_MODEL } from "@/lib/claude";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -37,82 +38,39 @@ When answering health questions, be thorough but always include the caveat to co
 Speak in a tone that matches Eric's style: direct, urgent, hopeful, practical. Use short sections and bullets when helpful. Always be honest — no fluff.
 `;
 
-  const input = [
-    { role: "system" as const, content: systemPrompt },
-    ...messages.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })),
-  ];
-
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
+  if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
-      { error: "OPENAI_API_KEY not configured" },
+      { error: "ANTHROPIC_API_KEY not configured" },
       { status: 500 },
     );
   }
 
-  const res = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      input,
-      stream: true,
-    }),
+  // Claude (was OpenAI's streaming Responses API until 2026-10-30). The client
+  // still receives plain text deltas, so nothing downstream changed.
+  const claudeStream = getAnthropic().messages.stream({
+    model: CLAUDE_SMART_MODEL,
+    max_tokens: 8192,
+    system: systemPrompt,
+    messages: messages.map((m) => ({
+      role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
+      content: m.content,
+    })),
   });
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    return NextResponse.json(
-      { error: errorText || `OpenAI error ${res.status}` },
-      { status: 502 },
-    );
-  }
-
-  // Stream the response back to the client
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
       try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const data = line.slice(6).trim();
-            if (data === "[DONE]") continue;
-
-            try {
-              const parsed = JSON.parse(data);
-              // Responses API streaming: look for output_text.delta
-              if (parsed.type === "response.output_text.delta") {
-                const delta = parsed.delta || "";
-                controller.enqueue(encoder.encode(delta));
-              }
-            } catch {
-              // skip unparseable lines
-            }
+        for await (const event of claudeStream) {
+          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+            controller.enqueue(encoder.encode(event.delta.text));
           }
         }
       } catch (err) {
         controller.error(err);
-      } finally {
-        controller.close();
+        return;
       }
+      controller.close();
     },
   });
 

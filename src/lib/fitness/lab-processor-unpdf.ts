@@ -1,3 +1,4 @@
+import { claudeChatFetch } from '@/lib/claude';
 import { supabaseServer } from '@/lib/supabase/server';
 import { extractText } from 'unpdf';
 
@@ -40,11 +41,10 @@ export async function processLabReportUnpdf(params: {
 
     const prompt = `Extract lab results from this text:\n\n${text}\n\nReturn JSON:\n\`\`\`json\n{"panel":{"lab_name":"","panel_date":"YYYY-MM-DD","provider_name":"","fasting":false},"results":[{"test_name":"","value":"","unit":"","reference_range":"","flag":""}]}\n\`\`\``;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await claudeChatFetch('chat.completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o',

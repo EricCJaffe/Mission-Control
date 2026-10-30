@@ -1,3 +1,4 @@
+import { claudeChatFetch } from '@/lib/claude';
 // Lab Report Processor with GPT-4o Vision Support
 // For scanned PDFs (images), converts pages to images and uses Vision API
 
@@ -84,11 +85,10 @@ Return JSON in this exact format:
 
 Be thorough. Extract EVERY test result visible across all pages. Return ONLY the JSON, no other text.`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await claudeChatFetch('chat.completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o',
