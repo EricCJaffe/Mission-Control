@@ -43,4 +43,5 @@ ProtectHome=read-only
 # ~/scratch: the brain scratch clone delivery commits through (never ~/dev/brain).
 # ~/dev/brain/runs: fsa-mail logs the doorbell to runs/external-sends.tsv.
 ReadWritePaths=%h/.npm %h/scratch %h/dev/brain/runs
-TimeoutStartSec=120
+# Covers the harvest and both ExecStartPost steps (clones, pushes, doorbells).
+TimeoutStartSec=300

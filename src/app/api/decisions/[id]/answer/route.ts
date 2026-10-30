@@ -60,5 +60,5 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // Zero rows: answered in another tab a moment ago, or withdrawn meanwhile.
   if (!updated || updated.length === 0) return NextResponse.json({ error: "Already answered" }, { status: 409 });
 
-  return NextResponse.json({ ok: true, id, answer: parsed.value.answer, answered_at: answeredAt });
+  return NextResponse.json({ ok: true, id, answer: parsed.value.answer, answer_text: parsed.value.answer_text, answered_at: answeredAt });
 }

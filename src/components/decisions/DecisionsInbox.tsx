@@ -58,7 +58,13 @@ export default function DecisionsInbox({ open, answered }: { open: DecisionCardR
                 </p>
                 <p className="text-xs text-slate-500">
                   {r.answered_at ? fmt(r.answered_at) : ""} ·{" "}
-                  {r.delivered_at ? "the bots have it" : r.delivery_error ? "not delivered yet, retrying" : "sending to Chief of Staff"}
+                  {r.delivered_at
+                    ? "the bots have it"
+                    : r.delivery_error?.startsWith("held")
+                      ? "held: the brain push needs a merge"
+                      : r.delivery_error
+                        ? "not delivered yet, retrying"
+                        : "sending to Chief of Staff"}
                 </p>
               </li>
             ))}
@@ -84,13 +90,14 @@ function DecisionCard({ row, onAnswered }: { row: DecisionCardRow; onAnswered: (
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answer, text: answer === "other" || text.trim() ? text : undefined }),
       });
-      const json = (await res.json().catch(() => ({}))) as { error?: string; answered_at?: string };
+      const json = (await res.json().catch(() => ({}))) as { error?: string; answered_at?: string; answer_text?: string | null };
       if (!res.ok) throw new Error(json.error ?? "Could not send");
       onAnswered({
         ...row,
         status: "answered",
         answer,
-        answer_text: text.trim() || null,
+        // What the server stored (scrubbed), not what was typed.
+        answer_text: json.answer_text ?? null,
         answered_at: json.answered_at ?? new Date().toISOString(),
         delivered_at: null,
         delivery_error: null,

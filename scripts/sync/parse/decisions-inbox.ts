@@ -21,6 +21,20 @@
 import { scrub, textLeaks } from '../../../src/lib/activity/scrub.ts';
 import { botName, isHoneyLake, parseFrontmatter, parseH1, parseWhen, type Frontmatter } from './activity.ts';
 
+/**
+ * Health is never ingested, Eric's or anyone's (Codex review, PR #81: the
+ * scrubber removes identifiers, not health information). A note that names
+ * a health topic in its path, routing fields, title or opening paragraph is
+ * skipped whole, the same as Honey Lake. Over-matching costs one card he can
+ * still answer in the brain; under-matching puts health data in a table.
+ */
+const HEALTH_RE =
+  /\b(?:health|medical|medic(?:ine|ation)s?|meds|phi|hipaa|patients?|clinic(?:al)?|diagnos[ie]s|symptoms?|cardiolog\w*|doctor|physician|therap(?:y|ist)|prescriptions?|labs? results?|blood ?(?:work|pressure)|surgery|hospital|genetic\w*|mental[ -]health|crisis|suicid\w*|counsel(?:ing|or))\b/i;
+
+export function isHealth(...values: Array<string | null | undefined>): boolean {
+  return values.some((v) => typeof v === 'string' && HEALTH_RE.test(v.replace(/[-_]/g, ' ')));
+}
+
 export const STALL_HOURS = 48;
 export const STALE_DAYS = 7;
 export const CONTEXT_MAX = 600;
@@ -187,6 +201,7 @@ export function parseDecisionNote(path: string, text: string, now: Date): Decisi
   if ((fm.kind ?? '').toLowerCase() !== 'decision') return null;
   if (isHoneyLake(path, fm.project, fm.for, fm.client, fm.from)) return null;
   const body = text.slice(end);
+  if (sensitive(path, fm, body)) return null;
   const st = (fm.status ?? '').toLowerCase();
   const title = scrub(stripMd(parseH1(body) ?? fm.subject ?? fm.title ?? ''), 160);
   if (!title) return null;
@@ -233,6 +248,7 @@ export function parseStalledJob(path: string, text: string, now: Date): Decision
   const stalled = live && (waitingEric || (age !== null && age > STALL_HOURS));
   if (!stalled && !CLOSED.has(st)) return null;
   const body = text.slice(end);
+  if (sensitive(path, fm, body)) return null;
   const title = scrub(stripMd(parseH1(body) ?? path.split('/').pop()!.replace(/\.md$/, '')), 160);
   if (!title) return null;
   const days = age === null ? null : Math.floor(age / 24);
@@ -250,6 +266,12 @@ export function parseStalledJob(path: string, text: string, now: Date): Decision
     status: stalled ? 'open' : 'withdrawn',
   };
   return leaks(row) ? null : row;
+}
+
+/** Health in the path, routing fields, title or opening, or a note marked sensitive. */
+function sensitive(path: string, fm: Frontmatter, body: string): boolean {
+  if (TRUE.has((fm.phi ?? '').toLowerCase()) || TRUE.has((fm.sensitive ?? '').toLowerCase())) return true;
+  return isHealth(path, fm.project, fm.for, fm.client, fm.from, fm.topic, fm.subject, parseH1(body), parseContext(body));
 }
 
 function leaks(row: DecisionInput): boolean {

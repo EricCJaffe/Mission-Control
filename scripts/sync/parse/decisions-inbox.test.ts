@@ -110,3 +110,16 @@ test('answer note: for cos, kind answer, re the source, his words verbatim, leak
   const other = renderAnswerNote({ ...row, answer: 'other', answer_text: 'Ask me Monday.' })!;
   assert.match(other.text, /answer: Other/);
 });
+
+test('health is never ingested: path, routing, title, opening, or a phi/sensitive flag', () => {
+  const p = 'channel/to-grokbot/2026-10-30-decision-x.md';
+  const f = (extra: string[], body: string) => parseDecisionNote(p, `${fm(['kind: decision', 'status: open', ...extra])}${body}`, NOW);
+  assert.equal(f([], '# Move the cardiology appointment?\n'), null);
+  assert.equal(f([], '# Pick a date\n\nThe lab results came back and need a call.\n'), null);
+  assert.equal(f(['project: health'], '# Pick a date\n'), null);
+  assert.equal(f(['phi: true'], '# Pick a date\n'), null);
+  assert.equal(f(['sensitive: yes'], '# Pick a date\n'), null);
+  assert.equal(parseDecisionNote('channel/to-grokbot/2026-10-30-decision-mental-health-y.md', `${fm(['kind: decision'])}# Y\n`, NOW), null);
+  assert.equal(parseStalledJob('channel/from-grokbot/2026-10-01-meds-sync.md', `${fm(['status: queued'])}# Sync\n`, NOW), null);
+  assert.ok(f([], '# Ship gate: keep typecheck?\n'));
+});

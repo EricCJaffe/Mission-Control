@@ -108,10 +108,10 @@ async function main() {
     }
     upserts.push({ ...row, user_id: env.userId, last_seen_at: stamp, updated_at: stamp });
   }
-  // An open row whose note is gone from the scan (deleted, or fell out of
-  // the window still open) is withdrawn rather than left forever.
+  // An open row whose note was deleted is withdrawn. One merely older than
+  // the scan window keeps its last state: still answerable.
   for (const [note, r] of have) {
-    if (!seen.has(note) && (r.status === 'open' || r.status === 'stale')) withdraw.push(r.id);
+    if (!seen.has(note) && (r.status === 'open' || r.status === 'stale') && !existsSync(join(env.brainRoot, note))) withdraw.push(r.id);
   }
   console.log(`decisions: ${found.filter((r) => r.status !== 'withdrawn').length} live in the brain, ${upserts.length} open, ${withdraw.length} to withdraw`);
   if (dryRun) {
@@ -121,9 +121,22 @@ async function main() {
     if (exErr) return;
   }
   if (!dryRun) {
-    for (let i = 0; i < upserts.length; i += 200) {
-      const { error } = await db.from('decisions').upsert(upserts.slice(i, i + 200), { onConflict: 'user_id,source_note' });
-      if (error) throw new Error(`upsert decisions: ${error.message}`);
+    // New rows insert (a duplicate from a racing run is ignored); existing
+    // rows update only while still open or stale, so an answer Eric gave
+    // between the read above and this write is never reopened.
+    const fresh = upserts.filter((u) => !have.has(u.source_note as string));
+    for (let i = 0; i < fresh.length; i += 200) {
+      const { error } = await db.from('decisions').upsert(fresh.slice(i, i + 200), { onConflict: 'user_id,source_note', ignoreDuplicates: true });
+      if (error) throw new Error(`insert decisions: ${error.message}`);
+    }
+    for (const u of upserts.filter((x) => have.has(x.source_note as string))) {
+      const { error } = await db
+        .from('decisions')
+        .update(u)
+        .eq('user_id', env.userId)
+        .eq('source_note', u.source_note as string)
+        .in('status', ['open', 'stale', 'withdrawn']);
+      if (error) console.error(`decisions: could not refresh ${u.source_note}: ${error.message}`);
     }
     if (withdraw.length) {
       const { error } = await db
@@ -142,6 +155,9 @@ async function main() {
     .eq('user_id', env.userId)
     .eq('status', 'answered')
     .is('delivered_at', null)
+    // Parked on a brain-conflict branch: a person merges it; re-pushing
+    // would only park a second copy.
+    .or('delivery_ref.is.null,delivery_ref.not.like.brain-conflict/*')
     .order('answered_at', { ascending: true })
     .limit(50);
   if (error) throw new Error(`read answers: ${error.message}`);
@@ -173,8 +189,10 @@ async function main() {
       const abs = join(clone, note.path);
       mkdirSync(dirname(abs), { recursive: true });
       if (existsSync(abs)) {
-        // Pushed by an earlier run that then failed to mark the row.
+        // Pushed by an earlier run that then failed to mark the row. Ring
+        // again: a second doorbell is cheaper than none.
         await mark(p.row.id, { delivered_at: stamp, delivery_ref: note.path, delivery_error: null });
+        ring(note.path);
         continue;
       }
       writeFileSync(abs, note.text);
@@ -212,8 +230,14 @@ async function main() {
         git(clone, ['push', '-q', 'origin', `HEAD:refs/heads/${ref}`]);
       }
       for (const p of pushed) {
-        await mark(p.id, { delivered_at: stamp, delivery_ref: ref === 'main' ? p.path : `${ref}:${p.path}`, delivery_error: null });
-        if (ref === 'main') ring(p.path);
+        if (ref === 'main') {
+          await mark(p.id, { delivered_at: stamp, delivery_ref: p.path, delivery_error: null });
+          ring(p.path);
+        } else {
+          // Not delivered: nothing reads a conflict branch. The page shows
+          // this as held, and brain-conflict/* is swept by Chief of Staff.
+          await mark(p.id, { delivery_ref: `${ref}:${p.path}`, delivery_error: `held on ${ref}: the brain push was refused; needs a merge` });
+        }
       }
       console.log(`decisions: ${pushed.length} answer note(s) pushed to ${ref}`);
     }
@@ -237,7 +261,7 @@ function ring(path: string) {
     execFileSync(
       process.env.FSA_MAIL_BIN || 'fsa-mail',
       ['send', '--intent', 'eric-said', '--claim-ok', 'doorbell, a file path only', '--format', 'plain', '--to', COS_DOORBELL, '--subject', `grokbot-job [wake:ask-eric] ${slug}`, '--html-file', body],
-      { stdio: ['ignore', 'ignore', 'pipe'], timeout: 60_000 },
+      { stdio: ['ignore', 'ignore', 'pipe'], timeout: 30_000 },
     );
     console.log(`decisions: rang ${COS_DOORBELL} for ${path}`);
   } catch (err) {
