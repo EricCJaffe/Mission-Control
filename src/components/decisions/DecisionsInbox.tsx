@@ -61,7 +61,7 @@ export default function DecisionsInbox({ open, answered }: { open: DecisionCardR
                   {r.delivered_at
                     ? "the bots have it"
                     : r.delivery_error?.startsWith("held")
-                      ? "held: the brain push needs a merge"
+                      ? r.delivery_error
                       : r.delivery_error
                         ? "not delivered yet, retrying"
                         : "sending to Chief of Staff"}

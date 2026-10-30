@@ -121,5 +121,9 @@ test('health is never ingested: path, routing, title, opening, or a phi/sensitiv
   assert.equal(f(['sensitive: yes'], '# Pick a date\n'), null);
   assert.equal(parseDecisionNote('channel/to-grokbot/2026-10-30-decision-mental-health-y.md', `${fm(['kind: decision'])}# Y\n`, NOW), null);
   assert.equal(parseStalledJob('channel/from-grokbot/2026-10-01-meds-sync.md', `${fm(['status: queued'])}# Sync\n`, NOW), null);
+  for (const t of ['MRI follow-up', 'Heart monitor results', 'Book the EKG', 'Refill the Rx', 'Dentist on Friday?', 'Knee injury: rest or run?']) {
+    assert.equal(f([], `# ${t}\n`), null, t);
+  }
+  assert.equal(f([], '# Pick one\n\nOptions:\n1. Move the colonoscopy\n2. Keep it\n'), null);
   assert.ok(f([], '# Ship gate: keep typecheck?\n'));
 });

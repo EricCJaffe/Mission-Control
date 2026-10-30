@@ -28,8 +28,29 @@ import { botName, isHoneyLake, parseFrontmatter, parseH1, parseWhen, type Frontm
  * skipped whole, the same as Honey Lake. Over-matching costs one card he can
  * still answer in the brain; under-matching puts health data in a table.
  */
-const HEALTH_RE =
-  /\b(?:health|medical|medic(?:ine|ation)s?|meds|phi|hipaa|patients?|clinic(?:al)?|diagnos[ie]s|symptoms?|cardiolog\w*|doctor|physician|therap(?:y|ist)|prescriptions?|labs? results?|blood ?(?:work|pressure)|surgery|hospital|genetic\w*|mental[ -]health|crisis|suicid\w*|counsel(?:ing|or))\b/i;
+const HEALTH_RE = new RegExp(
+  '\\b(?:' +
+    [
+      // care, records, regulation
+      'health\\w*', 'medical\\w*', 'medic(?:ine|ation)s?', 'meds?', 'rx', 'phi', 'hipaa', 'patients?', 'clinic(?:al|s)?',
+      'hospital\\w*', 'er visit', 'urgent care', 'diagnos[ie]s', 'diagnosed', 'symptoms?', 'treatment', 'prognosis',
+      'doctors?', 'dr appt', 'physicians?', 'nurses?', 'specialist', 'appointment with dr', 'pharmac\\w*', 'prescri\\w*',
+      'insurance claim', 'copay', 'deductible',
+      // body and conditions
+      'heart', 'cardi\\w*', 'blood', 'bp', 'cholesterol', 'a1c', 'glucose', 'insulin', 'diabet\\w*', 'cancer', 'tumou?r',
+      'oncolog\\w*', 'biopsy', 'stroke', 'injur\\w*', 'fracture', 'pain', 'illness', 'sick', 'infection', 'covid', 'flu',
+      'vaccin\\w*', 'allerg\\w*', 'asthma', 'pregnan\\w*', 'fertility', 'dental', 'dentist', 'eye exam', 'vision test',
+      'hearing', 'sleep apnea', 'weight loss', 'bmi', 'genetic\\w*', 'dna', 'hormone\\w*', 'testosterone', 'thyroid',
+      // tests and procedures
+      'labs?', 'lab results?', 'bloodwork', 'mri', 'ct scan', 'pet scan', 'x-?ray', 'ultrasound', 'ecg', 'ekg', 'echo(?:cardiogram)?',
+      'stress test', 'colonoscopy', 'surgery', 'surgical', 'procedure', 'physical therapy', 'pt session', 'rehab\\w*',
+      // mind
+      'mental', 'therap(?:y|ist|ies)', 'counsel(?:ing|or|ling)', 'psych\\w*', 'depress\\w*', 'anxiety', 'crisis', 'suicid\\w*',
+      'self-?harm', 'addiction', 'recovery program', 'substance',
+    ].join('|') +
+    ')\\b',
+  'i',
+);
 
 export function isHealth(...values: Array<string | null | undefined>): boolean {
   return values.some((v) => typeof v === 'string' && HEALTH_RE.test(v.replace(/[-_]/g, ' ')));
@@ -271,7 +292,11 @@ export function parseStalledJob(path: string, text: string, now: Date): Decision
 /** Health in the path, routing fields, title or opening, or a note marked sensitive. */
 function sensitive(path: string, fm: Frontmatter, body: string): boolean {
   if (TRUE.has((fm.phi ?? '').toLowerCase()) || TRUE.has((fm.sensitive ?? '').toLowerCase())) return true;
-  return isHealth(path, fm.project, fm.for, fm.client, fm.from, fm.topic, fm.subject, parseH1(body), parseContext(body));
+  const { options } = optionsWithMark(body, fm);
+  return isHealth(
+    path, fm.project, fm.for, fm.client, fm.from, fm.topic, fm.subject, parseH1(body), parseContext(body),
+    parseRecommendation(body, fm), ...options.flatMap((o) => [o.label, o.detail]),
+  );
 }
 
 function leaks(row: DecisionInput): boolean {

@@ -175,7 +175,7 @@ async function main() {
   const planned = rows.map((row) => ({ row, note: renderAnswerNote(row) }));
   for (const p of planned) console.log(`decisions: deliver ${p.row.answer.padEnd(5)} ${p.note?.path ?? 'leak test failed'}`);
   if (dryRun) return;
-  for (const p of planned.filter((x) => !x.note)) await mark(p.row.id, { delivery_error: 'leak test failed' });
+  for (const p of planned.filter((x) => !x.note)) await mark(p.row.id, { delivery_error: 'held: the answer failed the leak test; needs a look' });
   const notes = planned.filter((x) => x.note);
   if (notes.length === 0) return;
 
@@ -217,15 +217,28 @@ async function main() {
       git(clone, ['add', '--', ...touched]);
       git(clone, ['commit', '-q', '-m', `decisions: deliver ${pushed.length} answer(s) from Eric on /decisions`, '--', ...touched]);
       let ref = 'main';
-      try {
+      // Twice: a push that lost a race with another writer usually lands on
+      // the second pull. Only a real conflict is parked.
+      const sync = () => {
         git(clone, ['-c', 'rebase.autoStash=false', 'pull', '-q', '--rebase', '--no-autostash']);
         git(clone, ['push', '-q']);
-      } catch {
+      };
+      const abort = () => {
         try {
           git(clone, ['rebase', '--abort']);
         } catch {
           /* not rebasing */
         }
+      };
+      try {
+        try {
+          sync();
+        } catch {
+          abort();
+          sync();
+        }
+      } catch {
+        abort();
         ref = `brain-conflict/${name}`;
         git(clone, ['push', '-q', 'origin', `HEAD:refs/heads/${ref}`]);
       }
