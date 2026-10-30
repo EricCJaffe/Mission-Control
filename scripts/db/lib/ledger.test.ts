@@ -242,3 +242,12 @@ test('a trigger column list is not a relation', () => {
     [],
   );
 });
+
+test("a policy's `for update to role` / `for update using` is not a relation", () => {
+  const sql = `create policy p on mission.decisions
+  for update to authenticated
+  using (true) with check (true);
+create policy q on mission.decisions for update using (true);
+update decisions set x = 1;`;
+  assert.deepEqual(unqualifiedRelations(sql), ['decisions']);
+});
