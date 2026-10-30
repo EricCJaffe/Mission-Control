@@ -1,7 +1,7 @@
 "use client";
 
 import NavLink from "@/components/NavLink";
-import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, ClipboardCheck, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper, Bot, Radio, Lightbulb, Wrench, Caravan, HardHat, ListChecks, Gauge } from "lucide-react";
+import { LayoutDashboard, Compass, CheckSquare, CalendarDays, BarChart3, Dumbbell, BookOpen, Mic, Target, ClipboardList, ClipboardCheck, StickyNote, Sparkles, Footprints, Settings, HandHeart, Route, Mail, Activity, Newspaper, Bot, Radio, Lightbulb, Wrench, Caravan, HardHat, ListChecks, Gauge, Vote } from "lucide-react";
 import { FEATURES } from "@/lib/feature-flags";
 
 type SidebarProps = {
@@ -119,6 +119,8 @@ export default function Sidebar({
                   it produced. Read from ~/dev/brain, which is canonical. */}
               {/* What every bot did, what is running, what waits on Eric.
                   Above Brain: it is the page read daily, Brain the inventory. */}
+              {/* Every open decision and stalled job waiting on Eric, one tap each. */}
+              <NavLink href="/decisions" label="Decisions" shortLabel="DC" collapsed={isCollapsed} icon={<Vote size={18} className="text-violet-600" />} onClick={handleNavigate} />
               <NavLink href="/activity" label="Bot activity" shortLabel="BA" collapsed={isCollapsed} icon={<Radio size={18} className="text-violet-600" />} onClick={handleNavigate} />
               <NavLink href="/brain" label="Brain" shortLabel="BN" collapsed={isCollapsed} icon={<Bot size={18} className="text-violet-600" />} onClick={handleNavigate} />
               {/* Whether each AI plan lasts until it resets, and which

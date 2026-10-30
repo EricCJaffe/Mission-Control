@@ -26,6 +26,10 @@ ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/act
 # the harvest. The leading '-' keeps a delivery failure from failing the
 # harvest; the row keeps delivery_error and is retried on the next run.
 ExecStartPost=-/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/activity-deliver.ts
+# Decisions inbox: ingest `kind: decision` notes and stalled jobs into
+# mission.decisions, then deliver Eric's answers as `kind: answer` notes and
+# ring Chief of Staff's doorbell. docs/decisions-inbox.md.
+ExecStartPost=-/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/decisions-inbox.ts
 
 Restart=on-failure
 RestartSec=60
@@ -37,5 +41,6 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
 # ~/scratch: the brain scratch clone delivery commits through (never ~/dev/brain).
-ReadWritePaths=%h/.npm %h/scratch
+# ~/dev/brain/runs: fsa-mail logs the doorbell to runs/external-sends.tsv.
+ReadWritePaths=%h/.npm %h/scratch %h/dev/brain/runs
 TimeoutStartSec=120
