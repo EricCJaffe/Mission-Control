@@ -19,6 +19,12 @@ EnvironmentFile=%h/.config/mission-control/sync.env
 
 WorkingDirectory=%h/dev/mission-control
 
+# The brain push (activity-deliver, decisions-inbox) goes over ssh. Inside
+# this sandbox /etc/ssh/ssh_config.d/* appears with a foreign owner and ssh
+# refuses it ("Bad owner or permissions"), so every push failed until
+# 2026-10-30. -F reads only the user's own config and skips the system one.
+Environment="GIT_SSH_COMMAND=ssh -F %h/.ssh/config"
+
 # Absolute path: a user unit does not source ~/.profile, so fnm's shims are
 # absent and a bare `node` fails with 203/EXEC. See docs/runbook.md.
 ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/activity.ts
