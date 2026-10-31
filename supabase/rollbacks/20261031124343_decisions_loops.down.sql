@@ -1,4 +1,4 @@
--- Rollback for 20261031140000_decisions_loops.sql. Loop rows must go first or
+-- Rollback for 20261031124343_decisions_loops.sql. Loop rows must go first or
 -- the narrower check fails.
 delete from mission.decisions where kind = 'loop';
 alter table mission.decisions drop column if exists group_name;
