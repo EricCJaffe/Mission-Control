@@ -132,6 +132,17 @@ async function main() {
   // A dry run before the migration is applied still shows what would land.
   if (exErr && !dryRun) throw new Error(`read decisions: ${exErr.message}`);
   if (exErr) console.log(`decisions: (dry run) table not readable: ${exErr.message}`);
+  // The item columns arrive with 20261031 decisions_actionable. Until that
+  // migration is applied (it follows the merge), write the rows without them
+  // so the five-minute sync keeps ingesting.
+  const { error: colErr } = await db.from('decisions').select('pr_ref,next_step,dedupe_key,closed_reason').limit(1);
+  const itemCols = !colErr;
+  if (!itemCols) console.log(`decisions: item columns not there yet (${colErr.message}); writing without them`);
+  const strip = (r: Record<string, unknown>) => {
+    if (itemCols) return r;
+    const { pr_ref: _p, next_step: _n, dedupe_key: _d, closed_reason: _c, ...rest } = r;
+    return rest;
+  };
   const have = new Map((existing ?? []).map((r) => [r.source_note as string, r as { id: string; status: string }]));
 
   const upserts: Array<Record<string, unknown>> = [];
@@ -145,7 +156,7 @@ async function main() {
       if (prev && prev.status !== 'withdrawn') withdraw.push({ id: prev.id, reason: row.closed_reason });
       continue;
     }
-    upserts.push({ ...row, user_id: env.userId, last_seen_at: stamp, updated_at: stamp });
+    upserts.push(strip({ ...row, user_id: env.userId, last_seen_at: stamp, updated_at: stamp }));
   }
   // An open row whose note was deleted is withdrawn. One merely older than
   // the scan window keeps its last state: still answerable.
@@ -182,7 +193,7 @@ async function main() {
     for (const [reason, ids] of byReason) {
       const { error } = await db
         .from('decisions')
-        .update({ status: 'withdrawn', closed_reason: reason, updated_at: stamp })
+        .update(strip({ status: 'withdrawn', closed_reason: reason, updated_at: stamp }))
         .in('id', ids)
         .in('status', ['open', 'stale']);
       if (error) throw new Error(`withdraw decisions: ${error.message}`);

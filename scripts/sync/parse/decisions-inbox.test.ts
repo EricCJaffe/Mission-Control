@@ -239,3 +239,11 @@ test('question note goes to cos, re: the source; health is held back', () => {
   assert.match(note.text, /\nre: channel\/to-grokbot\/x\.md\n/);
   assert.equal(renderQuestionNote({ ...q, question: 'Is this before my MRI?' }), null);
 });
+
+test('dedupe compares dates in the file name, not the folder, and prefers a decision', () => {
+  const to = base({ source_note: 'channel/to-grokbot/2026-10-29-x.md', dedupe_key: 'pr:Acme/app#7', pr_ref: 'Acme/app#7' });
+  const from = base({ source_note: 'channel/from-grokbot/2026-10-31-x.md', dedupe_key: 'pr:Acme/app#7', pr_ref: 'Acme/app#7' });
+  assert.deepEqual(settleRows([to, from], new Set()).map((r) => r.status), ['withdrawn', 'open']);
+  const stalledNewer = { ...from, kind: 'stalled' as const };
+  assert.deepEqual(settleRows([to, stalledNewer], new Set()).map((r) => r.status), ['open', 'withdrawn']);
+});

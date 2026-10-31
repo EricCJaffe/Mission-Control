@@ -330,12 +330,18 @@ export function settleRows(
     if (st === 'MERGED' || st === 'CLOSED') return close(r, `PR ${st.toLowerCase()}`);
     return r;
   });
+  // Which note speaks for an item: a decision (it carries real options) over a
+  // stalled job, then the newer note. Files are date-prefixed, so compare the
+  // file name, not the path: to-grokbot/ would otherwise always beat
+  // from-grokbot/.
+  const name = (r: DecisionInput) => r.source_note.split('/').pop() ?? r.source_note;
+  const better = (a: DecisionInput, b: DecisionInput) =>
+    a.kind !== b.kind ? a.kind === 'decision' : name(a) !== name(b) ? name(a) > name(b) : a.source_note > b.source_note;
   const keep = new Map<string, DecisionInput>();
   for (const r of out) {
     if (r.status === 'withdrawn') continue;
     const k = keep.get(r.dedupe_key);
-    // Note files are date-prefixed, so the later name is the newer ask.
-    if (!k || r.source_note > k.source_note) keep.set(r.dedupe_key, r);
+    if (!k || better(r, k)) keep.set(r.dedupe_key, r);
   }
   return out.map((r) =>
     r.status !== 'withdrawn' && keep.get(r.dedupe_key) !== r ? close(r, `duplicate of ${keep.get(r.dedupe_key)!.source_note}`) : r,
