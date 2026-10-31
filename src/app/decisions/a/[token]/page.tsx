@@ -15,7 +15,12 @@ export const dynamic = "force-dynamic";
  */
 export default async function DecisionLinkPage({ params }: { params: Promise<{ token: string }> }) {
   const { token: rawToken } = await params;
-  const token = decodeURIComponent(rawToken);
+  let token = "";
+  try {
+    token = decodeURIComponent(rawToken);
+  } catch {
+    // A hand-mangled link with a bad % sequence: verifyLinkToken calls it malformed.
+  }
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return null;

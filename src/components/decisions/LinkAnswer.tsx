@@ -4,13 +4,13 @@ import { useEffect, useRef, useState } from "react";
 
 /*
  * One click from the email: submits as soon as the page opens, once (the ref
- * guards React's double effect in development). If it fails, the button
- * retries; the endpoint refuses a second answer, so a retry can never record
+ * guards React's double effect in development). If the server could not be
+ * reached or failed, the button retries; a refusal shows no button. Either way the endpoint refuses a second answer, so a retry can never record
  * two.
  */
 export default function LinkAnswer({ id, answer, label, token }: { id: string; answer: string; label: string; token: string }) {
   const sent = useRef(false);
-  const [state, setState] = useState<{ kind: "sending" } | { kind: "done" } | { kind: "error"; message: string }>({ kind: "sending" });
+  const [state, setState] = useState<{ kind: "sending" } | { kind: "done" } | { kind: "error"; message: string; final: boolean }>({ kind: "sending" });
 
   async function submit() {
     setState({ kind: "sending" });
@@ -22,9 +22,10 @@ export default function LinkAnswer({ id, answer, label, token }: { id: string; a
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (res.ok) setState({ kind: "done" });
-      else setState({ kind: "error", message: body.error ?? "Could not record the answer" });
+      // 4xx is a refusal (answered, closed, expired, bad link): retrying cannot change it.
+      else setState({ kind: "error", message: body.error ?? "Could not record the answer", final: res.status >= 400 && res.status < 500 });
     } catch {
-      setState({ kind: "error", message: "Could not reach the server" });
+      setState({ kind: "error", message: "Could not reach the server", final: false });
     }
   }
 
@@ -45,7 +46,7 @@ export default function LinkAnswer({ id, answer, label, token }: { id: string; a
       {state.kind === "error" && (
         <div className="space-y-2">
           <p className="text-red-700">{state.message}</p>
-          {state.message !== "Already answered" && (
+          {!state.final && (
             <button type="button" onClick={() => void submit()} className="rounded-md bg-blue-600 px-3 py-1.5 font-medium text-white">
               Try again
             </button>
