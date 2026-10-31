@@ -1,4 +1,4 @@
--- Rollback for 20261031160000_maintenance_water_items.sql. Deletes only the
+-- Rollback for 20261031140457_maintenance_water_items.sql. Deletes only the
 -- rows that migration created, matched on the exact text it wrote, so any
 -- other guest house or softener data (added by hand before or after) stays.
 
