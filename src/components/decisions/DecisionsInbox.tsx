@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, Clock, GitPullRequest, ListChecks, MessageSquare, MessageSquarePlus, User, Vote } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, GitPullRequest, Hourglass, MessageSquare, MessageSquarePlus, User, Vote } from "lucide-react";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import type { DecisionCardRow, Urgency } from "@/lib/decisions/answer";
 
 /*
@@ -46,129 +47,214 @@ const GROUP_CHIP: Record<string, string> = {
   Misc: "bg-slate-200 text-slate-800",
 };
 
-type Props = { open: DecisionCardRow[]; answered: DecisionCardRow[]; unavailable?: boolean };
+type Props = { open: DecisionCardRow[]; completed: DecisionCardRow[]; unavailable?: boolean };
+type Section = "decision" | "stalled" | "waiting";
 
-export default function DecisionsInbox({ open, answered, unavailable = false }: Props) {
+/** Board section of an open row; rows from before board v2 fall back by kind. */
+function sectionOf(r: DecisionCardRow): Section {
+  if (r.section) return r.section;
+  return r.kind === "stalled" ? "stalled" : "decision";
+}
+
+const DAY = 86_400_000;
+const dayFmt = (iso: string) => new Date(iso).toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" });
+
+/** "Oct 27 · 4d": when the item was added and how long it has been. */
+export function addedLabel(r: Pick<DecisionCardRow, "added_at" | "created_at">, now: number): string {
+  const iso = r.added_at ?? r.created_at;
+  const days = Math.max(0, Math.floor((now - Date.parse(iso)) / DAY));
+  return `${dayFmt(iso)} · ${days === 0 ? "today" : `${days}d`}`;
+}
+
+const doneAt = (r: DecisionCardRow) => r.answered_at ?? r.completed_at ?? r.created_at;
+
+/** Poll as a fallback for Realtime: a closed socket or a missed event costs at most this long. */
+const POLL_MS = 45_000;
+
+/*
+ * The board is live: Supabase Realtime on mission.decisions (RLS applies, so
+ * only his rows arrive) refreshes the server data on any change, and a poll
+ * every 45 seconds covers a dropped socket. New entries need no deploy: the
+ * page is fixed, the rows change.
+ */
+function useLiveBoard(): "live" | "polling" {
   const router = useRouter();
-  const [rows, setRows] = useState(open);
-  const [done, setDone] = useState(answered);
+  const [mode, setMode] = useState<"live" | "polling">("polling");
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        router.refresh();
+      }, 800);
+    };
+    const supabase = supabaseBrowser();
+    const channel = supabase
+      .channel("decisions-board")
+      .on("postgres_changes", { event: "*", schema: "mission", table: "decisions" }, refresh)
+      .subscribe((status) => setMode(status === "SUBSCRIBED" ? "live" : "polling"));
+    const poll = setInterval(() => router.refresh(), POLL_MS);
+    return () => {
+      clearInterval(poll);
+      if (timer) clearTimeout(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [router]);
+  return mode;
+}
+
+export default function DecisionsInbox({ open, completed, unavailable = false }: Props) {
+  const router = useRouter();
+  const mode = useLiveBoard();
+  const now = useNow();
+  // Answers given here show at once; the server rows catch up on refresh.
+  const [answeredHere, setAnsweredHere] = useState<DecisionCardRow[]>([]);
 
   const onAnswered = (r: DecisionCardRow) => {
-    setRows((xs) => xs.filter((x) => x.id !== r.id));
-    setDone((xs) => [r, ...xs]);
+    setAnsweredHere((xs) => [r, ...xs.filter((x) => x.id !== r.id)]);
     router.refresh();
   };
 
-  const decisions = rows.filter((r) => r.kind === "decision");
-  const stalled = rows.filter((r) => r.kind === "stalled");
-  const loops = rows.filter((r) => r.kind === "loop");
+  const hidden = new Set(answeredHere.map((r) => r.id));
+  const rows = open.filter((r) => !hidden.has(r.id));
+  const serverDone = new Set(completed.map((r) => r.id));
+  const done = [...answeredHere.filter((r) => !serverDone.has(r.id)), ...completed].sort((a, b) => doneAt(b).localeCompare(doneAt(a)));
+
+  const needed = rows.filter((r) => sectionOf(r) === "decision");
+  const decisions = needed.filter((r) => r.kind !== "loop");
+  const loops = needed.filter((r) => r.kind === "loop");
   const loopGroups = LOOP_GROUP_ORDER.map((g) => ({ g, items: loops.filter((r) => (r.group_name ?? "Misc") === g) })).filter((x) => x.items.length > 0);
-  const count = (u: Urgency) => rows.filter((r) => r.urgency === u).length;
+  const stalled = rows.filter((r) => sectionOf(r) === "stalled");
+  const waiting = rows.filter((r) => sectionOf(r) === "waiting");
+  const count = (u: Urgency) => needed.filter((r) => r.urgency === u).length;
 
   return (
     <div className="space-y-6">
       <header className="rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 p-5 text-white shadow-md">
-        <div className="flex items-center gap-2">
-          <Vote className="h-6 w-6" aria-hidden />
-          <h1 className="text-2xl font-bold">Decisions</h1>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Vote className="h-6 w-6" aria-hidden />
+            <h1 className="text-2xl font-bold">Decisions</h1>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium" title={mode === "live" ? "Updates as rows change" : `Refreshing every ${POLL_MS / 1000}s`}>
+            <span className={`h-2 w-2 rounded-full ${mode === "live" ? "bg-green-300" : "bg-yellow-300"}`} aria-hidden />
+            {mode === "live" ? "Live" : "Auto-refresh"}
+          </span>
         </div>
         <p className="mt-1 text-sm text-blue-100">
           {unavailable
             ? "The decisions list is not available yet."
-            : rows.length === 0
-              ? "Nothing is waiting on you."
-              : `${rows.length} waiting on you. One tap answers; the bots have it within five minutes.`}
+            : needed.length === 0
+              ? "Nothing needs a decision from you."
+              : `${needed.length} need a decision from you. One tap answers; the bots have it within five minutes.`}
         </p>
-        {rows.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2 text-sm font-semibold">
-            {(["red", "yellow", "green"] as Urgency[]).map((u) => (
-              <span key={u} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 ring-1 ${CHIP[u]}`}>
-                <span className={`h-2.5 w-2.5 rounded-full ${DOT[u]}`} aria-hidden />
-                {count(u)} {WORD[u]}
-              </span>
-            ))}
-            {loops.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-sky-900 ring-1 ring-sky-200">
-                <ListChecks className="h-3.5 w-3.5" aria-hidden /> {loops.length} loops
-              </span>
-            )}
-            {stalled.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-orange-900 ring-1 ring-orange-200">
-                <AlertTriangle className="h-3.5 w-3.5" aria-hidden /> {stalled.length} stalled
-              </span>
-            )}
-          </div>
-        )}
+        <div className="mt-3 flex flex-wrap gap-2 text-sm font-semibold">
+          {(["red", "yellow", "green"] as Urgency[]).map((u) => (
+            <span key={u} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 ring-1 ${CHIP[u]}`}>
+              <span className={`h-2.5 w-2.5 rounded-full ${DOT[u]}`} aria-hidden />
+              {count(u)} {WORD[u]}
+            </span>
+          ))}
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-orange-900 ring-1 ring-orange-200">
+            <AlertTriangle className="h-3.5 w-3.5" aria-hidden /> {stalled.length} stalled
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-sky-900 ring-1 ring-sky-200">
+            <Hourglass className="h-3.5 w-3.5" aria-hidden /> {waiting.length} waiting
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-green-900 ring-1 ring-green-200">
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> {done.length} done this week
+          </span>
+        </div>
       </header>
 
-      {decisions.length > 0 && (
-        <section className="space-y-3" aria-label="Decisions">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-indigo-700">Decisions</h2>
-          {decisions.map((r) => (
-            <DecisionCard key={r.id} row={r} onAnswered={onAnswered} />
-          ))}
-        </section>
-      )}
+      <BoardSection title="Decisions needed" tone="text-indigo-700" empty="Nothing needs a decision from you." count={needed.length}>
+        {decisions.map((r) => (
+          <DecisionCard key={r.id} row={r} now={now} onAnswered={onAnswered} />
+        ))}
+        {loopGroups.map(({ g, items }) => (
+          <div key={g} className="space-y-3">
+            <h3 className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ${GROUP_CHIP[g] ?? GROUP_CHIP.Misc}`}>
+              {g} <span className="font-semibold opacity-75">{items.length}</span>
+            </h3>
+            {items.map((r) => (
+              <DecisionCard key={r.id} row={r} now={now} onAnswered={onAnswered} />
+            ))}
+          </div>
+        ))}
+      </BoardSection>
 
-      {stalled.length > 0 && (
-        <section className="space-y-3" aria-label="Stalled">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-orange-700">Stalled on you</h2>
-          {stalled.map((r) => (
-            <DecisionCard key={r.id} row={r} onAnswered={onAnswered} />
-          ))}
-        </section>
-      )}
+      <BoardSection title="Stalled (ours, no movement 3+ days)" tone="text-orange-700" empty="Nothing of ours is stuck." count={stalled.length}>
+        {stalled.map((r) => (
+          <DecisionCard key={r.id} row={r} now={now} onAnswered={onAnswered} />
+        ))}
+      </BoardSection>
 
-      {loopGroups.length > 0 && (
-        <section className="space-y-4" aria-label="Open loops">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-700">Open loops on you</h2>
-          {loopGroups.map(({ g, items }) => (
-            <div key={g} className="space-y-3">
-              <h3 className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ${GROUP_CHIP[g] ?? GROUP_CHIP.Misc}`}>
-                {g} <span className="font-semibold opacity-75">{items.length}</span>
-              </h3>
-              {items.map((r) => (
-                <DecisionCard key={r.id} row={r} onAnswered={onAnswered} />
-              ))}
-            </div>
-          ))}
-        </section>
-      )}
+      <BoardSection title="Waiting on others" tone="text-sky-700" empty="Nobody outside owes us anything." count={waiting.length}>
+        {waiting.map((r) => (
+          <DecisionCard key={r.id} row={r} now={now} onAnswered={onAnswered} />
+        ))}
+      </BoardSection>
 
-      {done.length > 0 && (
-        <section className="space-y-2" aria-label="Answered">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-green-700">Answered today</h2>
-          <ul className="divide-y divide-green-100 rounded-2xl border-2 border-green-200 bg-green-50/60">
-            {done.map((r) => (
-              <li key={r.id} className="flex gap-3 px-4 py-3 text-sm">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" aria-hidden />
-                <div className="min-w-0 space-y-0.5">
-                  <p className="font-medium text-slate-900">{r.title}</p>
+      <BoardSection title="Completed (last 7 days)" tone="text-green-700" empty="Nothing finished this week yet." count={done.length}>
+        <ul className="divide-y divide-green-100 rounded-2xl border-2 border-green-200 bg-green-50/60">
+          {done.map((r) => (
+            <li key={r.id} className="flex gap-3 px-4 py-3 text-sm">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" aria-hidden />
+              <div className="min-w-0 space-y-0.5">
+                <p className="font-medium text-slate-900">{r.title}</p>
+                {r.status === "answered" ? (
                   <p className="text-slate-700">
                     <span className="font-medium text-slate-900">{choiceLabel(r)}</span>
                     {r.answer_text ? ` · “${r.answer_text}”` : ""}
                   </p>
-                  <p className="text-xs text-slate-500">
-                    {r.answered_at ? fmt(r.answered_at) : ""} ·{" "}
-                    {r.delivered_at
-                      ? "the bots have it"
-                      : r.delivery_error?.startsWith("held")
-                        ? r.delivery_error
-                        : r.delivery_error
-                          ? "not delivered yet, retrying"
-                          : "sending to Chief of Staff"}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+                ) : (
+                  <p className="text-slate-700">{r.closed_reason === "answered elsewhere" ? "Answered elsewhere" : r.context ?? "Closed"}</p>
+                )}
+                <p className="text-xs text-slate-500">
+                  Added {addedLabel(r, now)} · done {fmt(doneAt(r))}
+                  {r.status === "answered" &&
+                    ` · ${
+                      r.delivered_at
+                        ? "the bots have it"
+                        : r.delivery_error?.startsWith("held")
+                          ? r.delivery_error
+                          : r.delivery_error
+                            ? "not delivered yet, retrying"
+                            : "sending to Chief of Staff"
+                    }`}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </BoardSection>
     </div>
   );
 }
 
-function DecisionCard({ row, onAnswered }: { row: DecisionCardRow; onAnswered: (r: DecisionCardRow) => void }) {
+/** The current time, ticking each minute so ages stay right on a board left open. */
+function useNow(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
+
+function BoardSection({ title, tone, empty, count, children }: { title: string; tone: string; empty: string; count: number; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3" aria-label={title}>
+      <h2 className={`text-sm font-semibold uppercase tracking-wide ${tone}`}>
+        {title} <span className="font-normal text-slate-500">{count}</span>
+      </h2>
+      {count === 0 ? <p className="rounded-2xl border-2 border-dashed border-slate-200 p-4 text-sm text-slate-500">{empty}</p> : children}
+    </section>
+  );
+}
+
+function DecisionCard({ row, now, onAnswered }: { row: DecisionCardRow; now: number; onAnswered: (r: DecisionCardRow) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [writing, setWriting] = useState(false);
@@ -264,6 +350,9 @@ function DecisionCard({ row, onAnswered }: { row: DecisionCardRow; onAnswered: (
             <Clock size={12} aria-hidden /> by {fmt(row.deadline)}
           </span>
         )}
+        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700" title="Date added · age">
+          <Clock size={12} aria-hidden /> {addedLabel(row, now)}
+        </span>
         {row.status === "stale" && <span className="text-slate-500">· waiting a while</span>}
       </div>
 

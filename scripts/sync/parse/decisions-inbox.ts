@@ -25,7 +25,8 @@ export { isHealth } from '../../../src/lib/activity/health.ts';
 import { isHealth } from '../../../src/lib/activity/health.ts';
 import { isLesson } from './decisions-loops.ts';
 
-export const STALL_HOURS = 48;
+/** "Stalled (ours, no movement 3+ days)": Eric, 2026-10-31. */
+export const STALL_HOURS = 72;
 export const STALE_DAYS = 7;
 export const CONTEXT_MAX = 600;
 const OPTION_MAX = 8;
@@ -56,6 +57,12 @@ export type DecisionInput = {
   closed_reason: string | null;
   /** Section on the page, for loops (Drafts to send, Eden, ...). */
   group_name?: string | null;
+  /** Board section for an open row: Decisions needed / Stalled / Waiting on others. */
+  section?: 'decision' | 'stalled' | 'waiting' | null;
+  /** When the item first appeared, for "Oct 27 · 4d". */
+  added_at?: string | null;
+  /** When it was closed somewhere other than the page. */
+  completed_at?: string | null;
 };
 
 const CLOSED = new Set(['done', 'closed', 'dropped', 'withdrawn', 'answered', 'superseded', 'cancelled']);
@@ -184,6 +191,11 @@ function ageHours(fm: Frontmatter, path: string, now: Date): number | null {
   return at ? (now.getTime() - Date.parse(at)) / 3_600_000 : null;
 }
 
+/** When a note's item first appeared: created/started/date, else the date in its file name. */
+export function addedAt(fm: Frontmatter, path: string): string | null {
+  return parseWhen(fm.created) ?? parseWhen(fm.started) ?? parseWhen(fm.date) ?? parseWhen(path.split('/').pop()?.slice(0, 10));
+}
+
 function urgencyOf(fm: Frontmatter, deadline: string | null, now: Date): Urgency {
   const u = (fm.urgency ?? '').toLowerCase();
   if (TRUE.has((fm.urgent ?? '').toLowerCase()) || /^(urgent|critical)$/i.test(fm.priority ?? '') || /^(red|critical)$/i.test(fm.severity ?? '') || u === 'red') return 'red';
@@ -223,6 +235,8 @@ export function parseDecisionNote(path: string, text: string, now: Date): Decisi
     status,
     ...itemFields(path, fm, body),
     closed_reason: status === 'withdrawn' ? `note ${st}` : null,
+    section: 'decision',
+    added_at: addedAt(fm, path),
   };
   return leaks(row) ? null : row;
 }
@@ -269,6 +283,9 @@ export function parseStalledJob(path: string, text: string, now: Date): Decision
     status: stalled ? 'open' : 'withdrawn',
     ...itemFields(path, fm, body),
     closed_reason: stalled ? null : `job ${st || 'moving'}`,
+    // Waiting on Eric is a decision he owes; anything else stuck is ours.
+    section: waitingEric ? 'decision' : 'stalled',
+    added_at: addedAt(fm, path),
   };
   return leaks(row) ? null : row;
 }

@@ -66,9 +66,11 @@ import {
   type DecisionInput,
   type QuestionRow,
 } from './parse/decisions-inbox.ts';
-import { applyLoopAnswer, isLesson, lessonLine, LESSONS_HEADER, loopsToRows, parseLoopsTsv } from './parse/decisions-loops.ts';
+import { applyLoopAnswer, closedLoopsToRows, isLesson, lessonLine, LESSONS_HEADER, loopsToRows, parseLoopsTsv } from './parse/decisions-loops.ts';
 
 const LOOPS_TSV = 'open/triage-open.tsv';
+// Gitignored in the brain, so read from this box's checkout only.
+const LOOPS_CLOSED_TSV = 'open/triage-closed.tsv';
 const LESSONS = 'rules/learned-from-decisions.md';
 
 const dryRun = process.argv.includes('--dry-run');
@@ -137,15 +139,22 @@ async function main() {
   const openRefs = [...new Set(scanned.rows.filter((r) => r.status !== 'withdrawn' && r.pr_ref).map((r) => r.pr_ref!))];
   // Loops need 20261031 decisions_loops (kind 'loop', group_name). Before it
   // is applied, skip them rather than fail the run and hold every delivery.
-  const { error: loopColErr } = await db.from('decisions').select('group_name').limit(1);
+  // Board v2 (section, added_at, completed_at) ships with its migration;
+  // without it, loops are skipped rather than failing the run.
+  const { error: loopColErr } = await db.from('decisions').select('group_name,section,added_at,completed_at').limit(1);
   let loopsReadable = false;
   let loopRows: DecisionInput[] = [];
+  let closedRows: DecisionInput[] = [];
+  const openLoopKeys = new Set<string>();
   if (!loopColErr || dryRun) {
     try {
       const parsed = parseLoopsTsv(readFileSync(join(env.brainRoot, LOOPS_TSV), 'utf8'));
       // An empty parse is a bad read, not "every loop closed": never withdraw on it.
       loopsReadable = parsed.length > 0;
       loopRows = loopsReadable ? loopsToRows(parsed, now) : [];
+      for (const r of parsed) openLoopKeys.add(r.key);
+      const closedPath = join(env.brainRoot, LOOPS_CLOSED_TSV);
+      if (existsSync(closedPath)) closedRows = closedLoopsToRows(readFileSync(closedPath, 'utf8'), now).filter((r) => !openLoopKeys.has(r.source_note));
     } catch (err) {
       console.error(`decisions: ${LOOPS_TSV} unreadable, loops left as they are: ${err instanceof Error ? err.message.slice(0, 120) : err}`);
     }
@@ -179,7 +188,7 @@ async function main() {
   const reopen: string[] = [];
 
   const upserts: Array<Record<string, unknown>> = [];
-  const withdraw: Array<{ id: string; reason: string | null }> = [];
+  const withdraw: Array<{ id: string; reason: string | null; completed?: boolean }> = [];
   const seen = new Set<string>();
   for (const row of found) {
     seen.add(row.source_note);
@@ -202,7 +211,10 @@ async function main() {
     if (!seen.has(note) && (r.status === 'open' || r.status === 'stale') && note.startsWith('loop:')) {
       // Gone from triage-open.tsv (closed on the loops form, by a bot, or by
       // reconcile), handed back, or snoozed: off the page until it returns.
-      if (loopsReadable) withdraw.push({ id: r.id, reason: 'loop closed or not owed by Eric' });
+      // Still in the file: moving again (ours, touched lately) or snoozed;
+      // off the board, not completed. Gone from it: closed (Completed below,
+      // from triage-closed.tsv, or stamped here when that file lacks it).
+      if (loopsReadable) withdraw.push({ id: r.id, reason: openLoopKeys.has(note) ? 'loop moving or snoozed' : 'loop closed', completed: !openLoopKeys.has(note) });
     } else if (!seen.has(note) && (r.status === 'open' || r.status === 'stale') && !existsSync(join(env.brainRoot, note))) withdraw.push({ id: r.id, reason: 'note deleted' });
   }
   console.log(`decisions: ${found.filter((r) => r.status !== 'withdrawn').length} live in the brain, ${upserts.length} open, ${withdraw.length} to withdraw`);
@@ -239,12 +251,37 @@ async function main() {
         .not('delivered_at', 'is', null);
       if (error) console.error(`decisions: could not reopen loops: ${error.message}`);
     }
-    const byReason = new Map<string | null, string[]>();
-    for (const w of withdraw) byReason.set(w.reason, [...(byReason.get(w.reason) ?? []), w.id]);
-    for (const [reason, ids] of byReason) {
+    // Completed loops: an open card becomes its completed card; one never
+    // shown is inserted so the board's Completed section is whole.
+    const freshClosed = closedRows.filter((c) => !have.has(c.source_note)).map((c) => ({ ...c, user_id: env.userId, last_seen_at: stamp, updated_at: stamp }));
+    for (let i = 0; i < freshClosed.length; i += 200) {
+      const { error } = await db.from('decisions').upsert(freshClosed.slice(i, i + 200), { onConflict: 'user_id,source_note', ignoreDuplicates: true });
+      if (error) console.error(`decisions: completed loop insert: ${error.message}`);
+    }
+    for (const c of closedRows) {
+      const prev = have.get(c.source_note);
+      if (prev && (prev.status === 'open' || prev.status === 'stale')) {
+        const { error } = await db
+          .from('decisions')
+          .update({ status: 'withdrawn', closed_reason: 'loop closed', completed_at: c.completed_at, updated_at: stamp })
+          .eq('id', prev.id)
+          .in('status', ['open', 'stale']);
+        if (error) console.error(`decisions: completed loop update: ${error.message}`);
+      }
+    }
+    const closedKeys = new Set(closedRows.map((c) => c.source_note));
+    const byReason = new Map<string, { reason: string | null; completed: boolean; ids: string[] }>();
+    for (const w of withdraw) {
+      if (closedKeys.has([...have].find(([, r]) => r.id === w.id)?.[0] ?? '')) continue;
+      const k = `${w.reason}|${Boolean(w.completed)}`;
+      const g = byReason.get(k) ?? { reason: w.reason, completed: Boolean(w.completed), ids: [] };
+      g.ids.push(w.id);
+      byReason.set(k, g);
+    }
+    for (const { reason, completed, ids } of byReason.values()) {
       const { error } = await db
         .from('decisions')
-        .update(strip({ status: 'withdrawn', closed_reason: reason, updated_at: stamp }))
+        .update(strip({ status: 'withdrawn', closed_reason: reason, updated_at: stamp, ...(completed ? { completed_at: stamp } : {}) }))
         .in('id', ids)
         .in('status', ['open', 'stale']);
       if (error) throw new Error(`withdraw decisions: ${error.message}`);

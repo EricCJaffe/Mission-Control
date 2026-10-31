@@ -84,3 +84,41 @@ test('lessons: preferences and rules, not plain questions', () => {
   assert.equal(isLesson('What does option 2 cost?'), false);
   assert.match(lessonLine('2026-10-31', 'Pick', 'Always do X', 'channel/x.md'), /^- 2026-10-31 · on "Pick": "Always do X" \(`channel\/x\.md`\) · status: to promote$/);
 });
+
+// ---- board v2: sections, added date, completed ---------------------------
+import { closedLoopsToRows, loopSection, primaryOwner } from './decisions-loops.ts';
+
+const L = (owes: string, touched: string, first = '2026-10-20') =>
+  parseLoopsTsv(HEAD + row(first, touched, 'email', 'acme', owes, `Item for ${owes}`, 'Synthetic.') + '\n')[0];
+
+test('sections: Eric owes it, ours idle 3+ days, outside person, ours moving', () => {
+  assert.equal(loopSection(L('Eric', '2026-10-30'), NOW), 'decision');
+  assert.equal(loopSection(L('Trevor (shared mailbox?) then Eric', '2026-10-30'), NOW), 'waiting');
+  assert.equal(loopSection(L('us (harness)', '2026-10-27'), NOW), 'stalled');
+  assert.equal(loopSection(L('honeylakeos engineering', '2026-10-30'), NOW), null);
+  assert.equal(loopSection(L('Katie (confirm live)', '2026-10-30'), NOW), 'waiting');
+  assert.equal(loopSection(L('', '2026-10-01'), NOW), 'stalled');
+  assert.equal(loopSection(L('Eric', '2026-11-04'), NOW), null);
+  assert.equal(primaryOwner('Ritten then Eric'), 'Ritten');
+});
+
+test('every board row carries its added date', () => {
+  const r = loopsToRows([L('Josh', '2026-10-30', '2026-10-27')], NOW)[0];
+  assert.equal(r.section, 'waiting');
+  assert.equal(r.added_at, '2026-10-27T12:00:00Z');
+});
+
+test('completed: closed in the last 7 days, keyed like the open loop, no health', () => {
+  const closed = [
+    '# closed\tfirst_seen\tsource\tclient\twho-owed\tref\twhat-closed-it\tlast-note',
+    ['2026-10-30', '2026-10-20', 'email', 'acme', 'Eric', 'Send drafted pilot reply', 'Sent by Eric', 'n'].join('\t'),
+    ['2026-10-10', '2026-10-01', 'email', 'acme', 'us', 'Old one', 'done', 'n'].join('\t'),
+    ['2026-10-29', '2026-10-20', 'email', 'acme', 'us', 'After the MRI', 'done', 'n'].join('\t'),
+  ].join('\n');
+  const rows = closedLoopsToRows(closed, NOW);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].source_note, parseLoopsTsv(TSV)[0].key);
+  assert.equal(rows[0].status, 'withdrawn');
+  assert.equal(rows[0].completed_at, '2026-10-30T12:00:00Z');
+  assert.equal(rows[0].added_at, '2026-10-20T12:00:00Z');
+});
