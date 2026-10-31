@@ -13,7 +13,7 @@
 -- (a 'Guest House' building, a water_system asset under 'Main House') and the
 -- helper location is copied from the owner's existing helper items.
 -- Idempotent: each step checks before it writes; re-running changes nothing.
--- Rollback: supabase/rollbacks/20261031160000_maintenance_water_items.down.sql.
+-- Rollback: supabase/rollbacks/20261031140457_maintenance_water_items.down.sql.
 
 do $$
 declare
