@@ -4,6 +4,7 @@ import DashboardTaskList from "@/components/DashboardTaskList";
 import { supabaseServer } from "@/lib/supabase/server";
 import HybridTrainingIndicator from "@/components/fitness/HybridTrainingIndicator";
 import { computeHybridBalance } from "@/lib/fitness/hybrid-balance";
+import { pillarSuggestions } from "@/lib/flourishing/pillar-suggestions";
 import { computePillarScores } from "@/lib/flourishing/spirit-soul-body";
 import { statusForScore } from "@/lib/status-colors";
 import MissionBanner from "@/components/MissionBanner";
@@ -330,6 +331,9 @@ export default async function DashboardHome() {
     ),
   );
 
+  // Concrete next steps for any pillar in needs_attention (rule-based, no AI).
+  const lagging = pillarSuggestions(pillarScores);
+
   const rhr = rhrResult.data;
   const hrv = hrvResult.data;
   const bp = bpResult.data;
@@ -482,6 +486,26 @@ export default async function DashboardHome() {
           );
         })}
       </section>
+
+      {lagging.length > 0 && (
+        <section className="mt-3 space-y-3">
+          {lagging.map((s) => (
+            <div key={s.pillar} className="rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-sm">
+              <p className="text-sm font-semibold text-slate-900">
+                {s.pillarLabel} needs attention. Start with {s.domainLabel.toLowerCase()} ({s.domainScore}/10).
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                {s.tips.map((tip) => (
+                  <li key={tip}>{tip}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs italic text-slate-500">
+                &ldquo;{s.scripture.text}&rdquo; ({s.scripture.reference})
+              </p>
+            </div>
+          ))}
+        </section>
+      )}
 
 
       {/* Act row: the two things wanted most days — start a workout, and see
