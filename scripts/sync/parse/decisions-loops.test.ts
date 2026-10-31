@@ -39,7 +39,7 @@ test('only rows owed by Eric, no health, nothing snoozed into the future', () =>
   const rows = loopsToRows(parseLoopsTsv(TSV), NOW);
   assert.deepEqual(
     rows.map((r) => r.title),
-    ['Send drafted pilot reply', 'VDL-12 ownership', 'Kitchen printer setup', 'Project framework review', 'August receipts form sent'],
+    ['Send drafted pilot reply', 'VDL-12 ownership', 'Kitchen printer setup', 'Project framework review', 'August receipts form sent: 23 items.'],
   );
   assert.ok(rows.every((r) => r.kind === 'loop' && r.source_note.startsWith('loop:') && r.dedupe_key === r.source_note));
 });
@@ -53,7 +53,7 @@ test('groups, defaults and urgency', () => {
 
 test('a Graph id never becomes the title', () => {
   const r = parseLoopsTsv(TSV)[5];
-  assert.equal(loopTitle(r), 'August receipts form sent');
+  assert.equal(loopTitle(r), 'August receipts form sent: 23 items.');
   assert.equal(loopGroup(r), 'Records');
 });
 
@@ -121,4 +121,13 @@ test('completed: closed in the last 7 days, keyed like the open loop, no health'
   assert.equal(rows[0].status, 'withdrawn');
   assert.equal(rows[0].completed_at, '2026-10-30T12:00:00Z');
   assert.equal(rows[0].added_at, '2026-10-20T12:00:00Z');
+});
+
+test('titles: no stamp fragments ("35 UTC"), no bare ids, short leads fall back', () => {
+  const t = (ref: string, note: string) => loopTitle({ ...parseLoopsTsv(TSV)[0], ref, note });
+  assert.equal(t('', 'NEW 2026-09-30 ~20:35 UTC: Eric sent the maintenance login. It bounced.'), 'Eric sent the maintenance login.');
+  assert.equal(t('', 'UPDATE 2026-10-02 16:28 ET: Devan replied and attached the file.'), 'Devan replied and attached the file.');
+  assert.equal(t('AAPkWhEgAAA=', 'Revoke the old storage key pair. Then confirm.'), 'Revoke the old storage key pair.');
+  assert.equal(t('', 'Jen: UR board did not update overnight, wants one system.'), 'Jen: UR board did not update overnight, wants one system.');
+  assert.equal(t('', 'Ok. Then the long explanation follows here.'), 'Ok. Then the long explanation follows here.');
 });

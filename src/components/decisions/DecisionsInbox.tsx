@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Clock, GitPullRequest, Hourglass, MessageSquare, MessageSquarePlus, User, Vote } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { addedLabel as ageLabel } from "@/lib/decisions/age";
 import type { DecisionCardRow, Urgency } from "@/lib/decisions/answer";
 
 /*
@@ -56,15 +57,8 @@ function sectionOf(r: DecisionCardRow): Section {
   return r.kind === "stalled" ? "stalled" : "decision";
 }
 
-const DAY = 86_400_000;
-const dayFmt = (iso: string) => new Date(iso).toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" });
-
-/** "Oct 27 · 4d": when the item was added and how long it has been. */
-export function addedLabel(r: Pick<DecisionCardRow, "added_at" | "created_at">, now: number): string {
-  const iso = r.added_at ?? r.created_at;
-  const days = Math.max(0, Math.floor((now - Date.parse(iso)) / DAY));
-  return `${dayFmt(iso)} · ${days === 0 ? "today" : `${days}d`}`;
-}
+/** "Oct 27 · 4d": when the item was added and how long ago, in ET calendar days. */
+const addedLabel = (r: Pick<DecisionCardRow, "added_at" | "created_at">, now: number) => ageLabel(r.added_at ?? r.created_at, now);
 
 const doneAt = (r: DecisionCardRow) => r.answered_at ?? r.completed_at ?? r.created_at;
 
