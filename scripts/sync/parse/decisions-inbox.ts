@@ -45,6 +45,14 @@ export type DecisionInput = {
   deadline: string | null;
   /** open | stale | withdrawn. Ingest never writes 'answered'. */
   status: Exclude<Status, 'answered'>;
+  /** `owner/repo#n` when the note names a pull request. */
+  pr_ref: string | null;
+  /** What happens next, for the Stalled section. */
+  next_step: string | null;
+  /** One row per underlying item: the PR when there is one, else the note. */
+  dedupe_key: string;
+  /** Why a row was closed without an answer on the page. */
+  closed_reason: string | null;
 };
 
 const CLOSED = new Set(['done', 'closed', 'dropped', 'withdrawn', 'answered', 'superseded', 'cancelled']);
@@ -210,6 +218,8 @@ export function parseDecisionNote(path: string, text: string, now: Date): Decisi
     urgency: urgencyOf(fm, deadline, now),
     deadline,
     status,
+    ...itemFields(path, fm, body),
+    closed_reason: status === 'withdrawn' ? `note ${st}` : null,
   };
   return leaks(row) ? null : row;
 }
@@ -254,8 +264,88 @@ export function parseStalledJob(path: string, text: string, now: Date): Decision
     urgency: waitingEric || (age !== null && age > STALL_HOURS * 2) ? 'red' : 'yellow',
     deadline: null,
     status: stalled ? 'open' : 'withdrawn',
+    ...itemFields(path, fm, body),
+    closed_reason: stalled ? null : `job ${st || 'moving'}`,
   };
   return leaks(row) ? null : row;
+}
+
+const PR_URL = /https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/;
+
+/** `owner/repo#n` from `pr:` (a URL, or `owner/repo#n`), else the first PR URL in the body. */
+export function parsePrRef(fm: Frontmatter, body: string): string | null {
+  const raw = (fm.pr ?? '').trim();
+  const url = raw.match(PR_URL) ?? (raw ? null : body.match(PR_URL));
+  if (url) return `${url[1]}#${url[2]}`;
+  const short = raw.match(/^([\w.-]+\/[\w.-]+)#(\d+)$/);
+  return short ? `${short[1]}#${short[2]}` : null;
+}
+
+const NEXT_LINE = /^\s*(?:[-*]\s+)?\*{0,2}(?:Next step|Next|Left)\*{0,2}:?\*{0,2}:?\s*(.+)$/im;
+
+/** `next:` in the frontmatter, else a "Next step:" / "Left:" line, else the finish line. */
+export function parseNextStep(fm: Frontmatter, body: string): string | null {
+  const src = fm.next ?? fm['next-step'] ?? body.match(NEXT_LINE)?.[1] ?? (fm.finish ? `Done when: ${fm.finish}` : '');
+  return scrub(stripMd(src), 200) || null;
+}
+
+function itemFields(path: string, fm: Frontmatter, body: string) {
+  const pr_ref = parsePrRef(fm, body);
+  return { pr_ref, next_step: parseNextStep(fm, body), dedupe_key: pr_ref ? `pr:${pr_ref}` : path };
+}
+
+const ANSWER_KINDS = new Set(['answer', 'reply', 'decision-answer']);
+
+/**
+ * The note an answer elsewhere closes: a `kind: answer` (or reply) note `re:`
+ * a channel note, written by Chief of Staff from a chat card or an email
+ * reply, or by this pipeline. Null for anything else.
+ */
+export function answerRef(text: string): string | null {
+  const { fm } = parseFrontmatter(text);
+  if (!ANSWER_KINDS.has((fm.kind ?? '').toLowerCase())) return null;
+  const re = (fm.re ?? '').trim().replace(/^`|`$/g, '');
+  return re.startsWith('channel/') ? re : null;
+}
+
+/**
+ * Close what is already settled, then keep one row per item.
+ *
+ * - answered elsewhere: an answer note points at the source;
+ * - PR closed or merged (`prState` from GitHub; missing means unknown, kept open);
+ * - duplicates: open rows sharing a dedupe_key keep the newest note.
+ *
+ * Pure; returns new rows, never mutates.
+ */
+export function settleRows(
+  rows: DecisionInput[],
+  answeredElsewhere: Set<string>,
+  prState: Map<string, string> = new Map(),
+): DecisionInput[] {
+  const close = (r: DecisionInput, reason: string): DecisionInput => ({ ...r, status: 'withdrawn', closed_reason: reason });
+  const out = rows.map((r) => {
+    if (r.status === 'withdrawn') return r;
+    if (answeredElsewhere.has(r.source_note)) return close(r, 'answered elsewhere');
+    const st = r.pr_ref ? prState.get(r.pr_ref) : undefined;
+    if (st === 'MERGED' || st === 'CLOSED') return close(r, `PR ${st.toLowerCase()}`);
+    return r;
+  });
+  // Which note speaks for an item: a decision (it carries real options) over a
+  // stalled job, then the newer note. Files are date-prefixed, so compare the
+  // file name, not the path: to-grokbot/ would otherwise always beat
+  // from-grokbot/.
+  const name = (r: DecisionInput) => r.source_note.split('/').pop() ?? r.source_note;
+  const better = (a: DecisionInput, b: DecisionInput) =>
+    a.kind !== b.kind ? a.kind === 'decision' : name(a) !== name(b) ? name(a) > name(b) : a.source_note > b.source_note;
+  const keep = new Map<string, DecisionInput>();
+  for (const r of out) {
+    if (r.status === 'withdrawn') continue;
+    const k = keep.get(r.dedupe_key);
+    if (!k || better(r, k)) keep.set(r.dedupe_key, r);
+  }
+  return out.map((r) =>
+    r.status !== 'withdrawn' && keep.get(r.dedupe_key) !== r ? close(r, `duplicate of ${keep.get(r.dedupe_key)!.source_note}`) : r,
+  );
 }
 
 /** Health in the path, routing fields, title or opening, or a note marked sensitive. */
@@ -334,5 +424,62 @@ export function renderAnswerNote(row: AnsweredRow): { path: string; text: string
   // The path and note id are the only non-prose tokens; test the prose.
   const prose = [row.title, choice, opt?.detail ?? '', row.answer_text ?? '', row.for_agent ?? ''];
   if (prose.some((t) => textLeaks(t).length > 0 || isHealth(t))) return null;
+  return { path, text };
+}
+
+/**
+ * The source note with Eric's answer written back: a line at the end naming
+ * his choice and the answer note, and, for a `kind: decision` note, its
+ * status set to answered so every reader sees it is settled. A stalled job's
+ * status is its owner's to change, so only the line is added there.
+ */
+export function writeBackAnswer(text: string, row: AnsweredRow, answerPath: string): string {
+  const opt = row.options.find((o) => o.id === row.answer);
+  const choice = row.answer === 'other' ? `in his own words: "${(row.answer_text ?? '').replace(/\s+/g, ' ').slice(0, 300)}"` : opt?.label ?? row.answer;
+  const line = `- Answered by Eric on Mission Control /decisions, ${etDay(row.answered_at)}: ${choice}. Answer note: \`${answerPath}\`.`;
+  let out = text;
+  if (row.kind === 'decision') {
+    const { end } = parseFrontmatter(text);
+    if (end > 0) {
+      const head = text.slice(0, end);
+      const next = /^status:.*$/m.test(head) ? head.replace(/^status:.*$/m, 'status: answered') : head.replace(/^---\n/, '---\nstatus: answered\n');
+      out = next + text.slice(end);
+    }
+  }
+  return `${out.replace(/\n*$/, '\n')}\n${line}\n`;
+}
+
+export type QuestionRow = {
+  id: string;
+  question: string;
+  created_at: string;
+  decision_id: string;
+  source_note: string;
+  title: string;
+};
+
+/** Eric's question about one item, as a `kind: question` note for Chief of Staff; null if it would leak. */
+export function renderQuestionNote(q: QuestionRow): { path: string; text: string } | null {
+  if ([q.title, q.question].some((t) => textLeaks(t).length > 0 || isHealth(t))) return null;
+  const day = etDay(q.created_at);
+  const path = `channel/to-grokbot/${day}-question-${slug(q.title)}-${q.id.slice(0, 8)}.md`;
+  const text = [
+    '---',
+    'status: open',
+    'for: cos',
+    'kind: question',
+    'from: eric (Mission Control /decisions)',
+    `re: ${q.source_note}`,
+    `decision: ${q.decision_id}`,
+    `asked: ${q.created_at}`,
+    '---',
+    '',
+    `# Eric asks about: ${q.title}`,
+    '',
+    `> ${q.question.replace(/\n/g, '\n> ')}`,
+    '',
+    `Answer him (chat or email) and, if it settles the item, close \`${q.source_note}\`. The card stays open on /decisions until then.`,
+    '',
+  ].join('\n');
   return { path, text };
 }
