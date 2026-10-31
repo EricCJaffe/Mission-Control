@@ -32,6 +32,13 @@ export type DecisionCardRow = {
   next_step?: string | null;
   /** Section for a loop (Drafts to send, Eden, HL scope, ...). */
   group_name?: string | null;
+  /** Board section of an open row (board v2). */
+  section?: "decision" | "stalled" | "waiting" | null;
+  /** When the item first appeared. */
+  added_at?: string | null;
+  /** When it closed somewhere other than the page. */
+  completed_at?: string | null;
+  closed_reason?: string | null;
 };
 
 export const ANSWER_TEXT_MAX = 1000;

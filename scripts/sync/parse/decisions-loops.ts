@@ -105,18 +105,50 @@ function daysSince(iso: string, now: Date): number | null {
   return Number.isNaN(t) ? null : Math.floor((now.getTime() - t) / 86_400_000);
 }
 
+/** The first owner named: "Trevor (...) then Eric" is waiting on Trevor now. */
+export function primaryOwner(owes: string): string {
+  return owes.split(/\bthen\b/i)[0].trim();
+}
+
+const OURS = /^$|^-$|\b(us|we|harness|engineering|session|bots?|coding|cos|chief of staff|claude|codex|grokbot|dispatch)\b/i;
+
+/** No movement for this long and it is ours: Stalled. */
+export const LOOP_STALL_DAYS = 3;
+
 /**
- * Eric's loops as /decisions rows. A row whose text trips the health test is
- * left out entirely (no PHI on the page or in a note); so is one snoozed into
- * the future.
+ * Where an open loop goes on the board, or null when it is not shown:
+ *   decision  Eric owes it now
+ *   stalled   ours, untouched 3+ days
+ *   waiting   an outside person owes it
+ *   null      ours and moving (touched in the last 3 days), or snoozed ahead
+ */
+export function loopSection(r: LoopRow, now: Date): 'decision' | 'stalled' | 'waiting' | null {
+  const today = now.toISOString().slice(0, 10);
+  if (r.touched.slice(0, 10) > today) return null;
+  const owner = primaryOwner(r.owes);
+  if (/eric/i.test(owner)) return 'decision';
+  if (OURS.test(owner)) {
+    const idle = daysSince(r.touched || r.first_seen, now);
+    return idle !== null && idle >= LOOP_STALL_DAYS ? 'stalled' : null;
+  }
+  return 'waiting';
+}
+
+function isoDay(d: string): string | null {
+  return /^\d{4}-\d{2}-\d{2}/.test(d) ? `${d.slice(0, 10)}T12:00:00Z` : null;
+}
+
+/**
+ * Every open loop as a board row (Decisions needed, Stalled or Waiting on
+ * others). A row whose text trips the health test is left out entirely (no
+ * PHI on the page or in a note).
  */
 export function loopsToRows(rows: LoopRow[], now: Date): DecisionInput[] {
-  const today = now.toISOString().slice(0, 10);
   const out: DecisionInput[] = [];
   for (const r of rows) {
-    if (!isEricLoop(r)) continue;
-    if ([r.ref, r.note, r.client].some((t) => isHealth(t))) continue;
-    if (r.touched.slice(0, 10) > today) continue;
+    const section = loopSection(r, now);
+    if (!section) continue;
+    if ([r.ref, r.note, r.client, r.owes].some((t) => isHealth(t))) continue;
     const age = daysSince(r.first_seen, now);
     const urgency: Urgency = age !== null && age >= 21 ? 'red' : age !== null && age >= 7 ? 'yellow' : 'green';
     out.push({
@@ -135,6 +167,49 @@ export function loopsToRows(rows: LoopRow[], now: Date): DecisionInput[] {
       dedupe_key: r.key,
       closed_reason: null,
       group_name: loopGroup(r),
+      section,
+      added_at: isoDay(r.first_seen),
+      completed_at: null,
+    });
+  }
+  return out;
+}
+
+/**
+ * Loops closed in the last `days` days (open/triage-closed.tsv: closed,
+ * first_seen, source, client, who-owed, ref, what-closed-it, last-note), for
+ * the Completed section. Keyed like the open loop (sha of the ref), so a card
+ * that was open becomes its completed card.
+ */
+export function closedLoopsToRows(text: string, now: Date, days = 7): DecisionInput[] {
+  const since = new Date(now.getTime() - days * 86_400_000).toISOString().slice(0, 10);
+  const out: DecisionInput[] = [];
+  for (const l of text.split('\n')) {
+    if (l.startsWith('#') || !l.trim()) continue;
+    const f = [...l.replace(/\r$/, '').split('\t'), '', '', '', '', '', '', '', ''];
+    const [closed, first, source, client, owed, ref, how, last] = f;
+    if (!/^\d{4}-\d{2}-\d{2}/.test(closed) || closed.slice(0, 10) < since) continue;
+    if ([ref, how, last, client, owed].some((t) => isHealth(t))) continue;
+    const row: LoopRow = { line: -1, first_seen: first, touched: closed, source, client, owes: owed, ref, note: last || how, key: loopKey(ref, last || how) };
+    out.push({
+      source_note: row.key,
+      kind: 'loop',
+      for_agent: scrub(owed, 60) || null,
+      title: loopTitle(row),
+      context: scrub(how, 400) || null,
+      options: LOOP_OPTIONS,
+      default_option: null,
+      urgency: 'green',
+      deadline: null,
+      status: 'withdrawn',
+      pr_ref: null,
+      next_step: null,
+      dedupe_key: row.key,
+      closed_reason: 'loop closed',
+      group_name: loopGroup(row),
+      section: null,
+      added_at: isoDay(first),
+      completed_at: isoDay(closed),
     });
   }
   return out;

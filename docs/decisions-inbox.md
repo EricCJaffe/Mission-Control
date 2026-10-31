@@ -92,3 +92,18 @@ Eric: *"An email that I can't take action on though is kind of useless."*
   - its PR is merged or closed (`gh pr view`, which fails open).
 - **Emails.** The digest opens with an **Open Decisions (N waiting)** button, and every item links to its card. `openDecisionsButton()` in `scripts/sync/parse/decisions-digest.ts` is the shared block for any brief.
 - Migration `decisions_actionable` (additive; rollback in `supabase/rollbacks/`).
+
+## 2026-10-31: board v2 (four sections, live)
+
+Eric: *"the board needs to show the date the item is added and age... updated in real time... Decisions needed, stalled, and completed, maybe one for open loops."*
+
+- **Sections:**
+  - **Decisions needed**: decision notes, jobs waiting on Eric, and loops Eric owes (grouped).
+  - **Stalled**: ours, no movement 3+ days. That covers jobs stuck 72h+ and our own loops untouched 3+ days.
+  - **Waiting on others**: loops whose first owner is an outside person.
+  - **Completed**: answered on the page, or closed elsewhere, in the last 7 days, newest first.
+- **Where sections come from:** `section` is written by the box script. Completed is derived from `answered_at` / `completed_at`.
+- **Date and age:** every card shows when the item was added and how long ago (`Oct 27 · 4d`). The date is a loop's `first_seen`, or a note's `created`/`started`/filename date.
+- **One table:** `mission.decisions` is fed from decision notes, stalled jobs, `open/triage-open.tsv` (every owner now, not only Eric) and `open/triage-closed.tsv` (the last 7 days).
+- **Live updates:** `mission.decisions` is in the `supabase_realtime` publication. The page subscribes and refreshes on any change to the user's rows, and polls every 45s as a fallback. The badge says Live or Auto-refresh. New rows need no deploy.
+- **Migration:** `decisions_board_v2`, additive (3 columns, a check, an index, the publication).
