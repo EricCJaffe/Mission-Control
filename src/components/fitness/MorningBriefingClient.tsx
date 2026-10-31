@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { HeartPulse, Dumbbell, Zap, Pill, UtensilsCrossed, Droplets, Apple, BookOpen, Quote, Waves } from 'lucide-react';
 
 type Medication = {
@@ -97,6 +98,7 @@ const readinessCircleBg = {
 };
 
 export default function MorningBriefingClient(props: Props) {
+  const router = useRouter();
   const { date, metrics, form, latestBP, profile, todayPlan, readiness, strain, daysSinceBP, medications, fastingStatus, fastingHours } = props;
   const [aiBriefing, setAiBriefing] = useState<{
     recommendation: string;
@@ -159,11 +161,16 @@ export default function MorningBriefingClient(props: Props) {
     }
     if (!readiness) {
       // Readiness is pure computation, no AI — safe to trigger automatically.
-      fetch('/api/fitness/readiness').then(() => loadSavedBriefing());
+      // The readiness route saves today's row; refresh so the widget shows it.
+      // No loop: after the refresh `readiness` is set and this branch is skipped.
+      fetch('/api/fitness/readiness').then(() => {
+        router.refresh();
+        loadSavedBriefing();
+      });
     } else {
       loadSavedBriefing();
     }
-  }, [readiness, applyBriefing]);
+  }, [readiness, applyBriefing, router]);
 
   async function generateBriefing() {
     setGeneratingBriefing(true);
