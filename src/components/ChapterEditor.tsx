@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { diffLines } from "diff";
 import { Mark, mergeAttributes } from "@tiptap/core";
@@ -139,6 +140,7 @@ export default function ChapterEditor({
   attachments: Attachment[];
   todos: Todo[];
 }) {
+  const router = useRouter();
   const [markdown, setMarkdown] = useState(chapter.markdown_current || "");
   const [title, setTitle] = useState(chapter.title || "");
   const [summary, setSummary] = useState(chapter.summary || "");
@@ -294,6 +296,11 @@ export default function ChapterEditor({
         }
         lastSavedRef.current = signature;
         setAutosaveStatus("Saved");
+        // Version History and the outline titles are server props. Refresh only
+        // when a new version was written (an unchanged save returns version
+        // null); the editor state was seeded once, so typing is not reset.
+        const saved = await res.json().catch(() => ({}));
+        if (saved?.version != null) router.refresh();
         if (manual) {
           pushToast({ title: "Chapter saved", description: "Your changes are safely stored." });
         }

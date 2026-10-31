@@ -4,48 +4,53 @@ import { sortOpen, type DecisionCardRow } from "@/lib/decisions/answer";
 
 export const dynamic = "force-dynamic";
 
-const COLUMNS =
+const BASE_COLUMNS =
   "id,kind,for_agent,title,context,options,default_option,urgency,deadline,status,answer,answer_text,answered_at,created_at,delivered_at,delivery_error";
+// From 20261031 decisions_actionable. Between the merge and that migration
+// being applied the select fails, so the page falls back to BASE_COLUMNS
+// rather than showing an empty inbox.
+const COLUMNS = `${BASE_COLUMNS},pr_ref,next_step`;
+
+/** Answered items stay visible this long (to see the bots picked them up), then drop off. */
+const ANSWERED_SHOWN_HOURS = 24;
+const answeredSince = () => new Date(Date.now() - ANSWERED_SHOWN_HOURS * 3_600_000).toISOString();
 
 /*
- * The Decisions inbox: every open decision waiting on Eric and every job
- * stalled on him, one tap each. Eric, 2026-10-30: "one always-live link".
- * Rows come from the brain through scripts/sync/decisions-inbox.ts every five
- * minutes; answers go back the same way. docs/decisions-inbox.md.
+ * The Decisions inbox: the one place Eric acts on decisions. Every open
+ * decision waiting on him and every job stalled on him, one tap each, plus a
+ * question box that goes to Chief of Staff. Eric, 2026-10-31: "An email that
+ * I can't take action on though is kind of useless." Emails link here
+ * (/decisions, and /decisions#d-<id> per item). Rows come from the brain
+ * through scripts/sync/decisions-inbox.ts every five minutes; answers go back
+ * the same way. docs/decisions-inbox.md.
  */
 export default async function DecisionsPage() {
   const supabase = await supabaseServer();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return null;
 
-  const [openRes, doneRes] = await Promise.all([
-    supabase.from("decisions").select(COLUMNS).eq("user_id", userData.user.id).in("status", ["open", "stale"]).limit(200),
-    supabase
-      .from("decisions")
-      .select(COLUMNS)
-      .eq("user_id", userData.user.id)
-      .eq("status", "answered")
-      .order("answered_at", { ascending: false })
-      .limit(30),
-  ]);
+  const since = answeredSince();
+  const load = (columns: string) =>
+    Promise.all([
+      supabase.from("decisions").select(columns).eq("user_id", userData.user!.id).in("status", ["open", "stale"]).limit(200),
+      supabase
+        .from("decisions")
+        .select(columns)
+        .eq("user_id", userData.user!.id)
+        .eq("status", "answered")
+        .gte("answered_at", since)
+        .order("answered_at", { ascending: false })
+        .limit(30),
+    ]);
+  let [openRes, doneRes] = await load(COLUMNS);
+  if (openRes.error || doneRes.error) [openRes, doneRes] = await load(BASE_COLUMNS);
 
-  const open = sortOpen((openRes.data ?? []) as DecisionCardRow[]);
-  const answered = (doneRes.data ?? []) as DecisionCardRow[];
-  const unavailable = Boolean(openRes.error);
+  const open = sortOpen((openRes.data ?? []) as unknown as DecisionCardRow[]);
+  const answered = (doneRes.data ?? []) as unknown as DecisionCardRow[];
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-5 px-4 py-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-slate-900">Decisions</h1>
-        <p className="text-sm text-slate-600">
-          {unavailable
-            ? "The decisions list is not available yet."
-            : open.length === 0
-              ? "Nothing is waiting on you."
-              : `${open.length} waiting on you · ${open.filter((r) => r.urgency === "red").length} red`}
-        </p>
-      </header>
-      <DecisionsInbox open={open} answered={answered} />
+    <main className="mx-auto w-full max-w-3xl px-4 py-6">
+      <DecisionsInbox open={open} answered={answered} unavailable={Boolean(openRes.error)} />
     </main>
   );
 }

@@ -10,6 +10,7 @@ import { statusForScore } from "@/lib/status-colors";
 import MissionBanner from "@/components/MissionBanner";
 import PriorityMatrix from "@/components/PriorityMatrix";
 import PracticeTracker from "@/components/spirit/PracticeTracker";
+import PracticeNudge from "@/components/spirit/PracticeNudge";
 import { parseMission } from "@/lib/persona/mission";
 import {
   isPracticeDue,
@@ -443,6 +444,11 @@ export default async function DashboardHome() {
       {/* Mission first, then the pillars it is measured through. */}
       <div className="mt-6">
         <MissionBanner content={missionContent} today={todayIso} />
+      </div>
+
+      {/* Daily reminder: in-app only, dismissible for the day. */}
+      <div className="mt-4 empty:hidden">
+        <PracticeNudge practices={allPractices} logs={practiceLogs} today={practiceToday(today)} />
       </div>
 
       {/* Spirit / Soul / Body — the app's own frame, at the top where it

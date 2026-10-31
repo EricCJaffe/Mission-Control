@@ -26,6 +26,10 @@ export type DecisionCardRow = {
   created_at: string;
   delivered_at: string | null;
   delivery_error: string | null;
+  /** owner/repo#n when the item is a pull request. */
+  pr_ref?: string | null;
+  /** What happens next; shown on stalled jobs. */
+  next_step?: string | null;
 };
 
 export const ANSWER_TEXT_MAX = 1000;

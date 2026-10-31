@@ -59,7 +59,36 @@ text.
 
 `DECISIONS_DOORBELL=off` skips the ring; `FSA_MAIL_BIN` replaces `fsa-mail`.
 
-## Not built yet
+## Email digest
 
-- The email digest with signed, expiring one-click links (scope item 5, a
-  separate PR).
+`scripts/sync/decisions-digest.ts` emails every open decision, with each option
+as a one-click link. **Sending is off by default** (`DECISIONS_DIGEST_SEND=on`
+switches it on). Without that it builds the digest, reports it, and writes the
+HTML to `--out <file>` if asked. Nothing open, nothing sent.
+
+| Piece | What it does |
+|---|---|
+| Link | `/decisions/a/<token>`. The token is `v1.<decision>.<option>.<expiry>.<HMAC-SHA256>` under `DECISIONS_LINK_SECRET` (at least 32 characters), good for 72 h (`src/lib/decisions/link-token.ts`) |
+| Who can use it | only Eric's session: `/decisions/:path*` is in the middleware matcher, so a mail scanner that opens a link gets the login page and answers nothing |
+| What it can answer | only the decision and option it was signed for. The answer endpoint re-checks the token against the id and option in the request |
+| Once | the row, not a spent-token ledger: the endpoint updates only an unanswered open/stale row, so any second tap is "Already answered" |
+| After the tap | the same path as `/decisions`: the box script writes the `kind: answer` note and rings the doorbell |
+
+To switch it on: set the same `DECISIONS_LINK_SECRET` in Vercel (production)
+and in `~/.config/mission-control/sync.env`, deploy, run it once by hand with
+`--out` and open the result, then add `DECISIONS_DIGEST_SEND=on` and a timer.
+`DECISIONS_DIGEST_TO` and `DECISIONS_APP_URL` override the recipient and host.
+
+## 2026-10-31: the one place to act
+
+Eric: *"An email that I can't take action on though is kind of useless."*
+
+- **Page.** A colored summary banner (red / yellow / green and stalled counts), then **Decisions**, then **Stalled on you** with each job's owner and next step, then **Answered today**. Answered items drop off after 24 hours. Each card has `id="d-<id>"`, so `/decisions#d-<id>` deep-links to it and rings it.
+- **Ask Chief of Staff.** A question box on every card (`POST /api/decisions/[id]/question` → `mission.decision_questions`). The box script delivers each one as a `kind: question` note `for: cos`, `re:` the source, and rings the doorbell. Asking does not close the card.
+- **Write-back.** On delivery, the source note gets a line naming Eric's choice and the answer note. A `kind: decision` note is also set to `status: answered`; a stalled job's status is left to its owner.
+- **One row per item, auto-closed.** `dedupe_key` is `pr:<owner/repo#n>` when the note names a PR (`pr:` or the first PR URL), otherwise the note path. Open rows that share a key keep the newest note. A row closes, with `closed_reason`, when any of these happens:
+  - its note is closed;
+  - a `kind: answer` or `reply` note `re:` it appears (an answer given in a chat card or an email reply);
+  - its PR is merged or closed (`gh pr view`, which fails open).
+- **Emails.** The digest opens with an **Open Decisions (N waiting)** button, and every item links to its card. `openDecisionsButton()` in `scripts/sync/parse/decisions-digest.ts` is the shared block for any brief.
+- Migration `decisions_actionable` (additive; rollback in `supabase/rollbacks/`).
