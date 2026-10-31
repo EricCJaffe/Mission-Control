@@ -30,7 +30,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   const parsed = parseQuestion(raw);
   if (!parsed.ok) {
-    const msg = parsed.error === "health" ? "Leave health details out: this question is written to the bots' notes" : "Write a question (up to 1,000 characters)";
+    const msg = parsed.error === "health" ? "Leave health details out: this comment is written to the bots' notes" : "Write a comment (up to 1,000 characters)";
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 

@@ -11,7 +11,7 @@ export type Urgency = "red" | "yellow" | "green";
 
 export type DecisionCardRow = {
   id: string;
-  kind: "decision" | "stalled";
+  kind: "decision" | "stalled" | "loop";
   for_agent: string | null;
   title: string;
   context: string | null;
@@ -30,6 +30,8 @@ export type DecisionCardRow = {
   pr_ref?: string | null;
   /** What happens next; shown on stalled jobs. */
   next_step?: string | null;
+  /** Section for a loop (Drafts to send, Eden, HL scope, ...). */
+  group_name?: string | null;
 };
 
 export const ANSWER_TEXT_MAX = 1000;

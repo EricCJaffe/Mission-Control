@@ -231,13 +231,15 @@ test('writeBackAnswer leaves a stalled job status to its owner', () => {
   assert.match(out, /Answered by Eric/);
 });
 
-test('question note goes to cos, re: the source; health is held back', () => {
+test('comment note goes to cos, re: the source; health is held back', () => {
   const q = { id: 'aaaaaaaa-bbbb', question: 'What does it cost?', created_at: '2026-10-31T13:00:00Z', decision_id: 'd1', source_note: 'channel/to-grokbot/x.md', title: 'Pick a color' };
   const note = renderQuestionNote(q)!;
-  assert.match(note.path, /^channel\/to-grokbot\/2026-10-31-question-pick-a-color-aaaaaaaa\.md$/);
-  assert.match(note.text, /\nfor: cos\nkind: question\n/);
+  assert.match(note.path, /^channel\/to-grokbot\/2026-10-31-comment-pick-a-color-aaaaaaaa\.md$/);
+  assert.match(note.text, /\nfor: cos\nkind: comment\n/);
   assert.match(note.text, /\nre: channel\/to-grokbot\/x\.md\n/);
   assert.equal(renderQuestionNote({ ...q, question: 'Is this before my MRI?' }), null);
+  assert.doesNotMatch(note.text, /learn: yes/);
+  assert.match(renderQuestionNote({ ...q, question: 'Always ask me before spending' })!.text, /\nlearn: yes\n/);
 });
 
 test('dedupe compares dates in the file name, not the folder, and prefers a decision', () => {
