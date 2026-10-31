@@ -34,8 +34,15 @@
  *     answered on a `kind: decision` note);
  *   - and stamps delivered_at. A failed push leaves the row undelivered with
  *     delivery_error, for the next run.
- *   - "Ask a question" rows (mission.decision_questions) go the same way, as
- *     `kind: question` notes for Chief of Staff.
+ *   - Comment rows (mission.decision_questions) go the same way, as
+ *     `kind: comment` notes for Chief of Staff; one that states a preference
+ *     or rule is also appended to rules/learned-from-decisions.md.
+ *
+ * LOOPS (scripts/sync/parse/decisions-loops.ts)
+ *   - every row of open/triage-open.tsv owed by Eric is a `loop` row, keyed
+ *     as jobs/lib/loops-ask.py keys it; one gone from the file closes;
+ *   - an answer or comment on a loop is applied to that file in the same
+ *     scratch-clone commit, exactly as loops-ask `apply` does.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -59,6 +66,10 @@ import {
   type DecisionInput,
   type QuestionRow,
 } from './parse/decisions-inbox.ts';
+import { applyLoopAnswer, isLesson, lessonLine, LESSONS_HEADER, loopsToRows, parseLoopsTsv } from './parse/decisions-loops.ts';
+
+const LOOPS_TSV = 'open/triage-open.tsv';
+const LESSONS = 'rules/learned-from-decisions.md';
 
 const dryRun = process.argv.includes('--dry-run');
 const SCAN_DAYS = 60;
@@ -124,10 +135,13 @@ async function main() {
   // ---- ingest -------------------------------------------------------------
   const scanned = scanBrain(env.brainRoot, now);
   const openRefs = [...new Set(scanned.rows.filter((r) => r.status !== 'withdrawn' && r.pr_ref).map((r) => r.pr_ref!))];
-  const found = settleRows(scanned.rows, scanned.answered, prStates(openRefs));
+  const loopsPath = join(env.brainRoot, LOOPS_TSV);
+  const loopsReadable = existsSync(loopsPath);
+  const loopRows = loopsReadable ? loopsToRows(parseLoopsTsv(readFileSync(loopsPath, 'utf8')), now) : [];
+  const found = [...settleRows(scanned.rows, scanned.answered, prStates(openRefs)), ...loopRows];
   const { data: existing, error: exErr } = await db
     .from('decisions')
-    .select('id,source_note,status')
+    .select('id,source_note,status,answered_at')
     .eq('user_id', env.userId);
   // A dry run before the migration is applied still shows what would land.
   if (exErr && !dryRun) throw new Error(`read decisions: ${exErr.message}`);
@@ -143,7 +157,10 @@ async function main() {
     const { pr_ref: _p, next_step: _n, dedupe_key: _d, closed_reason: _c, ...rest } = r;
     return rest;
   };
-  const have = new Map((existing ?? []).map((r) => [r.source_note as string, r as { id: string; status: string }]));
+  const have = new Map((existing ?? []).map((r) => [r.source_note as string, r as { id: string; status: string; answered_at: string | null }]));
+  // A loop answered Keep open or Snooze that is still Eric's a week later
+  // comes back as a fresh card; the earlier answer is in decisions.tsv.
+  const reopen: string[] = [];
 
   const upserts: Array<Record<string, unknown>> = [];
   const withdraw: Array<{ id: string; reason: string | null }> = [];
@@ -151,7 +168,10 @@ async function main() {
   for (const row of found) {
     seen.add(row.source_note);
     const prev = have.get(row.source_note);
-    if (prev?.status === 'answered') continue;
+    if (prev?.status === 'answered') {
+      if (row.kind === 'loop' && prev.answered_at && now.getTime() - Date.parse(prev.answered_at) > 7 * 86_400_000) reopen.push(prev.id);
+      continue;
+    }
     if (row.status === 'withdrawn') {
       if (prev && prev.status !== 'withdrawn') withdraw.push({ id: prev.id, reason: row.closed_reason });
       continue;
@@ -161,7 +181,11 @@ async function main() {
   // An open row whose note was deleted is withdrawn. One merely older than
   // the scan window keeps its last state: still answerable.
   for (const [note, r] of have) {
-    if (!seen.has(note) && (r.status === 'open' || r.status === 'stale') && !existsSync(join(env.brainRoot, note))) withdraw.push({ id: r.id, reason: 'note deleted' });
+    if (!seen.has(note) && (r.status === 'open' || r.status === 'stale') && note.startsWith('loop:')) {
+      // Gone from triage-open.tsv (closed on the loops form, by a bot, or by
+      // reconcile), handed back, or snoozed: off the page until it returns.
+      if (loopsReadable) withdraw.push({ id: r.id, reason: 'loop closed or not owed by Eric' });
+    } else if (!seen.has(note) && (r.status === 'open' || r.status === 'stale') && !existsSync(join(env.brainRoot, note))) withdraw.push({ id: r.id, reason: 'note deleted' });
   }
   console.log(`decisions: ${found.filter((r) => r.status !== 'withdrawn').length} live in the brain, ${upserts.length} open, ${withdraw.length} to withdraw`);
   if (dryRun) {
@@ -187,6 +211,15 @@ async function main() {
         .eq('source_note', u.source_note as string)
         .in('status', ['open', 'stale', 'withdrawn']);
       if (error) console.error(`decisions: could not refresh ${u.source_note}: ${error.message}`);
+    }
+    if (reopen.length) {
+      const { error } = await db
+        .from('decisions')
+        .update({ status: 'open', answer: null, answer_text: null, answered_at: null, delivered_at: null, delivery_ref: null, delivery_error: null, updated_at: stamp })
+        .in('id', reopen)
+        .eq('status', 'answered')
+        .not('delivered_at', 'is', null);
+      if (error) console.error(`decisions: could not reopen loops: ${error.message}`);
     }
     const byReason = new Map<string | null, string[]>();
     for (const w of withdraw) byReason.set(w.reason, [...(byReason.get(w.reason) ?? []), w.id]);
@@ -220,7 +253,7 @@ async function main() {
   // missing, which is "nothing to ask", not a failure.
   const { data: qData, error: qErr } = await db
     .from('decision_questions')
-    .select('id,question,created_at,decision_id,decisions(source_note,title)')
+    .select('id,question,created_at,decision_id,decisions(source_note,title,kind)')
     .eq('user_id', env.userId)
     .is('delivered_at', null)
     .is('delivery_ref', null)
@@ -229,7 +262,7 @@ async function main() {
   if (qErr) console.error(`decisions: questions not readable: ${qErr.message}`);
   const questions: QuestionRow[] = ((qData ?? []) as unknown as Array<Record<string, unknown>>).flatMap((q) => {
     const d = (Array.isArray(q.decisions) ? q.decisions[0] : q.decisions) as { source_note: string; title: string } | null;
-    return d ? [{ id: q.id as string, question: q.question as string, created_at: q.created_at as string, decision_id: q.decision_id as string, ...d }] : [];
+    return d ? [{ id: q.id as string, question: q.question as string, created_at: q.created_at as string, decision_id: q.decision_id as string, source_note: d.source_note, title: d.title }] : [];
   });
 
   if (rows.length === 0 && questions.length === 0) {
@@ -243,10 +276,10 @@ async function main() {
     if (e) console.error(`decisions: could not mark ${table} ${id.slice(0, 8)}: ${e.message}`);
   };
 
-  type Item = { table: Table; id: string; note: { path: string; text: string } | null; answer?: AnsweredRow };
+  type Item = { table: Table; id: string; note: { path: string; text: string } | null; answer?: AnsweredRow; comment?: QuestionRow };
   const planned: Item[] = [
     ...rows.map((row) => ({ table: 'decisions' as const, id: row.id, note: renderAnswerNote(row), answer: row })),
-    ...questions.map((q) => ({ table: 'decision_questions' as const, id: q.id, note: renderQuestionNote(q) })),
+    ...questions.map((q) => ({ table: 'decision_questions' as const, id: q.id, note: renderQuestionNote(q), comment: q })),
   ];
   for (const p of planned) console.log(`decisions: deliver ${p.answer ? p.answer.answer.padEnd(5) : 'ask  '} ${p.note?.path ?? 'leak test failed'}`);
   if (dryRun) return;
@@ -278,8 +311,45 @@ async function main() {
       writeFileSync(abs, note.text);
       touch(note.path);
       pushed.push({ table: p.table, id: p.id, path: note.path });
+      const today = etDay(stamp);
+
+      if (p.comment) {
+        const c = p.comment;
+        // A comment on a loop rides on the loop's own row, as on the form.
+        if (c.source_note.startsWith('loop:')) {
+          const tsv = join(clone, LOOPS_TSV);
+          const applied = existsSync(tsv) ? applyLoopAnswer(readFileSync(tsv, 'utf8'), c.source_note, { comment: c.question }, today) : null;
+          if (applied) {
+            writeFileSync(tsv, applied.text);
+            touch(LOOPS_TSV);
+          }
+        }
+        // Learn from what he shares: a stated preference or rule goes to the
+        // lessons file every bot reads before a job, flagged for promotion.
+        if (isLesson(c.question)) {
+          const lessons = join(clone, LESSONS);
+          mkdirSync(dirname(lessons), { recursive: true });
+          if (!existsSync(lessons)) writeFileSync(lessons, LESSONS_HEADER);
+          appendFileSync(lessons, `${lessonLine(today, c.title, scrub(c.question, 400), note.path)}\n`);
+          touch(LESSONS);
+        }
+        continue;
+      }
+
       const row = p.answer;
       if (!row) continue;
+
+      // A loop answer is applied to triage-open.tsv, as loops-ask `apply` does.
+      if (row.kind === 'loop') {
+        const tsv = join(clone, LOOPS_TSV);
+        const applied = existsSync(tsv)
+          ? applyLoopAnswer(readFileSync(tsv, 'utf8'), row.source_note, { option: row.answer === 'other' ? null : row.answer, comment: row.answer_text }, today)
+          : null;
+        if (applied) {
+          writeFileSync(tsv, applied.text);
+          touch(LOOPS_TSV);
+        }
+      }
 
       // Write the answer back into the note that asked, so it reads as settled
       // wherever it is opened. A deleted source has nothing to write to.

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, Clock, GitPullRequest, HelpCircle, MessageSquare, User, Vote } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, GitPullRequest, ListChecks, MessageSquare, MessageSquarePlus, User, Vote } from "lucide-react";
 import type { DecisionCardRow, Urgency } from "@/lib/decisions/answer";
 
 /*
@@ -36,6 +36,16 @@ function choiceLabel(r: DecisionCardRow): string {
   return r.options.find((o) => o.id === r.answer)?.label ?? r.answer ?? "";
 }
 
+const LOOP_GROUP_ORDER = ["Drafts to send", "Eden", "HL scope", "HL vendor/hardware", "Records", "Misc"];
+const GROUP_CHIP: Record<string, string> = {
+  "Drafts to send": "bg-blue-100 text-blue-900",
+  Eden: "bg-emerald-100 text-emerald-900",
+  "HL scope": "bg-teal-100 text-teal-900",
+  "HL vendor/hardware": "bg-cyan-100 text-cyan-900",
+  Records: "bg-fuchsia-100 text-fuchsia-900",
+  Misc: "bg-slate-200 text-slate-800",
+};
+
 type Props = { open: DecisionCardRow[]; answered: DecisionCardRow[]; unavailable?: boolean };
 
 export default function DecisionsInbox({ open, answered, unavailable = false }: Props) {
@@ -51,6 +61,8 @@ export default function DecisionsInbox({ open, answered, unavailable = false }: 
 
   const decisions = rows.filter((r) => r.kind === "decision");
   const stalled = rows.filter((r) => r.kind === "stalled");
+  const loops = rows.filter((r) => r.kind === "loop");
+  const loopGroups = LOOP_GROUP_ORDER.map((g) => ({ g, items: loops.filter((r) => (r.group_name ?? "Misc") === g) })).filter((x) => x.items.length > 0);
   const count = (u: Urgency) => rows.filter((r) => r.urgency === u).length;
 
   return (
@@ -75,6 +87,11 @@ export default function DecisionsInbox({ open, answered, unavailable = false }: 
                 {count(u)} {WORD[u]}
               </span>
             ))}
+            {loops.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-sky-900 ring-1 ring-sky-200">
+                <ListChecks className="h-3.5 w-3.5" aria-hidden /> {loops.length} loops
+              </span>
+            )}
             {stalled.length > 0 && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-orange-900 ring-1 ring-orange-200">
                 <AlertTriangle className="h-3.5 w-3.5" aria-hidden /> {stalled.length} stalled
@@ -98,6 +115,22 @@ export default function DecisionsInbox({ open, answered, unavailable = false }: 
           <h2 className="text-sm font-semibold uppercase tracking-wide text-orange-700">Stalled on you</h2>
           {stalled.map((r) => (
             <DecisionCard key={r.id} row={r} onAnswered={onAnswered} />
+          ))}
+        </section>
+      )}
+
+      {loopGroups.length > 0 && (
+        <section className="space-y-4" aria-label="Open loops">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-700">Open loops on you</h2>
+          {loopGroups.map(({ g, items }) => (
+            <div key={g} className="space-y-3">
+              <h3 className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ${GROUP_CHIP[g] ?? GROUP_CHIP.Misc}`}>
+                {g} <span className="font-semibold opacity-75">{items.length}</span>
+              </h3>
+              {items.map((r) => (
+                <DecisionCard key={r.id} row={r} onAnswered={onAnswered} />
+              ))}
+            </div>
           ))}
         </section>
       )}
@@ -213,6 +246,8 @@ function DecisionCard({ row, onAnswered }: { row: DecisionCardRow; onAnswered: (
           <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 font-medium text-orange-900">
             <AlertTriangle size={12} aria-hidden /> Stalled job
           </span>
+        ) : row.kind === "loop" ? (
+          <span className="rounded-full bg-sky-100 px-2 py-0.5 font-medium text-sky-800">Open loop</span>
         ) : (
           <span className="rounded-full bg-indigo-100 px-2 py-0.5 font-medium text-indigo-800">Decision</span>
         )}
@@ -302,7 +337,7 @@ function DecisionCard({ row, onAnswered }: { row: DecisionCardRow; onAnswered: (
             onChange={(e) => setQuestion(e.target.value)}
             maxLength={1000}
             rows={2}
-            placeholder="Your question for Chief of Staff"
+            placeholder="A comment for Chief of Staff: context, a question, or how you want this handled from now on"
             className="w-full rounded-lg border-2 border-violet-200 bg-white p-2 text-sm"
           />
           <button
@@ -311,15 +346,17 @@ function DecisionCard({ row, onAnswered }: { row: DecisionCardRow; onAnswered: (
             onClick={ask}
             className="min-h-11 rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
           >
-            {busy === "ask" ? "Sending…" : "Ask"}
+            {busy === "ask" ? "Sending…" : "Send comment"}
           </button>
-          <p className="text-xs text-slate-600">This does not answer the item; it stays here until you do.</p>
+          <p className="text-xs text-slate-600">
+            Goes to Chief of Staff and does not close the item. A preference or rule (&ldquo;always&hellip;&rdquo;, &ldquo;never&hellip;&rdquo;) is also saved for the bots to learn from.
+          </p>
         </div>
       )}
 
       {asked && (
         <p className="rounded-lg bg-violet-50 px-3 py-2 text-sm text-violet-900">
-          Asked Chief of Staff: “{asked}”
+          Sent to Chief of Staff: “{asked}”
         </p>
       )}
 
@@ -331,7 +368,7 @@ function DecisionCard({ row, onAnswered }: { row: DecisionCardRow; onAnswered: (
         )}
         {!asking && (
           <button type="button" onClick={() => setAsking(true)} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-violet-700">
-            <HelpCircle size={14} aria-hidden /> Ask Chief of Staff
+            <MessageSquarePlus size={14} aria-hidden /> Comment
           </button>
         )}
       </div>

@@ -23,6 +23,7 @@ import { botName, isHoneyLake, parseFrontmatter, parseH1, parseWhen, type Frontm
 
 export { isHealth } from '../../../src/lib/activity/health.ts';
 import { isHealth } from '../../../src/lib/activity/health.ts';
+import { isLesson } from './decisions-loops.ts';
 
 export const STALL_HOURS = 48;
 export const STALE_DAYS = 7;
@@ -35,7 +36,7 @@ export type Option = { id: string; label: string; detail?: string };
 
 export type DecisionInput = {
   source_note: string;
-  kind: 'decision' | 'stalled';
+  kind: 'decision' | 'stalled' | 'loop';
   for_agent: string | null;
   title: string;
   context: string | null;
@@ -53,6 +54,8 @@ export type DecisionInput = {
   dedupe_key: string;
   /** Why a row was closed without an answer on the page. */
   closed_reason: string | null;
+  /** Section on the page, for loops (Drafts to send, Eden, ...). */
+  group_name?: string | null;
 };
 
 const CLOSED = new Set(['done', 'closed', 'dropped', 'withdrawn', 'answered', 'superseded', 'cancelled']);
@@ -366,7 +369,7 @@ function leaks(row: DecisionInput): boolean {
 export type AnsweredRow = {
   id: string;
   source_note: string;
-  kind: 'decision' | 'stalled';
+  kind: 'decision' | 'stalled' | 'loop';
   for_agent: string | null;
   title: string;
   options: Option[];
@@ -416,7 +419,9 @@ export function renderAnswerNote(row: AnsweredRow): { path: string; text: string
     '',
     row.kind === 'stalled'
       ? `The job in \`${row.source_note}\` was stalled; act on his choice (${row.for_agent ?? 'its owner'}).`
-      : `Route this to whoever asked in \`${row.source_note}\` and close that note.`,
+      : row.kind === 'loop'
+        ? `Already applied to \`open/triage-open.tsv\` (loop \`${row.source_note}\`), as the loops form would. Nothing to route unless his words ask for more.`
+        : `Route this to whoever asked in \`${row.source_note}\` and close that note.`,
     '',
     `Answered on Mission Control /decisions, ${day}. Decision ${row.id.slice(0, 8)}.`,
   );
@@ -458,27 +463,39 @@ export type QuestionRow = {
   title: string;
 };
 
-/** Eric's question about one item, as a `kind: question` note for Chief of Staff; null if it would leak. */
+/**
+ * Eric's comment on one item, as a `kind: comment` note for Chief of Staff;
+ * null if it would leak. Eric, 2026-10-31: "Make sure there are comment fields
+ * where I can share with u. And that I learn from what I share." A comment
+ * that states a preference or rule carries `learn: yes`; the box script also
+ * appends it to rules/learned-from-decisions.md for Chief of Staff to promote.
+ */
 export function renderQuestionNote(q: QuestionRow): { path: string; text: string } | null {
   if ([q.title, q.question].some((t) => textLeaks(t).length > 0 || isHealth(t))) return null;
   const day = etDay(q.created_at);
-  const path = `channel/to-grokbot/${day}-question-${slug(q.title)}-${q.id.slice(0, 8)}.md`;
+  const learn = isLesson(q.question);
+  const path = `channel/to-grokbot/${day}-comment-${slug(q.title)}-${q.id.slice(0, 8)}.md`;
   const text = [
     '---',
     'status: open',
     'for: cos',
-    'kind: question',
+    'kind: comment',
     'from: eric (Mission Control /decisions)',
     `re: ${q.source_note}`,
-    `decision: ${q.decision_id}`,
-    `asked: ${q.created_at}`,
+    `item: ${q.decision_id}`,
+    ...(learn ? ['learn: yes'] : []),
+    `commented: ${q.created_at}`,
     '---',
     '',
-    `# Eric asks about: ${q.title}`,
+    `# Eric's comment on: ${q.title}`,
     '',
     `> ${q.question.replace(/\n/g, '\n> ')}`,
     '',
-    `Answer him (chat or email) and, if it settles the item, close \`${q.source_note}\`. The card stays open on /decisions until then.`,
+    learn
+      ? 'This states a preference or rule. It was added to `rules/learned-from-decisions.md`; promote it to `rules/RULES.md` or reject it there.'
+      : 'Reply to him (chat or email) if it needs an answer. A comment does not close the item.',
+    '',
+    `Item: \`${q.source_note}\`.`,
     '',
   ].join('\n');
   return { path, text };

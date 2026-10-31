@@ -9,7 +9,7 @@ const BASE_COLUMNS =
 // From 20261031 decisions_actionable. Between the merge and that migration
 // being applied the select fails, so the page falls back to BASE_COLUMNS
 // rather than showing an empty inbox.
-const COLUMNS = `${BASE_COLUMNS},pr_ref,next_step`;
+const COLUMNS = `${BASE_COLUMNS},pr_ref,next_step,group_name`;
 
 /** Answered items stay visible this long (to see the bots picked them up), then drop off. */
 const ANSWERED_SHOWN_HOURS = 24;
@@ -43,6 +43,8 @@ export default async function DecisionsPage() {
         .limit(30),
     ]);
   let [openRes, doneRes] = await load(COLUMNS);
+  // group_name arrives with 20261031 decisions_loops; before it, the round-two columns.
+  if (openRes.error || doneRes.error) [openRes, doneRes] = await load(`${BASE_COLUMNS},pr_ref,next_step`);
   if (openRes.error || doneRes.error) [openRes, doneRes] = await load(BASE_COLUMNS);
 
   const open = sortOpen((openRes.data ?? []) as unknown as DecisionCardRow[]);
