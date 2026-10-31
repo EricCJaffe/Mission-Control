@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { RefreshCw, Sun, Snowflake, Leaf, CloudSun } from 'lucide-react';
 
 type Profile = {
@@ -45,6 +46,7 @@ const ZONE_COLORS = ['#16a34a', '#2563eb', '#d97706', '#dc2626'];
 const ZONE_NAMES = ['Recovery', 'Endurance', 'Tempo', 'Threshold'];
 
 export default function AthleteProfileClient({ profile }: { profile: Profile | null }) {
+  const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [garminStatus, setGarminStatus] = useState<GarminStatus | null>(null);
@@ -158,7 +160,11 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
     });
 
     setSaving(false);
-    if (res.ok) setSaved(true);
+    // The server recalculates HR and power zones; they render from the prop.
+    if (res.ok) {
+      setSaved(true);
+      router.refresh();
+    }
   }
 
   async function handleSeasonalRecalibrate() {
@@ -193,6 +199,7 @@ export default function AthleteProfileClient({ profile }: { profile: Profile | n
         throw new Error(data.error || 'Failed to apply recalibration');
       }
       setSaved(true);
+      router.refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to apply recalibration');
     } finally {

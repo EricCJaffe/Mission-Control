@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { CalendarPlus2, Loader2 } from 'lucide-react';
 
 export default function TrainingPlanActionsClient({ planId }: { planId: string }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -29,6 +31,8 @@ export default function TrainingPlanActionsClient({ planId }: { planId: string }
           ? `Scheduled ${data.scheduled_count} workout${data.scheduled_count === 1 ? '' : 's'}.`
           : 'Framework was already scheduled.'
       );
+      // Adherence and the weekly table on the plan page are server-rendered.
+      if (data.scheduled_count > 0) router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to schedule framework');
     } finally {
@@ -55,6 +59,7 @@ export default function TrainingPlanActionsClient({ planId }: { planId: string }
           ? `Scheduled ${data.recovery_count} optional recovery block${data.recovery_count === 1 ? '' : 's'}.`
           : 'Recovery blocks were already scheduled.'
       );
+      if (data.recovery_count > 0) router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to schedule recovery blocks');
     } finally {

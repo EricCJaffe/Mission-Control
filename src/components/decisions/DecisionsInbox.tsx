@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, Clock, MessageSquare } from "lucide-react";
 import type { DecisionCardRow, Urgency } from "@/lib/decisions/answer";
 
@@ -31,10 +32,13 @@ function choiceLabel(r: DecisionCardRow): string {
 export default function DecisionsInbox({ open, answered }: { open: DecisionCardRow[]; answered: DecisionCardRow[] }) {
   const [rows, setRows] = useState(open);
   const [done, setDone] = useState(answered);
+  const router = useRouter();
 
   const onAnswered = (r: DecisionCardRow) => {
     setRows((xs) => xs.filter((x) => x.id !== r.id));
     setDone((xs) => [r, ...xs]);
+    // The header count is server-rendered; the local lists survive a refresh.
+    router.refresh();
   };
 
   return (

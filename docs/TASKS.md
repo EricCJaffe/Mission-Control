@@ -258,7 +258,7 @@ an assessment is 30+ days old. Everything below is designed but NOT built.
   frequent. `REASSESS_INTERVAL_DAYS` in `spirit-soul-body.ts` is the single knob.
   Currently a dashboard prompt only — no email or push.
 
-- [ ] **Audit client components for stale server props.** Fixed in FlourishingClient
+- [x] **Audit client components for stale server props.** (2026-10-30: 51 flagged, 7 real, fixed; see the PR.) Fixed in FlourishingClient
   2026-08-02: it POSTed a new assessment, updated local state, and left the `history` and
   `profile` SERVER props untouched — so a new assessment appeared in the overview while
   History, the flourishing index, strongest/growth domains and the trend comparison all
