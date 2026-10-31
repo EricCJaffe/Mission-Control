@@ -70,13 +70,21 @@ export const isEricLoop = (r: LoopRow) => /eric/i.test(r.owes);
 /** A ref a person can read: not a Graph id, message id or bare hash. */
 function readable(ref: string): boolean {
   if (!ref || ref.length > 90) return false;
-  return !/AAMk|<[^>]*@|[A-Za-z0-9_=-]{30,}|^[0-9a-f-]{8,}$/i.test(ref);
+  return !/AAMk|<[^>]*@|[A-Za-z0-9_=-]{30,}|^[0-9a-f-]{8,}$|^AA[A-Za-z0-9_-]+=*$|=$/i.test(ref);
 }
 
-/** The card title: the ref when it reads like a title, else the note's first clause. */
+/**
+ * The card title: the ref when it reads like a title, else the note's opening
+ * sentence. A leading "NEW 2026-09-30 ~20:35 UTC:" / "UPDATE ...:" stamp is
+ * dropped first (splitting on its colons gave titles like "35 UTC"), and a
+ * fragment too short to mean anything falls back to the note's start.
+ */
 export function loopTitle(r: LoopRow): string {
-  const src = readable(r.ref) ? r.ref : r.note.split(/(?<=[.;:!?])\s|\s[-—]\s/)[0];
-  return scrub(src.replace(/^(NEW|UPDATE)\b[^:]*:\s*/i, ''), 120) || 'Open loop';
+  if (readable(r.ref)) return scrub(r.ref, 120) || 'Open loop';
+  const note = r.note.replace(/^(?:NEW|UPDATE)\b.*?:\s+/i, '').trim();
+  const first = note.split(/(?<=[.;!?])\s|\s[-—]\s/)[0].trim();
+  const src = first.length >= 12 ? first : note.slice(0, 100);
+  return scrub(src, 120) || 'Open loop';
 }
 
 export function loopGroup(r: LoopRow): LoopGroup {
