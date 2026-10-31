@@ -1,4 +1,4 @@
--- Rollback for 20261031120000_decisions_actionable.sql.
+-- Rollback for 20261031122853_decisions_actionable.sql.
 drop table if exists mission.decision_questions;
 drop index if exists mission.decisions_user_dedupe_idx;
 alter table mission.decisions
