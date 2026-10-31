@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { parseAnswer, type DecisionOption } from "@/lib/decisions/answer";
+import { LINK_ERROR_TEXT, verifyLinkToken } from "@/lib/decisions/link-token";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * GitHub token lives in Vercel. The box script (scripts/sync/
  * decisions-inbox.ts) writes the `kind: answer` note to the brain, rings
  * Chief of Staff's doorbell and stamps delivered_at within five minutes.
+ *
+ * A tap from the email digest (/decisions/a/[token]) sends its link token as
+ * well. The session is still what authorizes the answer; the token only has
+ * to name this decision and this option and be unexpired, so a link cannot be
+ * bent to answer anything else (src/lib/decisions/link-token.ts).
  */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -48,6 +54,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!parsed.ok) {
     const msg = parsed.error === "health" ? "Leave health details out: this answer is written to the bots' notes" : `Bad ${parsed.error}`;
     return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  const token = (raw as Record<string, unknown>).token;
+  if (token !== undefined) {
+    const link = verifyLinkToken(token, process.env.DECISIONS_LINK_SECRET);
+    if (!link.ok) return NextResponse.json({ error: LINK_ERROR_TEXT[link.error] }, { status: link.error === "expired" ? 410 : 403 });
+    if (link.claims.id !== id.toLowerCase() || link.claims.answer !== parsed.value.answer) {
+      return NextResponse.json({ error: LINK_ERROR_TEXT.mismatch }, { status: 403 });
+    }
   }
 
   const answeredAt = new Date().toISOString();

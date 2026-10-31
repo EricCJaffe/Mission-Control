@@ -59,7 +59,22 @@ text.
 
 `DECISIONS_DOORBELL=off` skips the ring; `FSA_MAIL_BIN` replaces `fsa-mail`.
 
-## Not built yet
+## Email digest
 
-- The email digest with signed, expiring one-click links (scope item 5, a
-  separate PR).
+`scripts/sync/decisions-digest.ts` emails every open decision, with each option
+as a one-click link. **Sending is off by default** (`DECISIONS_DIGEST_SEND=on`
+switches it on). Without that it builds the digest, reports it, and writes the
+HTML to `--out <file>` if asked. Nothing open, nothing sent.
+
+| Piece | What it does |
+|---|---|
+| Link | `/decisions/a/<token>`. The token is `v1.<decision>.<option>.<expiry>.<HMAC-SHA256>` under `DECISIONS_LINK_SECRET` (at least 32 characters), good for 72 h (`src/lib/decisions/link-token.ts`) |
+| Who can use it | only Eric's session: `/decisions/:path*` is in the middleware matcher, so a mail scanner that opens a link gets the login page and answers nothing |
+| What it can answer | only the decision and option it was signed for. The answer endpoint re-checks the token against the id and option in the request |
+| Once | the row, not a spent-token ledger: the endpoint updates only an unanswered open/stale row, so any second tap is "Already answered" |
+| After the tap | the same path as `/decisions`: the box script writes the `kind: answer` note and rings the doorbell |
+
+To switch it on: set the same `DECISIONS_LINK_SECRET` in Vercel (production)
+and in `~/.config/mission-control/sync.env`, deploy, run it once by hand with
+`--out` and open the result, then add `DECISIONS_DIGEST_SEND=on` and a timer.
+`DECISIONS_DIGEST_TO` and `DECISIONS_APP_URL` override the recipient and host.

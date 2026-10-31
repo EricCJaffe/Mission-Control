@@ -100,7 +100,9 @@ export const config = {
     '/checklists/:path*',
     '/ideas/:path*',
     '/activity',
-    '/decisions',
+    // :path* also covers /decisions/a/<token>, the email digest's one-click
+    // links: a mail scanner that opens one lands on the login page.
+    '/decisions/:path*',
     '/brain/:path*',
     // Added 2026-10-18: /ai-usage shipped outside the list and a signed-out
     // visitor (e.g. an in-app browser with no session) got a blank page.
