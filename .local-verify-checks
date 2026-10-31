@@ -1,0 +1,2 @@
+# R-175: the scripts CI ran, now run before push by fsa-local-verify
+typecheck:sync test
