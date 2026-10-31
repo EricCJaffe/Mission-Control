@@ -135,13 +135,27 @@ async function main() {
   // ---- ingest -------------------------------------------------------------
   const scanned = scanBrain(env.brainRoot, now);
   const openRefs = [...new Set(scanned.rows.filter((r) => r.status !== 'withdrawn' && r.pr_ref).map((r) => r.pr_ref!))];
-  const loopsPath = join(env.brainRoot, LOOPS_TSV);
-  const loopsReadable = existsSync(loopsPath);
-  const loopRows = loopsReadable ? loopsToRows(parseLoopsTsv(readFileSync(loopsPath, 'utf8')), now) : [];
+  // Loops need 20261031 decisions_loops (kind 'loop', group_name). Before it
+  // is applied, skip them rather than fail the run and hold every delivery.
+  const { error: loopColErr } = await db.from('decisions').select('group_name').limit(1);
+  let loopsReadable = false;
+  let loopRows: DecisionInput[] = [];
+  if (!loopColErr || dryRun) {
+    try {
+      const parsed = parseLoopsTsv(readFileSync(join(env.brainRoot, LOOPS_TSV), 'utf8'));
+      // An empty parse is a bad read, not "every loop closed": never withdraw on it.
+      loopsReadable = parsed.length > 0;
+      loopRows = loopsReadable ? loopsToRows(parsed, now) : [];
+    } catch (err) {
+      console.error(`decisions: ${LOOPS_TSV} unreadable, loops left as they are: ${err instanceof Error ? err.message.slice(0, 120) : err}`);
+    }
+  } else {
+    console.log(`decisions: loop columns not there yet (${loopColErr.message}); loops skipped`);
+  }
   const found = [...settleRows(scanned.rows, scanned.answered, prStates(openRefs)), ...loopRows];
   const { data: existing, error: exErr } = await db
     .from('decisions')
-    .select('id,source_note,status,answered_at')
+    .select('id,source_note,status,answered_at,answer')
     .eq('user_id', env.userId);
   // A dry run before the migration is applied still shows what would land.
   if (exErr && !dryRun) throw new Error(`read decisions: ${exErr.message}`);
@@ -157,9 +171,11 @@ async function main() {
     const { pr_ref: _p, next_step: _n, dedupe_key: _d, closed_reason: _c, ...rest } = r;
     return rest;
   };
-  const have = new Map((existing ?? []).map((r) => [r.source_note as string, r as { id: string; status: string; answered_at: string | null }]));
-  // A loop answered Keep open or Snooze that is still Eric's a week later
-  // comes back as a fresh card; the earlier answer is in decisions.tsv.
+  const have = new Map((existing ?? []).map((r) => [r.source_note as string, r as { id: string; status: string; answered_at: string | null; answer: string | null }]));
+  // A loop answered Keep open or Snooze (o2/o3) that is still Eric's a week
+  // later comes back as a fresh card. Only after delivery, so the earlier
+  // answer is already in decisions.tsv and its answer note; never a Close or
+  // Hand back, whose row should not still be his.
   const reopen: string[] = [];
 
   const upserts: Array<Record<string, unknown>> = [];
@@ -169,7 +185,9 @@ async function main() {
     seen.add(row.source_note);
     const prev = have.get(row.source_note);
     if (prev?.status === 'answered') {
-      if (row.kind === 'loop' && prev.answered_at && now.getTime() - Date.parse(prev.answered_at) > 7 * 86_400_000) reopen.push(prev.id);
+      if (row.kind === 'loop' && (prev.answer === 'o2' || prev.answer === 'o3') && prev.answered_at && now.getTime() - Date.parse(prev.answered_at) > 7 * 86_400_000) {
+        reopen.push(prev.id);
+      }
       continue;
     }
     if (row.status === 'withdrawn') {
