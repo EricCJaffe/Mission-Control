@@ -92,7 +92,7 @@ export default function BookInsightsClient({
       }
     }
     setMessagesState((prev) => {
-      const withoutPending = prev.filter((msg) => msg.id !== pendingId && msg.thread_id !== selectedThreadId);
+      const withoutPending = prev.filter((msg) => msg.id !== pendingId && msg.id !== userId);
       const nextMessages: Message[] = [...withoutPending];
       if (userMessage?.id) {
         nextMessages.push({

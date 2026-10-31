@@ -1311,6 +1311,8 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       if (data.ok) {
         setShowSaveAsTemplate(false);
         setTemplateName('');
+        // So the template picker lists it; the workout in progress is client state.
+        router.refresh();
         alert('Template saved successfully!');
       } else {
         setError(data.error || 'Failed to save template');

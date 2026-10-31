@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Check, ChevronRight, Flame } from 'lucide-react';
 import {
   summarisePractices,
@@ -63,6 +64,7 @@ export default function PracticeTracker({ practices, logs: initialLogs, today }:
   const [logs, setLogs] = useState<PracticeLog[]>(initialLogs);
   const [day, setDay] = useState(today);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
   // Adherence is always computed as at TODAY, never as at the selected day.
@@ -99,7 +101,9 @@ export default function PracticeTracker({ practices, logs: initialLogs, today }:
         body: JSON.stringify({ practice_id: practice.id, log_date: day, completed: done }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Could not save');
-      startTransition(() => {});
+      // The score panel above the tracker is server-rendered from the logs;
+      // refresh so it reflects this tick, not the page load.
+      startTransition(() => router.refresh());
     } catch (err) {
       setLogs(previous); // roll back so the tick never lies
       setError(err instanceof Error ? err.message : 'Could not save');
