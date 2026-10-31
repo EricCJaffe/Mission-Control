@@ -1,4 +1,4 @@
--- Rollback for 20261031150000_decisions_board_v2.sql.
+-- Rollback for 20261031133940_decisions_board_v2.sql.
 do $$
 begin
   if exists (
