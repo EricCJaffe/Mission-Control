@@ -78,3 +78,17 @@ To switch it on: set the same `DECISIONS_LINK_SECRET` in Vercel (production)
 and in `~/.config/mission-control/sync.env`, deploy, run it once by hand with
 `--out` and open the result, then add `DECISIONS_DIGEST_SEND=on` and a timer.
 `DECISIONS_DIGEST_TO` and `DECISIONS_APP_URL` override the recipient and host.
+
+## 2026-10-31: the one place to act
+
+Eric: *"An email that I can't take action on though is kind of useless."*
+
+- **Page.** A colored summary banner (red / yellow / green and stalled counts), then **Decisions**, then **Stalled on you** with each job's owner and next step, then **Answered today**. Answered items drop off after 24 hours. Each card has `id="d-<id>"`, so `/decisions#d-<id>` deep-links to it and rings it.
+- **Ask Chief of Staff.** A question box on every card (`POST /api/decisions/[id]/question` → `mission.decision_questions`). The box script delivers each one as a `kind: question` note `for: cos`, `re:` the source, and rings the doorbell. Asking does not close the card.
+- **Write-back.** On delivery, the source note gets a line naming Eric's choice and the answer note. A `kind: decision` note is also set to `status: answered`; a stalled job's status is left to its owner.
+- **One row per item, auto-closed.** `dedupe_key` is `pr:<owner/repo#n>` when the note names a PR (`pr:` or the first PR URL), otherwise the note path. Open rows that share a key keep the newest note. A row closes, with `closed_reason`, when any of these happens:
+  - its note is closed;
+  - a `kind: answer` or `reply` note `re:` it appears (an answer given in a chat card or an email reply);
+  - its PR is merged or closed (`gh pr view`, which fails open).
+- **Emails.** The digest opens with an **Open Decisions (N waiting)** button, and every item links to its card. `openDecisionsButton()` in `scripts/sync/parse/decisions-digest.ts` is the shared block for any brief.
+- Migration `decisions_actionable` (additive; rollback in `supabase/rollbacks/`).

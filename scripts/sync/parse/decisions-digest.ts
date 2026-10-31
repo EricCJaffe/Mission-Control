@@ -31,6 +31,22 @@ function etDate(iso: string): string {
 }
 
 /** Subject and HTML for the open rows, or null when nothing is waiting (no empty digest). */
+/** Deep link to one card on /decisions (the card carries id="d-<id>"). */
+export function itemLink(base: string, id: string): string {
+  return `${base.replace(/\/+$/, '')}/decisions#d-${encodeURIComponent(id)}`;
+}
+
+/**
+ * The prominent "Open Decisions" button every brief or digest email leads
+ * with. Eric, 2026-10-31: "An email that I can't take action on though is
+ * kind of useless." Both bgcolor and style, for Outlook desktop.
+ */
+export function openDecisionsButton(base: string, waiting?: number): string {
+  const href = `${base.replace(/\/+$/, '')}/decisions`;
+  const label = waiting ? `Open Decisions (${waiting} waiting)` : 'Open Decisions';
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 14px"><tr><td bgcolor="#4f46e5" style="background-color:#4f46e5;border-radius:8px;padding:10px 18px"><a href="${esc(href)}" style="color:#ffffff;text-decoration:none;font-weight:700;font-size:16px">${esc(label)}</a></td></tr></table>`;
+}
+
 export function renderDigest(
   rows: DigestRow[],
   opts: { appUrl: string; secret: string | undefined; now: Date },
@@ -59,11 +75,13 @@ export function renderDigest(
 <div style="font-size:16px;font-weight:600;color:#111827;margin:6px 0 4px">${esc(r.title)}</div>
 ${r.context ? `<div style="font-size:14px;color:#374151;margin-bottom:8px">${esc(r.context)}</div>` : ''}
 <table role="presentation" cellpadding="0" cellspacing="0"><tr>${buttons.join('')}</tr></table>
+<div style="font-size:13px;margin-top:8px"><a href="${esc(itemLink(base, r.id))}" style="color:#4f46e5;font-weight:600">Open this one on Mission Control</a> to ask a question or answer in your own words.</div>
 </td></tr>`;
   });
 
   const subject = `Decisions waiting: ${open.length}${reds ? `, ${reds} red` : ''}`;
   const html = `<!doctype html><html><body style="margin:0;padding:16px;font-family:Segoe UI,Arial,sans-serif;background-color:#ffffff">
+${openDecisionsButton(base, open.length)}
 <div style="font-size:18px;font-weight:700;color:#111827">${open.length} decision${open.length === 1 ? '' : 's'} waiting on you${reds ? `, ${reds} red` : ''}.</div>
 <div style="font-size:13px;color:#6b7280;margin:4px 0 12px">One click answers. Links work for 72 hours, once each, and only when you are signed in to Mission Control.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${cards.join('\n')}</table>

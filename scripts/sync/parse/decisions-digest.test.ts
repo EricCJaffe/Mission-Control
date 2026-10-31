@@ -51,3 +51,12 @@ test('text is escaped, and the colors say red/yellow/green on both attribute and
 test('no secret, no digest: it refuses rather than send dead links', () => {
   assert.throws(() => renderDigest([row({})], { ...opts, secret: undefined }));
 });
+
+test('leads with a prominent Open Decisions button and deep-links each item', () => {
+  const r = row({});
+  const out = renderDigest([r], opts)!;
+  const first = out.html.indexOf('Open Decisions (1 waiting)');
+  assert.ok(first > 0 && first < out.html.indexOf(r.title), 'button comes before the first item');
+  assert.ok(out.html.includes('href="https://mc.example.test/decisions"'));
+  assert.ok(out.html.includes(`https://mc.example.test/decisions#d-${r.id}`));
+});

@@ -14,7 +14,10 @@
  *     stalled past STALL_HOURS or marked `waiting: eric`, is upserted on
  *     (user_id, source_note);
  *   - a row Eric already answered is never touched again;
- *   - a note closed elsewhere (or deleted) withdraws its open row.
+ *   - a note closed elsewhere (or deleted) withdraws its open row, and so
+ *     does an answer given elsewhere (a `kind: answer` note `re:` it, from
+ *     a chat card or an email reply) or a merged/closed PR it names;
+ *   - one row per item: notes naming the same PR collapse to the newest.
  *
  * DELIVER
  *   - each answered, undelivered row becomes a `kind: answer` note in
@@ -27,8 +30,12 @@
  *     "grokbot-job [wake:ask-eric] <slug>", body the path only: the same
  *     mailbox and shape as grok-doorbell.sh). A failed ring is logged and not
  *     retried: the note is the record and doorbell-reconcile is the backstop;
+ *   - writes the answer back into the source note (a line, and status:
+ *     answered on a `kind: decision` note);
  *   - and stamps delivered_at. A failed push leaves the row undelivered with
  *     delivery_error, for the next run.
+ *   - "Ask a question" rows (mission.decision_questions) go the same way, as
+ *     `kind: question` notes for Chief of Staff.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -41,11 +48,16 @@ import { assertBrainRepo } from './lib/brain.ts';
 import { scrub } from '../../src/lib/activity/scrub.ts';
 import {
   etDay,
+  answerRef,
   parseDecisionNote,
   parseStalledJob,
   renderAnswerNote,
+  renderQuestionNote,
+  settleRows,
+  writeBackAnswer,
   type AnsweredRow,
   type DecisionInput,
+  type QuestionRow,
 } from './parse/decisions-inbox.ts';
 
 const dryRun = process.argv.includes('--dry-run');
@@ -56,10 +68,11 @@ function git(dir: string, args: string[]): string {
   return execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
-/** Every recent channel note, parsed into a row where it is one. */
-function scanBrain(brainRoot: string, now: Date): DecisionInput[] {
+/** Every recent channel note, parsed into a row where it is one, plus the notes answered elsewhere. */
+function scanBrain(brainRoot: string, now: Date): { rows: DecisionInput[]; answered: Set<string> } {
   const since = now.getTime() - SCAN_DAYS * 86_400_000;
   const out: DecisionInput[] = [];
+  const answered = new Set<string>();
   for (const dir of ['to-grokbot', 'from-grokbot']) {
     const abs = join(brainRoot, 'channel', dir);
     if (!existsSync(abs)) continue;
@@ -70,8 +83,32 @@ function scanBrain(brainRoot: string, now: Date): DecisionInput[] {
       if (!st.isFile() || st.mtimeMs < since || st.size > 256_000) continue;
       const path = `channel/${dir}/${file}`;
       const text = readFileSync(full, 'utf8');
+      const re = answerRef(text);
+      if (re) answered.add(re);
       const row = parseDecisionNote(path, text, now) ?? parseStalledJob(path, text, now);
       if (row) out.push(row);
+    }
+  }
+  return { rows: out, answered };
+}
+
+/**
+ * GitHub state (OPEN / MERGED / CLOSED) of each PR an open row names. Fails
+ * open: no gh, no network or a timeout leaves the PR unknown and its row open.
+ */
+function prStates(refs: string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const ref of refs.slice(0, 40)) {
+    const [repo, n] = ref.split('#');
+    try {
+      const st = execFileSync('gh', ['pr', 'view', n, '-R', repo, '--json', 'state', '-q', '.state'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 15_000,
+      }).trim();
+      if (st) out.set(ref, st);
+    } catch {
+      /* unknown: keep the row */
     }
   }
   return out;
@@ -85,7 +122,9 @@ async function main() {
   const stamp = now.toISOString();
 
   // ---- ingest -------------------------------------------------------------
-  const found = scanBrain(env.brainRoot, now);
+  const scanned = scanBrain(env.brainRoot, now);
+  const openRefs = [...new Set(scanned.rows.filter((r) => r.status !== 'withdrawn' && r.pr_ref).map((r) => r.pr_ref!))];
+  const found = settleRows(scanned.rows, scanned.answered, prStates(openRefs));
   const { data: existing, error: exErr } = await db
     .from('decisions')
     .select('id,source_note,status')
@@ -96,14 +135,14 @@ async function main() {
   const have = new Map((existing ?? []).map((r) => [r.source_note as string, r as { id: string; status: string }]));
 
   const upserts: Array<Record<string, unknown>> = [];
-  const withdraw: string[] = [];
+  const withdraw: Array<{ id: string; reason: string | null }> = [];
   const seen = new Set<string>();
   for (const row of found) {
     seen.add(row.source_note);
     const prev = have.get(row.source_note);
     if (prev?.status === 'answered') continue;
     if (row.status === 'withdrawn') {
-      if (prev && prev.status !== 'withdrawn') withdraw.push(prev.id);
+      if (prev && prev.status !== 'withdrawn') withdraw.push({ id: prev.id, reason: row.closed_reason });
       continue;
     }
     upserts.push({ ...row, user_id: env.userId, last_seen_at: stamp, updated_at: stamp });
@@ -111,7 +150,7 @@ async function main() {
   // An open row whose note was deleted is withdrawn. One merely older than
   // the scan window keeps its last state: still answerable.
   for (const [note, r] of have) {
-    if (!seen.has(note) && (r.status === 'open' || r.status === 'stale') && !existsSync(join(env.brainRoot, note))) withdraw.push(r.id);
+    if (!seen.has(note) && (r.status === 'open' || r.status === 'stale') && !existsSync(join(env.brainRoot, note))) withdraw.push({ id: r.id, reason: 'note deleted' });
   }
   console.log(`decisions: ${found.filter((r) => r.status !== 'withdrawn').length} live in the brain, ${upserts.length} open, ${withdraw.length} to withdraw`);
   if (dryRun) {
@@ -138,11 +177,13 @@ async function main() {
         .in('status', ['open', 'stale', 'withdrawn']);
       if (error) console.error(`decisions: could not refresh ${u.source_note}: ${error.message}`);
     }
-    if (withdraw.length) {
+    const byReason = new Map<string | null, string[]>();
+    for (const w of withdraw) byReason.set(w.reason, [...(byReason.get(w.reason) ?? []), w.id]);
+    for (const [reason, ids] of byReason) {
       const { error } = await db
         .from('decisions')
-        .update({ status: 'withdrawn', updated_at: stamp })
-        .in('id', withdraw)
+        .update({ status: 'withdrawn', closed_reason: reason, updated_at: stamp })
+        .in('id', ids)
         .in('status', ['open', 'stale']);
       if (error) throw new Error(`withdraw decisions: ${error.message}`);
     }
@@ -163,28 +204,55 @@ async function main() {
     .limit(50);
   if (error) throw new Error(`read answers: ${error.message}`);
   const rows = (data ?? []) as AnsweredRow[];
-  if (rows.length === 0) {
+
+  // Questions are new with 20261031: before that migration the table is
+  // missing, which is "nothing to ask", not a failure.
+  const { data: qData, error: qErr } = await db
+    .from('decision_questions')
+    .select('id,question,created_at,decision_id,decisions(source_note,title)')
+    .eq('user_id', env.userId)
+    .is('delivered_at', null)
+    .is('delivery_ref', null)
+    .order('created_at', { ascending: true })
+    .limit(50);
+  if (qErr) console.error(`decisions: questions not readable: ${qErr.message}`);
+  const questions: QuestionRow[] = ((qData ?? []) as unknown as Array<Record<string, unknown>>).flatMap((q) => {
+    const d = (Array.isArray(q.decisions) ? q.decisions[0] : q.decisions) as { source_note: string; title: string } | null;
+    return d ? [{ id: q.id as string, question: q.question as string, created_at: q.created_at as string, decision_id: q.decision_id as string, ...d }] : [];
+  });
+
+  if (rows.length === 0 && questions.length === 0) {
     console.log('decisions: nothing to deliver');
     return;
   }
 
-  const mark = async (id: string, patch: Record<string, unknown>) => {
-    const { error: e } = await db.from('decisions').update(patch).eq('id', id).is('delivered_at', null);
-    if (e) console.error(`decisions: could not mark ${id.slice(0, 8)}: ${e.message}`);
+  type Table = 'decisions' | 'decision_questions';
+  const mark = async (table: Table, id: string, patch: Record<string, unknown>) => {
+    const { error: e } = await db.from(table).update(patch).eq('id', id).is('delivered_at', null);
+    if (e) console.error(`decisions: could not mark ${table} ${id.slice(0, 8)}: ${e.message}`);
   };
 
-  const planned = rows.map((row) => ({ row, note: renderAnswerNote(row) }));
-  for (const p of planned) console.log(`decisions: deliver ${p.row.answer.padEnd(5)} ${p.note?.path ?? 'leak test failed'}`);
+  type Item = { table: Table; id: string; note: { path: string; text: string } | null; answer?: AnsweredRow };
+  const planned: Item[] = [
+    ...rows.map((row) => ({ table: 'decisions' as const, id: row.id, note: renderAnswerNote(row), answer: row })),
+    ...questions.map((q) => ({ table: 'decision_questions' as const, id: q.id, note: renderQuestionNote(q) })),
+  ];
+  for (const p of planned) console.log(`decisions: deliver ${p.answer ? p.answer.answer.padEnd(5) : 'ask  '} ${p.note?.path ?? 'leak test failed'}`);
   if (dryRun) return;
-  for (const p of planned.filter((x) => !x.note)) await mark(p.row.id, { delivery_ref: 'held:leak-test', delivery_error: 'held: the answer failed the leak or health test; needs a look' });
+  for (const p of planned.filter((x) => !x.note)) {
+    await mark(p.table, p.id, { delivery_ref: 'held:leak-test', delivery_error: 'held: failed the leak or health test; needs a look' });
+  }
   const notes = planned.filter((x) => x.note);
   if (notes.length === 0) return;
 
   const name = `brain-mc-decisions-${Date.now()}`;
   const clone = execFileSync('bash', [join(env.brainRoot, 'jobs', 'lib', 'brain-scratch-clone.sh'), name], { encoding: 'utf8' }).trim();
-  const pushed: Array<{ id: string; path: string }> = [];
+  const pushed: Array<{ table: Table; id: string; path: string }> = [];
   try {
     const touched: string[] = [];
+    const touch = (path: string) => {
+      if (!touched.includes(path)) touched.push(path);
+    };
     for (const p of notes) {
       const note = p.note!;
       const abs = join(clone, note.path);
@@ -192,31 +260,42 @@ async function main() {
       if (existsSync(abs)) {
         // Pushed by an earlier run that then failed to mark the row. Ring
         // again: a second doorbell is cheaper than none.
-        await mark(p.row.id, { delivered_at: stamp, delivery_ref: note.path, delivery_error: null });
+        await mark(p.table, p.id, { delivered_at: stamp, delivery_ref: note.path, delivery_error: null });
         ring(note.path);
         continue;
       }
       writeFileSync(abs, note.text);
-      touched.push(note.path);
-      const opt = p.row.options.find((o) => o.id === p.row.answer);
+      touch(note.path);
+      pushed.push({ table: p.table, id: p.id, path: note.path });
+      const row = p.answer;
+      if (!row) continue;
+
+      // Write the answer back into the note that asked, so it reads as settled
+      // wherever it is opened. A deleted source has nothing to write to.
+      const src = join(clone, row.source_note);
+      if (existsSync(src)) {
+        writeFileSync(src, writeBackAnswer(readFileSync(src, 'utf8'), row, note.path));
+        touch(row.source_note);
+      }
+
+      const opt = row.options.find((o) => o.id === row.answer);
       const clean = (s: string) => s.replace(/[\t\r\n]+/g, ' ').trim();
       appendFileSync(
         join(clone, 'open', 'decisions.tsv'),
         `${[
-          etDay(p.row.answered_at),
-          `decisions:${p.row.id.replace(/-/g, '').slice(0, 8)}`,
-          clean(scrub(p.row.title, 120)),
-          clean(p.row.answer === 'other' ? scrub(p.row.answer_text ?? 'Other', 200) : opt?.label ?? p.row.answer),
+          etDay(row.answered_at),
+          `decisions:${row.id.replace(/-/g, '').slice(0, 8)}`,
+          clean(scrub(row.title, 120)),
+          clean(row.answer === 'other' ? scrub(row.answer_text ?? 'Other', 200) : opt?.label ?? row.answer),
           clean(`Answered by Eric on Mission Control /decisions; note ${note.path}.${opt?.label === 'Drop' ? ' Stays dropped (R-163).' : ''}`),
-          p.row.source_note,
+          row.source_note,
         ].join('\t')}\n`,
       );
-      if (!touched.includes('open/decisions.tsv')) touched.push('open/decisions.tsv');
-      pushed.push({ id: p.row.id, path: note.path });
+      touch('open/decisions.tsv');
     }
     if (pushed.length) {
       git(clone, ['add', '--', ...touched]);
-      git(clone, ['commit', '-q', '-m', `decisions: deliver ${pushed.length} answer(s) from Eric on /decisions`, '--', ...touched]);
+      git(clone, ['commit', '-q', '-m', `decisions: deliver ${pushed.length} answer(s)/question(s) from Eric on /decisions`, '--', ...touched]);
       let ref = 'main';
       // Twice: a push that lost a race with another writer usually lands on
       // the second pull. Only a real conflict is parked.
@@ -245,19 +324,19 @@ async function main() {
       }
       for (const p of pushed) {
         if (ref === 'main') {
-          await mark(p.id, { delivered_at: stamp, delivery_ref: p.path, delivery_error: null });
+          await mark(p.table, p.id, { delivered_at: stamp, delivery_ref: p.path, delivery_error: null });
           ring(p.path);
         } else {
           // Not delivered: nothing reads a conflict branch. The page shows
           // this as held, and brain-conflict/* is swept by Chief of Staff.
-          await mark(p.id, { delivery_ref: `${ref}:${p.path}`, delivery_error: `held on ${ref}: the brain push was refused; needs a merge` });
+          await mark(p.table, p.id, { delivery_ref: `${ref}:${p.path}`, delivery_error: `held on ${ref}: the brain push was refused; needs a merge` });
         }
       }
-      console.log(`decisions: ${pushed.length} answer note(s) pushed to ${ref}`);
+      console.log(`decisions: ${pushed.length} note(s) pushed to ${ref}`);
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message.slice(0, 200) : 'deliver failed';
-    for (const p of notes) await mark(p.row.id, { delivery_error: msg });
+    for (const p of notes) await mark(p.table, p.id, { delivery_error: msg });
     throw err;
   } finally {
     rmSync(clone, { recursive: true, force: true });
