@@ -1,5 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import PracticeTracker, { SpiritScorePanel } from '@/components/spirit/PracticeTracker';
+import PracticeNudge from '@/components/spirit/PracticeNudge';
 import {
   summarisePractices,
   pillarPracticeScore,
@@ -29,7 +30,7 @@ export default async function SpiritPage() {
   const [{ data: practices }, { data: logs }, { data: profile }] = await Promise.all([
     supabase
       .from('practices')
-      .select('id, key, label, description, cadence, target_per_period, icon, sort_order, created_at')
+      .select('id, key, label, description, cadence, target_per_period, icon, sort_order, created_at, due_weekday, due_day_of_month')
       .eq('user_id', user.id)
       .eq('active', true)
       .order('sort_order'),
@@ -67,6 +68,8 @@ export default async function SpiritPage() {
           What the survey says, and what the last {DEFAULT_WINDOW_DAYS} days actually show.
         </p>
       </div>
+
+      <PracticeNudge practices={practiceList} logs={logList} today={today} showLink={false} />
 
       <SpiritScorePanel
         surveyScore={surveyScore}
