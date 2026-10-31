@@ -175,10 +175,19 @@ async function main() {
   const { error: colErr } = await db.from('decisions').select('pr_ref,next_step,dedupe_key,closed_reason').limit(1);
   const itemCols = !colErr;
   if (!itemCols) console.log(`decisions: item columns not there yet (${colErr.message}); writing without them`);
+  // Same for board v2 (section, added_at, completed_at), probed above.
+  const boardCols = !loopColErr;
   const strip = (r: Record<string, unknown>) => {
-    if (itemCols) return r;
-    const { pr_ref: _p, next_step: _n, dedupe_key: _d, closed_reason: _c, ...rest } = r;
-    return rest;
+    let out = r;
+    if (!boardCols) {
+      const { section: _s, added_at: _a, completed_at: _co, ...rest } = out;
+      out = rest;
+    }
+    if (!itemCols) {
+      const { pr_ref: _p, next_step: _n, dedupe_key: _d, closed_reason: _c, ...rest } = out;
+      out = rest;
+    }
+    return out;
   };
   const have = new Map((existing ?? []).map((r) => [r.source_note as string, r as { id: string; status: string; answered_at: string | null; answer: string | null }]));
   // A loop answered Keep open or Snooze (o2/o3) that is still Eric's a week
