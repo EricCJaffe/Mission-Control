@@ -17,9 +17,14 @@
  *   *-plan-source-of-truth.md             (b) session 1 table, (c) coaching recs
  *   apple-health-access.md                the Apple Health access reference
  *
- * Idempotent: the plan is matched on title + version, the session on its
- * dedupe key, recommendations on (plan, ordinal), the doc on its slug.
- * --rollback deletes exactly those rows (recommendations go with the plan).
+ * Insert-only and idempotent: a row that already exists (plan by title +
+ * version, session by dedupe key, recommendation by plan + ordinal, doc by
+ * slug) is left exactly as it is, never overwritten.
+ *
+ * Rollback deletes only what this script created. Apply writes a receipt of
+ * the created row ids next to the seed files (`.seed-receipt.json`, mode 600,
+ * outside git); --rollback deletes exactly those ids, and keeps the plan if
+ * anything not in the receipt (a later session or recommendation) points at it.
  */
 
 import fs from 'node:fs';
@@ -88,25 +93,46 @@ async function must(promise, what) {
   return data;
 }
 
-const existingPlan = await must(
-  db.from('running_plans').select('id, status').eq('user_id', userId).eq('title', plan.name).eq('version', VERSION).maybeSingle(),
-  'read plan',
-);
+const receiptPath = path.join(dir, '.seed-receipt.json');
 
 if (mode === 'rollback') {
-  await must(db.from('running_sessions').delete().eq('user_id', userId).eq('dedupe_key', SESSION_KEY), 'delete session');
-  await must(db.from('health_access_docs').delete().eq('user_id', userId).eq('slug', DOC_SLUG), 'delete doc');
-  if (existingPlan) await must(db.from('running_plans').delete().eq('id', existingPlan.id).eq('user_id', userId), 'delete plan');
-  console.log(`rolled back: plan ${existingPlan?.id ?? '(none)'}, session ${SESSION_KEY}, doc ${DOC_SLUG}`);
+  if (!fs.existsSync(receiptPath)) fail(`no receipt at ${receiptPath}: nothing this script created is known, so nothing is deleted`);
+  const r = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  if (r.user_id !== userId) fail('receipt is for a different user; nothing deleted');
+  const del = (table, ids) =>
+    ids.length ? must(db.from(table).delete().eq('user_id', userId).in('id', ids).select('id'), `delete ${table}`) : [];
+  const gone = {
+    sessions: (await del('running_sessions', r.session_ids ?? [])).length,
+    recommendations: (await del('coaching_recommendations', r.recommendation_ids ?? [])).length,
+    docs: (await del('health_access_docs', r.doc_ids ?? [])).length,
+    plans: 0,
+  };
+  if (r.plan_id) {
+    const [{ count: s }, { count: c }] = await Promise.all([
+      db.from('running_sessions').select('id', { count: 'exact', head: true }).eq('plan_id', r.plan_id),
+      db.from('coaching_recommendations').select('id', { count: 'exact', head: true }).eq('plan_id', r.plan_id),
+    ]);
+    if ((s ?? 0) + (c ?? 0) > 0) {
+      console.log(`kept plan ${r.plan_id}: ${s ?? 0} session(s) and ${c ?? 0} recommendation(s) added after seeding still use it`);
+    } else {
+      gone.plans = (await del('running_plans', [r.plan_id])).length;
+    }
+  }
+  fs.renameSync(receiptPath, `${receiptPath}.rolled-back-${Date.now()}`);
+  console.log(`rolled back: ${JSON.stringify(gone)}`);
   process.exit(0);
 }
 
+const created = { user_id: userId, plan_id: null, session_ids: [], recommendation_ids: [], doc_ids: [], applied_at: new Date().toISOString() };
+
+const existingPlan = await must(
+  db.from('running_plans').select('id').eq('user_id', userId).eq('title', plan.name).eq('version', VERSION).maybeSingle(),
+  'read plan',
+);
 let planId = existingPlan?.id;
 if (!planId) {
-  await must(
-    db.from('running_plans').update({ status: 'archived', updated_at: new Date().toISOString() }).eq('user_id', userId).eq('status', 'active'),
-    'archive previous plan',
-  );
+  const active = await must(db.from('running_plans').select('id').eq('user_id', userId).eq('status', 'active'), 'read active plan');
+  if (active.length) fail('another running plan is active; archive it in the app first. Nothing written');
   const row = await must(
     db.from('running_plans').insert({
       user_id: userId, title: plan.name, goal: plan.race.goal ?? null, version: VERSION,
@@ -115,31 +141,46 @@ if (!planId) {
     'insert plan',
   );
   planId = row.id;
+  created.plan_id = planId;
 }
 
 const [session] = sessions;
-const sessionRow = await must(
+const sessionRows = await must(
   db.from('running_sessions').upsert(
     { ...session, user_id: userId, plan_id: planId, source: 'manual', dedupe_key: SESSION_KEY },
-    { onConflict: 'user_id,dedupe_key' },
-  ).select('id').single(),
-  'upsert session',
+    { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true },
+  ).select('id'),
+  'insert session',
 );
+created.session_ids = sessionRows.map((r) => r.id);
 
-await must(
+const recRows = await must(
   db.from('coaching_recommendations').upsert(
-    recs.map((r) => ({ ...r, user_id: userId, plan_id: planId, status: 'pending_review', reviewer: 'Dr. Chandler' })),
-    { onConflict: 'plan_id,ordinal' },
-  ),
-  'upsert recommendations',
+    recs.map((r) => ({ ...r, user_id: userId, plan_id: planId, status: 'pending_review' })),
+    { onConflict: 'plan_id,ordinal', ignoreDuplicates: true },
+  ).select('id'),
+  'insert recommendations',
 );
+created.recommendation_ids = recRows.map((r) => r.id);
 
-const docRow = await must(
+const docRows = await must(
   db.from('health_access_docs').upsert(
-    { user_id: userId, slug: DOC_SLUG, title: doc.title, body: doc.body, updated_at: new Date().toISOString() },
-    { onConflict: 'user_id,slug' },
-  ).select('id').single(),
-  'upsert doc',
+    { user_id: userId, slug: DOC_SLUG, title: doc.title, body: doc.body },
+    { onConflict: 'user_id,slug', ignoreDuplicates: true },
+  ).select('id'),
+  'insert doc',
 );
+created.doc_ids = docRows.map((r) => r.id);
 
-console.log(`applied: plan ${planId}, session ${sessionRow.id}, doc ${docRow.id}, ${recs.length} recommendations`);
+// Merge with an earlier receipt so a re-run never forgets what the first run made.
+if (fs.existsSync(receiptPath)) {
+  const prev = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  created.plan_id = created.plan_id ?? prev.plan_id ?? null;
+  for (const k of ['session_ids', 'recommendation_ids', 'doc_ids']) created[k] = [...new Set([...(prev[k] ?? []), ...created[k]])];
+}
+fs.writeFileSync(receiptPath, JSON.stringify(created, null, 2), { mode: 0o600 });
+
+console.log(
+  `applied: plan ${planId}${existingPlan ? ' (already there, untouched)' : ' (created)'}, ` +
+  `created ${sessionRows.length} session, ${recRows.length} recommendations, ${docRows.length} doc; receipt ${receiptPath}`,
+);

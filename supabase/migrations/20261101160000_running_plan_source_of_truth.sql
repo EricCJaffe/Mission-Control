@@ -100,13 +100,27 @@ drop policy if exists running_plans_owner on mission.running_plans;
 create policy running_plans_owner on mission.running_plans
   for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
+-- Sessions and recommendations may only point at the caller's own plan: the
+-- foreign key alone would let a direct insert hang a row off someone else's.
 drop policy if exists running_sessions_owner on mission.running_sessions;
 create policy running_sessions_owner on mission.running_sessions
-  for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+  for all using ((select auth.uid()) = user_id)
+  with check (
+    (select auth.uid()) = user_id
+    and (plan_id is null or exists (
+      select 1 from mission.running_plans p where p.id = plan_id and p.user_id = (select auth.uid())
+    ))
+  );
 
 drop policy if exists coaching_recommendations_owner on mission.coaching_recommendations;
 create policy coaching_recommendations_owner on mission.coaching_recommendations
-  for all using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+  for all using ((select auth.uid()) = user_id)
+  with check (
+    (select auth.uid()) = user_id
+    and (plan_id is null or exists (
+      select 1 from mission.running_plans p where p.id = plan_id and p.user_id = (select auth.uid())
+    ))
+  );
 
 drop policy if exists health_access_docs_owner on mission.health_access_docs;
 create policy health_access_docs_owner on mission.health_access_docs

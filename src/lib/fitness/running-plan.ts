@@ -1,11 +1,9 @@
 /**
  * A periodized running plan: race, standing rules, phases and milestones.
  *
- * Stored as `training_plans.config.running_plan` on a `plan_type: 'running'`
- * plan, so it rides the existing plan table, RLS and one-active-per-discipline
- * rule instead of a new schema. The plan's own numbers (HR ceiling, zone 2)
- * live in the database row, never in this repo; nothing here hard-codes a
- * person's limits.
+ * Stored as `mission.running_plans.body` (one active plan per user, owner-only
+ * RLS). The plan's own numbers (HR ceiling, zone 2) live in that row, never in
+ * this repo; nothing here hard-codes a person's limits.
  *
  * Weeks are derived, not stored: 7-day blocks from `start_date` through the
  * race. The long-run target ramps linearly across each phase, and a deload

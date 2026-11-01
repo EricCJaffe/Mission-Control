@@ -4,7 +4,7 @@
  * Body: `{ plan: RunningPlan, body_md?: string, version?: string }`. Validated,
  * then stored as the signed-in user's active row in mission.running_plans.
  * A previously active plan is archived, not deleted, along with its sessions
- * and coaching notes.
+ * and coaching notes; if the new plan cannot be written, it is restored.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     .update({ status: 'archived', updated_at: new Date().toISOString() })
     .eq('user_id', user.id)
     .eq('status', 'active')
-    .select('title');
+    .select('id, title');
   if (archiveError) return NextResponse.json({ error: archiveError.message }, { status: 500 });
 
   const { data, error } = await supabase
@@ -43,7 +43,14 @@ export async function POST(req: NextRequest) {
     })
     .select('id')
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // Put the previous plan back rather than leave the user with none active.
+    const ids = (archived ?? []).map((p) => p.id);
+    if (ids.length) {
+      await supabase.from('running_plans').update({ status: 'active' }).eq('user_id', user.id).in('id', ids);
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ id: data.id, archived: (archived ?? []).map((p) => p.title) });
 }

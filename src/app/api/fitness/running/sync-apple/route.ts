@@ -9,8 +9,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { dayOf } from '@/lib/day';
-import { isRunLike, paceLabel, sameActivity } from '@/lib/fitness/activity-files';
+import { addDays, dayOf } from '@/lib/day';
+import { easternToIso, isRunLike, paceLabel, sameActivity } from '@/lib/fitness/activity-files';
 import { loadActivePlan } from '@/lib/fitness/running-data';
 import { pointsFor, requireUser, type SessionInput } from '@/lib/fitness/running-api';
 
@@ -32,8 +32,9 @@ export async function POST() {
       .select('id, workout_date, duration_minutes, avg_hr, max_hr, cardio_logs(activity_type, distance_miles)')
       .eq('user_id', user.id)
       .not('apple_workout_id', 'is', null)
-      .gte('workout_date', `${plan.start_date}T00:00:00-05:00`)
-      .lte('workout_date', `${plan.race.date}T23:59:59-04:00`),
+      // Eastern midnight to midnight, whatever the daylight-saving offset that day.
+      .gte('workout_date', easternToIso(`${plan.start_date} 00:00:00`))
+      .lt('workout_date', easternToIso(`${addDays(plan.race.date, 1)} 00:00:00`)),
     supabase
       .from('running_sessions')
       .select('session_date, distance_mi, duration_s, dedupe_key')
