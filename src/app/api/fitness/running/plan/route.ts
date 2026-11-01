@@ -46,10 +46,18 @@ export async function POST(req: NextRequest) {
   if (error) {
     // Put the previous plan back rather than leave the user with none active.
     const ids = (archived ?? []).map((p) => p.id);
+    let restoreError: string | null = null;
     if (ids.length) {
-      await supabase.from('running_plans').update({ status: 'active' }).eq('user_id', user.id).in('id', ids);
+      const restore = await supabase.from('running_plans').update({ status: 'active' }).eq('user_id', user.id).in('id', ids);
+      restoreError = restore.error?.message ?? null;
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: error.message,
+        ...(restoreError ? { restoreError: `The previous plan is archived and could not be restored: ${restoreError}` } : {}),
+      },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ id: data.id, archived: (archived ?? []).map((p) => p.title) });

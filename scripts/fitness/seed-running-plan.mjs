@@ -108,12 +108,18 @@ if (mode === 'rollback') {
     plans: 0,
   };
   if (r.plan_id) {
-    const [{ count: s }, { count: c }] = await Promise.all([
+    const [sc, cc] = await Promise.all([
       db.from('running_sessions').select('id', { count: 'exact', head: true }).eq('plan_id', r.plan_id),
       db.from('coaching_recommendations').select('id', { count: 'exact', head: true }).eq('plan_id', r.plan_id),
     ]);
-    if ((s ?? 0) + (c ?? 0) > 0) {
-      console.log(`kept plan ${r.plan_id}: ${s ?? 0} session(s) and ${c ?? 0} recommendation(s) added after seeding still use it`);
+    // Fail closed: a count we could not read is never taken as zero.
+    if (sc.error || cc.error || sc.count == null || cc.count == null) {
+      fail(`could not count rows still using plan ${r.plan_id}; plan kept, receipt kept for a retry`);
+    }
+    const s = sc.count;
+    const c = cc.count;
+    if (s + c > 0) {
+      console.log(`kept plan ${r.plan_id}: ${s} session(s) and ${c} recommendation(s) added after seeding still use it`);
     } else {
       gone.plans = (await del('running_plans', [r.plan_id])).length;
     }
@@ -123,7 +129,20 @@ if (mode === 'rollback') {
   process.exit(0);
 }
 
-const created = { user_id: userId, plan_id: null, session_ids: [], recommendation_ids: [], doc_ids: [], applied_at: new Date().toISOString() };
+// The receipt is written after every insert, so a run that dies halfway still
+// records what it created and --rollback can remove it.
+const prior = fs.existsSync(receiptPath) ? JSON.parse(fs.readFileSync(receiptPath, 'utf8')) : null;
+if (prior && prior.user_id !== userId) fail('a receipt for a different user is already here; nothing written');
+const created = {
+  user_id: userId,
+  plan_id: prior?.plan_id ?? null,
+  session_ids: prior?.session_ids ?? [],
+  recommendation_ids: prior?.recommendation_ids ?? [],
+  doc_ids: prior?.doc_ids ?? [],
+  applied_at: new Date().toISOString(),
+};
+const saveReceipt = () => fs.writeFileSync(receiptPath, JSON.stringify(created, null, 2), { mode: 0o600 });
+const addIds = (k, rows) => { created[k] = [...new Set([...created[k], ...rows.map((r) => r.id)])]; saveReceipt(); };
 
 const existingPlan = await must(
   db.from('running_plans').select('id').eq('user_id', userId).eq('title', plan.name).eq('version', VERSION).maybeSingle(),
@@ -142,6 +161,7 @@ if (!planId) {
   );
   planId = row.id;
   created.plan_id = planId;
+  saveReceipt();
 }
 
 const [session] = sessions;
@@ -152,7 +172,7 @@ const sessionRows = await must(
   ).select('id'),
   'insert session',
 );
-created.session_ids = sessionRows.map((r) => r.id);
+addIds('session_ids', sessionRows);
 
 const recRows = await must(
   db.from('coaching_recommendations').upsert(
@@ -161,7 +181,7 @@ const recRows = await must(
   ).select('id'),
   'insert recommendations',
 );
-created.recommendation_ids = recRows.map((r) => r.id);
+addIds('recommendation_ids', recRows);
 
 const docRows = await must(
   db.from('health_access_docs').upsert(
@@ -170,15 +190,7 @@ const docRows = await must(
   ).select('id'),
   'insert doc',
 );
-created.doc_ids = docRows.map((r) => r.id);
-
-// Merge with an earlier receipt so a re-run never forgets what the first run made.
-if (fs.existsSync(receiptPath)) {
-  const prev = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-  created.plan_id = created.plan_id ?? prev.plan_id ?? null;
-  for (const k of ['session_ids', 'recommendation_ids', 'doc_ids']) created[k] = [...new Set([...(prev[k] ?? []), ...created[k]])];
-}
-fs.writeFileSync(receiptPath, JSON.stringify(created, null, 2), { mode: 0o600 });
+addIds('doc_ids', docRows);
 
 console.log(
   `applied: plan ${planId}${existingPlan ? ' (already there, untouched)' : ' (created)'}, ` +
