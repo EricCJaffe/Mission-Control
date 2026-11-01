@@ -1,0 +1,8 @@
+# fsa-local-verify (R-175): the checks this repo's CI actually ran.
+# .github/workflows ran typecheck:sync + test; Vercel ran build (which
+# typechecks src/). Lint is left out on purpose: main carries 181 existing
+# eslint errors (2026-10-31) that CI never gated on, so linting here would
+# block every push. Add `lint` back once that backlog is cleared.
+typecheck:sync
+test
+build

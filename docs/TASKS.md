@@ -65,7 +65,11 @@ re-raising them. Source of truth: `~/dev/brain/open/resolved.md`.
   `Sleep Number`, Apple Watch and iPhone all already feeding Apple Health, so this one
   automation covers every device.
 
-- [ ] **Re-test the Withings sync after the race fix** (2026-08-02)
+- [x] **Re-test the Withings sync after the race fix** (2026-08-02)
+  **Verified 2026-10-31:** 89 successful incremental syncs since 08-02 in
+  `mission.withings_sync_logs`, the latest at 2026-10-31 11:00 UTC; connection
+  `connected`, `last_sync_status = success`. The only failures since were five daily
+  runs ending 2026-09-08 with `invalid refresh_token`, cleared by a reconnect.
   The 08-02 attempt failed with `Same arguments in less than 10 seconds` — a Withings
   rate-limit on identical requests. Root cause: `sync()` fires three API calls in
   `Promise.all`, each calls `ensureValidToken()`, and with a 5-month-expired token all
