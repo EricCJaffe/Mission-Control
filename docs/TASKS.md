@@ -497,9 +497,10 @@ open decisions and deferred work, roughly in the order worth doing.
       then the Vercel PAT, then GoDaddy. Verified: no GitHub Actions secret, cron
       job or LaunchAgent consumes any of them, so rotation breaks no automation.
 - [ ] Shilo's password — deferred by Eric until after her training.
-- [ ] **BibleOS has no git remote.** 13 commits exist only on this Mac, including
+- [x] **BibleOS has no git remote.** 13 commits exist only on this Mac, including
       the waitlist, dashboard, both `core` migrations and the rotation runbook.
       Needs a private GitHub repo.
+      Resolved: remote EricCJaffe/BibleOS, verified 2026-10-31 (main level with origin/main at 981f737, 40 commits).
 
 ## Cross-project sync — open at 2026-09-05 session close
 
