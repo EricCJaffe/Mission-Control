@@ -158,14 +158,15 @@ export async function loadActiveMedicationNames(userId?: string | null): Promise
     const selfId: string | undefined = selfPerson?.id;
     let q = supabase
       .from('medications')
-      .select('name, dosage')
+      .select('medication_name, dosage')
       .eq('user_id', userId)
       .eq('active', true);
     if (selfId) q = q.or(`person_id.eq.${selfId},person_id.is.null`);
     const { data } = await q;
     const names = (data ?? [])
-      .filter((m: { name?: string | null }) => m.name)
-      .map((m: { name: string; dosage?: string | null }) => (m.dosage ? `${m.name} ${m.dosage}` : m.name));
+      .filter((m: { medication_name?: string | null }) => m.medication_name)
+      .map((m: { medication_name: string; dosage?: string | null }) =>
+        m.dosage ? `${m.medication_name} ${m.dosage}` : m.medication_name);
     return names.length ? names : ACTIVE_MEDS_FALLBACK;
   } catch {
     return ACTIVE_MEDS_FALLBACK;
