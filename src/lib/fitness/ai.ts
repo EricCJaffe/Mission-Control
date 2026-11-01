@@ -5,7 +5,7 @@
 // ============================================================
 
 import { callOpenAI } from '@/lib/openai';
-import { buildAISystemPrompt } from './health-context';
+import { buildAISystemPrompt, loadActiveMedicationNames } from './health-context';
 import type {
   WorkoutTemplate,
   WorkoutStructureItem,
@@ -43,7 +43,8 @@ export type AIContext = Partial<BodyMetrics & FitnessForm> & {
 };
 
 /** Build the standard athlete system prompt with current metrics. */
-export function buildSystemPrompt(ctx?: AIContext): string {
+export async function buildSystemPrompt(ctx?: AIContext): Promise<string> {
+  const activeMeds = (await loadActiveMedicationNames(currentUserId)).join(', ');
   const maxHr = ctx?.profile?.max_hr_ceiling ?? DEFAULT_MAX_HR;
   const lthr = ctx?.profile?.lactate_threshold_hr ?? 140;
   const zones = ctx?.profile?.hr_zones;
@@ -56,7 +57,7 @@ export function buildSystemPrompt(ctx?: AIContext): string {
 
 ATHLETE PROFILE:
 - Age: 55, approx. weight: 184 lbs
-- Medical: CABG surgery (2022), on Carvedilol (beta-blocker) and Losartan (ACE inhibitor)
+- Medical: CABG surgery (2022), current medications: ${activeMeds}
 - Working max HR: ${maxHr} bpm — HARD CEILING, never program above this
 - HR Zones (beta-blocker adjusted):
   Z1 Recovery:     ${z1[0]}–${z1[1]} bpm
@@ -141,7 +142,7 @@ export async function generateProgressiveWorkout(params: {
 }): Promise<WorkoutTemplate> {
   const { template, recentLogs, metrics } = params;
 
-  const system = buildSystemPrompt(metrics);
+  const system = await buildSystemPrompt(metrics);
   const user = `Based on the following workout template and recent performance, suggest progressive overload for today's workout.
 
 TEMPLATE: ${template.name} (${template.type} / ${template.split_type ?? 'general'})
@@ -181,7 +182,7 @@ export async function generateNaturalLanguageWorkout(params: {
   console.log('[AI Workout Parser] Exercise library size:', exerciseLibrary.length);
   console.log('[AI Workout Parser] First 5 exercises:', exerciseLibrary.slice(0, 5).map(e => e.name));
 
-  const system = buildSystemPrompt(metrics);
+  const system = await buildSystemPrompt(metrics);
   const user = `You are a workout parser. Convert the following workout description into structured JSON.
 
 WORKOUT DESCRIPTION: "${prompt}"
@@ -304,7 +305,7 @@ export async function generateWorkoutSummary(params: {
   pr_count?: number;
   notes?: string | null;
 }): Promise<string> {
-  const system = buildSystemPrompt();
+  const system = await buildSystemPrompt();
   const user = `Generate a concise 2-3 sentence post-workout summary for the following session.
 Be specific about what went well, any concerns (HR ceiling, zone distribution), and one actionable note for next time.
 Keep it encouraging but honest. Write in second person ("You...").
@@ -334,7 +335,7 @@ export async function generateWeeklyInsights(params: {
   sleep_debt_7day_min?: number | null;
   cardiac_efficiency_trend?: { start: number; end: number; type: string } | null;
 }): Promise<Array<{ title: string; content: string; priority: string; insight_type: string }>> {
-  const system = buildSystemPrompt();
+  const system = await buildSystemPrompt();
 
   let bpContext = '';
   if (params.bp_readings && params.bp_readings.length > 0) {
@@ -460,7 +461,7 @@ export async function generateReadinessCheck(params: {
   metrics: AIContext;
   weather?: { heat_index_f?: number; conditions?: string } | null;
 }): Promise<{ recommendation: string; should_modify: boolean; suggested_adjustment: string | null }> {
-  const system = buildSystemPrompt(params.metrics);
+  const system = await buildSystemPrompt(params.metrics);
   const user = `The athlete is about to start: "${params.planned_workout_name}" (${params.planned_workout_type}).
 
 Current conditions:
@@ -677,14 +678,15 @@ export async function analyzeLabResults(params: {
   ai_analysis: string;
   ai_flags: { flag: string; severity: 'info' | 'warning' | 'critical' }[];
 }> {
-  const system = `You are a medical data analyst helping a cardiac patient (post-CABG, on Carvedilol + Losartan) understand their lab results.
+  const meds = params.current_medications?.length ? params.current_medications : await loadActiveMedicationNames(currentUserId);
+  const system = `You are a medical data analyst helping a cardiac patient (post-CABG, current medications: ${meds.join(', ')}) understand their lab results.
 You are NOT providing medical advice — you're organizing and contextualizing data for discussion with their cardiologist.
 
 IMPORTANT:
 - Extract all numerical values into structured format
 - Flag anything outside reference ranges
 - Note trends if previous results are provided
-- Correlate with cardiac medications (Carvedilol can affect liver enzymes, blood glucose; Losartan affects kidney function)
+- Correlate with the current cardiac medications listed (e.g. beta-blocker effects on blood glucose, renal effects on kidney markers)
 - Always note: "Discuss all findings with your cardiologist"`;
 
   const user = `Analyze these ${params.lab_type} results from ${params.lab_date}.
@@ -693,7 +695,7 @@ RAW TEXT:
 ${params.raw_text}
 
 ${params.previous_results ? `PREVIOUS RESULTS:\n${JSON.stringify(params.previous_results, null, 2)}` : ''}
-${params.current_medications ? `MEDICATIONS: ${params.current_medications.join(', ')}` : 'MEDICATIONS: Carvedilol 12.5mg 2x daily, Losartan'}
+MEDICATIONS: ${meds.join(', ')}
 ${params.recent_bp_avg ? `RECENT BP AVG: ${params.recent_bp_avg.systolic}/${params.recent_bp_avg.diastolic}` : ''}
 ${params.current_weight ? `WEIGHT: ${params.current_weight} lbs` : ''}
 ${params.current_rhr ? `RESTING HR: ${params.current_rhr} bpm` : ''}
@@ -749,11 +751,12 @@ export async function generateAppointmentPrep(params: {
 }> {
   // Use comprehensive health context system
   const system = await buildAISystemPrompt(params.user_id, 'appointment_prep');
+  const fallbackMeds = params.medications.length ? '' : (await loadActiveMedicationNames(params.user_id)).join(', ');
   const user = `Generate appointment preparation for a ${params.doctor_specialty} visit.
 
 PATIENT CONTEXT:
 - 55yo male, CABG surgery 2022
-- Current medications: ${params.medications.map(m => `${m.name} ${m.dosage ?? ''} (${m.purpose ?? m.type})`).join(', ') || 'Carvedilol, Losartan'}
+- Current medications: ${params.medications.map(m => `${m.name} ${m.dosage ?? ''} (${m.purpose ?? m.type})`).join(', ') || fallbackMeds}
 - Active training: Zone 2 cardio + HIIT + strength
 
 ${params.last_appointment_date ? `LAST APPOINTMENT: ${params.last_appointment_date}` : 'No previous appointment recorded'}
@@ -832,7 +835,8 @@ export async function extractLabResults(params: {
   ai_interpretation: string;
   ai_trend_note: string | null;
 }>> {
-  const system = `You are a lab result parser for a cardiac patient (post-CABG, on Carvedilol + Losartan).
+  const meds = await loadActiveMedicationNames(currentUserId);
+  const system = `You are a lab result parser for a cardiac patient (post-CABG, current medications: ${meds.join(', ')}).
 Extract every individual test value from the provided text into structured data.
 For each test, determine if it's within reference range and flag accordingly.
 If previous values exist, note trends.`;

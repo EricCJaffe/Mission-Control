@@ -174,7 +174,6 @@ export default function HealthInitClient({ healthDocExists, medsCount, healthDoc
                 <p className="font-medium text-gray-700 mb-1">Prescriptions (5):</p>
                 <ul className="text-gray-600 space-y-0.5">
                   <li>• Carvedilol 25mg</li>
-                  <li>• Losartan 50mg</li>
                   <li>• Rosuvastatin 20mg</li>
                   <li>• Repatha 140mg</li>
                   <li>• Baby Aspirin 81mg</li>
@@ -251,7 +250,7 @@ export default function HealthInitClient({ healthDocExists, medsCount, healthDoc
         </p>
         <ul className="text-sm text-gray-600 space-y-2">
           <li>
-            <strong className="text-gray-800">Safety-first:</strong> AI knows about your medications (Carvedilol, Losartan, Rosuvastatin, Repatha, Aspirin)
+            <strong className="text-gray-800">Safety-first:</strong> AI knows about your medications (Entresto, Carvedilol, Farxiga, Aspirin, Rosuvastatin, Repatha, Tirzepatide)
             and will NEVER recommend contraindicated supplements (NSAIDs, potassium, decongestants, grapefruit)
           </li>
           <li>

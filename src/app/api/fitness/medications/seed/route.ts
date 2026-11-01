@@ -47,18 +47,6 @@ export async function POST() {
       },
       {
         user_id: userId,
-        medication_name: 'Losartan',
-        medication_type: 'prescription',
-        dosage: '50mg',
-        frequency: '2x daily',
-        timing: 'Morning + evening',
-        purpose: 'BP control, renal protection (critical at eGFR 60).',
-        active: true,
-        known_interactions: 'ARB. NEVER combine with potassium supplements (hyperkalemia risk). NSAIDs reduce effectiveness.',
-        side_effects_experienced: 'Kidney-protective. Monitor potassium levels.',
-      },
-      {
-        user_id: userId,
         medication_name: 'Rosuvastatin',
         medication_type: 'prescription',
         dosage: '20mg',
