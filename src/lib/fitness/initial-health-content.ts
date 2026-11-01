@@ -41,7 +41,7 @@ export const INITIAL_HEALTH_MD = `# Health Profile
 | Medication | Class | Dose | Frequency | Timing | Purpose |
 |-----------|-------|------|-----------|--------|---------|
 | **Carvedilol** | Beta-blocker | 25mg | 2x daily | Morning + evening | HR and BP control post-CABG. Reduces cardiac workload. |
-| **Entresto (sacubitril/valsartan)** | ARNI (contains an ARB) | Per Rx | 2x daily | Morning + evening | Heart failure / BP control. Replaced Losartan (discontinued Mar 29). |
+| **Entresto (sacubitril/valsartan)** | ARNI (contains an ARB) | 12.5 mg twice daily | 2x daily | Morning + evening | Heart failure / BP control. Replaced Losartan (discontinued Mar 29). |
 | **Farxiga (dapagliflozin)** | SGLT2 inhibitor | Per Rx | 1x daily | Morning | Cardio-renal protection. |
 | **Tirzepatide** | GIP/GLP-1 agonist | Per Rx | Weekly | Per schedule | Metabolic / weight management. |
 | **Rosuvastatin** | Statin (HMG-CoA reductase inhibitor) | 20mg | 1x daily | Evening | Aggressive LDL reduction (target <100, ideally <70). |
