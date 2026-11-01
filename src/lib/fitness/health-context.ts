@@ -729,7 +729,7 @@ ALWAYS include: "Discuss any changes with your cardiologist before implementing.
 You are evaluating a supplement recommendation. Consider:
 1. **Evidence level**: Strong clinical evidence vs. theoretical benefits
 2. **Kidney safety**: eGFR 60 (Stage 2/3a CKD) — is this nephrotoxic or safe?
-3. **Medication interactions**: Current meds are Carvedilol, Losartan, Rosuvastatin, Repatha, Aspirin
+3. **Medication interactions**: Current meds are {{ACTIVE_MEDS}}
 4. **Current stack**: Fish Oil, CoQ10, Magnesium, Vitamin D3 — any redundancy or synergy?
 5. **Purpose**: What need does this address? Is it already covered?
 6. **Dosing**: Appropriate dose for cardiac patient?
@@ -739,7 +739,7 @@ ALWAYS end with: "Discuss with your cardiologist before adding any new supplemen
 `,
     supplement_interaction_check: `
 You are performing an 8-category supplement interaction safety check:
-1. **Drug-drug**: Interactions with Carvedilol, Losartan, Rosuvastatin, Repatha, Aspirin
+1. **Drug-drug**: Interactions with {{ACTIVE_MEDS}}
 2. **Drug-nutrient**: Does it enhance or inhibit medication effects?
 3. **Absorption**: Does it compete with other supplements for absorption?
 4. **Metabolism**: Liver enzyme effects (important with statin)
@@ -756,7 +756,7 @@ You are providing hydration advice for a user with stable HFrEF and mild CKD. Co
 - Watch for fluid overload signals: weight gain, edema, dyspnea, rising BP
 - Also watch for dehydration signals: higher creatinine, thirst, dizziness, dark urine, reduced exercise tolerance
 - Exercise adjustments: more fluids and sodium after long/hot sessions, but keep recommendations pragmatic and kidney-aware
-- Medication context: Carvedilol and Losartan can interact with hydration status and BP response
+- Medication context: Current meds ({{ACTIVE_MEDS}}) can interact with hydration status and BP response
 - Labs matter: eGFR, creatinine, hematocrit, sodium, potassium if available
 
 Always frame recommendations as cardiac-aware and kidney-aware. If symptoms suggest overload or significant dehydration, recommend talking to the cardiologist / physician.
@@ -768,7 +768,7 @@ You are providing nutrition advice for a cardiac patient. Consider:
 - Fasting day nutrition (24-hour fast, 1x/week): break-fast meal recommendations
 - Heart-healthy fats: olive oil, avocado, nuts, fatty fish
 - Kidney-friendly choices: avoid excess potassium, moderate protein
-- Sodium management: BP control with Losartan
+- Sodium management: BP control with current antihypertensives
 - Fiber: LDL reduction (already on Rosuvastatin + Repatha)
 - Anti-inflammatory: berries, leafy greens, turmeric
 
@@ -791,7 +791,7 @@ Keep recommendations conservative, practical, and safety-aware.
 You are advising on fasting protocol. User goal: 24-hour fast, 1x/week. Consider:
 - **Best day**: Rest day or light Z1 day. NEVER day before HIIT. NEVER peak training day of build week.
 - **Hydration**: Critical (eGFR 60). Recommend water, electrolytes (salt, magnesium OK, no calories)
-- **BP monitoring**: May drop on fasting days with Carvedilol/Losartan — warn about dizziness
+- **BP monitoring**: May drop on fasting days with current BP-lowering meds — warn about dizziness
 - **Medication timing**: Take meds with small amount of water (beta-blocker + ARB need consistent timing)
 - **Break-fast meal**: Balanced (protein + healthy fat + complex carbs)
 - **Tracking**: Correlate with next-day readiness, HRV, body battery — adjust if consistently poor
@@ -830,7 +830,7 @@ User will approve/reject each update individually.
 You are advising on fasting protocol and strategy. User goal: 24-hour fast, 1x/week. Consider:
 - **Best day selection**: Rest day or light Z1 day. NEVER day before HIIT. NEVER peak training day of build week.
 - **Hydration strategy**: Critical (eGFR 60). Recommend water, electrolytes (salt, magnesium OK, no calories)
-- **BP monitoring**: May drop on fasting days with Carvedilol/Losartan — warn about dizziness, lightheadedness
+- **BP monitoring**: May drop on fasting days with current BP-lowering meds — warn about dizziness, lightheadedness
 - **Medication timing**: Take meds with small amount of water (beta-blocker + ARB need consistent timing)
 - **Break-fast meal**: Balanced approach (protein + healthy fat + complex carbs)
 - **Performance tracking**: Correlate with next-day readiness, HRV, body battery — adjust if consistently poor
@@ -879,7 +879,7 @@ Encourage gradual progress, celebrate consistency over intensity.
 You are answering a general health question. ALWAYS consider full health context:
 - Post-CABG cardiac patient (5-vessel, EF ~50%)
 - eGFR 60 (kidney-aware recommendations)
-- On beta-blocker (Carvedilol) + ARB (Losartan) + statin (Rosuvastatin) + PCSK9i (Repatha) + Aspirin
+- Current medications: {{ACTIVE_MEDS}}
 - Training: Push/pull strength M/W/F, cardio Tue/Thu/Sat, HIIT Wed
 - HR ceiling: 155 bpm (non-negotiable)
 
@@ -910,9 +910,9 @@ function getHardcodedSafetyRules(): string {
 6. **Hydration emphasis** — eGFR 60 = kidneys working harder.
 
 **MEDICATION SAFETY** (ABSOLUTE RULES):
-1. **NEVER recommend NSAIDs** (ibuprofen, naproxen, Advil, Motrin, Aleve) — Nephrotoxic at eGFR 60, reduces Losartan effectiveness
-2. **NEVER recommend potassium supplements** — Hyperkalemia risk with Losartan (ARB)
-3. **NEVER recommend decongestants** (pseudoephedrine, Sudafed) — BP spike risk with Carvedilol/Losartan
+1. **NEVER recommend NSAIDs** (ibuprofen, naproxen, Advil, Motrin, Aleve) — Nephrotoxic at eGFR 60, reduces effectiveness of Entresto (sacubitril/valsartan)
+2. **NEVER recommend potassium supplements** — Hyperkalemia risk with Entresto (contains valsartan, an ARB)
+3. **NEVER recommend decongestants** (pseudoephedrine, Sudafed) — BP spike risk with beta-blocker (Carvedilol)
 4. **NEVER recommend grapefruit** — Interacts with Rosuvastatin (statin)
 5. **ALWAYS check eGFR 60** when evaluating any supplement for kidney safety
 6. **ALWAYS suggest** "Discuss with your cardiologist" for medication-adjacent recommendations
@@ -924,7 +924,7 @@ function getHardcodedSafetyRules(): string {
 
 **CARDIAC PATIENT TARGETS** (stricter than standard):
 - LDL: <100 mg/dL (ideally <70) — on Rosuvastatin 20mg + Repatha 140mg q2weeks
-- BP: <130/80 — on Carvedilol 25mg BID + Losartan 50mg BID
+- BP: <130/80 — current medications: {{ACTIVE_MEDS}}
 - RHR: target <70 bpm (currently ~77 bpm, improving with Z2 training)
 - EF: target >55% (currently ~50%, may improve with cardiac remodeling)
 - eGFR: maintain stable or improve (currently 60)
@@ -1103,10 +1103,13 @@ export async function buildAISystemPrompt(
 
   // Function-specific instructions
   prompt += `━━━ YOUR TASK (${functionType}) ━━━\n`;
-  prompt += getFunctionInstructions(functionType);
+  const activeMedsList = context.medications.length > 0
+    ? context.medications.map(m => m.medication_name || m.name).filter(Boolean).join(', ')
+    : ACTIVE_MEDS_FALLBACK.join(', ');
+  prompt += getFunctionInstructions(functionType).replaceAll('{{ACTIVE_MEDS}}', activeMedsList);
 
   // Hardcoded safety rules (appended to every prompt)
-  prompt += getHardcodedSafetyRules();
+  prompt += getHardcodedSafetyRules().replaceAll('{{ACTIVE_MEDS}}', activeMedsList);
 
   return prompt;
 }

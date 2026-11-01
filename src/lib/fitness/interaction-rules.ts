@@ -29,28 +29,28 @@ export interface DetectedInteraction {
 
 /**
  * Curated interaction rules relevant to a cardiac patient on:
- * Carvedilol, Losartan, Rosuvastatin, Repatha, Baby Aspirin,
+ * Entresto, Carvedilol, Farxiga, Rosuvastatin, Repatha, Baby Aspirin, Tirzepatide,
  * Fish Oil, CoQ10, Magnesium, Vitamin D3
  */
 const INTERACTION_RULES: InteractionRule[] = [
   // ── CRITICAL ──
   {
-    id: 'losartan-potassium',
-    substanceA: ['losartan'],
+    id: 'arb-potassium',
+    substanceA: ['entresto', 'sacubitril', 'valsartan'],
     substanceB: ['potassium'],
     severity: 'CRITICAL',
     title: 'Hyperkalemia Risk',
-    description: 'Losartan (ARB) combined with potassium supplements can cause dangerously high potassium levels.',
+    description: 'Entresto (sacubitril/valsartan; contains an ARB) combined with potassium supplements can cause dangerously high potassium levels.',
     recommendation: 'NEVER combine without cardiologist supervision and regular potassium lab monitoring.',
     category: 'drug-supplement',
   },
   {
-    id: 'nsaid-losartan',
-    substanceA: ['losartan'],
+    id: 'nsaid-arb',
+    substanceA: ['entresto', 'sacubitril', 'valsartan'],
     substanceB: ['ibuprofen', 'naproxen', 'nsaid', 'advil', 'aleve', 'motrin', 'celebrex', 'meloxicam', 'diclofenac'],
     severity: 'CRITICAL',
     title: 'Renal Damage + Reduced BP Control',
-    description: 'NSAIDs reduce the effectiveness of Losartan and increase the risk of acute kidney injury, especially at eGFR 60.',
+    description: 'NSAIDs reduce the effectiveness of Entresto and increase the risk of acute kidney injury, especially at eGFR 60.',
     recommendation: 'Avoid all NSAIDs. Use acetaminophen (Tylenol) for pain instead.',
     category: 'drug-drug',
   },
@@ -129,12 +129,12 @@ const INTERACTION_RULES: InteractionRule[] = [
     category: 'drug-supplement',
   },
   {
-    id: 'magnesium-losartan-bp',
-    substanceA: ['losartan'],
+    id: 'magnesium-arb-bp',
+    substanceA: ['entresto', 'sacubitril', 'valsartan'],
     substanceB: ['magnesium'],
     severity: 'LOW',
     title: 'Additive Blood Pressure Lowering',
-    description: 'Magnesium can lower BP slightly, adding to Losartan\'s effect. Usually beneficial but monitor.',
+    description: 'Magnesium can lower BP slightly, adding to Entresto\'s effect. Usually beneficial but monitor.',
     recommendation: 'Monitor BP regularly. Take magnesium in the evening (away from morning meds) for best effect.',
     category: 'drug-supplement',
   },
@@ -143,7 +143,7 @@ const INTERACTION_RULES: InteractionRule[] = [
   {
     id: 'st-johns-wort-all',
     substanceA: ['st. john', 'st john', 'hypericum'],
-    substanceB: ['carvedilol', 'losartan', 'rosuvastatin', 'aspirin'],
+    substanceB: ['carvedilol', 'entresto', 'rosuvastatin', 'aspirin'],
     severity: 'CRITICAL',
     title: 'Major Drug Interaction — St. John\'s Wort',
     description: 'St. John\'s Wort induces CYP enzymes and can dramatically reduce the effectiveness of cardiac medications.',
@@ -151,8 +151,8 @@ const INTERACTION_RULES: InteractionRule[] = [
     category: 'drug-supplement',
   },
   {
-    id: 'licorice-losartan',
-    substanceA: ['losartan', 'carvedilol'],
+    id: 'licorice-bp-meds',
+    substanceA: ['entresto', 'valsartan', 'carvedilol'],
     substanceB: ['licorice', 'glycyrrhizin'],
     severity: 'HIGH',
     title: 'Counteracts Blood Pressure Medications',

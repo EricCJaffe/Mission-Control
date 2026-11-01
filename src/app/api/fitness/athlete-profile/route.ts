@@ -34,7 +34,7 @@ export async function GET() {
       hr_zones: defaultZones,
       sleep_target_min: 450,
       beta_blocker_multiplier: 1.15,
-      medications: [{ name: 'Carvedilol', dose: '12.5mg', frequency: '2x daily' }],
+      medications: [{ name: 'Carvedilol', dose: '25mg', frequency: '2x daily' }],
     })
     .select('*')
     .single();

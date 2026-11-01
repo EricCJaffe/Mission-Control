@@ -41,7 +41,9 @@ export const INITIAL_HEALTH_MD = `# Health Profile
 | Medication | Class | Dose | Frequency | Timing | Purpose |
 |-----------|-------|------|-----------|--------|---------|
 | **Carvedilol** | Beta-blocker | 25mg | 2x daily | Morning + evening | HR and BP control post-CABG. Reduces cardiac workload. |
-| **Losartan** | ARB (Angiotensin Receptor Blocker) | 50mg | 2x daily | Morning + evening | BP control, renal protection (critical at eGFR 60). |
+| **Entresto (sacubitril/valsartan)** | ARNI (contains an ARB) | Per Rx | 2x daily | Morning + evening | Heart failure / BP control. Replaced Losartan (discontinued Mar 29). |
+| **Farxiga (dapagliflozin)** | SGLT2 inhibitor | Per Rx | 1x daily | Morning | Cardio-renal protection. |
+| **Tirzepatide** | GIP/GLP-1 agonist | Per Rx | Weekly | Per schedule | Metabolic / weight management. |
 | **Rosuvastatin** | Statin (HMG-CoA reductase inhibitor) | 20mg | 1x daily | Evening | Aggressive LDL reduction (target <100, ideally <70). |
 | **Repatha (evolocumab)** | PCSK9 inhibitor | 140mg | Every 2 weeks | Per schedule | Aggressive LDL reduction (stacks with statin for secondary prevention). |
 | **Baby Aspirin** | Antiplatelet | 81mg | 1x daily | Morning with food | Secondary prevention post-CABG (reduces clot risk in grafts). |
@@ -75,7 +77,7 @@ export const INITIAL_HEALTH_MD = `# Health Profile
 
 ### Morning Stack (30-60 min after coffee)
 1. **Carvedilol 25mg** (beta-blocker)
-2. **Losartan 50mg** (ARB)
+2. **Entresto** (ARNI)
 3. **Baby Aspirin 81mg** (with food)
 4. **Fish Oil** (with breakfast)
 5. **CoQ10 (Ubiquinol)** (with breakfast — fat-soluble)
@@ -83,7 +85,7 @@ export const INITIAL_HEALTH_MD = `# Health Profile
 
 ### Evening Stack (with or after dinner)
 1. **Carvedilol 25mg** (beta-blocker)
-2. **Losartan 50mg** (ARB)
+2. **Entresto** (ARNI)
 3. **Rosuvastatin 20mg** (statin — evening preferred for LDL synthesis timing)
 4. **Magnesium Glycinate 400mg** (before bed)
 
@@ -103,8 +105,8 @@ export const INITIAL_HEALTH_MD = `# Health Profile
 | **Methylated B-Complex** | MTHFR support (pending methylation report), homocysteine reduction | Safe | Strong if MTHFR variant | High (if MTHFR+) |
 
 ### Supplements to AVOID
-- **Potassium supplements** — CONTRAINDICATED with Losartan (hyperkalemia risk)
-- **NSAIDs (ibuprofen, naproxen)** — CONTRAINDICATED: nephrotoxic at eGFR 60, reduces Losartan effectiveness
+- **Potassium supplements** — CONTRAINDICATED with Entresto (hyperkalemia risk)
+- **NSAIDs (ibuprofen, naproxen)** — CONTRAINDICATED: nephrotoxic at eGFR 60, reduces Entresto effectiveness
 - **Decongestants (pseudoephedrine)** — CONTRAINDICATED: BP spike risk with beta-blockers
 - **Grapefruit** — CONTRAINDICATED: interacts with Rosuvastatin (increases statin blood levels)
 - **St. John's Wort** — CAUTION: reduces statin effectiveness
@@ -121,7 +123,7 @@ export const INITIAL_HEALTH_MD = `# Health Profile
 | **Resting HR** | ~77 bpm | <70 bpm | Improving with Z2 training. Beta-blocker suppresses HR. |
 | **Max HR** | 155 bpm | 155 bpm (ceiling) | Beta-blocker adjusted. NEVER EXCEED. |
 | **HR Zones** | Z1: 100-115, Z2: 115-133, Z3: 133-145, Z4: 145-155 | 80% time in Z2 | Standard formulas (220-age) are useless with beta-blockers. |
-| **Blood Pressure** | Unknown baseline | <130/80 mmHg | AHA target for high-risk cardiac patients. On Carvedilol + Losartan. |
+| **Blood Pressure** | Unknown baseline | <130/80 mmHg | AHA target for high-risk cardiac patients. On Carvedilol + Entresto. |
 | **Weight** | 184 lbs | Stable (composition > scale) | Focus on muscle maintenance during cardio emphasis. |
 | **Ejection Fraction** | ~50% | >55% | Target via Z2 cardiac remodeling. Request echo at next appointment. |
 | **eGFR** | 60 mL/min | Stable or improving | Add Cystatin C for accuracy. Avoid nephrotoxic substances. |
@@ -178,7 +180,7 @@ export const INITIAL_HEALTH_MD = `# Health Profile
   - Minimal red meat (shift to fish/poultry/plant protein)
 - **Kidney-aware modifications**:
   - Moderate protein (not excessive)
-  - Watch potassium-rich foods (bananas, potatoes, tomatoes) — Losartan can raise potassium
+  - Watch potassium-rich foods (bananas, potatoes, tomatoes) — Entresto can raise potassium
   - Sodium management for BP control
 - **Fiber emphasis**: Helps lower LDL (already on aggressive statin + PCSK9i, but diet stacks)
 
@@ -187,7 +189,7 @@ export const INITIAL_HEALTH_MD = `# Health Profile
 - **Rationale**: Autophagy, metabolic flexibility, potential cardiac benefits
 - **Best day**: Rest day or light Z1 day. NEVER day before HIIT. NEVER peak training day.
 - **Hydration**: Critical (eGFR 60). Water, electrolytes (salt, magnesium OK, no calories).
-- **Medication timing**: Take Carvedilol + Losartan with small amount of water (consistent timing critical).
+- **Medication timing**: Take Carvedilol + Entresto with small amount of water (consistent timing critical).
 - **BP monitoring**: May drop on fasting days — warn about dizziness.
 - **Break-fast meal**: Balanced (protein + healthy fat + complex carbs). Mediterranean-style.
 - **Track**: Correlate with next-day readiness, HRV, body battery. Adjust if consistently poor.
