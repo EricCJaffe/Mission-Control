@@ -6,7 +6,7 @@ import { activePerson } from '@/lib/health/people';
 
 export const dynamic = 'force-dynamic';
 
-/** Medication seed data from health.md — 5 prescriptions + 4 supplements */
+/** Medication seed data from health.md — 4 prescriptions + 4 supplements */
 function getSeedMedications(userId: string) {
   return [
     {
@@ -14,13 +14,6 @@ function getSeedMedications(userId: string) {
       frequency: '2x daily', timing: 'Morning + evening',
       purpose: 'HR and BP control post-CABG. Reduces cardiac workload.',
       known_interactions: 'Beta-blocker. Avoid decongestants. Impairs thermoregulation in heat.',
-      active: true,
-    },
-    {
-      user_id: userId, name: 'Losartan', type: 'prescription', dosage: '50mg',
-      frequency: '2x daily', timing: 'Morning + evening',
-      purpose: 'BP control, renal protection (critical at eGFR 60).',
-      known_interactions: 'ARB. NEVER combine with potassium supplements (hyperkalemia risk). NSAIDs reduce effectiveness.',
       active: true,
     },
     {

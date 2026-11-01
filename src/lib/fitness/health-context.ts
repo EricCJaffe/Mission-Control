@@ -130,6 +130,48 @@ async function contextClient() {
   return supabaseServer();
 }
 
+/** Used only when the active medication query returns nothing. */
+export const ACTIVE_MEDS_FALLBACK = [
+  'Entresto',
+  'Carvedilol 25 mg',
+  'Farxiga',
+  'Aspirin',
+  'Rosuvastatin',
+  'Repatha',
+  'Tirzepatide',
+];
+
+/**
+ * Active medication names (with dosage when present) from mission.medications.
+ * Falls back to ACTIVE_MEDS_FALLBACK when there is no user or no rows.
+ */
+export async function loadActiveMedicationNames(userId?: string | null): Promise<string[]> {
+  if (!userId) return ACTIVE_MEDS_FALLBACK;
+  try {
+    const supabase = await contextClient();
+    const { data: selfPerson } = await supabase
+      .from('people')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('is_self', true)
+      .maybeSingle();
+    const selfId: string | undefined = selfPerson?.id;
+    let q = supabase
+      .from('medications')
+      .select('name, dosage')
+      .eq('user_id', userId)
+      .eq('active', true);
+    if (selfId) q = q.or(`person_id.eq.${selfId},person_id.is.null`);
+    const { data } = await q;
+    const names = (data ?? [])
+      .filter((m: { name?: string | null }) => m.name)
+      .map((m: { name: string; dosage?: string | null }) => (m.dosage ? `${m.name} ${m.dosage}` : m.name));
+    return names.length ? names : ACTIVE_MEDS_FALLBACK;
+  } catch {
+    return ACTIVE_MEDS_FALLBACK;
+  }
+}
+
 async function loadHealthContext(userId: string): Promise<HealthContext> {
   const supabase = await contextClient();
 
