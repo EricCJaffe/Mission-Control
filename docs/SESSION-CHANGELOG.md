@@ -15,7 +15,7 @@ Purpose: quick chronological notes so future sessions can see what changed witho
   - Why: see the form of each strength exercise while logging, without putting 1,324 Gym visual GIFs in the public repo.
   - Follow-ups: if the leg curl station is the prone one, point `Leg Curl (Machine)` at dataset id `0586` and regenerate the catalog.
 - 2026-11-01 ET — Running plan cards, Garmin FIT/GPX/CSV upload (4lot session)
-  - What changed: `src/lib/fitness/{activity-files,running-plan,running-score,running-data,running-api,running-seed}.ts`; `/api/fitness/running/{plan,upload,sessions,sessions/[id],sync-apple,recommendations/[id]}`; cards on `/fitness/plans`; four `mission` tables (migration `20261101160000`); seed script; `docs/health-data-paths.md`.
+  - What changed: `src/lib/fitness/{activity-files,running-plan,running-score,running-data,running-api,running-seed}.ts`; `/api/fitness/running/{plan,upload,sessions,sessions/[id],sync-apple,recommendations/[id]}`; cards on `/fitness/plans`; four `mission` tables (migration `20261102154130`); seed script; `docs/health-data-paths.md`.
   - Why: Eric, 2026-11-01: modernize the plan UI, cards for progress and encouragement, upload Garmin data, show the Gate River running plan.
   - Follow-ups: apply the migration; run the seed (db-write) after merge; fix the HAE Workouts automation; finish Garmin OAuth for hands-off sync.
 

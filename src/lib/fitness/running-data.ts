@@ -1,6 +1,6 @@
 /**
  * Server-side loader for the running plan function. It reads only the four
- * tables that are its source of truth (migration 20261101160000):
+ * tables that are its source of truth (migration 20261102154130):
  *
  *   running_plans             the active plan (body = RunningPlan JSON)
  *   running_sessions          the session log, from every source

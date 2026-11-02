@@ -108,7 +108,7 @@ FIT for any run where zone 2 matters.
 ## Running plan format
 
 The running plan function's source of truth is four `mission` tables, all
-owner-only RLS (migration `20261101160000`):
+owner-only RLS (migration `20261102154130`):
 
 | Table | Holds |
 |---|---|

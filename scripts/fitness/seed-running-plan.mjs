@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * One-time seed of the running plan function for one user, run by a session
- * on the box AFTER the PR and migration 20261101160000 are live, through the
+ * on the box AFTER the PR and migration 20261102154130 are live, through the
  * approved `kind: db-write` path. It reads the content at apply time from
  * untracked files (mode 600) and never prints it: only counts and row ids.
  *
