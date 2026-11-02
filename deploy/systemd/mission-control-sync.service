@@ -47,7 +47,10 @@ WorkingDirectory=%h/dev/mission-control
 #
 # ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/projects.ts
 # ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/brain.ts
-ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/m365.ts
+# MC divorce p3 (2026-11-02): calendar only. The mail pass made domain='work' email tasks,
+# and business mail now syncs into FSAOS (brain-mail-sync), so Mission Control keeps
+# Eric's own calendar and nothing else from Microsoft 365.
+ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/m365.ts --calendar-only
 
 # The harvester only ever reads other repos and writes its own database, but
 # there is no reason to leave it able to do more than that.
