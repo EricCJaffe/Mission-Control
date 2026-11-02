@@ -19,6 +19,11 @@ export async function POST(req: Request) {
   const dueDate = String(form.get("due_date") || "").trim();
   const category = String(form.get("category") || "").trim();
   const domain = String(form.get("domain") || "").trim();
+  // MC divorce (2026-11-02): business tasks live in FSAOS, and mission.tasks refuses
+  // domain='work'. Say so instead of letting the insert fail silently.
+  if (domain === "work") {
+    return NextResponse.json({ error: "Business tasks live in FSAOS now (factory.fsaos.bibleos.app/work/tasks)." }, { status: 400 });
+  }
   const why = String(form.get("why") || "").trim();
   const recurrenceRule = String(form.get("recurrence_rule") || "").trim();
   const recurrenceAnchor = String(form.get("recurrence_anchor") || "").trim();

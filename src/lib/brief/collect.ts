@@ -276,6 +276,8 @@ export async function collect(
       .select(
         'id,title,description,status,priority,due_date,domain,category,why,project_id,source,source_url,assignee,external_status,edited_at,updated_at,created_at',
       )
+      // MC divorce: archived business tasks (domain work_archived) are not Eric's personal work.
+      .or('domain.is.null,domain.neq.work_archived')
       .eq('user_id', userId)
       .neq('status', 'done')
       .limit(2000),
@@ -284,6 +286,8 @@ export async function collect(
       .select(
         'id,title,description,status,priority,due_date,domain,category,why,project_id,source,source_url,assignee,external_status,edited_at,updated_at,created_at',
       )
+      // MC divorce: archived business tasks (domain work_archived) are not Eric's personal work.
+      .or('domain.is.null,domain.neq.work_archived')
       .eq('user_id', userId)
       .eq('status', 'done')
       .gte('updated_at', closedFrom)
