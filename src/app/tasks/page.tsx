@@ -57,6 +57,8 @@ export default async function TasksPage({
     // from the select text, and a `+` between two halves erases it back to
     // GenericStringError.
     .select("id,title,status,priority,due_date,created_at,category,why,recurrence_rule,recurrence_anchor,book_id,chapter_id,is_template,domain,source,source_ref,source_url,project_id,assignee,external_status")
+    // MC divorce: archived business tasks (domain work_archived) live in FSAOS now.
+    .or("domain.is.null,domain.neq.work_archived")
     .order("created_at", { ascending: false });
 
   const taskIds = (tasks || []).map((task) => task.id);
