@@ -1,5 +1,5 @@
 [Unit]
-Description=Run the Mission Control project sync every two hours
+Description=Run the Mission Control sync (Outlook only since 2026-11-02) every two hours
 Documentation=file:///home/admxn/dev/mission-control/docs/runbook.md
 
 [Timer]

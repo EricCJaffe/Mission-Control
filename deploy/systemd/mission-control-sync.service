@@ -1,5 +1,10 @@
 [Unit]
-# Harvests every project task list under ~/dev into Mission Control.
+# Since 2026-11-02 (MC divorce p1): the Outlook harvester (m365.ts) and
+# nothing else. This unit, on mission-control-sync.timer (every two hours,
+# 06-22 ET), is the ONLY scheduled caller of m365.ts on ubuntu-dev; the
+# dedicated mission-control-m365.* pair is NOT installed. Do not enable both,
+# or Outlook syncs twice. It used to harvest every project task list under
+# ~/dev; see the divorce note below.
 # Installed as a USER unit, not a system one: it reads the user's repos and
 # the user's .env, and has no business running as root.
 Description=Mission Control — Outlook sync (personal; projects + brain stopped 2026-11-02)
