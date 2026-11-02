@@ -22,7 +22,7 @@ const DOMAINS = [
   { value: "body", label: "Body — Health" },
   { value: "soul", label: "Soul — Health" },
   { value: "family", label: "Family" },
-  { value: "work", label: "Work — Impact" },
+  // No "work": business tasks live in FSAOS since the MC divorce (2026-11-02); the database refuses them.
 ];
 
 const CATEGORIES = [

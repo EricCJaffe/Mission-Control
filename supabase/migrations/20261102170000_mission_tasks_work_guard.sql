@@ -10,40 +10,27 @@
 --    where they are, because ten tables reference mission.tasks (task_links,
 --    daily_priorities, goal_tasks, calendar_events, ...), and a move would break them.
 --    Before (2026-11-02 ~11:35 AM ET): 293 work rows (manual 39, email 3, todo_md 251).
--- 2. GUARD: a row may never be domain='work' again, on insert or update. brain
---    jobs/lib/grok-db.py already refuses it; this makes the database refuse it too.
---    NULL stays legal (Chief of Staff is classifying the 139 null-domain rows).
+-- 2. GUARD: the domain check itself (tasks_domain_check, 20260905180000) now allows
+--    'work_archived' and no longer allows 'work', so the database refuses a business task
+--    on insert or update. brain jobs/lib/grok-db.py already refuses it client-side, and the
+--    task routes answer 400. NULL stays legal (Chief of Staff classifies the null-domain rows).
 --
 -- Rollback:
---   drop trigger if exists tasks_no_work on mission.tasks;
---   drop function if exists mission.tasks_no_work();
+--   alter table mission.tasks drop constraint if exists tasks_domain_check;
 --   update mission.tasks set domain = 'work' where domain = 'work_archived';
+--   alter table mission.tasks add constraint tasks_domain_check
+--     check (domain is null or domain in ('spirit','body','soul','family','work'));
+
+alter table mission.tasks drop constraint if exists tasks_domain_check;
 
 update mission.tasks set domain = 'work_archived' where domain = 'work';
 
-create or replace function mission.tasks_no_work()
-returns trigger
-language plpgsql
-set search_path = ''
-as $$
-begin
-  if new.domain = 'work' then
-    raise exception 'mission.tasks: business (domain work) tasks live in FSAOS since the MC divorce (2026-11-02)'
-      using errcode = 'check_violation';
-  end if;
-  return new;
-end
-$$;
-
-drop trigger if exists tasks_no_work on mission.tasks;
-create trigger tasks_no_work
-  before insert or update on mission.tasks
-  for each row execute function mission.tasks_no_work();
+alter table mission.tasks add constraint tasks_domain_check
+  check (domain is null or domain in ('spirit','body','soul','family','work_archived'));
 
 do $$
-declare v_left int;
 begin
-  select count(*) into v_left from mission.tasks where domain = 'work';
   raise notice 'mission_tasks_work_guard: % work rows left (expect 0); % archived',
-    v_left, (select count(*) from mission.tasks where domain = 'work_archived');
+    (select count(*) from mission.tasks where domain = 'work'),
+    (select count(*) from mission.tasks where domain = 'work_archived');
 end $$;
