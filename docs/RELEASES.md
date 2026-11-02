@@ -13,6 +13,13 @@
 - The GIFs are not in this repo. They load from the exercises dataset on jsDelivr, pinned to commit `7455efae`. Instruction text for the matched rows is the only data we commit.
 - Hanging Knee Raise has no faithful clip. Leg curl, overhead triceps machine, and ab crunch machine are manual mappings.
 
+### November 1, 2026 — Running plan cards and Garmin file upload
+
+- `/fitness/plans` leads with a running plan: race countdown, a weekly running card (miles, pace, HR, max HR against the ceiling, zone-2 %, feel, points, streak), updates, progress, badges, tips and the week-by-week plan with this week highlighted against logged runs.
+- Manual upload of Garmin Connect / Fenix exports (FIT, GPX, Activities CSV), parsed on the server and deduped by file and across sources. Feel (1-10) and notes per run.
+- The plan function's source of truth is four new owner-only `mission` tables: `running_plans`, `running_sessions`, `coaching_recommendations`, `health_access_docs` (migration `20261102154130_running_plan_source_of_truth.sql`, additive; rollback in `supabase/rollbacks/`). Coaching card with review status; health-access reference card; manual run entry; *Pull from Apple Health*.
+- Nothing personal is in the repo. The one-time seed (`scripts/fitness/seed-running-plan.mjs`) reads untracked files at apply time via the approved db-write path. Paths and formats: `docs/health-data-paths.md`.
+
 ### October 19, 2026 — Mail to Eric goes through grokbot
 
 - `/api/cron/brief?send=1` and `/api/cron/apple-health-check` no longer mail through Graph as eric@. They store a `mission.briefs` row with `handoff_requested_at`; a brain-side pull reads `/api/cron/brief-outbox` and routes it via `brief-via-grokbot.py`, so Eric gets it from erics-inbox@mail.grokbot.com (Eric, 2026-10-19 10:52 AM ET).
