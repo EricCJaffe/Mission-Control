@@ -196,7 +196,7 @@ export default async function DashboardHome() {
       .order("start_at", { ascending: true }),
     supabase
       .from("tasks")
-      .select("id,title,status,due_date,priority")
+      .select("id,title,status,due_date,priority").or("domain.is.null,domain.neq.work_archived")
       // Open, due today or earlier. This read the newest 50 of every status,
       // so a task ticked done stayed on the card and the tick looked broken
       // (Eric, 2026-10-04), and an old overdue task past the newest 50 never

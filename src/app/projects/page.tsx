@@ -53,7 +53,7 @@ export default async function ProjectsPage() {
       .from('projects')
       .select('id,title,status,priority,created_at,slug,domain,client,repo_path,sync_enabled,last_synced_at')
       .order('created_at', { ascending: false }),
-    supabase.from('tasks').select('project_id,status,priority').not('project_id', 'is', null),
+    supabase.from('tasks').select('project_id,status,priority').or("domain.is.null,domain.neq.work_archived").not('project_id', 'is', null),
     latestRollup(supabase),
   ])
 

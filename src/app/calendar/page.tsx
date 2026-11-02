@@ -24,7 +24,7 @@ export default async function CalendarPage({
     .limit(200);
 
   const { data: goals } = await supabase.from("goals").select("id,title").order("created_at", { ascending: false }).limit(50);
-  const { data: tasks } = await supabase.from("tasks").select("id,title").order("created_at", { ascending: false }).limit(50);
+  const { data: tasks } = await supabase.from("tasks").select("id,title").or("domain.is.null,domain.neq.work_archived").order("created_at", { ascending: false }).limit(50);
   const { data: notes } = await supabase.from("notes").select("id,title").order("created_at", { ascending: false }).limit(50);
   const { data: reviews } = await supabase.from("monthly_reviews").select("id,period_start").order("period_start", { ascending: false }).limit(12);
   const { data: templates, error: templatesError } = await supabase
