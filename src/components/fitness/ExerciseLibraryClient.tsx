@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { ExerciseCategory } from '@/lib/fitness/types';
+import { ExerciseDemoThumb } from './ExerciseDemo';
 
 type ExerciseRow = {
   id: string;
@@ -207,7 +208,8 @@ export default function ExerciseLibraryClient({ exercises: initial }: { exercise
                     </div>
                   ) : (
                     <div className="px-4 py-2.5 flex items-center gap-3">
-                      <Link href={`/fitness/exercises/${e.id}`} className="text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors flex-1">
+                      <ExerciseDemoThumb name={e.name} />
+                      <Link href={`/fitness/exercises/${e.id}`} className="text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors flex-1 min-w-0">
                         {e.name}
                       </Link>
                       {e.equipment && (

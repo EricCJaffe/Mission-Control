@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 import { ArrowLeft, TrendingUp, Calendar, Dumbbell } from 'lucide-react';
+import { ExerciseDemoPanel } from './ExerciseDemo';
+import { lookupExerciseDemo, unmatchedExerciseDemo } from '@/lib/fitness/exercise-demo-catalog';
 import {
   LineChart,
   Line,
@@ -194,8 +196,16 @@ export default function ExerciseDetailClient({ exercise, setLogs, oneRmRecords }
               </p>
             )}
           </div>
-          <Dumbbell className="h-12 w-12 text-slate-300" />
+          {lookupExerciseDemo(exercise.name) ? null : (
+            <Dumbbell className="h-12 w-12 text-slate-300" />
+          )}
         </div>
+
+        {(lookupExerciseDemo(exercise.name) || unmatchedExerciseDemo(exercise.name)) && (
+          <div className="mt-5">
+            <ExerciseDemoPanel name={exercise.name} />
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-6">

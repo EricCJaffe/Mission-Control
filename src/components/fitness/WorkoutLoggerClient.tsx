@@ -25,6 +25,7 @@ import InlineRestTimer from './InlineRestTimer';
 import SetNumberInput from './SetNumberInput';
 import PlateCalculator from './PlateCalculator';
 import QuickExerciseCreator from './QuickExerciseCreator';
+import { ExerciseDemoDisclosure, ExerciseDemoThumb } from './ExerciseDemo';
 import AIWorkoutBuilder from './AIWorkoutBuilder';
 import type { SetType, CardioLog, WorkoutStructureItem } from '@/lib/fitness/types';
 import { carrySetValue, type CarryField } from '@/lib/fitness/carry-forward';
@@ -1394,8 +1395,9 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
                   <button
                     key={e.id}
                     onClick={() => swapTarget ? swapExercise(swapTarget, e.id) : addExercise(e.id)}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 flex items-center gap-2 min-h-[40px]"
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 flex items-center gap-2 min-h-[44px]"
                   >
+                    <ExerciseDemoThumb name={e.name} />
                     <span className="flex-1">{e.name}</span>
                     {e.equipment && <span className="text-xs text-slate-400">{e.equipment}</span>}
                     {e.is_compound && <span className="text-xs text-blue-500">C</span>}
@@ -2363,7 +2365,8 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
       <div key={block.id} className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm overflow-hidden">
         {/* Exercise header */}
         <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center gap-2">
-          <div className="flex-1">
+          <ExerciseDemoThumb name={block.exercise_name} />
+          <div className="flex-1 min-w-0">
             <button
               onClick={() => router.push(`/fitness/exercises/${block.exercise_id}`)}
               className="text-base font-bold text-slate-900 hover:text-blue-700 transition-colors text-left"
@@ -2399,6 +2402,8 @@ export default function WorkoutLoggerClient({ exercises, templates, todayPlan, l
             </button>
           </div>
         </div>
+
+        <ExerciseDemoDisclosure name={block.exercise_name} />
 
         {/* Column headers — labelled once, so each set row stays compact */}
         {block.sets.length > 0 && (

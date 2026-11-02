@@ -10,6 +10,11 @@ Purpose: quick chronological notes so future sessions can see what changed witho
 
 ---
 
+- 2026-11-02 07:00 ET — Push/pull exercise demos from the exercises dataset
+  - What changed: fuzzy name match plus a manual override map for the Push A/B and Pull A/B exercises. Library, logger, and history show a lazy thumbnail. The exercise page and the logger's "Demo and steps" control show the GIF, target muscles, equipment, and English steps. Media is hotlinked from jsDelivr at dataset commit `7455efae`; only the small catalog is committed. Hanging Knee Raise is unmatched.
+  - Why: see the form of each strength exercise while logging, without putting 1,324 Gym visual GIFs in the public repo.
+  - Follow-ups: if the leg curl station is the prone one, point `Leg Curl (Machine)` at dataset id `0586` and regenerate the catalog.
+
 - 2026-10-19 11:30 ET — Brief and Apple Health alert hand off to grokbot (PR #64)
   - What changed: both crons store to `mission.briefs` with `handoff_requested_at`; new `/api/cron/brief-outbox` (GET pending, POST ack); `/briefs` shows handoff status.
   - Why: every email to Eric comes from a Grok Bot address so a reply reaches a bot.
