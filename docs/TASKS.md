@@ -27,6 +27,7 @@ re-raising them. Source of truth: `~/dev/brain/open/resolved.md`.
 - Docs Status: ✅ Refreshed to match shipped state
 
 ## Recently Shipped
+- Exercise demos for the push and pull strength days: thumbnail in lists, GIF and English steps on the exercise page and while logging. Media stays on the dataset host. Hanging Knee Raise has no clip.
 - Workout history correction flow: edit date, session metadata, sets, and
   cardio from workout detail; recalculates TSS, strain, and cardiac efficiency.
 - Withings OAuth/API integration with encrypted token storage, sync status, manual sync, disconnect flow, and legacy CSV fallback

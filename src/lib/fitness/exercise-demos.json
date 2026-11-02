@@ -1,0 +1,519 @@
+{
+  "source": "https://github.com/hasaneyldrm/exercises-dataset",
+  "sourceCommit": "7455efae41b330c265e7cd4b78dfa848e7ce5ebd",
+  "mediaBaseUrl": "https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@7455efae41b330c265e7cd4b78dfa848e7ce5ebd/",
+  "dataLicense": "MIT",
+  "dataCopyright": "Copyright (c) 2026 Hasan Emir Yıldırım",
+  "dataLicenseNotice": "Instruction text and exercise metadata are from the exercises dataset and are MIT licensed. The MIT license covers only that data. It does not cover the images or GIFs.",
+  "mediaNotice": "Thumbnails and animation GIFs are © Gym visual (https://gymvisual.com/). They are loaded from the dataset repository via the mediaBaseUrl above and are not stored in Mission Control. Every use keeps the attribution \"© Gym visual — https://gymvisual.com/\".",
+  "byName": {
+    "flat barbell bench press": {
+      "routineName": "Flat Barbell Bench Press",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0025",
+      "datasetName": "barbell bench press",
+      "equipment": "barbell",
+      "target": "pectorals",
+      "secondaryMuscles": [
+        "triceps",
+        "shoulders"
+      ],
+      "steps": [
+        "Lie flat on a bench with your feet flat on the ground and your back pressed against the bench.",
+        "Grasp the barbell with an overhand grip slightly wider than shoulder-width apart.",
+        "Lift the barbell off the rack and hold it directly above your chest with your arms fully extended.",
+        "Lower the barbell slowly towards your chest, keeping your elbows tucked in.",
+        "Pause for a moment when the barbell touches your chest.",
+        "Push the barbell back up to the starting position by extending your arms.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0025-EIeI8Vf.jpg",
+      "gif": "videos/0025-EIeI8Vf.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "leg press": {
+      "routineName": "Leg Press",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0739",
+      "datasetName": "sled 45° leg press",
+      "equipment": "sled machine",
+      "target": "glutes",
+      "secondaryMuscles": [
+        "quadriceps",
+        "hamstrings",
+        "calves"
+      ],
+      "steps": [
+        "Adjust the seat and footplate of the sled machine to a comfortable position.",
+        "Sit on the sled machine with your back against the backrest and your feet shoulder-width apart on the footplate.",
+        "Grip the handles on the sides of the seat for stability.",
+        "Push the footplate away from your body by extending your legs, keeping your heels on the footplate.",
+        "Continue pushing until your legs are almost fully extended, but without locking your knees.",
+        "Pause for a moment at the top of the movement, then slowly lower the footplate back towards your body by bending your knees.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0739-10Z2DXU.jpg",
+      "gif": "videos/0739-10Z2DXU.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "incline dumbbell fly": {
+      "routineName": "Incline Dumbbell Fly",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0319",
+      "datasetName": "dumbbell incline fly",
+      "equipment": "dumbbell",
+      "target": "pectorals",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "steps": [
+        "Set an incline bench to a 45-degree angle.",
+        "Sit on the bench with a dumbbell in each hand, palms facing each other.",
+        "Lie back on the bench and press the dumbbells up to the starting position, directly above your chest.",
+        "Lower the dumbbells out to the sides in a wide arc until you feel a stretch in your chest.",
+        "Pause for a moment, then squeeze your chest muscles to bring the dumbbells back up to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0319-ESOd5Pl.jpg",
+      "gif": "videos/0319-ESOd5Pl.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "tricep pushdown (cable)": {
+      "routineName": "Tricep Pushdown (Cable)",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0201",
+      "datasetName": "cable pushdown",
+      "equipment": "cable",
+      "target": "triceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "steps": [
+        "Attach a straight bar to a high pulley cable machine.",
+        "Stand facing the machine with your feet shoulder-width apart and a slight bend in your knees.",
+        "Grasp the bar with an overhand grip, hands shoulder-width apart.",
+        "Keep your elbows close to your sides and your upper arms stationary.",
+        "Exhale and push the bar down until your elbows are fully extended.",
+        "Pause for a moment, then inhale and slowly return the bar to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0201-3ZflifB.jpg",
+      "gif": "videos/0201-3ZflifB.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "front dumbbell raise": {
+      "routineName": "Front Dumbbell Raise",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0310",
+      "datasetName": "dumbbell front raise",
+      "equipment": "dumbbell",
+      "target": "delts",
+      "secondaryMuscles": [
+        "biceps",
+        "trapezius"
+      ],
+      "steps": [
+        "Stand with your feet shoulder-width apart, holding a dumbbell in each hand with your palms facing your thighs.",
+        "Keeping your arms straight, exhale and lift the dumbbells in front of you until they are at shoulder level.",
+        "Pause for a moment at the top, then inhale and slowly lower the dumbbells back down to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0310-3eGE2JC.jpg",
+      "gif": "videos/0310-3eGE2JC.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "incline barbell bench press": {
+      "routineName": "Incline Barbell Bench Press",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0047",
+      "datasetName": "barbell incline bench press",
+      "equipment": "barbell",
+      "target": "pectorals",
+      "secondaryMuscles": [
+        "shoulders",
+        "triceps"
+      ],
+      "steps": [
+        "Set up an incline bench at a 45-degree angle.",
+        "Lie down on the bench with your feet flat on the ground.",
+        "Grasp the barbell with an overhand grip, slightly wider than shoulder-width apart.",
+        "Unrack the barbell and lower it slowly towards your chest, keeping your elbows at a 45-degree angle.",
+        "Pause for a moment at the bottom, then push the barbell back up to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0047-3TZduzM.jpg",
+      "gif": "videos/0047-3TZduzM.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "leg curl (machine)": {
+      "routineName": "Leg Curl (Machine)",
+      "via": "override",
+      "score": 51,
+      "datasetId": "0599",
+      "datasetName": "lever seated leg curl",
+      "equipment": "leverage machine",
+      "target": "hamstrings",
+      "secondaryMuscles": [
+        "calves"
+      ],
+      "steps": [
+        "Adjust the machine to fit your body and sit on it with your back against the backrest.",
+        "Place your lower legs under the padded lever, just above your ankles.",
+        "Grasp the handles on the sides of the machine for support.",
+        "Keeping your upper legs stationary, exhale and curl your legs up as far as possible.",
+        "Hold the contracted position for a brief pause as you squeeze your hamstrings.",
+        "Inhale and slowly lower the lever back to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0599-Zg3XY7P.jpg",
+      "gif": "videos/0599-Zg3XY7P.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "flat dumbbell fly": {
+      "routineName": "Flat Dumbbell Fly",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0308",
+      "datasetName": "dumbbell fly",
+      "equipment": "dumbbell",
+      "target": "pectorals",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "steps": [
+        "Lie flat on a bench with a dumbbell in each hand, palms facing each other.",
+        "Extend your arms straight up over your chest, with a slight bend in your elbows.",
+        "Keeping a slight bend in your elbows, lower your arms out to the sides in a wide arc until you feel a stretch in your chest.",
+        "Pause for a moment, then reverse the movement and bring the dumbbells back up to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0308-yz9nUhF.jpg",
+      "gif": "videos/0308-yz9nUhF.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "overhead tricep press (machine)": {
+      "routineName": "Overhead Tricep Press (Machine)",
+      "via": "override",
+      "score": 32,
+      "datasetId": "0607",
+      "datasetName": "lever triceps extension",
+      "equipment": "leverage machine",
+      "target": "triceps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "steps": [
+        "Adjust the seat height and position yourself on the machine with your back against the pad.",
+        "Grasp the handles with an overhand grip and fully extend your arms in front of you.",
+        "Keeping your upper arms stationary, slowly lower the handles towards your forehead by bending your elbows.",
+        "Pause for a moment at the bottom, then push the handles back up to the starting position by extending your arms.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0607-Ser9eQp.jpg",
+      "gif": "videos/0607-Ser9eQp.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "ab crunch (machine)": {
+      "routineName": "Ab Crunch (Machine)",
+      "via": "override",
+      "score": 4,
+      "datasetId": "0595",
+      "datasetName": "lever seated crunch (chest pad)",
+      "equipment": "leverage machine",
+      "target": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "steps": [
+        "Adjust the seat height and chest pad position according to your comfort.",
+        "Sit on the machine with your back against the chest pad and your feet flat on the floor.",
+        "Grasp the handles or side bars for stability.",
+        "Engage your abs and slowly lean back, allowing the chest pad to move with you.",
+        "Pause for a moment at the maximum contraction, feeling the tension in your abs.",
+        "Slowly return to the starting position by contracting your abs and pulling yourself back up.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0595-ZnJHhMk.jpg",
+      "gif": "videos/0595-ZnJHhMk.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "dumbbell lateral raise": {
+      "routineName": "Dumbbell Lateral Raise",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0334",
+      "datasetName": "dumbbell lateral raise",
+      "equipment": "dumbbell",
+      "target": "delts",
+      "secondaryMuscles": [
+        "traps"
+      ],
+      "steps": [
+        "Stand with your feet shoulder-width apart and hold a dumbbell in each hand, palms facing your body.",
+        "Keep your back straight and engage your core.",
+        "Raise your arms out to the sides until they are parallel to the floor, keeping a slight bend in your elbows.",
+        "Pause for a moment at the top, then slowly lower your arms back down to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0334-DsgkuIt.jpg",
+      "gif": "videos/0334-DsgkuIt.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "pull-up": {
+      "routineName": "Pull-up",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0652",
+      "datasetName": "pull-up",
+      "equipment": "body weight",
+      "target": "lats",
+      "secondaryMuscles": [
+        "biceps",
+        "forearms"
+      ],
+      "steps": [
+        "Hang from a pull-up bar with your palms facing away from you and your arms fully extended.",
+        "Engage your core and squeeze your shoulder blades together.",
+        "Pull your body up towards the bar by bending your elbows and bringing your chest towards the bar.",
+        "Pause at the top of the movement, then slowly lower your body back down to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0652-lBDjFxJ.jpg",
+      "gif": "videos/0652-lBDjFxJ.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "deadlift (trap bar)": {
+      "routineName": "Deadlift (Trap Bar)",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0811",
+      "datasetName": "trap bar deadlift",
+      "equipment": "trap bar",
+      "target": "glutes",
+      "secondaryMuscles": [
+        "hamstrings",
+        "quadriceps",
+        "lower back"
+      ],
+      "steps": [
+        "Stand with your feet shoulder-width apart and the trap bar on the ground in front of you.",
+        "Bend at the hips and knees to lower yourself down and grip the handles of the trap bar with an overhand grip.",
+        "Keep your back straight and chest up as you begin to lift the trap bar off the ground by extending your hips and knees.",
+        "As you lift, focus on driving through your heels and squeezing your glutes at the top of the movement.",
+        "Lower the trap bar back down to the ground by bending at the hips and knees, keeping your back straight throughout the movement.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0811-jQGwmxN.jpg",
+      "gif": "videos/0811-jQGwmxN.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "dumbbell row": {
+      "routineName": "Dumbbell Row",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0293",
+      "datasetName": "dumbbell bent over row",
+      "equipment": "dumbbell",
+      "target": "upper back",
+      "secondaryMuscles": [
+        "biceps",
+        "forearms"
+      ],
+      "steps": [
+        "Stand with your feet shoulder-width apart, knees slightly bent, and hold a dumbbell in each hand with your palms facing your body.",
+        "Bend forward at the hips, keeping your back straight and your core engaged.",
+        "Let your arms hang straight down towards the floor, with your elbows slightly bent.",
+        "Pull the dumbbells up towards your chest, squeezing your shoulder blades together.",
+        "Pause for a moment at the top, then slowly lower the dumbbells back down to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0293-BJ0Hz5L.jpg",
+      "gif": "videos/0293-BJ0Hz5L.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "dumbbell bicep curl": {
+      "routineName": "Dumbbell Bicep Curl",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0294",
+      "datasetName": "dumbbell biceps curl",
+      "equipment": "dumbbell",
+      "target": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "steps": [
+        "Stand up straight with a dumbbell in each hand, palms facing forward and arms fully extended.",
+        "Keeping your upper arms stationary, exhale and curl the weights while contracting your biceps.",
+        "Continue to raise the weights until your biceps are fully contracted and the dumbbells are at shoulder level.",
+        "Hold the contracted position for a brief pause as you squeeze your biceps.",
+        "Inhale and slowly begin to lower the dumbbells back to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0294-NbVPDMW.jpg",
+      "gif": "videos/0294-NbVPDMW.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "lat pulldown": {
+      "routineName": "Lat Pulldown",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "2330",
+      "datasetName": "cable lat pulldown full range of motion",
+      "equipment": "cable",
+      "target": "lats",
+      "secondaryMuscles": [
+        "biceps",
+        "rhomboids",
+        "rear deltoids"
+      ],
+      "steps": [
+        "Sit on the lat pulldown machine with your knees positioned under the pads.",
+        "Grasp the cable bar with an overhand grip, slightly wider than shoulder-width apart.",
+        "Lean back slightly and keep your chest up, maintaining a slight arch in your lower back.",
+        "Pull the bar down towards your upper chest, squeezing your shoulder blades together.",
+        "Pause for a moment at the bottom of the movement, then slowly release the bar back to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/2330-LEprlgG.jpg",
+      "gif": "videos/2330-LEprlgG.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "seated row (machine)": {
+      "routineName": "Seated Row (Machine)",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "1350",
+      "datasetName": "lever seated row",
+      "equipment": "leverage machine",
+      "target": "upper back",
+      "secondaryMuscles": [
+        "biceps",
+        "forearms"
+      ],
+      "steps": [
+        "Adjust the seat height and footrests to a comfortable position.",
+        "Sit on the machine with your chest against the pad and your feet on the footrests.",
+        "Grasp the handles with an overhand grip, shoulder-width apart.",
+        "Keep your back straight and your core engaged.",
+        "Pull the handles towards your body, squeezing your shoulder blades together.",
+        "Pause for a moment at the peak of the movement.",
+        "Slowly release the handles and return to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/1350-7I6LNUG.jpg",
+      "gif": "videos/1350-7I6LNUG.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "shrugs": {
+      "routineName": "Shrugs",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0095",
+      "datasetName": "barbell shrug",
+      "equipment": "barbell",
+      "target": "traps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "steps": [
+        "Stand with your feet shoulder-width apart and hold a barbell in front of you with an overhand grip.",
+        "Keep your arms straight and your back straight throughout the exercise.",
+        "Lift your shoulders up towards your ears as high as possible, squeezing your traps at the top.",
+        "Hold for a moment, then slowly lower your shoulders back down to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0095-dG7tG5y.jpg",
+      "gif": "videos/0095-dG7tG5y.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    },
+    "barbell curl": {
+      "routineName": "Barbell Curl",
+      "via": "fuzzy",
+      "score": 93,
+      "datasetId": "0031",
+      "datasetName": "barbell curl",
+      "equipment": "barbell",
+      "target": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "steps": [
+        "Stand up straight with your feet shoulder-width apart and hold a barbell with an underhand grip, palms facing forward.",
+        "Keep your elbows close to your torso and exhale as you curl the weights while contracting your biceps.",
+        "Continue to raise the bar until your biceps are fully contracted and the bar is at shoulder level.",
+        "Hold the contracted position for a brief pause as you squeeze your biceps.",
+        "Inhale as you slowly begin to lower the bar back to the starting position.",
+        "Repeat for the desired number of repetitions."
+      ],
+      "image": "images/0031-25GPyDY.jpg",
+      "gif": "videos/0031-25GPyDY.gif",
+      "attribution": "© Gym visual — https://gymvisual.com/"
+    }
+  },
+  "fuzzyMisses": [
+    {
+      "routineName": "Hanging Knee Raise",
+      "equipment": "bodyweight",
+      "reason": "Manual override: no dataset clip is this movement.",
+      "closest": {
+        "datasetId": "1761",
+        "datasetName": "hanging oblique knee raise",
+        "score": 69
+      },
+      "override": null
+    },
+    {
+      "routineName": "Leg Curl (Machine)",
+      "equipment": "machine",
+      "reason": "Accepted only by manual override.",
+      "closest": {
+        "datasetId": "0586",
+        "datasetName": "lever lying leg curl",
+        "score": 51
+      },
+      "override": "0599"
+    },
+    {
+      "routineName": "Overhead Tricep Press (Machine)",
+      "equipment": "machine",
+      "reason": "Accepted only by manual override.",
+      "closest": {
+        "datasetId": "2289",
+        "datasetName": "lever calf press",
+        "score": 32
+      },
+      "override": "0607"
+    },
+    {
+      "routineName": "Ab Crunch (Machine)",
+      "equipment": "machine",
+      "reason": "Accepted only by manual override.",
+      "closest": {
+        "datasetId": "1452",
+        "datasetName": "lever seated crunch",
+        "score": 16
+      },
+      "override": "0595"
+    }
+  ],
+  "unmatched": [
+    {
+      "routineName": "Hanging Knee Raise",
+      "equipment": "bodyweight",
+      "reason": "Manual override: no dataset clip is this movement.",
+      "closest": {
+        "datasetId": "1761",
+        "datasetName": "hanging oblique knee raise",
+        "score": 69
+      },
+      "override": null
+    }
+  ]
+}

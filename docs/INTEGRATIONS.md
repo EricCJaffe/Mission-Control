@@ -25,6 +25,13 @@
   - App routes: `/api/fitness/withings/status`, `/api/fitness/withings/connect/start`, `/api/fitness/withings/callback`, `/api/fitness/withings/sync`, `/api/fitness/withings/disconnect`.
   - Status: OAuth/manual sync implemented; webhooks deferred.
 
+## Exercise demonstrations
+- Source: [hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset) at commit `7455efae41b330c265e7cd4b78dfa848e7ce5ebd`.
+- What we store: a small catalog (`src/lib/fitness/exercise-demos.json`) of English steps, muscles, equipment, and media paths for the push and pull strength days. Regenerated with `node scripts/match-exercise-demos.ts /path/to/exercises.json`.
+- What we do not store: the 1,324 GIFs and thumbnails. The browser loads them from jsDelivr, which serves that commit of the dataset: `https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@7455efae41b330c265e7cd4b78dfa848e7ce5ebd/`.
+- License: instruction text and the dataset structure are MIT (Copyright (c) 2026 Hasan Emir Yıldırım). The media is © Gym visual and is not MIT. The catalog keeps the attribution `© Gym visual — https://gymvisual.com/`.
+- No API key. No database column. Names that do not match are listed on `unmatched` in the catalog. Hanging Knee Raise is the one push/pull exercise left without a clip.
+
 ## Data Import Integrations
 - Withings API + legacy export import
   - Status: implemented.

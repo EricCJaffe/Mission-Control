@@ -1,8 +1,13 @@
 [Unit]
-# Harvests every project task list under ~/dev into Mission Control.
+# Since 2026-11-02 (MC divorce p1): the Outlook harvester (m365.ts) and
+# nothing else. This unit, on mission-control-sync.timer (every two hours,
+# 06-22 ET), is the ONLY scheduled caller of m365.ts on ubuntu-dev; the
+# dedicated mission-control-m365.* pair is NOT installed. Do not enable both,
+# or Outlook syncs twice. It used to harvest every project task list under
+# ~/dev; see the divorce note below.
 # Installed as a USER unit, not a system one: it reads the user's repos and
 # the user's .env, and has no business running as root.
-Description=Mission Control — project task sync
+Description=Mission Control — Outlook sync (personal; projects + brain stopped 2026-11-02)
 Documentation=file:///home/admxn/dev/mission-control/docs/runbook.md
 After=network-online.target
 Wants=network-online.target
@@ -18,7 +23,31 @@ WorkingDirectory=%h/dev/mission-control
 # Absolute path on purpose. A systemd user service does not source ~/.profile,
 # so the fnm shims that put `node` on an interactive PATH are not present here.
 # `ExecStart=node …` would fail with 203/EXEC and nothing would say why.
-ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/projects.ts
+# MC DIVORCE, phase 1 (2026-11-02, brain channel/from-grokbot/
+# 2026-11-02-mission-control-mc-divorce.md; Eric's yes 8:29 AM ET via Chief of
+# Staff). Mission Control becomes Eric-personal only; business data lives in
+# FSAOS + the brain. So this unit now runs ONLY the Outlook harvester, which
+# still carries Eric's personal calendar and mail until phase 2 gives it a
+# personal-only slice.
+#
+# Stopped here, deliberately, and kept in the repo so either is one line to
+# restore:
+#   scripts/sync/projects.ts  repo TODO lists -> mission.tasks. The FSAOS
+#                             factory reads every repo's TASKS.md/TODO.md
+#                             itself (scripts/factory/feeders.ts mdItems), so
+#                             nothing is lost; MC's todo_md copies freeze
+#                             until FSAOS drops its mcTasks feeder (fsaos F4).
+#   scripts/sync/brain.ts     job registry, client brains, brief history.
+#                             Business data whose home is the brain itself.
+#                             Eric's briefs and Apple Health alerts do NOT come
+#                             from here (Vercel crons write mission.briefs).
+#
+# The installed copy had drifted from this file (it carried m365 + brain and
+# this file carried projects only); this is now the copy to install.
+#
+# ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/projects.ts
+# ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/brain.ts
+ExecStart=/home/admxn/.local/share/fnm/aliases/default/bin/node scripts/sync/m365.ts
 
 # The harvester only ever reads other repos and writes its own database, but
 # there is no reason to leave it able to do more than that.

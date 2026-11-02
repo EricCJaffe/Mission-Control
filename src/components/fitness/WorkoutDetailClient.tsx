@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { ArrowLeft, Calendar, Clock, Zap, Heart, Repeat, Pencil, Save, X, Plus, Trash2 } from 'lucide-react';
+import { ExerciseDemoThumb } from './ExerciseDemo';
 
 type WorkoutLog = {
   id: string;
@@ -599,11 +600,12 @@ export default function WorkoutDetailClient({ workout, sets, cardioData }: Props
 
               return (
                 <div key={idx} className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
+                  <div className="flex items-start justify-between mb-4 gap-3">
+                    <ExerciseDemoThumb name={group.exercise_name} />
+                    <div className="flex-1 min-w-0">
                       <button
                         onClick={() => router.push(`/fitness/exercises/${group.exercise_id}`)}
-                        className="text-lg font-semibold text-slate-900 hover:text-blue-600 transition-colors"
+                        className="text-lg font-semibold text-slate-900 hover:text-blue-600 transition-colors text-left"
                       >
                         {group.exercise_name}
                       </button>

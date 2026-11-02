@@ -1,7 +1,11 @@
 [Unit]
 # Outlook mail and calendar into Mission Control.
 #
-# NOT ENABLED YET. Enable it once MS_TENANT_ID / MS_CLIENT_ID /
+# NOT INSTALLED, and should stay that way while mission-control-sync.service
+# runs m365.ts (since 2026-11-02, MC divorce p1): enabling this timer too
+# would sync Outlook twice. Use one or the other.
+#
+# Original note: NOT ENABLED YET. Enable it once MS_TENANT_ID / MS_CLIENT_ID /
 # MS_CLIENT_SECRET / MS_MAILBOX are in ~/.config/mission-control/sync.env —
 # until then it would fail every half hour and fill the journal with the same
 # sentence. See docs/m365-setup.md, then:

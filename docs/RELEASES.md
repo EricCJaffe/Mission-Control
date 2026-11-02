@@ -7,6 +7,12 @@
 
 ## Latest Changes (Rolling)
 
+### November 2, 2026 — Exercise demos on the push and pull days
+
+- Push A/B and Pull A/B exercises show a dataset thumbnail in the library, the logger, and workout history. Opening an exercise, or tapping "Demo and steps" while logging, shows the animation, target muscles, equipment, and English instructions.
+- The GIFs are not in this repo. They load from the exercises dataset on jsDelivr, pinned to commit `7455efae`. Instruction text for the matched rows is the only data we commit.
+- Hanging Knee Raise has no faithful clip. Leg curl, overhead triceps machine, and ab crunch machine are manual mappings.
+
 ### November 1, 2026 — Running plan cards and Garmin file upload
 
 - `/fitness/plans` leads with a running plan: race countdown, a weekly running card (miles, pace, HR, max HR against the ceiling, zone-2 %, feel, points, streak), updates, progress, badges, tips and the week-by-week plan with this week highlighted against logged runs.
