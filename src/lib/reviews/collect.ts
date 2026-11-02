@@ -169,7 +169,7 @@ async function collectTasks(
 
   const { data } = await db
     .from('tasks')
-    .select('id,title,status,due_date,domain,project_id')
+    .select('id,title,status,due_date,domain,project_id').or('domain.is.null,domain.neq.work_archived')
     .eq('user_id', userId)
     .neq('status', 'done');
 
@@ -473,7 +473,7 @@ async function collectProjects(
 
   const { data: taskRows } = await db
     .from('tasks')
-    .select('id,project_id,status,due_date,updated_at')
+    .select('id,project_id,status,due_date,updated_at').or('domain.is.null,domain.neq.work_archived')
     .eq('user_id', userId)
     .neq('status', 'done')
     .not('project_id', 'is', null);

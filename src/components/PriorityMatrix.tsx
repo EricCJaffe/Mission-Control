@@ -148,7 +148,7 @@ export default async function PriorityMatrix() {
   const [tasksResult, eventsResult, stopsResult] = await Promise.all([
     supabase
       .from("tasks")
-      .select("id,status,due_date,domain")
+      .select("id,status,due_date,domain").or("domain.is.null,domain.neq.work_archived")
       .eq("user_id", user.id)
       .neq("status", "done"),
     supabase

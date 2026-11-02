@@ -47,7 +47,7 @@ export default async function ActivityPage() {
     // done, for Eric or for nobody in particular. Read here, never re-synced.
     supabase
       .from("tasks")
-      .select("id,title,due_date,created_at,project_id")
+      .select("id,title,due_date,created_at,project_id").or("domain.is.null,domain.neq.work_archived")
       .lte("due_date", todayEt)
       .neq("status", "done")
       .or("assignee.is.null,assignee.ilike.*eric*")

@@ -20,7 +20,7 @@ export default async function GoalsPage() {
 
   const { data: tasks } = await supabase
     .from("tasks")
-    .select("id,title")
+    .select("id,title").or("domain.is.null,domain.neq.work_archived")
     .order("created_at", { ascending: false })
     .limit(50);
 
