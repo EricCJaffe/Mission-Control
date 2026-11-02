@@ -7,6 +7,12 @@
 
 ## Latest Changes (Rolling)
 
+### November 2, 2026 — Exercise demos on the push and pull days
+
+- Push A/B and Pull A/B exercises show a dataset thumbnail in the library, the logger, and workout history. Opening an exercise, or tapping "Demo and steps" while logging, shows the animation, target muscles, equipment, and English instructions.
+- The GIFs are not in this repo. They load from the exercises dataset on jsDelivr, pinned to commit `7455efae`. Instruction text for the matched rows is the only data we commit.
+- Hanging Knee Raise has no faithful clip. Leg curl, overhead triceps machine, and ab crunch machine are manual mappings.
+
 ### October 19, 2026 — Mail to Eric goes through grokbot
 
 - `/api/cron/brief?send=1` and `/api/cron/apple-health-check` no longer mail through Graph as eric@. They store a `mission.briefs` row with `handoff_requested_at`; a brain-side pull reads `/api/cron/brief-outbox` and routes it via `brief-via-grokbot.py`, so Eric gets it from erics-inbox@mail.grokbot.com (Eric, 2026-10-19 10:52 AM ET).
