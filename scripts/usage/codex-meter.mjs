@@ -142,7 +142,9 @@ if (isMain) {
   mkdirSync(dirname(a.log), { recursive: true });
   appendFileSync(a.log, JSON.stringify(rec) + '\n');
   console.log(rec.ok
-    ? `[codex-meter] week ${rec.secondary_used_pct ?? '?'}% (resets ${rec.secondary_resets_at ?? '?'}), 5h ${rec.primary_used_pct ?? '?'}%`
+    ? (rec.secondary_used_pct == null && rec.primary_window_minutes === 10080
+      ? `[codex-meter] week ${rec.primary_used_pct ?? '?'}% (resets ${rec.primary_resets_at ?? '?'}; weekly-only plan${rec.plan_type ? ` ${rec.plan_type}` : ''})`
+      : `[codex-meter] week ${rec.secondary_used_pct ?? '?'}% (resets ${rec.secondary_resets_at ?? '?'}), 5h ${rec.primary_used_pct ?? '?'}%`)
     : `[codex-meter] unreadable (${rec.error})`);
   process.exit(rec.ok ? 0 : 1);
 }
