@@ -167,3 +167,26 @@ test('pending automation comes from config: a plan not listed there is an ordina
   assert.equal(s.pending, undefined);
   assert.match(s.line, /^Other: no current reading/);
 });
+
+test('Business Pro lite: weekly-only meter row (primary = 7-day window, secondary null) is the reading', () => {
+  const row = { source: 'log', bot: 'codex-usage', session_id: 'meter', day: '2026-10-18', meter_at: iso(-0.5), last_at: iso(-0.5), captured_at: iso(0),
+    primary_used_pct: 9, primary_window_minutes: 10080, primary_resets_at: iso(140),
+    secondary_used_pct: null, secondary_window_minutes: null, secondary_resets_at: null };
+  const s = planStatus(codex, [row], now);
+  assert.equal(s.status, 'green');
+  assert.equal(s.pct, 9);
+  assert.equal(s.idle, undefined);
+  // A primary-only 5h reading still never stands for the week.
+  const five = planStatus(codex, [{ ...row, primary_window_minutes: 300, primary_resets_at: iso(2) }], now);
+  assert.notEqual(five.pct, 9);
+});
+
+test('Business Pro lite: weekly-only meter newer than an old Team-shaped reading wins', () => {
+  const rows = [
+    { source: 'log', bot: 'codex-usage', session_id: 'meter', day: '2026-10-17', meter_at: iso(-20), last_at: iso(-20), captured_at: iso(-20),
+      primary_used_pct: 0, primary_window_minutes: 300, primary_resets_at: iso(-16), secondary_used_pct: 0, secondary_window_minutes: 10080, secondary_resets_at: iso(30) },
+    { source: 'log', bot: 'codex-usage', session_id: 'meter', day: '2026-10-18', meter_at: iso(-0.5), last_at: iso(-0.5), captured_at: iso(0),
+      primary_used_pct: 9, primary_window_minutes: 10080, primary_resets_at: iso(140), secondary_used_pct: null, secondary_window_minutes: null, secondary_resets_at: null },
+  ];
+  assert.equal(planStatus(codex, rows, now).pct, 9);
+});

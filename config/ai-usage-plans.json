@@ -35,7 +35,7 @@
       "limit_is_estimate": false,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "Codex's own rate limits (5h primary, weekly secondary): read every ubuntu-dev collector run from codex app-server (scripts/usage/codex-meter.mjs, runs/codex-usage.jsonl) and from the rollout logs; the page uses the weekly one, newest observation wins."
+      "notes": "Codex's own rate limits (Business Standard/Team: 5h primary, weekly secondary; Business Pro lite since 2026-11-04: weekly primary only, secondary null): read every ubuntu-dev collector run from codex app-server (scripts/usage/codex-meter.mjs, runs/codex-usage.jsonl) and from the rollout logs; the page uses the weekly one, newest observation wins."
     },
     {
       "slug": "grok-ultra",
