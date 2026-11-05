@@ -7,7 +7,11 @@
  *                  secondary = weekly. A log row's primary counts only for a
  *                  5h plan; every longer plan uses the secondary (weekly)
  *                  meter alone, and a row with only a 5h number leaves it
- *                  unknown. A manual reading carries its percent in primary.
+ *                  unknown. Exception: a weekly-only plan (ChatGPT Business
+ *                  Pro lite, plan_type self_serve_business_prolite, since
+ *                  2026-11-04) reports its 7-day window as PRIMARY
+ *                  (primary_window_minutes 10080) with secondary null; that
+ *                  primary IS the plan window, so it counts. A manual reading carries its percent in primary.
  *                  A reading whose own `resets_at` has passed, or that was
  *                  taken before this window began, is not current: the plan
  *                  shows gray ("reset since last reading"), never red.
@@ -117,7 +121,7 @@ type Row = Pick<
   | 'captured_at'
 > &
   // Optional: only the plan-meter rows (bots `claude-usage`, `codex-usage`) need it.
-  Partial<Pick<AiUsageSnapshot, 'bot'>>;
+  Partial<Pick<AiUsageSnapshot, 'bot' | 'primary_window_minutes'>>;
 
 type Reading = {
   pct: number;
@@ -169,6 +173,9 @@ export function planLabel(name: string): string {
  * goes with it. A log row's primary is the 5h meter; it counts only for a 5h
  * plan.
  */
+/** Window length in minutes per cadence, to tell a weekly primary from a 5h one. */
+const CADENCE_MINUTES: Partial<Record<AiPlan['reset_cadence'], number>> = { '5h': 300, daily: 1440, weekly: 10080 };
+
 export function rowReading(r: Row, cadence: AiPlan['reset_cadence'] = 'weekly'): Reading | null {
   const at = observedAt(r);
   if (!at) return null;
@@ -184,6 +191,9 @@ export function rowReading(r: Row, cadence: AiPlan['reset_cadence'] = 'weekly'):
     if (primary !== null) [pct, resetsAt, resetFrom] = [primary, r.primary_resets_at, 'primary'];
   } else if (secondary !== null) {
     [pct, resetsAt, resetFrom] = [secondary, r.secondary_resets_at, 'secondary'];
+  } else if (primary !== null && CADENCE_MINUTES[cadence] !== undefined && toNum(r.primary_window_minutes) === CADENCE_MINUTES[cadence]) {
+    // Weekly-only meter (Business Pro lite): primary is the plan window itself.
+    [pct, resetsAt, resetFrom] = [primary, r.primary_resets_at, 'primary'];
   }
   if (pct === null) {
     const used = toNum(r.used_value);

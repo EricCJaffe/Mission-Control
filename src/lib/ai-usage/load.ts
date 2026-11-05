@@ -14,7 +14,7 @@ type Client = Awaited<ReturnType<typeof supabaseServer>>;
 
 export const SNAPSHOT_COLUMNS =
   'id,plan_slug,source,day,host,bot,session_id,project,client,model,messages,tokens_total,' +
-  'primary_used_pct,primary_resets_at,secondary_used_pct,secondary_resets_at,' +
+  'primary_used_pct,primary_window_minutes,primary_resets_at,secondary_used_pct,secondary_resets_at,' +
   'meter_at,used_value,limit_value,unit,note,last_at,captured_at';
 
 export type SnapshotRow = Pick<

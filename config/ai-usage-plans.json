@@ -27,7 +27,7 @@
     },
     {
       "slug": "chatgpt-codex",
-      "name": "ChatGPT / Codex",
+      "name": "ChatGPT Business / Codex + Dot",
       "vendor": "OpenAI",
       "price_usd_month": null,
       "limit_kind": "percent",
@@ -35,7 +35,7 @@
       "limit_is_estimate": false,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "Codex's own rate limits (Business Standard/Team: 5h primary, weekly secondary; Business Pro lite since 2026-11-04: weekly primary only, secondary null): read every ubuntu-dev collector run from codex app-server (scripts/usage/codex-meter.mjs, runs/codex-usage.jsonl) and from the rollout logs; the page uses the weekly one, newest observation wins."
+      "notes": "ChatGPT Business Pro lite since 2026-11-04 (plan_type self_serve_business_prolite): Codex reports ONE weekly window as primary (10080 min) with secondary null; Business Standard/Team rows had 5h primary + weekly secondary. Read every ubuntu-dev collector run from codex app-server (scripts/usage/codex-meter.mjs, runs/codex-usage.jsonl) and from the rollout logs; the page uses the weekly one, newest observation wins. Dot (Eric's ChatGPT agent; tasks via brain channel/to-dot) draws on this same allowance: one tile, two lanes, no separate Dot meter."
     },
     {
       "slug": "grok-ultra",
@@ -47,7 +47,7 @@
       "limit_is_estimate": false,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "No sanctioned usage API. Chief of Staff's automatic daily reader (Cursor dashboard -> ai-usage/manual.jsonl, manual rows) is pending; until then no reading is shown as pending, not overdue."
+      "notes": "One weekly Ultra pool shared by Grok Bot and Cursor cloud agents. No sanctioned usage API: Chief of Staff's automatic daily reading (grok.com usage page -> ai-usage/manual.jsonl, manual rows; resumed 2026-11-04) is the tile's feed, and a missing reading after 48h is flagged."
     }
   ]
 }

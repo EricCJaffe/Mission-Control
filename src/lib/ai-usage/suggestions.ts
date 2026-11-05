@@ -29,16 +29,25 @@ const SHORT: Record<string, string> = {
   'grok-ultra': 'Grok',
 };
 
-/** Where a strained plan's work can go, and what that work is. */
-const MOVE: Record<string, { to: string; what: string }> = {
-  'chatgpt-codex': { to: 'claude-max', what: 'reviews' },
-  // Claude main overflows to the 4lot account, never to Codex (Codex is kept
-  // for cross-model reviews and hard bugs). 4lot is a Team Standard seat at
-  // about 1/16 of main's capacity (config/ai-usage-capacity.json), so only
-  // small jobs move; big builds wait for main (Eric, 2026-10-18 2:09 PM).
-  'claude-max': { to: 'claude-4lot', what: 'small jobs and short follow-ups (big builds wait for main)' },
-  'claude-4lot': { to: 'claude-max', what: 'its jobs' },
+/**
+ * Yellow-shift rule: where a strained plan's work goes, in order; the first
+ * plan that is green (or a no-cap plan with no reading yet) takes it.
+ * Lane order (Eric via Chief of Staff, 2026-11-04): 4lot -> Cursor (shared
+ * Ultra pool, slug grok-ultra) -> Codex and Dot (one ChatGPT Business
+ * allowance) -> Claude Max last, fallback only. Max is never a yellow-shift
+ * target here: it takes work only by hand, and never once it is yellow, red,
+ * or into paid credits. 4lot is a Team Standard seat at about 1/16 of main
+ * (config/ai-usage-capacity.json), so from main only small jobs move.
+ */
+const MOVE: Record<string, { to: string[]; what: string }> = {
+  'claude-4lot': { to: ['grok-ultra', 'chatgpt-codex'], what: 'its jobs' },
+  'grok-ultra': { to: ['chatgpt-codex', 'claude-4lot'], what: 'repo coding (Cursor cloud agents)' },
+  'chatgpt-codex': { to: ['grok-ultra', 'claude-4lot'], what: 'Codex and Dot coding' },
+  'claude-max': { to: ['claude-4lot', 'grok-ultra', 'chatgpt-codex'], what: 'small jobs and short follow-ups (big builds wait for main)' },
 };
+
+/** What a yellow-shift sentence calls the target (Cursor rides the Grok/Ultra pool). */
+const TARGET_NAME: Record<string, string> = { 'grok-ultra': 'Cursor cloud agents (Ultra)' };
 
 export const shortName = (s: Pick<PlanStatus, 'slug' | 'name'>): string => SHORT[s.slug] ?? s.name;
 
@@ -81,12 +90,13 @@ export function suggestions(statuses: PlanStatus[], shares: Record<string, Share
 
     if (s.rag === 'red' || s.rag === 'yellow') {
       const move = MOVE[s.slug];
-      const target = move ? bySlug.get(move.to) : undefined;
       // A green target, or a no-cap plan with no reading yet (e.g. Claude 4lot
       // before its first manual %): it is not known to be strained.
-      const targetOk = target && (target.rag === 'green' || (target.rag === 'none' && target.note === 'no-cap-known'));
-      const action = move && targetOk
-        ? `move ${move.what} to ${shortName(target)} until then`
+      const ok = (t: PlanStatus | undefined): t is PlanStatus =>
+        !!t && (t.rag === 'green' || (t.rag === 'none' && t.note === 'no-cap-known'));
+      const target = move?.to.map((slug) => bySlug.get(slug)).find(ok);
+      const action = move && target
+        ? `move ${move.what} to ${TARGET_NAME[target.slug] ?? shortName(target)} until then`
         : 'pause low-value sessions until then';
       const used = s.usedPct === null ? '' : ` at ${pct(s.usedPct)}${s.isEstimate ? ' (estimate)' : ''}`;
       const early =
