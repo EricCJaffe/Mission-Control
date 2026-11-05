@@ -1,0 +1,42 @@
+---
+description: FSA factory context for Cursor (auto-generated from brain; no secrets/PHI)
+alwaysApply: true
+---
+# mission-control — Cursor factory context
+
+_Generated 2026-11-05 from brain `CONTEXT.md` + `projects/mission-control.md`. Do not put secrets or PHI here. Regenerate via `jobs/lib/cursor-repo-context.py`._
+
+**GitHub:** `EricCJaffe/Mission-Control`
+
+# Mission Control
+
+| | |
+|---|---|
+| Repo | `EricCJaffe/Mission-Control` |
+| Path | `~/dev/mission-control` |
+| herdr session | `mission-control` in [fleet/sessions.yaml](../fleet/sessions.yaml) |
+| Product | Personal-first ops: tasks, goals, calendar, health, Muse mailbox |
+| PHI | No patient PHI; treat personal health data carefully |
+
+## Rails
+- Preflight: `./scripts/mission-control-preflight.sh` or read repo docs in order (`CLAUDE.md` → `docs/CONTEXT.md` → …).
+- Part of the `bibleos.app` family; do not casually rename shared auth/DB links.
+- Prefer 4lot → Cursor → Codex; never Claude Max on paid credits ([R-176](../rules/RULES.md)).
+
+## Load next
+- Repo `CLAUDE.md` and `docs/` preflight list before editing.
+- Session handoff: `sessions/mission-control/handoff.md` when present.
+
+## Factory rails (Cursor)
+- **Lane:** 4lot → Cursor → Codex/Dot. Max only as fallback; never on paid credits (R-176).
+- **This worker:** Cursor cloud agent. No ubuntu-dev SSH, no herdr, no box secrets, no PHI paths.
+- **PRs only** unless Eric separately says merge. Ship auto-merge does not apply when the brief says PRs only (R-152).
+- Never push `main`. Never `--no-verify`. No secrets, tokens, IPs, or PHI in commits or PR text.
+- **Forbidden:** Honey Lake / PHI, honeylakeos, HLCOS, Trellis/ĒMA prod DB, applying migrations, DB writes, prod secrets, deploys, merges.
+- Stay inside the brief's `touches:` list; if you need more files, stop and report.
+- Prefer small, reviewable diffs. Read repo `CLAUDE.md` / existing `AGENTS.md` before editing.
+
+## Shared pointers
+- Full rules live in brain `rules/RULES.md` (not readable from this cloud VM unless pasted into the brief).
+- Job briefs must include: project excerpt, files you may touch, finish line, and these rails.
+- Honey Lake repos are **excluded** from Cursor entirely.
