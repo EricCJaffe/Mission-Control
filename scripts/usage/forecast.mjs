@@ -60,6 +60,7 @@ export function planStatus(plan, rows, now = new Date(), { pendingAutomation = T
   // neither counts once it is older than 48h or its window has reset.
   const planWin = WINDOW_MIN[plan.reset_cadence];
   const weeklyOnly = plan.reset_cadence !== '5h';
+  const primaryIsPlanWin = (r) => r.primary_window_minutes != null && Number(r.primary_window_minutes) === planWin;
   const candidates = [];
   for (const m of rows) {
     if (m.source !== 'manual' || m.primary_used_pct == null) continue;
@@ -71,7 +72,11 @@ export function planStatus(plan, rows, now = new Date(), { pendingAutomation = T
   for (const r of rows) {
     if (r.source !== 'log') continue;
     const useSec = r.secondary_used_pct != null;
-    if (!useSec && (weeklyOnly || r.primary_used_pct == null)) continue;
+    // A weekly-only plan (ChatGPT Business Pro lite, plan_type
+    // self_serve_business_prolite, 2026-11-04) reports its 7-day window as
+    // PRIMARY with secondary null. That primary IS the plan window, so it
+    // counts; a 5h primary still never stands for a week.
+    if (!useSec && (r.primary_used_pct == null || (weeklyOnly && !primaryIsPlanWin(r)))) continue;
     if (!freshMeter(r) || expired(useSec ? r.secondary_resets_at : r.primary_resets_at)) continue;
     // The Claude /usage meter is recorded hourly: older than 12h means the
     // recorder is failing; fall back (token estimate / no cap) instead.
@@ -124,6 +129,10 @@ export function planStatus(plan, rows, now = new Date(), { pendingAutomation = T
         ...rows.filter((m) => m.source === 'log' && isMeter(m) && m.secondary_used_pct != null && m.secondary_resets_at && !expired(m.secondary_resets_at)
           && (m.secondary_window_minutes == null || Number(m.secondary_window_minutes) === planWin))
           .map((m) => ({ r: m, pct: Number(m.secondary_used_pct), resetsAt: m.secondary_resets_at, at: m.meter_at })),
+        // Weekly-only plan meter (secondary null, primary = the plan window).
+        ...rows.filter((m) => m.source === 'log' && isMeter(m) && m.secondary_used_pct == null && m.primary_used_pct != null
+          && m.primary_resets_at && !expired(m.primary_resets_at) && primaryIsPlanWin(m))
+          .map((m) => ({ r: m, pct: Number(m.primary_used_pct), resetsAt: m.primary_resets_at, at: m.meter_at })),
       // Usage only grows inside a window, so of the readings whose window has
       // not reset, the highest is the safe one (a stale meter at 10% must not
       // hide a manual 100%).

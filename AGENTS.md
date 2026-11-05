@@ -102,3 +102,11 @@ When code changes, update:
 
 ## Source of Truth
 - Keep this file aligned with `CLAUDE.md`.
+
+<!-- fsa-cursor-factory:begin -->
+## Cursor factory context
+Auto-generated for Cursor cloud agents. Canonical always-on rules: `.cursor/rules/fsa-factory.mdc` (regenerated from brain).
+- Repo: `EricCJaffe/Mission-Control` · project page: brain `projects/mission-control.md`
+- Rails: PRs only; no PHI/HL; no merges/deploys/DB writes/prod secrets; stay in `touches:`.
+- Lane: 4lot → Cursor → Codex/Dot; never Max paid credits.
+<!-- fsa-cursor-factory:end -->
