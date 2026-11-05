@@ -8,6 +8,7 @@ import { isMeterRow, isPendingAutomation, planLabel, planStatus, rowReading, typ
 import { loadUsage } from '@/lib/ai-usage/load';
 import { inDays, projectShares, shareBy, type Share } from '@/lib/ai-usage/shares';
 import { suggestions } from '@/lib/ai-usage/suggestions';
+import { lanesLine } from '@/lib/ai-usage/lanes';
 import { formatReset } from '@/lib/ai-usage/window';
 import { StatusPill } from '@/components/ui/DataTable';
 import HistoryChart, { type HistoryPoint } from '@/components/ai-usage/HistoryChart';
@@ -260,6 +261,7 @@ function PlanCard({ s, now, points }: { s: PlanStatus; now: Date; points: Histor
             <Gauge size={18} className="text-slate-500" /> {s.name}
           </div>
           <div className="mt-0.5 text-xs text-slate-500">Resets {resets} ({s.window.source === 'vendor' ? 'vendor reported' : s.window.source})</div>
+          {lanesLine(s.slug) && <div className="mt-0.5 text-xs text-slate-500">{lanesLine(s.slug)}</div>}
         </div>
         <StatusPill tone={RAG_PILL[s.rag]}>{RAG_LABEL[s.rag]}</StatusPill>
       </div>

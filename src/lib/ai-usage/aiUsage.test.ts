@@ -189,6 +189,19 @@ test('token plan: the Claude /usage meter (claude-usage log row) overrides the e
   assert.equal(planStatus(plan({}), [row({ tokens_total: 200 }), fiveH], NOW).basis, 'tokens');
 });
 
+test('percent plan (Codex Business Pro lite): a weekly-only meter row (primary = 10080 min, secondary null) counts', () => {
+  const codex = plan({ slug: 'chatgpt-codex', name: 'Codex', limit_kind: 'percent', limit_value: 100, limit_is_estimate: false });
+  const prolite = row({ plan_slug: 'chatgpt-codex', bot: 'codex-usage', session_id: 'meter', primary_used_pct: 9, primary_window_minutes: 10080,
+    primary_resets_at: '2026-10-20T16:10:04Z', meter_at: '2026-10-14T15:30:00Z' });
+  const s = planStatus(codex, [prolite], NOW);
+  assert.equal(s.usedPct, 9);
+  assert.equal(s.window.source, 'vendor');
+  // A 5h primary with no secondary still says nothing about the week.
+  const fiveH = row({ plan_slug: 'chatgpt-codex', bot: 'codex-usage', session_id: 'meter', primary_used_pct: 80, primary_window_minutes: 300,
+    primary_resets_at: '2026-10-14T18:00:00Z', meter_at: '2026-10-14T15:30:00Z' });
+  assert.equal(planStatus(codex, [fiveH], NOW).usedPct, null);
+});
+
 test('percent plan (Codex): uses the weekly secondary reading and its reset', () => {
   const codex = plan({ slug: 'chatgpt-codex', name: 'Codex', limit_kind: 'percent', limit_value: 100, limit_is_estimate: false });
   const rows = [
@@ -280,14 +293,21 @@ const status = (over: Partial<PlanStatus>): PlanStatus => ({
   ...over,
 });
 
-test('suggestions: strained Codex moves reviews to a green Claude', () => {
+test('suggestions: strained Codex moves its coding to Cursor (shared Ultra pool), never to Claude main', () => {
   const out = suggestions(
-    [status({ slug: 'chatgpt-codex', name: 'Codex', usedPct: 92, rag: 'red', basis: 'percent' }), status({})],
+    [
+      status({ slug: 'chatgpt-codex', name: 'Codex', usedPct: 92, rag: 'red', basis: 'percent' }),
+      status({}),
+      status({ slug: 'grok-ultra', name: 'Grok', usedPct: 5, rag: 'green', basis: 'percent' }),
+    ],
     {},
     NOW,
   );
   assert.equal(out[0].tone, 'red');
-  assert.equal(out[0].text, 'Codex weekly at 92%, resets Thu: move reviews to Claude main until then');
+  assert.equal(out[0].text, 'Codex weekly at 92%, resets Thu: move Codex and Dot coding to Cursor cloud agents (Ultra) until then');
+  // Only a green Claude main in the set: Codex pauses, it does not spill onto Max.
+  const alone = suggestions([status({ slug: 'chatgpt-codex', name: 'Codex', usedPct: 92, rag: 'red', basis: 'percent' }), status({})], {}, NOW);
+  assert.ok(alone[0].text.endsWith('pause low-value sessions until then'));
 });
 
 test('suggestions: heavy project on a strained plan, missing Grok reading, high unattributed', () => {
@@ -580,7 +600,7 @@ test('a token plan with no cap and no reading is gray with no-cap-known, never r
   assert.notEqual(s.rag, 'red');
 });
 
-test('suggestions: strained Claude main moves only small jobs to a green Claude 4lot, never to Codex', () => {
+test('suggestions: strained Claude main moves small jobs to a green Claude 4lot first', () => {
   const out = suggestions(
     [
       status({ usedPct: 92, rag: 'red' }),
@@ -594,11 +614,34 @@ test('suggestions: strained Claude main moves only small jobs to a green Claude 
   assert.ok(out[0].text.endsWith('move small jobs and short follow-ups (big builds wait for main) to Claude 4lot until then'));
 });
 
+test('suggestions: yellow-shift falls through to the next green plan (4lot strained -> Cursor -> Codex)', () => {
+  const out = suggestions(
+    [
+      status({ slug: 'claude-4lot', name: 'Claude Team (4lot)', usedPct: 75, rag: 'yellow' }),
+      status({ slug: 'grok-ultra', name: 'Grok', usedPct: 88, rag: 'yellow', basis: 'percent' }),
+      status({ slug: 'chatgpt-codex', name: 'Codex', usedPct: 9, rag: 'green', basis: 'percent' }),
+    ],
+    {},
+    NOW,
+  );
+  const lot = out.find((x) => x.plan === 'claude-4lot');
+  assert.ok(lot && lot.text.endsWith('move its jobs to Codex until then'));
+});
+
 test('suggestions: a no-cap 4lot plan with no reading takes Claude main overflow and is not nagged', () => {
   const lot = status({ slug: 'claude-4lot', name: 'Claude Team (4lot)', usedPct: null, rag: 'none', note: 'no-cap-known', lastReadingAt: null, hoursSinceReading: null });
   const out = suggestions([status({ usedPct: 92, rag: 'red' }), lot], {}, NOW);
   assert.ok(out[0].text.endsWith('move small jobs and short follow-ups (big builds wait for main) to Claude 4lot until then'));
   assert.ok(!out.some((x) => x.plan === 'claude-4lot'));
+});
+
+// ---------------------------------------------------------------- lanes
+import { lanesLine } from './lanes.ts';
+
+test('lanes: Dot rides the Codex plan and Cursor rides the Grok Ultra pool; no fake meters', () => {
+  assert.equal(lanesLine('chatgpt-codex'), 'Lanes: Codex CLI · Dot (ChatGPT agent) (one shared ChatGPT Business allowance)');
+  assert.equal(lanesLine('grok-ultra'), 'Lanes: Grok Bot · Cursor cloud agents (one shared Ultra pool)');
+  assert.equal(lanesLine('claude-max'), null);
 });
 
 // ---------------------------------------------------------------- glance
