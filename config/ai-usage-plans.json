@@ -26,6 +26,18 @@
       "notes": "ejaffe@4lot.org (Team Standard seat): logs under ~/.claude-4lot (claude-4lot wrapper, herdr pane 'fourlot') and ~/.claude-reserve. Weekly cap ESTIMATE 325M logged tokens = 0.0625 x Claude main's ~5.2B/week (config/ai-usage-capacity.json); the hourly /usage meter for the 4lot login (runs/claude-usage-4lot.jsonl) or a newer manual reading overrides it."
     },
     {
+      "slug": "claude-hlc",
+      "name": "Claude Team (HLC)",
+      "vendor": "Anthropic",
+      "price_usd_month": null,
+      "limit_kind": "tokens",
+      "limit_value": 325000000,
+      "limit_is_estimate": true,
+      "reset_cadence": "weekly",
+      "reset_anchor": null,
+      "notes": "Honey Lake Clinic Claude Team (hlc): logs under ~/.claude-hlc (claude-hlc wrapper, herdr agent hlc). Hourly /usage meter runs/claude-usage-hlc.jsonl."
+    },
+    {
       "slug": "chatgpt-codex",
       "name": "ChatGPT Business / Codex + Dot",
       "vendor": "OpenAI",

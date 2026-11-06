@@ -10,7 +10,7 @@
 #     short pass could miss (late-written files, pruned logs, plan remaps).
 #   - Claude meters: claude-usage (its own hourly timer) records the main
 #     account's /usage % into $BRAIN/runs/claude-usage.jsonl; this run records
-#     the 4lot login's (CLAUDE_CONFIG_DIR=~/.claude-4lot, about hourly; see
+#     the 4lot and HLC logins (CLAUDE_CONFIG_DIR=~/.claude-4lot and ~/.claude-hlc, about hourly; see
 #     scripts/usage/claude-meter.mjs). upload.mjs turns both into automatic
 #     readings; a newer manual reading still wins. A failed 4lot reading only
 #     warns: the log-based estimate keeps working.

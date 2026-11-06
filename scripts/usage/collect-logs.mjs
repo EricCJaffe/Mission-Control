@@ -397,6 +397,7 @@ export function defaultClaudeMeters(env = process.env, home = homedir()) {
   return [
     { file: join(brain, 'runs', 'claude-usage.jsonl'), plan: 'claude-max' },
     { file: join(brain, 'runs', 'claude-usage-4lot.jsonl'), plan: 'claude-4lot' },
+    { file: join(brain, 'runs', 'claude-usage-hlc.jsonl'), plan: 'claude-hlc' },
   ];
 }
 
@@ -405,6 +406,7 @@ export const DEFAULT_CLAUDE_ACCOUNTS = [
   ['.claude', 'claude-max'],
   ['.claude-4lot', 'claude-4lot'],
   ['.claude-reserve', 'claude-4lot'],
+  ['.claude-hlc', 'claude-hlc'],
 ];
 
 /** "DIR=PLAN" -> { dir: DIR/projects (unless DIR already ends in projects), plan }. */
