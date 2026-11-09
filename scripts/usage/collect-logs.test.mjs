@@ -94,7 +94,7 @@ test('meters: read only when passed, default files under BRAIN_ROOT', async () =
   mkdirSync(join(brain, 'runs'), { recursive: true });
   writeFileSync(join(brain, 'runs', 'claude-usage.jsonl'), JSON.stringify({ at: '2026-10-18T13:00:00-04:00', ok: true, week_pct: 51, week_resets: 'Oct 20, 6:59pm' }) + '\n');
   const meters = defaultClaudeMeters({ BRAIN_ROOT: brain }, h);
-  assert.deepEqual(meters.map((m) => m.plan), ['claude-max', 'claude-4lot']);
+  assert.deepEqual(meters.map((m) => m.plan), ['claude-max', 'claude-4lot', 'claude-hlc', 'claude-reverb']);
   const withM = await collectAll({ host: 'x', days: 2, claudeDirs: defaultClaudeDirs({}, h), codexDir: join(h, 'none'), meters, now: NOW });
   assert.equal(withM.files.meter_rows, 1);
   assert.equal(withM.rows.filter((r) => r.bot === 'claude-usage' && r.plan_slug === 'claude-max').length, 1);
@@ -209,4 +209,27 @@ test('codex meter log: read by collectAll only when passed; default under BRAIN_
   assert.equal(defaultCodexMeterLog({ BRAIN_ROOT: '/b' }, '/h'), '/b/runs/codex-usage.jsonl');
   assert.equal(defaultCodexMeterLog({}, '/h'), '/h/dev/brain/runs/codex-usage.jsonl');
   assert.equal(defaultCodexMeterLog({ AI_USAGE_CODEX_METER: '' }, '/h'), null);
+});
+
+test('each extra Claude login bills its own plan: ~/.claude-hlc -> claude-hlc, ~/.claude-reverb -> claude-reverb (placeholder)', () => {
+  const dirs = defaultClaudeDirs({}, '/h');
+  const by = Object.fromEntries(dirs.map((d) => [d.dir, d.plan]));
+  assert.equal(by['/h/.claude-hlc/projects'], 'claude-hlc');
+  assert.equal(by['/h/.claude-reverb/projects'], 'claude-reverb');
+  assert.equal(by['/h/.claude/projects'], 'claude-max');
+  const meters = defaultClaudeMeters({ BRAIN_ROOT: '/b' }, '/h');
+  assert.deepEqual(meters.find((m) => m.plan === 'claude-reverb'), { file: '/b/runs/claude-usage-reverb.jsonl', plan: 'claude-reverb' });
+});
+
+test('Reverb Church placeholder: registered as a plan, but off as a routing target until it has real readings', async () => {
+  const { readFileSync } = await import('node:fs');
+  const plans = JSON.parse(readFileSync(new URL('../../config/ai-usage-plans.json', import.meta.url), 'utf8')).plans;
+  const cap = JSON.parse(readFileSync(new URL('../../config/ai-usage-capacity.json', import.meta.url), 'utf8')).plans;
+  const p = plans.find((x) => x.slug === 'claude-reverb');
+  assert.ok(p, 'claude-reverb plan row');
+  assert.equal(p.name, 'Claude Team (Reverb Church)');
+  // Every plan key must be an ai_plans column (upload.mjs spreads the row into the upsert).
+  assert.deepEqual(Object.keys(p).sort(), Object.keys(plans.find((x) => x.slug === 'claude-hlc')).sort());
+  assert.equal(cap['claude-reverb'].overflow_target, false);
+  assert.equal(cap['claude-reverb'].small_jobs_only, false);
 });

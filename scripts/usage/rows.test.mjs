@@ -157,3 +157,14 @@ test('Codex meter rows: kept, merged by meter_at on their own key, never added t
   assert.equal(r.tokens_total, 900);
   assert.equal(r.secondary_used_pct, 50);
 });
+
+test('log rows for every configured plan survive cleaning: HLC (dropped before 2026-11-09) and the Reverb placeholder', async () => {
+  const { cleanLogRow } = await import('./rows.mjs');
+  const base = { day: '2026-11-09', host: 'ubuntu-dev', bot: 'claude-usage', session_id: 'meter', secondary_used_pct: 15 };
+  for (const plan of ['claude-max', 'claude-4lot', 'claude-hlc', 'claude-reverb', 'chatgpt-codex']) {
+    const r = cleanLogRow({ ...base, plan_slug: plan });
+    assert.ok(r, plan);
+    assert.equal(r.plan_slug, plan);
+  }
+  assert.equal(cleanLogRow({ ...base, plan_slug: 'not-a-plan' }), null);
+});
