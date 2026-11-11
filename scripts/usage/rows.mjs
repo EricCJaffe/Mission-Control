@@ -4,6 +4,7 @@
  *     same unique key (two cwds of one project in one session-day).
  *   - parseManual: Chief of Staff's daily readings (JSONL) → manual rows.
  */
+import { createRequire } from 'node:module';
 import { attribute, UNATTRIBUTED } from './attribution.mjs';
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -14,7 +15,11 @@ const PCT = ['primary_used_pct', 'primary_window_minutes', 'primary_resets_at', 
 
 const NUM = [...SUM, 'primary_used_pct', 'primary_window_minutes', 'secondary_used_pct', 'secondary_window_minutes'];
 const STR = ['plan_slug', 'day', 'host', 'bot', 'session_id', 'model', 'primary_resets_at', 'secondary_resets_at', 'meter_at', 'first_at', 'last_at'];
-const PLAN_SLUGS = new Set(['claude-max', 'claude-4lot', 'chatgpt-codex']);
+// Every plan in config/ai-usage-plans.json. This was a hard-coded list
+// (claude-max, claude-4lot, chatgpt-codex), so the HLC plan added in #112
+// never got a single log or meter row uploaded (2026-11-09). Reading the
+// config means a new plan (claude-reverb) cannot be dropped the same way.
+const PLAN_SLUGS = new Set(createRequire(import.meta.url)('../../config/ai-usage-plans.json').plans.map((p) => String(p.slug)));
 
 /** Keep only known columns with the right types; null if the row is unusable. */
 export function cleanLogRow(r) {

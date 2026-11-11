@@ -1,5 +1,5 @@
 {
-  "_lane_order": "Honey Lake coding: claude-hlc first (when hlc-prefer live). Load-balance order (Eric via Chief of Staff, 2026-11-04): 1 claude-4lot (while green) -> 2 Cursor cloud agents on the shared Ultra pool (grok-ultra, under 85%) -> 3 chatgpt-codex (Codex CLI and Dot, one ChatGPT Business allowance) -> 4 claude-max LAST, fallback only, never when yellow/red or into paid credits. Pace each plan toward its own reset (see brain HOW-IT-WORKS.md 'Load balancing'). Proposal pending Eric's yes on fsaos/dispatch changes.",
+  "_lane_order": "Six plans (Eric 2026-11-10 10:40 PM ET): Claude Max, Claude 4lot, Claude Reverb Church (placeholder, routing off until login), Claude Honey Lake Clinic (BAA, only plan allowed for Honey Lake work; overflow_target false), Codex, and Grok/Cursor (shared Ultra pool; Cursor is the default for repo coding, room under 85%). Normal load balancing includes Max, 4lot, Codex, and Grok/Cursor. Duet jobs use normal load balancing, Max included (Eric 2026-11-10 10:39 PM ET). The special Max paid-credit hard block was removed 2026-11-06; near-limit monitoring and alerts stay. Reverb stays overflow_target false until its login exists. Pace each plan toward its own reset (brain docs/ai-usage/factory-plans.md).",
   "_doc": "Relative capacity of each AI plan (Claude main = 1.0), for dispatch routing (open/ai-usage.json) and the page suggestions. Eric, 2026-10-18 2:09 PM ET: Codex and Claude 4lot are basic Team plans at about $40/mo, roughly 1/10 of Claude Max ($200) and Grok Bot Ultra ($200). Vendors publish session multipliers but not weekly sizes, so these weights are estimates; replace them with measured ratios once there are % readings for both Claude accounts.",
   "max_weekly_tokens_baseline": 5200000000,
   "max_weekly_tokens_baseline_basis": "Claude main at 51% (Eric screenshot, 1:41 PM ET 10/18) after ~2.64B logged tokens since the Tue 10/13 7 PM reset, so 100% is about 5.2B logged tokens/week (cache reads included). One reading; re-derive as readings accumulate.",
@@ -46,6 +46,12 @@
       "overflow_target": false,
       "small_jobs_only": false,
       "basis": "Honey Lake Clinic Claude Team seat (same class as 4lot Team Standard estimate 0.0625). Dedicated HL coding; not Max."
+    },
+    "claude-reverb": {
+      "weight": 0.0625,
+      "overflow_target": false,
+      "small_jobs_only": false,
+      "basis": "PLACEHOLDER Reverb Church Claude Team login (Eric 2026-11-09), same class as the 4lot/HLC Team estimate 0.0625. overflow_target false: off as a routing target for every project. dispatch-autostart also refuses it while it has no reading or ~/.claude-reverb is missing or unguarded. Turn on only after real meter readings, and then only as the reverbos project default (dev-harness factory/boxes/ubuntu-dev.toml account), never as overflow for other projects."
     }
   }
 }

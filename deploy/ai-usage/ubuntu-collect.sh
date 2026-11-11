@@ -10,7 +10,8 @@
 #     short pass could miss (late-written files, pruned logs, plan remaps).
 #   - Claude meters: claude-usage (its own hourly timer) records the main
 #     account's /usage % into $BRAIN/runs/claude-usage.jsonl; this run records
-#     the 4lot and HLC logins (CLAUDE_CONFIG_DIR=~/.claude-4lot and ~/.claude-hlc, about hourly; see
+#     the 4lot, HLC and Reverb logins (CLAUDE_CONFIG_DIR=~/.claude-4lot, ~/.claude-hlc,
+#     ~/.claude-reverb once it exists; about hourly; see
 #     scripts/usage/claude-meter.mjs). upload.mjs turns both into automatic
 #     readings; a newer manual reading still wins. A failed 4lot reading only
 #     warns: the log-based estimate keeps working.
@@ -41,8 +42,17 @@ fi
 t0=$(date +%s%N)
 BRAIN="${BRAIN_ROOT:-$HOME/dev/brain}"
 CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || echo "$HOME/.local/bin/claude")}"
-"$NODE" scripts/usage/claude-meter.mjs --claude "$CLAUDE_BIN" --config-dir "$HOME/.claude-4lot" \
-  --log "$BRAIN/runs/claude-usage-4lot.jsonl" || echo "[usage] 4lot meter reading failed; continuing"
+# One /usage meter per extra Claude login (name:config dir). claude-meter.mjs
+# skips a login whose config dir does not exist yet, so a placeholder plan
+# (claude-reverb, 2026-11-09) gets readings only once its login is set up.
+# HLC was registered in #112 but never called here, so its meter went stale
+# after the hand-run readings of 2026-11-06.
+for spec in "4lot:${CLAUDE_4LOT_DIR:-$HOME/.claude-4lot}" "hlc:${CLAUDE_HLC_DIR:-$HOME/.claude-hlc}" \
+  "reverb:${CLAUDE_REVERB_DIR:-$HOME/.claude-reverb}"; do
+  name="${spec%%:*}"
+  "$NODE" scripts/usage/claude-meter.mjs --claude "$CLAUDE_BIN" --config-dir "${spec#*:}" \
+    --log "$BRAIN/runs/claude-usage-$name.jsonl" || echo "[usage] $name meter reading failed; continuing"
+done
 CODEX_BIN="${CODEX_BIN:-$(command -v codex || echo "$HOME/.local/bin/codex")}"
 if [ -x "$CODEX_BIN" ]; then
   "$NODE" scripts/usage/codex-meter.mjs --codex "$CODEX_BIN" --log "$BRAIN/runs/codex-usage.jsonl" \
