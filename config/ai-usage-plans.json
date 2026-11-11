@@ -3,7 +3,7 @@
   "plans": [
     {
       "slug": "claude-max",
-      "name": "Claude Max (main)",
+      "name": "Claude Max",
       "vendor": "Anthropic",
       "price_usd_month": 200,
       "limit_kind": "tokens",
@@ -11,11 +11,11 @@
       "limit_is_estimate": true,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "Main account: Claude Code logs under ~/.claude on ubuntu-dev (herdr fleet + tmux sessions), box, mac-mini. No published cap: its % comes from the hourly /usage meter (runs/claude-usage.jsonl) or a newer manual reading."
+      "notes": "Main account: Claude Code logs under ~/.claude on ubuntu-dev (herdr fleet + tmux sessions), box, mac-mini. No published cap: its % comes from the hourly /usage meter (runs/claude-usage.jsonl) or a newer manual reading. Role: primary Claude plan, in normal load balancing (including Duet; Eric 2026-11-10 10:39 PM ET). Never Honey Lake (no BAA). Near-limit alerts stay; the special paid-credit hard block was removed 2026-11-06."
     },
     {
       "slug": "claude-4lot",
-      "name": "Claude Team (4lot)",
+      "name": "Claude 4lot",
       "vendor": "Anthropic",
       "price_usd_month": null,
       "limit_kind": "tokens",
@@ -23,11 +23,11 @@
       "limit_is_estimate": true,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "ejaffe@4lot.org (Team Standard seat): logs under ~/.claude-4lot (claude-4lot wrapper, herdr pane 'fourlot') and ~/.claude-reserve. Weekly cap ESTIMATE 325M logged tokens = 0.0625 x Claude main's ~5.2B/week (config/ai-usage-capacity.json); the hourly /usage meter for the 4lot login (runs/claude-usage-4lot.jsonl) or a newer manual reading overrides it."
+      "notes": "ejaffe@4lot.org (Team Standard seat): logs under ~/.claude-4lot (claude-4lot wrapper, herdr pane 'fourlot') and ~/.claude-reserve. Weekly cap ESTIMATE 325M logged tokens = 0.0625 x Claude main's ~5.2B/week (config/ai-usage-capacity.json); the hourly /usage meter for the 4lot login (runs/claude-usage-4lot.jsonl) or a newer manual reading overrides it. Role: Team plan and first overflow for small/server-bound jobs. Never big builds. Never Honey Lake."
     },
     {
       "slug": "claude-hlc",
-      "name": "Claude Team (HLC)",
+      "name": "Claude Honey Lake Clinic",
       "vendor": "Anthropic",
       "price_usd_month": null,
       "limit_kind": "tokens",
@@ -35,11 +35,11 @@
       "limit_is_estimate": true,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "Honey Lake Clinic Claude Team (hlc): logs under ~/.claude-hlc (claude-hlc wrapper, herdr agent hlc). Hourly /usage meter runs/claude-usage-hlc.jsonl."
+      "notes": "Honey Lake Clinic Claude Team (hlc): logs under ~/.claude-hlc (claude-hlc wrapper, herdr agent hlc). Hourly /usage meter runs/claude-usage-hlc.jsonl. Role: BAA plan and the only plan allowed for Honey Lake work (CLAUDE_CONFIG_DIR ~/.claude-hlc; default when hlc-prefer is live). Not an overflow lane for other projects."
     },
     {
       "slug": "claude-reverb",
-      "name": "Claude Team (Reverb Church)",
+      "name": "Claude Reverb Church",
       "vendor": "Anthropic",
       "price_usd_month": null,
       "limit_kind": "tokens",
@@ -47,11 +47,11 @@
       "limit_is_estimate": true,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "PLACEHOLDER (Eric 2026-11-09 12:43 PM ET: 'Add one more placeholder for an account for reverb church. I'll be adding a Claude reverb account.'). No login yet: grey with no reading until ~/.claude-reverb exists (claude-reverb wrapper, its own CLAUDE_CONFIG_DIR) and the collector's hourly /usage meter writes runs/claude-usage-reverb.jsonl. Cap is the 4lot/HLC Team estimate until real readings replace it."
+      "notes": "PLACEHOLDER (Eric 2026-11-09 12:43 PM ET: 'Add one more placeholder for an account for reverb church. I'll be adding a Claude reverb account.'). No login yet: grey with no reading until ~/.claude-reverb exists (claude-reverb wrapper, its own CLAUDE_CONFIG_DIR) and the collector's hourly /usage meter writes runs/claude-usage-reverb.jsonl. Cap is the 4lot/HLC Team estimate until real readings replace it. Role: placeholder in the six-plan roster (Eric 2026-11-10 10:40 PM ET). Routing off until ~/.claude-reverb exists and readings land. Not overflow for other projects until Eric says so."
     },
     {
       "slug": "chatgpt-codex",
-      "name": "ChatGPT Business / Codex + Dot",
+      "name": "Codex",
       "vendor": "OpenAI",
       "price_usd_month": null,
       "limit_kind": "percent",
@@ -59,11 +59,11 @@
       "limit_is_estimate": false,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "ChatGPT Business Pro lite since 2026-11-04 (plan_type self_serve_business_prolite): Codex reports ONE weekly window as primary (10080 min) with secondary null; Business Standard/Team rows had 5h primary + weekly secondary. Read every ubuntu-dev collector run from codex app-server (scripts/usage/codex-meter.mjs, runs/codex-usage.jsonl) and from the rollout logs; the page uses the weekly one, newest observation wins. Dot (Eric's ChatGPT agent; tasks via brain channel/to-dot) draws on this same allowance: one tile, two lanes, no separate Dot meter."
+      "notes": "ChatGPT Business Pro lite since 2026-11-04 (plan_type self_serve_business_prolite): Codex reports ONE weekly window as primary (10080 min) with secondary null; Business Standard/Team rows had 5h primary + weekly secondary. Read every ubuntu-dev collector run from codex app-server (scripts/usage/codex-meter.mjs, runs/codex-usage.jsonl) and from the rollout logs; the page uses the weekly one, newest observation wins. Dot (Eric's ChatGPT agent; tasks via brain channel/to-dot) draws on this same allowance: one tile, two lanes, no separate Dot meter. Role: implementation (target:codex) and cross-model reviews; in normal load balancing. Shared with Dot. Never Honey Lake or Trellis/\u0112MA."
     },
     {
       "slug": "grok-ultra",
-      "name": "Grok Bot Ultra",
+      "name": "Grok/Cursor",
       "vendor": "xAI",
       "price_usd_month": null,
       "limit_kind": "percent",
@@ -71,7 +71,7 @@
       "limit_is_estimate": false,
       "reset_cadence": "weekly",
       "reset_anchor": null,
-      "notes": "One weekly Ultra pool shared by Grok Bot and Cursor cloud agents. No sanctioned usage API: Chief of Staff's automatic daily reading (grok.com usage page -> ai-usage/manual.jsonl, manual rows; resumed 2026-11-04) is the tile's feed, and a missing reading after 48h is flagged."
+      "notes": "One weekly Ultra pool shared by Grok Bot and Cursor cloud agents. No sanctioned usage API: Chief of Staff's automatic daily reading (grok.com usage page -> ai-usage/manual.jsonl, manual rows; resumed 2026-11-04) is the tile's feed, and a missing reading after 48h is flagged. Role: one weekly Ultra pool shared by Grok Bot (coordination) and Cursor cloud agents (default for repo coding, room under 85%). Never Honey Lake or Trellis."
     }
   ]
 }

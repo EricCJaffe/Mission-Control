@@ -227,7 +227,7 @@ test('Reverb Church placeholder: registered as a plan, but off as a routing targ
   const cap = JSON.parse(readFileSync(new URL('../../config/ai-usage-capacity.json', import.meta.url), 'utf8')).plans;
   const p = plans.find((x) => x.slug === 'claude-reverb');
   assert.ok(p, 'claude-reverb plan row');
-  assert.equal(p.name, 'Claude Team (Reverb Church)');
+  assert.equal(p.name, 'Claude Reverb Church');
   // Every plan key must be an ai_plans column (upload.mjs spreads the row into the upsert).
   assert.deepEqual(Object.keys(p).sort(), Object.keys(plans.find((x) => x.slug === 'claude-hlc')).sort());
   assert.equal(cap['claude-reverb'].overflow_target, false);
